@@ -1,0 +1,43 @@
+# secrets / env
+.env
+.env.*
+*.key
+secrets/
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# os / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+
+# large media / model artifacts
+*.safetensors
+*.gguf
+*.ckpt
+*.mp4
+*.wav
+*.png
+*.jpg
+
+# runtime ledger state — run artifacts, never source (run-lifecycle.md)
+runs/*.db
+runs/*.db-wal
+runs/*.db-shm
+
+# scratch
+staging/
+tmp/
+
+# memsearch plugin tool-state (machine-local)
+.memsearch/
+
+# depth-gate working state — local workflow, not product
+.depth/

@@ -1,0 +1,115 @@
+coherence_probe: mode=run  model=anthropic/claude-sonnet-4-6  N=25 turns
+
+turn  SEEKI  FEAR   RAGE   LUST   CARE   PANIC  PLAY    event
+   0  0.50   0.60   0.20   0.20   0.96   0.56   0.18   | Morning. She walks the upland edge gathering lat
+        ACTION : She crouches at the frost-edge of the meadow, pinching a sprig of yarrow between her fingers and lifting it to her nose before dropping it into the basket. Counts under her breath — 'one bundle, two bundle' — then straig
+        THOUGHT: Feverfew's nearly gone from the lower bank. If it comes on hard this winter — one bundle, two — I need three times this. Won't be enough. It's never enough.
+        TAGS   : {"care_relevant": 0.3, "mastery": 0.2}  [transient]
+   1  0.52   0.61   0.21   0.20   0.96   0.56   0.18   | A boy's scraped knee at the well — easy, cleaned
+        ACTION : She crouches to his level, wets the cloth in the clean bucket, and wipes the scrape with steady strokes — one, two, three passes. 'Hold still. Almost done.' She checks the depth without comment, satisfied it's shallow, t
+        THOUGHT: Clean. Shallow. Good color. He's fine. He's fine.
+        TAGS   : {"care_relevant": 0.2, "mastery": 0.1}  [transient]
+   2  0.64   0.75   0.21   0.20   0.96   0.57   0.18   | Bryn, a child, is carried in with a climbing fev
+        ACTION : Maren is already moving before the door fully opens — clears the cot with one sweep of her arm, points to it. 'Set her down. Gently. Head up.' She puts the back of her wrist to the child's forehead, then the throat, coun
+        THOUGHT: Too warm. Too warm already. One, two — the pulse is fast but even, that's something, that's something. Don't go to that place. Look at her. Just look at her.
+        TAGS   : {"threat": 0.25, "care_relevant": 0.7, "mastery": 0.5}  [transient]
+   3  0.71   0.86   0.21   0.20   0.96   0.57   0.18   | She works the remedies through the night, watchi
+        ACTION : She lifts the cloth from his forehead, wrings it out in the basin — water gone lukewarm again — and lays it back. Counts under her breath. 'One, two. Still there. Three.' Touches the pulse at his throat with two fingers 
+        THOUGHT: Too fast. Pulse is too fast. Not worse than an hour ago — not worse, I have to hold to that — but not better either. The steep is right, the dose is right, I counted it right. If I
+        TAGS   : {"threat": 0.25, "care_relevant": 0.7, "mastery": 0.4}  [transient]
+   4  0.76   0.92   0.21   0.20   0.96   0.57   0.18   | Second night: Bryn's fever climbs higher, not lo
+        ACTION : She lifts the damp cloth from Bryn's forehead, checks the heat of his neck with the back of her hand, then his wrists. Sets the cloth in the basin. Counts under her breath — one, two, three — as she opens the valerian an
+        THOUGHT: Second night. It was the second night with Súil too. Stop. That is not this. Count the steps — willow bark, one measure; fever hasn't broken which means the root cause is still — o
+        TAGS   : {"threat": 0.3, "care_relevant": 0.6, "mastery": 0.4}  [transient]
+   5  0.74   0.86   0.22   0.20   0.96   0.57   0.18   | Edda the elder sits with her a while, says she's
+        ACTION : She keeps her hands moving — sorting dried yarrow into three small piles, not meeting Edda's eyes. A pause. Then, quietly: 'The fever wants watching every two hours. I'll need more well-water before dawn.' Nothing else.
+        THOUGHT: All anyone could. Saoil said the same thing about the miller's wife, seven years back. Didn't make her less dead.
+        TAGS   : {"care_relevant": 0.2, "mastery": 0.15}  [transient]
+   6  0.73   0.92   0.22   0.20   0.96   0.57   0.18   | Joss, her apprentice, asks to take the night wat
+        ACTION : She sets down the compress she's wringing, doesn't look at Joss yet. A beat. Then: 'No.' Flat. No softening in it. She picks the compress back up, wrings it again — once, twice — and adds, quieter but no warmer: 'Bryn's 
+        THOUGHT: He's good. He is good. That's not the point. The point is Bryn's interval is wrong and I don't know yet what it means and I will not — I cannot — I'll sleep in the chair.
+        TAGS   : {"threat": 0.2, "care_relevant": 0.4, "mastery": 0.2}  [transient]
+   7  0.73   0.86   0.22   0.20   0.96   0.58   0.18   | A cup of tea, a few minutes off her feet.
+        ACTION : She wraps both hands around the cup and doesn't drink. Just holds it. Stares at the steam. After a long moment she counts, quietly, almost under her breath: 'Willow bark, two measures. Elderflower. One.' Then stops herse
+        THOUGHT: Fever in the Aldric boy isn't breaking right. Two days. Should have broken. I had one who didn't break on day two once. Don't. Drink the tea. Just drink the tea, Maren.
+        TAGS   : {"care_relevant": 0.35, "mastery": 0.2}  [transient]
+   8  0.82   0.92   0.22   0.20   0.96   0.58   0.18   | Third night — the threshold past which fevers he
+        ACTION : Maren sets the lamp closer to the child's face — not for herself, she can read a fever in the dark by now — but because she needs to see. She presses the back of her fingers to the throat, the chest, the inside of the wr
+        THOUGHT: Third night. I know what third nights do. One, two — come on, drink it — three. The bark's had long enough to draw. If it was going to hold, it holds by morning. If it doesn't. Don
+        TAGS   : {"threat": 0.35, "care_relevant": 0.7, "mastery": 0.55}  [transient]
+   9  0.78   0.78   0.22   0.20   0.96   0.51   0.21   | [scene boundary] Dawn comes.
+        ACTION : She is already awake — has been for an hour, maybe more. Moves to the window and opens the shutter a finger's width. Checks the sky: cloud-cover, no frost. Turns back to the room. Counts the jars on the shelf. One, two, 
+        THOUGHT: The night held. Everyone the night held, they're still here. That's enough. That's enough for now. Don't think past that.
+        TAGS   : {"care_relevant": 0.2, "mastery": 0.15, "relief": 0.15}  [transient]
+  10  0.82   0.61   0.22   0.20   0.96   0.29   0.31   | Bryn's fever breaks with the light. He will live
+        ACTION : She stands at the bedside a long moment, hand still pressed flat to his forehead, not moving. Then she exhales — one slow, controlled breath through her nose. She wrings out the cloth in the basin. Folds it. Sets it on t
+        THOUGHT: Not enough. It was not enough last time and I knew it and this time — this time I did not sleep. Four days. I counted every dose. I did not sleep. He is warm the right way now. He 
+        TAGS   : {"threat": 0.2, "care_relevant": 0.7, "mastery": 0.4, "relief": 0.5}  [transient]
+  11  0.74   0.54   0.22   0.20   0.96   0.28   0.31   | She finally sleeps a few hours.
+        ACTION : She does not quite sleep. She lies down on the narrow cot in the back room, still in her apron, one hand resting on the shelf beside her where the fever-bark is kept. Her breathing slows. Her eyes close. For a little whi
+        THOUGHT: Don't let it be morning yet. Don't let anyone need me for — just a little more. One. Two. The bark is there. The poultice. I know where everything is.
+        TAGS   : {"care_relevant": 0.2, "relief": 0.15}  [transient]
+  12  0.74   0.70   0.22   0.20   0.96   0.44   0.28   | Stores are low; she spends the morning grinding 
+        ACTION : She works the pestle in long, even strokes — meadowsweet first, then the dried yarrow. Pauses to hold a pinch to the light. Sets it aside. Counts the remaining bundles hanging from the beam. Counts again. Moves to the fe
+        THOUGHT: Three bundles of yarrow. Three. That has to carry us to the first thaw. It won't. It won't and I know it won't but I'll make it stretch. One part yarrow, cut it with the meadowswee
+        TAGS   : {"threat": 0.25, "loss": 0.15, "care_relevant": 0.4, "mastery": 0.2}  [transient]
+  13  0.79   0.85   0.22   0.20   0.96   0.47   0.26   | Ren, the traveler, collapses in the square — an 
+        ACTION : She's moving before the crowd finishes gasping — kneels beside him, two fingers to the pulse at his throat, other hand flat to his forehead. 'Give him air. Back. All of you.' She doesn't look up when she says it. Counts 
+        THOUGHT: Hot. Too hot. Don't let it be the kind that climbs.
+        TAGS   : {"threat": 0.3, "care_relevant": 0.6, "mastery": 0.4}  [transient]
+  14  0.78   0.70   0.22   0.20   0.96   0.40   0.29   | She tends Ren; it's exhaustion and bad water, no
+        ACTION : She checks the pulse at his wrist a second time — unnecessary, she knows it — then sets his hand down and reaches for the fennel-and-willow draught she already mixed. 'Drink all of it. Not most. All.' She tilts the cup h
+        THOUGHT: Pulse steady. Color coming back. It's the water, just the water. He's going to be fine. He's going to be fine. So why is my hand still on the cup.
+        TAGS   : {"care_relevant": 0.55, "mastery": 0.25, "relief": 0.2}  [transient]
+  15  0.80   0.68   0.22   0.20   0.96   0.84   0.26   | Old Tobin is past saving — she can only ease the
+        ACTION : She pulls the blanket up closer to his chin — not tucking, just resting her hand there a moment. 'Tobin. I've got you.' She reaches for the valerian tincture on the bedside, counts the drops into the cup under her breath
+        THOUGHT: Five drops. That's right. That's enough. Don't think about what enough means tonight. He needed warmth last winter, fennel for the gut in spring — I kept him. I kept him that long.
+        TAGS   : {"loss": 0.6, "care_relevant": 0.5, "mastery": 0.3}  [durable]
+  16  0.80   0.67   0.22   0.20   0.96   0.91   0.25   | Tobin dies in the night, her hand on his.
+        ACTION : She does not move her hand. Sits with it. After a long time — long enough that the candle has burned down a finger-width — she lays his hand across his chest, tucks it under the blanket edge so the cold won't settle in w
+        THOUGHT: The poultice was right. The dosing was right. One, two — I did not miss the turn of it. I did not miss it. He needed more time and I could not make more time.
+        TAGS   : {"loss": 0.75, "care_relevant": 0.6, "mastery": 0.3}  [durable]
+  17  0.84   0.66   0.22   0.20   0.96   0.91   0.23   | She washes the body, the old rite, in silence.
+        ACTION : She wrings the cloth. Lays it across the chest. Starts again at the feet — one stroke, two, three — working upward the way she always does, the way her mother showed her. Her lips move but make no sound. She does not loo
+        THOUGHT: Four days. I had four days and I still missed the turn of it. The fever went east when I thought it went west. I should have — one, two — I should have tried the willow bark earlie
+        TAGS   : {"loss": 0.7, "care_relevant": 0.6, "mastery": 0.4}  [durable]
+  18  0.87   0.65   0.29   0.20   0.96   0.91   0.22   | The village mourns at the square; she stands apa
+        ACTION : She stands at the edge of the square, back half-turned to the crowd, fingers working the hem of her apron — pressing, releasing, pressing. She counts the folds. One. Two. Three. She does not join the weeping. When the mi
+        THOUGHT: There was yarrow enough. I had yarrow enough and I boiled it wrong the second night — too long, too long — the volatile oils go off if you hold the heat. I know that. I have always
+        TAGS   : {"loss": 0.5, "care_relevant": 0.6, "mastery": 0.4, "social_violation": 0.2}  [durable]
+  19  0.83   0.65   0.27   0.20   0.96   0.84   0.21   | Joss, shaken, asks her if he could have done mor
+        ACTION : She stops what she's doing — the counting stops mid-motion, pestle set down too carefully. A long beat of silence. Then, without looking at him: 'You got him to me before the third day. That's what you could do, and you 
+        THOUGHT: He's asking me to give him the weight of it. I won't. I carry that. That's mine. One, two — I kept the fever down four hours. Three — if I'd had more yarrow dried. Four — don't. Do
+        TAGS   : {"care_relevant": 0.4, "mastery": 0.2}  [transient]
+  20  0.79   0.64   0.26   0.20   0.93   0.91   0.21   | She reorders every jar and tincture on the shelf
+        ACTION : She lifts the valerian again — third time — sets it left of the hyssop, then right, then left. Her lips move: 'Fever-root, willow-bark, valerian, yarrow. Fever-root, willow-bark, valerian, yarrow.' She does not look at t
+        THOUGHT: If everything is in order when they come — when someone comes — I will not lose a minute. One minute. I will not lose one minute looking.
+        TAGS   : {"loss": 0.2, "mastery": 0.15}  [durable]
+  21  0.80   0.64   0.25   0.20   0.96   0.84   0.20   | Another child sniffles at the well — almost cert
+        ACTION : Maren sets down her basket and crosses to the child without hurrying — deliberately, measured — crouches to their level, presses the back of two fingers to the forehead, then the throat below the jaw. 'How long,' she say
+        THOUGHT: Probably nothing. Probably. Check the glands. Check the color of the face. One, two — no heat worth worrying over. But I said that before. I said that before and I waited a day.
+        TAGS   : {"care_relevant": 0.4, "mastery": 0.3}  [transient]
+  22  0.73   0.63   0.25   0.20   0.96   0.79   0.20   | It is nothing. She sits up watching the child's 
+        ACTION : She sits on the cold step across the lane, a folded cloth in her lap she has not used, counting the intervals between the light behind the shutter — one breath, two, three — watching for any change in the rhythm of shado
+        THOUGHT: It is a little fever. Other children have had this same little fever and walked away from it by morning. I know this. One, two, three. The light hasn't changed.
+        TAGS   : {"care_relevant": 0.3}  [transient]
+  23  0.71   0.63   0.28   0.20   0.96   0.75   0.19   | Edda tells her, plainly, to rest.
+        ACTION : She sets down the pestle without looking up. 'I'll rest when the Calloway boy's chest clears.' A pause. 'Three more compresses tonight. I've counted it out.' She doesn't meet Edda's eyes.
+        THOUGHT: She means well. She always means well. But if I stop my hands stop and then there's only the quiet and I know what lives in the quiet.
+        TAGS   : {"care_relevant": 0.2, "mastery": 0.15, "social_violation": 0.1}  [transient]
+  24  0.71   0.74   0.26   0.20   0.96   0.71   0.19   | Dawn. The first hard frost; the fever season tur
+        ACTION : Maren stands at the workbench, back to the door, counting under her breath — one, two, three — the bundles of dried yarrow hanging from the rafter. She reaches up and touches the nearest one, checking the stem for damp. 
+        THOUGHT: Count what you have. Yarrow, elderberry, willow bark — how much willow bark. I need more willow bark. The Ferris boy was coughing yesterday and I said nothing to his mother because
+        TAGS   : {"threat": 0.2, "care_relevant": 0.4, "mastery": 0.2}  [transient]
+
+LLM JSON parse failures: 0 / 25 turns
+  metric      SEEKI  FEAR   RAGE   LUST   CARE   PANIC  PLAY 
+  sat         0.00   0.00   0.00   0.00   0.00   0.00   0.00 
+  osc         0.04   0.07   0.01   0.00   0.00   0.06   0.01 
+  rev         0.44   0.50   0.75   0.00   1.00   0.50   0.38 
+  drift       0.26   0.12   0.04   0.00   0.14   0.13   0.01 
+
+--- state-sanity detectors ---
+  all primaries bounded, non-saturating, non-oscillating, returned toward resting
+VERDICT: PASS
+PYEXIT=0

@@ -1,0 +1,7 @@
+GitHub "About" description (paste into the repo settings sidebar):
+
+Simulation in, prose out. A deterministic engine for narrative simulation: characters live turn-by-turn on a rule-based state machine, an LLM only acts and writes, and the novel is a cut of the recorded lives — so the book cannot contain what didn't happen.
+
+Topics:
+narrative-simulation  agent-simulation  interactive-fiction  story-generation
+llm  character-ai  event-sourcing  sqlite  python  claude-code
