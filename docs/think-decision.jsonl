@@ -1,1 +1,0 @@
-{"think_on": {"empty": "0/12", "avg_lat": 46.4, "total_s": 556, "type_dist": {"care": 11, "affront": 1}, "care_relevant": 0.82, "social_violation": 0.4, "loss": 0.3}, "think_off": {"empty": "0/12", "avg_lat": 7.5, "total_s": 90, "type_dist": {"care": 12}, "care_relevant": 0.9, "social_violation": 0.47, "loss": 0.37}}

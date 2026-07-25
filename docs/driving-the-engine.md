@@ -56,7 +56,7 @@ Levers split into three measurement classes:
 **Deliverable per lever:** what it moves (measured) · what it does NOT (falsified) · dose curve where applicable · leave-alone caveat · the recipe line ("want X → pull Y to Z").
 
 ## FINDINGS — the definitive lever table
-*(model gemma4:26b-a4b, family-dinner scene class; K=6 / EXP-0 K=12; temp 0.7, seeds 0..K-1; raw in `exp-results.jsonl`)*
+*(model gemma4:26b-a4b, family-dinner scene class; K=6 / EXP-0 K=12; temp 0.7, seeds 0..K-1; raw records are written to `docs/exp-results.jsonl` by `scripts/exp.py`, not committed)*
 
 > **Temperature caveat (2026-06-12).** This battery ran at **temp 0.7 — off-spec.** Gemma 4 is tuned for **temp 1.0** (top_p 0.95, top_k 64; the model ships with these defaults). The off-spec temp inflated empty rates: EXP-0 showed 2/12 empties at 0.7, but a clean re-measure at temp 1.0 on the same prompt gave **0/12 (both thinking on and off)**. Lever *directions* hold (relative A/B within one temp); *absolute* empty rates do not — re-run at temp 1.0 for production figures.
 
