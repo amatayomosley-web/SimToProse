@@ -2,6 +2,34 @@
 
 Simulate worlds, record them, and write books from the lives inside them.
 
+## Start here
+
+**Writing a book?** [`docs/authoring/START-HERE.md`](docs/authoring/START-HERE.md) — then the three
+hand-fillable blueprints for a world, a character, and a scene. They are written for a writer, not a
+programmer, and every field carries a citation to the code that reads it.
+
+**Working on the engine?** [`docs/MAP.md`](docs/MAP.md) — the routing table for 60+ design docs,
+27 engine modules and 48 test suites.
+
+**Verify a checkout:**
+
+```bash
+python tests/run_all.py            # every suite, discovered not listed
+python tests/coherence_probe.py --stub      # detectors PASS
+python tests/coherence_probe.py --corrupt   # MUST print FAIL - the control proves the detectors
+```
+
+## Licence
+
+Apache-2.0 — see [`LICENSE`](LICENSE). You may use, modify, and ship this commercially.
+
+[`NOTICE`](NOTICE) carries the attribution the licence requires for derivative works, and one
+thing it makes clear is worth repeating here: **a novel written with this engine is not a
+derivative work of it, and nothing obliges you to credit this project in your book.** That is
+deliberate. But if a work of yours was simulated or planned with it, we would like it named — an
+acknowledgements line, a colophon, an About screen. A request, never a condition.
+
+
 ## What it is
 A pipeline that (1) defines a **grounded world** (laws, religion, economy, geography, factions, rules), (2) populates it with **characters** who have deep backstories, goals, values, and flaws, then (3) **simulates** what those characters do when circumstances are placed in front of them — and renders the recorded results into prose.
 

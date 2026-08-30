@@ -1,16 +1,23 @@
-# simulated-world-evolve — a working instance of SimToProse
+# SimToProse — simulate a world, record it, write the book
 
 Simulates characters' lives turn-by-turn on a deterministic engine; an LLM acts only where no
 script can (being the person, choosing). The recorded chronicle becomes novels downstream.
 
-**This repo is an INSTANCE, not the template.** The public template is
-[SimToProse](https://github.com/amatayomosley-web/SimToProse) — bookless by design, so anyone can
-clone it and build their own. *This* is the author's build: the same engine plus a real book, real
-runs, and machine-local configuration. **It is supposed to diverge from the template** — that is
-what an instance is. Engine improvements worth sharing get upstreamed deliberately (run the
-private-content sweep first); everything book-shaped stays here and never goes back. Two
-layers, one repo: the engine (below) stands alone; an optional agent overlay (`.claude/`) settles
-on top for Claude Code users — see **Modes** and **The agent layer**, below.
+**This repo is the TEMPLATE, and it is bookless by design.** Clone it, point `SWE_BOOKS` at a
+folder of your own, and author your world there. Your books never live in this tree — that is a
+hard rule with a guard behind it (`tests/test_no_private_content.py`), and it is the rule that
+keeps a public engine publishable while its author's novels stay private. What ships here is the
+engine, the tests, the design docs, and the authoring blueprints; `characters/` and `world/` hold
+INVENTED ENGINE FIXTURES only, reached with `--fixture`, never `--book`.
+
+**Start at [`docs/authoring/START-HERE.md`](docs/authoring/START-HERE.md)** if you want to write a
+book. Start at `docs/MAP.md` if you want to work on the engine.
+
+**Licence: Apache-2.0** (`LICENSE`). Please read `NOTICE` — it carries a request, expressly not a
+licence condition, that works written with this engine name it somewhere.
+
+Two layers, one repo: the engine (below) stands alone; an optional agent overlay (`.claude/`)
+settles on top for Claude Code users — see **Modes** and **The agent layer**, below.
 
 ## Guides (load on demand — this file stays thin)
 
