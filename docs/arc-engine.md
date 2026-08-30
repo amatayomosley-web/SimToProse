@@ -37,8 +37,13 @@ a beat the validator refused, and until 2026-08-30 that refusal silently discard
 appraisal. No consumer ever distinguished the three: `acquisition` and `cut` call
 `consolidation.is_durable`, `arc.assess` tests `== "durable"`), refined upward by core-relevance at
 a hinge. **Note also that the code takes durability from the ACTOR'S SELF-REPORT, not from the
-catalog row this paragraph describes** — `CATALOG[type]["durability_class"]` currently has no
-reader. That fork is open, not decided. Numeric mapping is Class-B calibration; the *source* is the catalog, not a per-event author.
+catalog row this paragraph describes.** RESOLVED 2026-08-30: the fork is closed and the actor keeps
+the label. `CATALOG[type]["durability_class"]` has been REMOVED rather than wired — for the six
+durable-class types (`loss`, `harm`, `seize`, `destroy-asset`, `betray`, `bond`) a catalog default
+would turn an omitted field into an engine-asserted permanent baseline change and a vault belief,
+from a claim the actor never made. `consolidation-loop.md` Principle 1: the doer labels the deed.
+The paragraph above describes a design that was never built; it is kept for the reasoning, not as a
+description of the code. Numeric mapping is Class-B calibration; the *source* is the catalog, not a per-event author.
 - **`resilience`** — **DERIVED at read time, never stored** (`character-schema.md` DERIVED row): composed from four already-stored fields — `effortful_control` (genotype axis) × **attachment-security** (relationship priors + presence of a current secure bond, `relationships.md`) × **current condition** (high allostatic load depletes it, `relevancy-gate.md` energy state) × **meaning-frame availability** (does the Model give this event-class a coherent place — the meaning-making term, `values-and-stakes.md`). Combination form is Class-B calibration; the fields are these four. Open-Q 1 below narrows to the numeric form only.
 
 ## Same event, damage OR growth — by resilience (the fork)

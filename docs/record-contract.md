@@ -25,10 +25,10 @@ event_type:
                        #   relationship-act | destroy-asset | seize | move | dialogue-act:* | …
   appraisal_map        # → which appraisal dimensions fire, against which menu items (state-engine)
   world_map            # → which snapshot fields move: tension temps, holdings, dispositions (world-dynamics)
-  durability_class     # transient | durable  (CORRECTED 2026-08-30: read 'transient | marking |
-                       # reshaping', a vocabulary consolidation._VALID_DURABILITY has never
-                       # accepted. NOTE this column has NO READER — durability comes from the
-                       # actor's self-report, not from the catalog row. The fork is open.)
+                       # durability_class was REMOVED 2026-08-30. It had no reader, and wiring it
+                       # would have made the engine assert permanence the actor never claimed
+                       # (consolidation-loop.md Principle 1). Durability comes from the actor's
+                       # self-report and is exactly transient | durable.
   visibility           # public (witnessable) | private-to-actor (thought-adjacent)
 ```
 The audit's worked finding — "burning a granary has no event type" — is the catalog's test: the physical/asset family (`destroy-asset`, `seize`) sits beside the interpersonal verbs. **Completeness is empirical:** the catalog grows when consolidation's containment check meets an act it cannot tag (reject → extend → revalidate), the same way the bible grows from the sim.

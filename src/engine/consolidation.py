@@ -6,7 +6,7 @@ Contracts:
   consolidation-loop.md   — Principle 3 (typed schema), pipeline (schema-conformance /
                             containment / capability), open-q 2 RESOLVED (composite conf).
   record-contract.md      — event_type catalog shape {appraisal_map, world_map,
-                            durability_class, visibility}.
+                            visibility}.
   state.py _DIM_TO_PRIMARY — the known appraisal dimension vocabulary.
   ledger.py _project       — fold types that need catalog rows.
   gate.py / scene.py       — Percept shape {ref, channel, fidelity, attributes,
@@ -180,7 +180,6 @@ THETA_CONF = 0.45   # Class-B, probe-calibrated start.
 #                               (other dims soft-flag as type-mismatch)
 #   world_map      str        — snapshot fields moved by fold (ledger._project),
 #                               or "none" for appraisal-only types
-#   durability_class str      — default durability ("transient"|"durable")
 #   visibility     str        — "public" | "private-to-actor"
 #   capability_req dict|None  — {skill: str, min: float} optional; None = no req
 #
@@ -200,7 +199,6 @@ CATALOG = {
         # `attraction` here: desire most often surfaces in an ORDINARY moment, not a dramatic one.
         "appraisal_map":   ["mastery", "relief", "attraction"],
         "world_map":       "none",
-        "durability_class": "transient",
         "visibility":      "public",
         "capability_req":  None,
     },
@@ -209,7 +207,6 @@ CATALOG = {
         # A care-relevant act or outcome (aid to another, recovery, protection). [probe] [loop]
         "appraisal_map":   ["care_relevant", "relief", "mastery"],
         "world_map":       "none",
-        "durability_class": "transient",
         "visibility":      "public",
         "capability_req":  None,
     },
@@ -218,7 +215,6 @@ CATALOG = {
         # A loss event — death, permanent departure, irreversible damage. [probe] [ledger] [contract]
         "appraisal_map":   ["loss", "care_relevant", "social_violation"],
         "world_map":       "none",
-        "durability_class": "durable",
         "visibility":      "public",
         "capability_req":  None,
     },
@@ -227,7 +223,6 @@ CATALOG = {
         # An externally sourced threat — danger, urgency, physical risk. [probe] [ledger] [loop]
         "appraisal_map":   ["threat", "care_relevant", "loss"],
         "world_map":       "none",
-        "durability_class": "transient",
         "visibility":      "public",
         "capability_req":  None,
     },
@@ -238,7 +233,6 @@ CATALOG = {
         # Actor helps another. care_relevant is primary; mastery fires (skill execution); [loop] [contract]
         "appraisal_map":   ["care_relevant", "mastery", "relief"],
         "world_map":       "none",      # pure appraisal; fold effect surfaces via bond/harm resolution
-        "durability_class": "transient",
         "visibility":      "public",
         "capability_req":  None,        # kept minimal — any character can attempt aid
     },
@@ -251,7 +245,6 @@ CATALOG = {
         # (navigating a slight with composure is itself a mastery act, the cutting-but-composed reply).
         "appraisal_map":   ["social_violation", "threat", "mastery"],
         "world_map":       "none",      # pure appraisal -> actor-taggable; erosion rides appraisal/arc, not a fold
-        "durability_class": "transient",
         "visibility":      "public",
         "capability_req":  None,
     },
@@ -260,7 +253,6 @@ CATALOG = {
         # Actor issues a threat to another. threat + social_violation are primary; [loop] [contract]
         "appraisal_map":   ["threat", "social_violation", "mastery"],
         "world_map":       "tensions",  # a threat raises scene tension (world-dynamics)
-        "durability_class": "transient",
         "visibility":      "public",
         "capability_req":  {"skill": "combat", "min": 0.20},
         # Rationale: threatening in a way that lands requires at least minimal capability signal.
@@ -272,7 +264,6 @@ CATALOG = {
         # Actor moves to a new location. ledger._project: agents[actor]["location"] = to. [actor] [ledger] [contract]
         "appraisal_map":   ["mastery", "threat"],   # threat fires if moving toward danger
         "world_map":       "agents.location",
-        "durability_class": "transient",
         "visibility":      "public",
         "capability_req":  None,
     },
@@ -281,7 +272,6 @@ CATALOG = {
         # Actor harms a target (non-terminal or terminal). [ledger] [contract] [loop]
         "appraisal_map":   ["social_violation", "threat", "loss", "care_relevant"],
         "world_map":       "agents.life_status (terminal only)",
-        "durability_class": "durable",
         "visibility":      "public",
         "capability_req":  {"skill": "combat", "min": 0.30},
         # Rationale: harming requires physical capability. Min 0.30 — a low-combat actor flags,
@@ -291,7 +281,6 @@ CATALOG = {
         # Actor discloses a fact to others. [fact] [ledger] [contract]
         "appraisal_map":   ["social_violation", "mastery", "care_relevant"],
         "world_map":       "information",
-        "durability_class": "transient",
         "visibility":      "public",
         "capability_req":  None,
     },
@@ -300,7 +289,6 @@ CATALOG = {
         # Actor takes control of an asset. [asset] [ledger] [contract]
         "appraisal_map":   ["mastery", "social_violation", "threat"],
         "world_map":       "holdings",
-        "durability_class": "durable",
         "visibility":      "public",
         "capability_req":  None,
     },
@@ -309,7 +297,6 @@ CATALOG = {
         # Actor destroys an asset permanently. [asset] [ledger] [contract]
         "appraisal_map":   ["loss", "social_violation", "threat"],
         "world_map":       "holdings",
-        "durability_class": "durable",
         "visibility":      "public",
         "capability_req":  None,
     },
@@ -318,7 +305,6 @@ CATALOG = {
         # Actor betrays a relationship. [pair] [ledger] [contract] [loop]
         "appraisal_map":   ["social_violation", "loss", "threat"],
         "world_map":       "relationships",
-        "durability_class": "durable",
         "visibility":      "public",
         "capability_req":  None,
     },
@@ -330,7 +316,6 @@ CATALOG = {
         # dimension the engine hands out on threat events.
         "appraisal_map":   ["care_relevant", "relief", "mastery", "attraction"],
         "world_map":       "relationships",
-        "durability_class": "durable",
         "visibility":      "public",
         "capability_req":  None,
     },
@@ -339,7 +324,6 @@ CATALOG = {
         # A world-tension event — faction conflict, political pressure, environmental stress. [name] [ledger] [contract]
         "appraisal_map":   ["threat", "social_violation", "loss"],
         "world_map":       "tensions",
-        "durability_class": "transient",
         "visibility":      "public",
         "capability_req":  None,
     },
@@ -350,7 +334,6 @@ CATALOG = {
         # ledger.record_turn_skipped: no action produced; the scene-record must say so. [ledger]
         "appraisal_map":   [],
         "world_map":       "none",
-        "durability_class": "transient",
         "visibility":      "public",
         "capability_req":  None,
     },
@@ -359,7 +342,6 @@ CATALOG = {
         # Compensating event (consolidation-loop.md open-q 3 DESIGNED): append-only [loop-oq3]
         "appraisal_map":   ["social_violation", "relief"],
         "world_map":       "none",      # inverse delta applied by fold, not a direct world-map
-        "durability_class": "transient",
         "visibility":      "private-to-actor",
         "capability_req":  None,
     },

@@ -52,17 +52,19 @@ def check(name, cond, detail=""):
 
 # Keys that are DECLARED and genuinely have no reader, each with the decision that left it so.
 # An entry here is a debt with a name and an owner, not an excuse. Retire it by wiring the key.
+# RETIRED 2026-08-30: `durability_class`. It carried a per-type default durability on all 17
+# CATALOG rows and was read by nothing since the day it was written. Wiring it was the alternative
+# and it was rejected: for the six durable-class types it would turn an omitted field into an
+# ENGINE-ASSERTED permanent baseline change plus a vault belief, from a claim the actor never made
+# — the same reasoning that made TAG_DURABILITY_MISSING a refusal rather than a silent default,
+# one layer up. consolidation-loop.md Principle 1: the doer labels the deed. The design that
+# described it is in git history and in the corrected docs/arc-engine.md note.
+#
 # NOTE, because this list was wrong once already: `world_map` was on it, on the strength of a grep
 # that excluded consolidation.py. It is READ, at consolidation.py:377, to derive ACTOR_TAG_TYPES.
 # The guard caught that the moment it stopped excluding the declaring module. An exemption asserted
 # from a partial sweep is the same defect as the one being exempted.
 _KNOWN_UNREAD = {
-    "durability_class":
-        "docs/arc-engine.md describes durability as a CATALOG class default, but the code takes it "
-        "from the ACTOR's self-report instead. That fork is open and is the owner's to decide: "
-        "wire this column and durability stops being the actor's claim, which consolidation-loop.md "
-        "Principle 1 (the doer labels the deed) argues against. Corrected in the docs 2026-08-30; "
-        "the column is left declared and unread DELIBERATELY, pending that decision.",
     "visibility":
         "CATALOG carries a per-type visibility (including 'private-to-actor' on correction) that is "
         "never copied onto a produced Event — every producer takes records.py's 'public' default, "
