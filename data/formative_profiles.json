@@ -1,0 +1,3507 @@
+[
+  {
+    "id": "fire_survival_acute",
+    "category": "physical_trauma",
+    "name": "Surviving a Severe Fire",
+    "description": "Near-fatal entrapment in a structural or brush fire",
+    "baseline_diffs": {
+      "FEAR": 0.1,
+      "emotionality": 0.08,
+      "security": 0.15,
+      "default_trust": -0.05
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "fire",
+            "smoke",
+            "blaze",
+            "burning",
+            "trapped"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 2.2,
+        "source": "wound:fire_survival_acute"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "uncontrolled fire spreads faster than a person can run; enclosed spaces become kilns",
+        "confidence": 0.95,
+        "provenance": "formative:fire_survival"
+      }
+    ]
+  },
+  {
+    "id": "shipwreck_drowning",
+    "category": "physical_trauma",
+    "name": "Shipwreck & Near-Drowning",
+    "description": "Surviving vessel breakup and hypothermic immersion",
+    "baseline_diffs": {
+      "FEAR": 0.08,
+      "autonomy": 0.1,
+      "security": 0.12,
+      "stimulation": -0.1
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "deep water",
+            "storm",
+            "sinking",
+            "drowning",
+            "hull breach"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 2.0,
+        "source": "wound:shipwreck_drowning"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "the deep water cares nothing for skill or lineage; a ship is merely a floating coffin",
+        "confidence": 0.9,
+        "provenance": "formative:shipwreck"
+      }
+    ]
+  },
+  {
+    "id": "predator_mauling",
+    "category": "physical_trauma",
+    "name": "Predator Attack Survivor",
+    "description": "Surviving severe injury by an apex beast or venomous stalker",
+    "baseline_diffs": {
+      "FEAR": 0.12,
+      "perception": 0.15,
+      "security": 0.15,
+      "PLAY": -0.1
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "beast",
+            "fangs",
+            "predator",
+            "stalking",
+            "growl",
+            "spider"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 2.2,
+        "source": "wound:predator_mauling"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "the silence in the brush precedes the strike; you are prey the moment you drop your guard",
+        "confidence": 0.95,
+        "provenance": "formative:predator_attack"
+      }
+    ]
+  },
+  {
+    "id": "childhood_famine",
+    "category": "scarcity_deprivation",
+    "name": "Childhood Famine Survivor",
+    "description": "Prolonged seasonal starvation and rationing in early youth",
+    "baseline_diffs": {
+      "security": 0.2,
+      "hedonism": -0.15,
+      "conscientiousness": 0.1,
+      "default_trust": -0.1
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "wasted food",
+            "starvation",
+            "empty storehouse",
+            "spoiled grain"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 1.7,
+        "source": "wound:childhood_famine"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "winter spares no one who ate their seed grain; surplus disappears in three bad weeks",
+        "confidence": 0.95,
+        "provenance": "formative:childhood_famine"
+      }
+    ]
+  },
+  {
+    "id": "street_urchin",
+    "category": "scarcity_deprivation",
+    "name": "Gutter / Street Urchin",
+    "description": "Raised in city alleyways, surviving by theft, stealth, and vigilance",
+    "baseline_diffs": {
+      "honesty_humility": -0.15,
+      "default_trust": -0.25,
+      "perception": 0.15,
+      "autonomy": 0.15,
+      "conformity": -0.2
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "watchman",
+            "patrol",
+            "constable",
+            "irons",
+            "arrest"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 1.6,
+        "source": "wound:street_urchin"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "the law belongs to men who eat three meals a day; an open purse is an invitation",
+        "confidence": 0.9,
+        "provenance": "formative:street_urchin"
+      }
+    ]
+  },
+  {
+    "id": "siege_rationing",
+    "category": "scarcity_deprivation",
+    "name": "Siege Rationing & Blockade",
+    "description": "Confinement within a besieged stronghold under extreme rationing",
+    "baseline_diffs": {
+      "loyalty": 0.15,
+      "security": 0.2,
+      "PANIC_GRIEF": 0.1,
+      "stimulation": -0.15
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "closed gates",
+            "siege engine",
+            "blockade",
+            "cut supply"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 1.8,
+        "source": "wound:siege_rationing"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "when the gates bar shut, friends turn on friends over half a loaf; walls keep you in as much as out",
+        "confidence": 0.9,
+        "provenance": "formative:siege_survivor"
+      }
+    ]
+  },
+  {
+    "id": "lighthouse_isolation",
+    "category": "social_isolation",
+    "name": "Lighthouse / Island Hermitage",
+    "description": "Reared in extreme geographical isolation with taciturn or absent elders",
+    "baseline_diffs": {
+      "extraversion": -0.25,
+      "relatedness": -0.2,
+      "PLAY": -0.15,
+      "autonomy": 0.2,
+      "conscientiousness": 0.1
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "crowd",
+            "mob",
+            "marketplace",
+            "brawling crowd"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 1.5,
+        "source": "wound:isolation_sensory"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "silence is honest; words in a crowded room are mostly noise meant to hide intentions",
+        "confidence": 0.9,
+        "provenance": "formative:lighthouse_isolation"
+      }
+    ]
+  },
+  {
+    "id": "solitary_confinement",
+    "category": "social_isolation",
+    "name": "Punitive Solitary Confinement",
+    "description": "Prolonged punitive isolation in dark cell without sensory stimulus",
+    "baseline_diffs": {
+      "PANIC_GRIEF": 0.15,
+      "emotionality": 0.15,
+      "liberty": 0.25,
+      "default_trust": -0.2
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "locked cell",
+            "shackles",
+            "iron door",
+            "cage",
+            "barred"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 2.4,
+        "source": "wound:solitary_trauma"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "a locked iron door takes your mind before your body; never let them put chains on your wrists",
+        "confidence": 0.95,
+        "provenance": "formative:prison_confinement"
+      }
+    ]
+  },
+  {
+    "id": "wilderness_rearing",
+    "category": "social_isolation",
+    "name": "Feral Wilderness Marginality",
+    "description": "Raised in harsh frontier wildland without formal schooling or civic norms",
+    "baseline_diffs": {
+      "conformity": -0.25,
+      "tradition": -0.2,
+      "perception": 0.2,
+      "autonomy": 0.25,
+      "honesty_humility": 0.05
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "court protocol",
+            "bureaucracy",
+            "tax collector",
+            "edict"
+          ]
+        },
+        "lever": "RAGE",
+        "op": "x",
+        "magnitude": 1.6,
+        "source": "wound:anti_civic_instinct"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "nature gives what you can take and kills what cannot defend itself; towns are soft traps for sheep",
+        "confidence": 0.9,
+        "provenance": "formative:wilderness_life"
+      }
+    ]
+  },
+  {
+    "id": "family_disownment",
+    "category": "relational_betrayal",
+    "name": "Hereditary Disownment & Exile",
+    "description": "Publicly cast out by family or clan for ideological or romantic defiance",
+    "baseline_diffs": {
+      "loyalty": -0.2,
+      "default_trust": -0.2,
+      "PANIC_GRIEF": 0.12,
+      "autonomy": 0.2,
+      "self_direction": 0.15
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "clan elder",
+            "family seal",
+            "disownment",
+            "ancestral hall"
+          ]
+        },
+        "lever": "RAGE",
+        "op": "x",
+        "magnitude": 1.8,
+        "source": "wound:family_betrayal"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "blood ties are contract paper that family tears up the moment you embarrass their standing",
+        "confidence": 0.95,
+        "provenance": "formative:family_exile"
+      }
+    ]
+  },
+  {
+    "id": "commercial_betrayal",
+    "category": "relational_betrayal",
+    "name": "Commercial Ruin by Partner",
+    "description": "Embezzled and left to face creditor penalties by trusted partner",
+    "baseline_diffs": {
+      "default_trust": -0.3,
+      "conscientiousness": 0.15,
+      "fairness": 0.2,
+      "benevolence": -0.1
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "unwritten deal",
+            "handshake agreement",
+            "trust me",
+            "informal debt"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 1.7,
+        "source": "wound:commercial_mistrust"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "a friend's smile is the easiest way to lose a ledger; if not written in ink and wax, it does not exist",
+        "confidence": 0.95,
+        "provenance": "formative:partner_embezzlement"
+      }
+    ]
+  },
+  {
+    "id": "mentor_scapegoating",
+    "category": "relational_betrayal",
+    "name": "Mentor Scapegoat Victim",
+    "description": "Framed by trusted master or tutor for capital or ecclesiastical crimes",
+    "baseline_diffs": {
+      "authority": -0.25,
+      "default_trust": -0.25,
+      "insight": 0.15,
+      "RAGE": 0.1
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "venerable master",
+            "revered mentor",
+            "paternal advice"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 1.6,
+        "source": "wound:mentor_betrayal"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "the master who teaches you the craft also knows which fault to blame on you when the furnace cracks",
+        "confidence": 0.95,
+        "provenance": "formative:mentor_framing"
+      }
+    ]
+  },
+  {
+    "id": "levied_conscript",
+    "category": "violence_conflict",
+    "name": "Levied Conscript Veteran",
+    "description": "Forcibly impressed into military baggage trains and shield walls as youth",
+    "baseline_diffs": {
+      "conformity": 0.15,
+      "FEAR": 0.1,
+      "combat": 0.2,
+      "liberty": -0.15,
+      "emotionality": -0.1
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "drum beat",
+            "marching column",
+            "conscription officer",
+            "muster"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 1.7,
+        "source": "wound:conscription_echo"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "officers ride horses while conscripts walk in mud; the pike wall holds only as long as men fear running more than dying",
+        "confidence": 0.9,
+        "provenance": "formative:conscript_levy"
+      }
+    ]
+  },
+  {
+    "id": "sacked_settlement",
+    "category": "violence_conflict",
+    "name": "Sacked Town / Raid Survivor",
+    "description": "Witnessed civilian massacre and indiscriminate arson during border raid",
+    "baseline_diffs": {
+      "FEAR": 0.15,
+      "PANIC_GRIEF": 0.15,
+      "security": 0.25,
+      "PLAY": -0.15,
+      "default_trust": -0.2
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "war cry",
+            "screaming crowd",
+            "plunder",
+            "torchlight raid",
+            "mercenary"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 2.3,
+        "source": "wound:sacked_town"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "when armed men enter a defenseless street, mercy is nonexistent; you survive by hiding under dead floorboards",
+        "confidence": 0.95,
+        "provenance": "formative:settlement_sack"
+      }
+    ]
+  },
+  {
+    "id": "hostage_ward",
+    "category": "violence_conflict",
+    "name": "Hostage Ward Under Truce",
+    "description": "Surrendered as surety child to rival faction under tenuous peace terms",
+    "baseline_diffs": {
+      "insight": 0.2,
+      "emotionality": -0.1,
+      "loyalty": -0.15,
+      "security": 0.15,
+      "honesty_humility": -0.1
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "broken truce",
+            "hostage execution",
+            "treaty renegotiation"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 2.0,
+        "source": "wound:hostage_peril"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "you live in high halls as a guest only so long as your father does not march his banners; courtesy is an executioner holding his blade",
+        "confidence": 0.95,
+        "provenance": "formative:hostage_ward"
+      }
+    ]
+  },
+  {
+    "id": "guild_apprentice",
+    "category": "vocation_discipline",
+    "name": "Indentured Guild Apprentice",
+    "description": "Seven years bound to craftmaster with harsh standards and physical correction",
+    "baseline_diffs": {
+      "conscientiousness": 0.25,
+      "competence": 0.2,
+      "achievement": 0.15,
+      "authority": 0.1,
+      "hedonism": -0.15
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "shoddy work",
+            "flawed joinery",
+            "lazy craftsman",
+            "wasted metal"
+          ]
+        },
+        "lever": "RAGE",
+        "op": "x",
+        "magnitude": 1.5,
+        "source": "wound:craft_perfectionism"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "a flawed weld or mismeasured joint ruins a year of labor; precision is the only barrier between craft and garbage",
+        "confidence": 0.95,
+        "provenance": "formative:guild_apprentice"
+      }
+    ]
+  },
+  {
+    "id": "ledger_clerk_audit",
+    "category": "vocation_discipline",
+    "name": "Ledger Clerk / Scribe",
+    "description": "Years spent auditing debts, inventories, and shipping manifests",
+    "baseline_diffs": {
+      "conscientiousness": 0.2,
+      "fairness": 0.15,
+      "openness": -0.1,
+      "stimulation": -0.15,
+      "conformity": 0.15
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "missing coin",
+            "balanced ledger",
+            "audit discrepancy",
+            "unaccounted goods"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 1.4,
+        "source": "wound:audit_anxiety"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "empires fall on misplaced copper entries; what is written in the column outlives the merchant who spent it",
+        "confidence": 0.9,
+        "provenance": "formative:clerk_audit"
+      }
+    ]
+  },
+  {
+    "id": "monastic_scribe",
+    "category": "vocation_discipline",
+    "name": "Monastic Scriptorium Ward",
+    "description": "Silent manuscript illuminator trained in rigid ascetic liturgical regime",
+    "baseline_diffs": {
+      "tradition": 0.25,
+      "sanctity": 0.2,
+      "extraversion": -0.2,
+      "hedonism": -0.25,
+      "conscientiousness": 0.15
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "defiled scripture",
+            "sacrilege",
+            "burned book",
+            "torn parchment"
+          ]
+        },
+        "lever": "RAGE",
+        "op": "x",
+        "magnitude": 1.8,
+        "source": "wound:sacred_text_defense"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "the holy word copied without error shields the soul from worldly rot; ink is prayer rendered tangible",
+        "confidence": 0.95,
+        "provenance": "formative:scriptorium_life"
+      }
+    ]
+  },
+  {
+    "id": "palace_ward",
+    "category": "privilege_intrigue",
+    "name": "Imperial Palace Ward",
+    "description": "Reared amidst lethal court flattery, poisoned banquets, and faction politics",
+    "baseline_diffs": {
+      "insight": 0.25,
+      "honesty_humility": -0.2,
+      "power": 0.2,
+      "default_trust": -0.3,
+      "emotionality": -0.15
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "unsolicited gift",
+            "honeyed compliment",
+            "royal banquet",
+            "private audience"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 1.8,
+        "source": "wound:court_paranoia"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "in the palace, a direct question is a trap and a lavish gift is a summons to execution; never reveal what you love",
+        "confidence": 0.95,
+        "provenance": "formative:court_politics"
+      }
+    ]
+  },
+  {
+    "id": "dynastic_pawn",
+    "category": "privilege_intrigue",
+    "name": "Dynastic Marriage Pawn",
+    "description": "Trained solely as an alliance asset, commodified by house elders",
+    "baseline_diffs": {
+      "autonomy": -0.25,
+      "conformity": 0.2,
+      "PANIC_GRIEF": 0.1,
+      "loyalty": 0.15,
+      "self_direction": -0.2
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "marriage contract",
+            "dowry negotiation",
+            "family alliance",
+            "betrothal"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 2.0,
+        "source": "wound:dynastic_coercion"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "your personal desires are treason against the lineage; you belong to whoever signs the marriage treaty",
+        "confidence": 0.9,
+        "provenance": "formative:dynastic_pawn"
+      }
+    ]
+  },
+  {
+    "id": "disgraced_exile",
+    "category": "privilege_intrigue",
+    "name": "Disgraced Aristocrat in Exile",
+    "description": "Born to high nobility, stripped of titles, forced into penniless common life",
+    "baseline_diffs": {
+      "power": 0.25,
+      "RAGE": 0.15,
+      "agreeableness": -0.15,
+      "tradition": 0.15,
+      "autonomy": 0.1
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "usurper",
+            "heraldic crest",
+            "insolent commoner",
+            "confiscated estate"
+          ]
+        },
+        "lever": "RAGE",
+        "op": "x",
+        "magnitude": 1.9,
+        "source": "wound:exiled_pride"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "the mob bows to whatever thief currently wears the coronet; our birthright remains ours no matter what paper they burn",
+        "confidence": 0.95,
+        "provenance": "formative:disgraced_exile"
+      }
+    ]
+  },
+  {
+    "id": "temple_inquisition",
+    "category": "spiritual_institutional",
+    "name": "Inquisitorial Temple Acolyte",
+    "description": "Reared in doctrinal purge trials, confession extraction, and vigilance",
+    "baseline_diffs": {
+      "sanctity": 0.3,
+      "authority": 0.25,
+      "default_trust": -0.25,
+      "benevolence": -0.15,
+      "insight": 0.15
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "heresy",
+            "blasphemy",
+            "forbidden relic",
+            "witchcraft",
+            "apostate"
+          ]
+        },
+        "lever": "RAGE",
+        "op": "x",
+        "magnitude": 2.2,
+        "source": "wound:heresy_wrath"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "pity for a heretic is complicity in their damnation; the rot hides behind the pleasantest faces",
+        "confidence": 0.95,
+        "provenance": "formative:temple_inquisition"
+      }
+    ]
+  },
+  {
+    "id": "cult_upbringing",
+    "category": "spiritual_institutional",
+    "name": "Apocalyptic Cult Upbringing",
+    "description": "Raised in isolated commune anticipating imminent cataclysmic judgment",
+    "baseline_diffs": {
+      "conformity": 0.25,
+      "universalism": -0.25,
+      "loyalty": 0.25,
+      "security": -0.15,
+      "FEAR": 0.12
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "worldly outsider",
+            "corrupt city",
+            "prophecy omen",
+            "judgment day"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 1.8,
+        "source": "wound:cult_paranoia"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "the outside world is already judged and burning; only those within the circle will see the dawn",
+        "confidence": 0.95,
+        "provenance": "formative:apocalyptic_cult"
+      }
+    ]
+  },
+  {
+    "id": "forced_recantation",
+    "category": "spiritual_institutional",
+    "name": "Forced Doctrinal Recantation",
+    "description": "Subjected to prolonged institutional interrogation and ideological breaking",
+    "baseline_diffs": {
+      "autonomy": -0.2,
+      "emotionality": 0.15,
+      "conformity": 0.2,
+      "default_trust": -0.3,
+      "PANIC_GRIEF": 0.12
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "interrogation",
+            "tribunal",
+            "recant",
+            "confession chamber",
+            "inquisitor"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 2.5,
+        "source": "wound:reeducation_trauma"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "they can break any belief if they have enough time and cold iron; keep your real thoughts buried where no light reaches",
+        "confidence": 0.95,
+        "provenance": "formative:forced_recantation"
+      }
+    ]
+  },
+  {
+    "id": "inferno_burn_trauma",
+    "category": "physical_trauma",
+    "name": "Inferno Burn Survivor",
+    "description": "Survived an engulfing blaze with extensive scarring, hypervigilant to heat, smoke, and blocked exits",
+    "baseline_diffs": {
+      "FEAR": 0.18,
+      "security": 0.22,
+      "stimulation": -0.15,
+      "emotionality": 0.12,
+      "perception": 0.16,
+      "care_harm": 0.15
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "smoke",
+            "ember",
+            "flame",
+            "heatwave",
+            "char",
+            "crackling",
+            "ash"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 2.3,
+        "source": "wound:inferno_burn"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "flames devour exits before flesh feels the heat; always map two routes to open air",
+        "confidence": 0.95,
+        "provenance": "formative:inferno_burn"
+      }
+    ]
+  },
+  {
+    "id": "deep_water_drowning",
+    "category": "physical_trauma",
+    "name": "Near-Drowning Abyss Survivor",
+    "description": "Survived prolonged underwater submersion and asphyxiation during a catastrophic shipwreck",
+    "baseline_diffs": {
+      "FEAR": 0.15,
+      "PANIC_GRIEF": 0.12,
+      "security": 0.2,
+      "autonomy": -0.1,
+      "perception": 0.14,
+      "stimulation": -0.12
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "depth",
+            "submersion",
+            "choking",
+            "tide",
+            "whirlpool",
+            "water",
+            "drowning"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 2.4,
+        "source": "wound:abyss_drowning"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "the deep takes breath silently; never trust calm surface waters over dark depths",
+        "confidence": 0.94,
+        "provenance": "formative:deep_water_drowning"
+      }
+    ]
+  },
+  {
+    "id": "apex_predator_mauling",
+    "category": "physical_trauma",
+    "name": "Apex Predator Mauling Survivor",
+    "description": "Survived vicious predatory mauling, carrying severe tissue trauma, heightened startle response, and combat vigilance",
+    "baseline_diffs": {
+      "combat": 0.2,
+      "perception": 0.22,
+      "FEAR": 0.14,
+      "RAGE": 0.16,
+      "default_trust": -0.18,
+      "security": 0.18
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "growl",
+            "stalking",
+            "ambush",
+            "snarl",
+            "claws",
+            "jaws",
+            "predator"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 2.2,
+        "source": "wound:predator_mauling"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "predators strike from the blind spot; an unmonitored flank is an invitation to kill",
+        "confidence": 0.96,
+        "provenance": "formative:predator_mauling"
+      }
+    ]
+  },
+  {
+    "id": "glacial_hypothermia_blizzard",
+    "category": "physical_trauma",
+    "name": "Glacial Exposure & Frostbite Survivor",
+    "description": "Endured days buried in an alpine avalanche with severe frostbite, necrosis, and extreme cold exposure",
+    "baseline_diffs": {
+      "conscientiousness": 0.18,
+      "emotionality": -0.12,
+      "security": 0.24,
+      "hedonism": -0.2,
+      "perception": 0.15,
+      "FEAR": 0.1
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "blizzard",
+            "frost",
+            "numbness",
+            "whiteout",
+            "freezing",
+            "ice",
+            "howling_wind"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 2.0,
+        "source": "wound:glacial_exposure"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "cold lulls you to sleep before it freezes the blood; comfort in freezing winds is fatal",
+        "confidence": 0.93,
+        "provenance": "formative:glacial_hypothermia"
+      }
+    ]
+  },
+  {
+    "id": "structural_collapse_crush",
+    "category": "physical_trauma",
+    "name": "Structural Collapse Crush Survivor",
+    "description": "Survived prolonged entrapment under collapsed masonry and structural beams with severe crush injuries",
+    "baseline_diffs": {
+      "FEAR": 0.16,
+      "PANIC_GRIEF": 0.14,
+      "security": 0.25,
+      "autonomy": 0.15,
+      "stimulation": -0.18,
+      "perception": 0.12
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "creaking_beam",
+            "confinement",
+            "rubble",
+            "tremor",
+            "cave_in",
+            "trapped",
+            "heavy_weight"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 2.3,
+        "source": "wound:structural_collapse"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "overhead stone gives no warning before it falls; never linger in unreinforced enclosures",
+        "confidence": 0.95,
+        "provenance": "formative:structural_collapse"
+      }
+    ]
+  },
+  {
+    "id": "chronic_childhood_famine",
+    "category": "scarcity_deprivation",
+    "name": "Childhood Famine Survivor",
+    "description": "Endured developmental starvation during systemic crop failure, cementing somatic scarcity panic and compulsive resource hoarding.",
+    "baseline_diffs": {
+      "security": 0.3,
+      "hedonism": -0.25,
+      "PANIC_GRIEF": 0.2,
+      "SEEKING": 0.15,
+      "default_trust": -0.2,
+      "perception": 0.15
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "empty larder",
+            "wasted food",
+            "ration cut",
+            "spoiled harvest",
+            "hunger pang"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 2.0,
+        "source": "wound:childhood_famine"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "food in the stomach is the only real wealth; tomorrow's harvest is a lie told to the starving",
+        "confidence": 0.95,
+        "provenance": "formative:childhood_famine"
+      }
+    ]
+  },
+  {
+    "id": "siege_ration_survivor",
+    "category": "scarcity_deprivation",
+    "name": "Walled Siege Survivor",
+    "description": "Lived through a prolonged military blockade, watching neighbors turn on each other over dwindling grain stores and contraband broth.",
+    "baseline_diffs": {
+      "relatedness": -0.25,
+      "default_trust": -0.3,
+      "security": 0.3,
+      "care_harm": -0.15,
+      "loyalty": -0.2,
+      "insight": 0.2
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "ration line",
+            "quartermaster",
+            "contraband food",
+            "gate closure",
+            "bell toll"
+          ]
+        },
+        "lever": "PANIC_GRIEF",
+        "op": "x",
+        "magnitude": 2.2,
+        "source": "wound:siege_blockade"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "civilization is three missed meals away from cannibalism; never trust a neighbor when the gates are barred",
+        "confidence": 0.95,
+        "provenance": "formative:siege_blockade"
+      }
+    ]
+  },
+  {
+    "id": "workhouse_debt_bondage",
+    "category": "scarcity_deprivation",
+    "name": "Indentured Workhouse Laborer",
+    "description": "Years spent in coercive debtor factories with punitive quotas and physical deprivation under predatory bailiffs.",
+    "baseline_diffs": {
+      "conscientiousness": 0.2,
+      "autonomy": -0.25,
+      "security": 0.25,
+      "default_trust": -0.25,
+      "liberty": 0.3,
+      "authority": -0.2
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "bailiff",
+            "debt ledger",
+            "eviction",
+            "overseer",
+            "quota tally"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 2.1,
+        "source": "wound:workhouse_debt"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "a signed bond is a chain forged in ink; creditors will extract marrow before forgiving a single copper",
+        "confidence": 0.95,
+        "provenance": "formative:workhouse_labor"
+      }
+    ]
+  },
+  {
+    "id": "blight_displacement_refugee",
+    "category": "scarcity_deprivation",
+    "name": "Blight-Displaced Refugee",
+    "description": "Forced off desiccated topsoil and barren homesteads during an ecological dust collapse, trekking across hostile border checkpoints.",
+    "baseline_diffs": {
+      "tradition": -0.25,
+      "security": 0.3,
+      "PANIC_GRIEF": 0.2,
+      "SEEKING": 0.2,
+      "power": -0.2,
+      "competence": 0.15
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "dust storm",
+            "dead well",
+            "border checkpoint",
+            "refugee camp",
+            "deportation"
+          ]
+        },
+        "lever": "PANIC_GRIEF",
+        "op": "x",
+        "magnitude": 2.0,
+        "source": "wound:blight_displacement"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "the land owes no man a living and home is anywhere that does not turn you away at gunpoint",
+        "confidence": 0.9,
+        "provenance": "formative:blight_displacement"
+      }
+    ]
+  },
+  {
+    "id": "offshore_lighthouse_watch",
+    "category": "social_isolation",
+    "name": "Remote Offshore Lightkeeper",
+    "description": "Years spent maintaining an isolated rockbound lighthouse surrounded by endless gale-swept seas, communicating only via seasonal supply tenders.",
+    "baseline_diffs": {
+      "extraversion": -0.25,
+      "conscientiousness": 0.25,
+      "perception": 0.2,
+      "relatedness": -0.2,
+      "PANIC_GRIEF": -0.15,
+      "default_trust": -0.1,
+      "autonomy": 0.15
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "crowded ballroom",
+            "cacophony",
+            "dense city streets",
+            "chattering parlor"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 1.6,
+        "source": "wound:sensory_overwhelm"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "a light left unkept kills men unseen in the dark; duty is absolute and requires no audience",
+        "confidence": 0.95,
+        "provenance": "formative:offshore_lighthouse_watch"
+      }
+    ]
+  },
+  {
+    "id": "punitive_solitary_dungeon",
+    "category": "social_isolation",
+    "name": "Deep Oubliette Incarceration",
+    "description": "Prolonged punitive isolation in a pitch-black subterranean cell without human contact, daylight, or temporal landmarks.",
+    "baseline_diffs": {
+      "emotionality": 0.3,
+      "default_trust": -0.35,
+      "PANIC_GRIEF": 0.25,
+      "FEAR": 0.2,
+      "extraversion": -0.3,
+      "perception": 0.15,
+      "liberty": 0.3,
+      "relatedness": -0.25
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "locked iron door",
+            "rattling chains",
+            "heavy footsteps approaching"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 2.2,
+        "source": "trauma:subterranean_incarceration"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "any hand that locks a door on another soul will sooner or later forget they are human",
+        "confidence": 0.95,
+        "provenance": "formative:punitive_solitary_dungeon"
+      }
+    ]
+  },
+  {
+    "id": "feral_wildland_rearing",
+    "category": "social_isolation",
+    "name": "Feral Wilderness Rearing",
+    "description": "Raised from early childhood in untamed wilderness without human language, socialization, or cultural mores, surviving alongside beast packs.",
+    "baseline_diffs": {
+      "extraversion": -0.3,
+      "openness": -0.15,
+      "perception": 0.3,
+      "combat": 0.2,
+      "conformity": -0.35,
+      "tradition": -0.3,
+      "default_trust": -0.25,
+      "FEAR": 0.15,
+      "SEEKING": 0.25,
+      "honesty_humility": 0.2
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "formal etiquette",
+            "legal contract",
+            "feigned smile",
+            "diplomatic bargaining"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 1.7,
+        "source": "wound:artificial_social_structure"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "words are masks beasts do not need; scent, posture, and claw never lie",
+        "confidence": 0.95,
+        "provenance": "formative:feral_wildland_rearing"
+      }
+    ]
+  },
+  {
+    "id": "monastic_silent_cloister",
+    "category": "social_isolation",
+    "name": "Silent Ascetic Cloister",
+    "description": "Decades spent within a cloistered mountain hermitage under a strict vow of perpetual silence and contemplative stillness.",
+    "baseline_diffs": {
+      "extraversion": -0.3,
+      "agreeableness": 0.2,
+      "sanctity": 0.35,
+      "tradition": 0.25,
+      "stimulation": -0.3,
+      "emotionality": -0.2,
+      "insight": 0.25,
+      "hedonism": -0.3,
+      "self_direction": 0.15
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "boastful speech",
+            "frivolous gossip",
+            "profane mockery",
+            "drunken shouting"
+          ]
+        },
+        "lever": "PANIC_GRIEF",
+        "op": "x",
+        "magnitude": 1.4,
+        "source": "wound:verbal_pollution"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "the soul speaks only when the tongue is stilled; noise is the vanity of the restless ego",
+        "confidence": 0.95,
+        "provenance": "formative:monastic_silent_cloister"
+      }
+    ]
+  },
+  {
+    "id": "polar_winter_overwintering",
+    "category": "social_isolation",
+    "name": "Polar Night Overwintering",
+    "description": "Survived months of unbroken polar night stranded at an isolated sub-zero research post, cut off from all rescue by pack ice.",
+    "baseline_diffs": {
+      "emotionality": -0.15,
+      "conscientiousness": 0.2,
+      "autonomy": 0.25,
+      "relatedness": -0.15,
+      "security": 0.25,
+      "perception": 0.15,
+      "FEAR": -0.1,
+      "PANIC_GRIEF": -0.15
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "howling blizzard",
+            "groaning sea ice",
+            "creaking shelter walls",
+            "plunging thermometer"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 0.7,
+        "source": "habituation:arctic_endurance"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "the cold is indifferent to despair; only systematic rigor and fuel counting keep the heart beating",
+        "confidence": 0.95,
+        "provenance": "formative:polar_winter_overwintering"
+      }
+    ]
+  },
+  {
+    "id": "partner_embezzlement_ousting",
+    "category": "relational_betrayal",
+    "name": "Ousted and Defrauded by Partner",
+    "description": "Co-founder secretly drained shared reserves, forged signatures, and seized full ownership of the venture",
+    "baseline_diffs": {
+      "default_trust": -0.35,
+      "fairness": 0.25,
+      "autonomy": 0.2,
+      "PANIC_GRIEF": 0.15,
+      "insight": 0.2
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "unilateral contract",
+            "hidden ledger",
+            "financial partnership proposal"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 1.8,
+        "source": "wound:partner_embezzlement_ousting"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "when wealth is on the table, shared history means nothing; inspect every ledger yourself",
+        "confidence": 0.9,
+        "provenance": "formative:partner_embezzlement_ousting"
+      }
+    ]
+  },
+  {
+    "id": "familial_disownment",
+    "category": "relational_betrayal",
+    "name": "Disowned and Cast Out by Kin",
+    "description": "Publicly stripped of family name and exiled by parents and elders to preserve family reputation or inheritance",
+    "baseline_diffs": {
+      "relatedness": -0.35,
+      "tradition": -0.3,
+      "loyalty": -0.25,
+      "PANIC_GRIEF": 0.25,
+      "self_direction": 0.25
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "ancestral decree",
+            "family tribunal",
+            "demanded conformity"
+          ]
+        },
+        "lever": "RAGE",
+        "op": "x",
+        "magnitude": 2.1,
+        "source": "wound:familial_disownment"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "blood ties offer no sanctuary when reputation is weighed against an inconvenient child",
+        "confidence": 0.95,
+        "provenance": "formative:familial_disownment"
+      }
+    ]
+  },
+  {
+    "id": "mentor_scapegoat",
+    "category": "relational_betrayal",
+    "name": "Framed as Scapegoat by Respected Mentor",
+    "description": "A revered teacher and patron pinned catastrophic institutional corruption on their devoted apprentice",
+    "baseline_diffs": {
+      "authority": -0.35,
+      "default_trust": -0.3,
+      "perception": 0.25,
+      "emotionality": -0.15,
+      "security": 0.2
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "paternalistic authority",
+            "unquestioned master",
+            "convenient blame"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 2.3,
+        "source": "wound:mentor_scapegoat"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "mentors groom disciples not for greatness, but for plausible deniability when their own walls collapse",
+        "confidence": 0.92,
+        "provenance": "formative:mentor_scapegoat"
+      }
+    ]
+  },
+  {
+    "id": "marital_ruin_infidelity",
+    "category": "relational_betrayal",
+    "name": "Spousal Infidelity and Ruin",
+    "description": "Long-term spouse maintained an illicit affair while conspiring with rivals to strip assets and custody",
+    "baseline_diffs": {
+      "agreeableness": -0.3,
+      "relatedness": -0.3,
+      "default_trust": -0.35,
+      "RAGE": 0.2,
+      "insight": 0.2
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "professions of intimacy",
+            "whispered private pact",
+            "feigned tenderness"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 2.0,
+        "source": "wound:marital_ruin_infidelity"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "intimacy is the most lethal vulnerability; opening your heart invites ruin",
+        "confidence": 0.94,
+        "provenance": "formative:marital_ruin_infidelity"
+      }
+    ]
+  },
+  {
+    "id": "battlefield_abandonment_shame",
+    "category": "relational_betrayal",
+    "name": "Left for Dead on Field",
+    "description": "Abandoned wounded in retreat while commander and squad fled without warning",
+    "baseline_diffs": {
+      "loyalty": -0.35,
+      "default_trust": -0.3,
+      "autonomy": 0.25,
+      "FEAR": 0.15,
+      "combat": 0.2
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "order to retreat",
+            "fleeing allies",
+            "broken rear guard"
+          ]
+        },
+        "lever": "RAGE",
+        "op": "x",
+        "magnitude": 2.4,
+        "source": "wound:battlefield_abandonment"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "when the horns sound retreat, brotherhood evaporates; rely only on your own boots and blade",
+        "confidence": 0.95,
+        "provenance": "formative:battlefield_abandonment"
+      }
+    ]
+  },
+  {
+    "id": "child_levy_conscript_shock",
+    "category": "violence_conflict",
+    "name": "Child Levy Conscript Shock",
+    "description": "Forcibly conscripted in youth as frontline shock fodder; conditioned to drill discipline and numbness to casualty.",
+    "baseline_diffs": {
+      "combat": 0.22,
+      "conformity": 0.2,
+      "autonomy": -0.25,
+      "default_trust": -0.2,
+      "FEAR": 0.15,
+      "PANIC_GRIEF": -0.15,
+      "care_harm": -0.18
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "marching drums",
+            "formation drill",
+            "shouted command",
+            "whipping"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 1.8,
+        "source": "wound:child_levy"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "orders from the rear line are bought with our blood; obey to survive the day",
+        "confidence": 0.9,
+        "provenance": "formative:child_levy"
+      }
+    ]
+  },
+  {
+    "id": "gladiator_pit_slave",
+    "category": "violence_conflict",
+    "name": "Arena / Pit Fighting Survivor",
+    "description": "Reared in brutal blood-sport rings where survival required lethal preemptive violence and pain suppression.",
+    "baseline_diffs": {
+      "combat": 0.3,
+      "agreeableness": -0.25,
+      "care_harm": -0.25,
+      "RAGE": 0.2,
+      "default_trust": -0.25,
+      "power": 0.18
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "drawn steel",
+            "sand arena",
+            "cheering crowd",
+            "cornered"
+          ]
+        },
+        "lever": "RAGE",
+        "op": "x",
+        "magnitude": 2.2,
+        "source": "wound:pit_fighting"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "hesitation in the sand leaves you gutted; strike first, strike hard, and never show pain",
+        "confidence": 0.95,
+        "provenance": "formative:pit_fighting"
+      }
+    ]
+  },
+  {
+    "id": "guerrilla_partisan_insurgent",
+    "category": "violence_conflict",
+    "name": "Guerrilla Partisan Insurgent",
+    "description": "Waged clandestine asymmetric warfare against an occupying military force from rugged wilderness.",
+    "baseline_diffs": {
+      "autonomy": 0.25,
+      "liberty": 0.28,
+      "loyalty": 0.22,
+      "perception": 0.25,
+      "combat": 0.2,
+      "authority": -0.3,
+      "default_trust": -0.25
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "patrol footsteps",
+            "searchlight",
+            "informant whisper",
+            "chokepoint"
+          ]
+        },
+        "lever": "SEEKING",
+        "op": "x",
+        "magnitude": 2.0,
+        "source": "wound:guerrilla_partisan"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "an occupying force rules only the road under its boots; strike from the shadows",
+        "confidence": 0.93,
+        "provenance": "formative:guerrilla_partisan"
+      }
+    ]
+  },
+  {
+    "id": "blacksmith_forge_indenture",
+    "category": "vocation_discipline",
+    "name": "Blacksmith Forge Indenture",
+    "description": "Hardened by years of bellows work, heavy hammer striking, heat endurance, and metallurgical discipline",
+    "baseline_diffs": {
+      "conscientiousness": 0.25,
+      "competence": 0.2,
+      "emotionality": -0.2,
+      "tradition": 0.15,
+      "FEAR": -0.15,
+      "combat": 0.15
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "spark shower",
+            "glowing metal",
+            "striking iron",
+            "forge heat"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 0.5,
+        "source": "vocation:forge_callous"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "iron does not lie; strike while the metal is at proper heat or ruin the temper",
+        "confidence": 0.95,
+        "provenance": "formative:blacksmith_apprenticeship"
+      }
+    ]
+  },
+  {
+    "id": "glassblower_guild_artisan",
+    "category": "vocation_discipline",
+    "name": "Glassblower Guild Artisan",
+    "description": "Mastered breath control, thermal timing, delicate handling of molten glass, and guild secret stewardship",
+    "baseline_diffs": {
+      "perception": 0.25,
+      "competence": 0.2,
+      "openness": 0.15,
+      "emotionality": -0.15,
+      "conformity": 0.15,
+      "SEEKING": 0.15
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "cooling glass",
+            "hairline crack",
+            "thermal shock",
+            "shattered vessel"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 2.1,
+        "source": "vocation:thermal_stress_reflex"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "glass freezes in seconds; hesitate on the blowpipe and the whole piece shatters beyond reclaim",
+        "confidence": 0.9,
+        "provenance": "formative:glassblower_guild"
+      }
+    ]
+  },
+  {
+    "id": "cavalry_horsemaster_discipline",
+    "category": "vocation_discipline",
+    "name": "Cavalry Horsemaster & Equine Trainer",
+    "description": "Conditioned by strict equestrian drills, herd animal empathy, split-second saddle balance, and mount preservation",
+    "baseline_diffs": {
+      "perception": 0.2,
+      "insight": 0.2,
+      "CARE": 0.25,
+      "combat": 0.15,
+      "autonomy": 0.15,
+      "agreeableness": 0.1
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "spooked horse",
+            "pinned ears",
+            "sudden whinny",
+            "lame gait"
+          ]
+        },
+        "lever": "CARE",
+        "op": "x",
+        "magnitude": 2.2,
+        "source": "vocation:equine_attunement"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "a rider who neglects their mount walks into battle on foot; read the horse's ears before the rider's words",
+        "confidence": 0.95,
+        "provenance": "formative:horsemaster_regime"
+      }
+    ]
+  },
+  {
+    "id": "cathedral_stonemason_fellowship",
+    "category": "vocation_discipline",
+    "name": "Cathedral Stonemason & Master Builder",
+    "description": "Indoctrinated into geometric precision, load-bearing physics, chisel discipline, and generational architecture",
+    "baseline_diffs": {
+      "conscientiousness": 0.25,
+      "tradition": 0.25,
+      "competence": 0.2,
+      "authority": 0.2,
+      "liberty": -0.15,
+      "sanctity": 0.15
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "cracked keystone",
+            "shifting arch",
+            "uneven foundation",
+            "falling masonry"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 2.0,
+        "source": "vocation:structural_collapse_dread"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "the stone bears what the plumb line commands; true angles outlast dynasties",
+        "confidence": 0.95,
+        "provenance": "formative:stonemason_guild"
+      }
+    ]
+  },
+  {
+    "id": "poisoned_succession_rival",
+    "category": "privilege_intrigue",
+    "name": "Poisoned Succession Rival",
+    "description": "Grew up in a bloodline where siblings and cousins were assassinated over inheritances, titles, and lineage precedence.",
+    "baseline_diffs": {
+      "power": 0.3,
+      "achievement": 0.2,
+      "agreeableness": -0.25,
+      "default_trust": -0.35,
+      "FEAR": 0.15,
+      "perception": 0.25
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "unsealed goblet",
+            "sweet-smelling pastry",
+            "sudden family dinner",
+            "overly affectionate sibling"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 2.2,
+        "source": "wound:taster_paranoia"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "blood ties do not prevent fratricide; the closer the kinship, the sharper the knife",
+        "confidence": 0.95,
+        "provenance": "formative:poisoned_succession"
+      }
+    ]
+  },
+  {
+    "id": "black_chamber_archivist",
+    "category": "privilege_intrigue",
+    "name": "Black Chamber State Decipherer",
+    "description": "Trained in the sovereign's secret decipherment bureau, sorting blackmailed confessions, intercepted post, and treason dockets.",
+    "baseline_diffs": {
+      "conscientiousness": 0.25,
+      "openness": -0.15,
+      "benevolence": -0.25,
+      "default_trust": -0.35,
+      "perception": 0.3,
+      "loyalty": 0.2
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "confession under torture",
+            "cryptographic cypher",
+            "forged royal seal",
+            "state treason ledger"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 1.7,
+        "source": "wound:archivist_culpability"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "no lord is innocent; give me three pages of any man's correspondence and I will find the treason to hang him",
+        "confidence": 0.95,
+        "provenance": "formative:black_chamber"
+      }
+    ]
+  },
+  {
+    "id": "flagellant_ascetic_order",
+    "category": "spiritual_institutional",
+    "name": "Flagellant Ascetic / Mortification Monastic",
+    "description": "Reared within a severe mendicant order emphasizing bodily mortification, extreme self-denial, and physical suffering.",
+    "baseline_diffs": {
+      "hedonism": -0.35,
+      "sanctity": 0.3,
+      "autonomy": -0.2,
+      "emotionality": -0.2,
+      "conscientiousness": 0.25,
+      "FEAR": -0.25
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "luxury",
+            "gluttony",
+            "fleshly indulgence",
+            "comfort"
+          ]
+        },
+        "lever": "RAGE",
+        "op": "x",
+        "magnitude": 2.0,
+        "source": "wound:ascetic_mortification"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "the flesh is corrupt and demands constant chastisement to keep the spirit pure",
+        "confidence": 0.95,
+        "provenance": "formative:flagellant_ascetic_order"
+      }
+    ]
+  },
+  {
+    "id": "templar_chivalric_crusader",
+    "category": "spiritual_institutional",
+    "name": "Templar Crusader / Militant Holy Knight",
+    "description": "Indoctrinated from youth in a monastic-knightly martial order blending ritual liturgical devotion with ruthless martial prowess.",
+    "baseline_diffs": {
+      "combat": 0.3,
+      "loyalty": 0.25,
+      "authority": 0.25,
+      "care_harm": -0.2,
+      "agreeableness": -0.2,
+      "sanctity": 0.25
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "infidel army",
+            "desecration of shrine",
+            "broken treaty with the faithful"
+          ]
+        },
+        "lever": "RAGE",
+        "op": "x",
+        "magnitude": 2.4,
+        "source": "wound:militant_vow"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "blood spilled in holy war is an act of supreme consecration",
+        "confidence": 0.95,
+        "provenance": "formative:templar_chivalric_crusader"
+      }
+    ]
+  },
+  {
+    "id": "permanent_blast_deafness",
+    "category": "physical_trauma",
+    "name": "Blast Deafness & Tinnitus Survivor",
+    "description": "Suffered total acoustic rupture and inner ear necrosis from an artillery or concussive blast; hyper-reliant on visual scanning and ground vibration.",
+    "baseline_diffs": {
+      "perception": 0.2,
+      "emotionality": 0.15,
+      "FEAR": 0.18,
+      "autonomy": -0.08,
+      "combat": 0.1
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "high-frequency ringing",
+            "silent pressure wave",
+            "concussive shockwave",
+            "artillery thunder"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 2.2,
+        "source": "wound:blast_deafness"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "sound is a luxury that disappears without warning; only vibration through bone and earth tells the absolute truth",
+        "confidence": 0.92,
+        "provenance": "formative:blast_deafness"
+      }
+    ]
+  },
+  {
+    "id": "alchemical_radiation_scarring",
+    "category": "physical_trauma",
+    "name": "Alchemical Vitriol & Radiant Scarring",
+    "description": "Endured catastrophic alchemical meltdown and radiant exposure, leaving crystallized tissue, nerve scarring, and sensitivity to energetic fluxes.",
+    "baseline_diffs": {
+      "sanctity": 0.22,
+      "openness": -0.15,
+      "FEAR": 0.2,
+      "insight": 0.25,
+      "security": 0.18
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "fluorescent luminescence",
+            "acrid ozone vapor",
+            "humming ward",
+            "glowing residue"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 2.4,
+        "source": "wound:alchemical_radiation"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "uncontained energetic power always eats the vessel from within; containment is life",
+        "confidence": 0.94,
+        "provenance": "formative:alchemical_radiation"
+      }
+    ]
+  },
+  {
+    "id": "pestilence_carbuncle_survivor",
+    "category": "physical_trauma",
+    "name": "Black Plague & Necrotic Bubo Survivor",
+    "description": "Survived systemic septic collapse and necrotic lymph node rupture during a fatal epidemic, leaving pulmonary scarring and hyper-vigilance.",
+    "baseline_diffs": {
+      "sanctity": 0.3,
+      "default_trust": -0.25,
+      "PANIC_GRIEF": 0.18,
+      "security": 0.22,
+      "care_harm": 0.15
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "foul breath",
+            "suppurating sore",
+            "coughing blood",
+            "stagnant miasma",
+            "pale fever"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 2.5,
+        "source": "wound:pestilence_carbuncle"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "breath and touch are the vectors of ruin; intimacy with the untested is a death sentence",
+        "confidence": 0.96,
+        "provenance": "formative:pestilence_carbuncle"
+      }
+    ]
+  },
+  {
+    "id": "chronic_mercurialism_neurotoxicity",
+    "category": "physical_trauma",
+    "name": "Mercurial Gilding Neurotoxicity",
+    "description": "Subjected to years of inhaling toxic heavy metal vapors during artisanal gilding; left with tremors, erethism, emotional lability, and insomnia.",
+    "baseline_diffs": {
+      "emotionality": 0.28,
+      "conscientiousness": -0.18,
+      "RAGE": 0.2,
+      "competence": -0.15,
+      "FEAR": 0.16
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "metallic sweet taste",
+            "quicksilver vapor",
+            "uncontrolled hand tremor",
+            "furnace smoke"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 2.3,
+        "source": "wound:mercurial_neurotoxicity"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "the poison is slow and silent, stealing steady hands and sharp minds while masters count the gold",
+        "confidence": 0.95,
+        "provenance": "formative:mercurial_neurotoxicity"
+      }
+    ]
+  },
+  {
+    "id": "entombment_avalanche_hypoxia",
+    "category": "physical_trauma",
+    "name": "Subterranean Entombment Survivor",
+    "description": "Trapped for days beneath collapsed bedrock and snow in a suffocating air-pocket; endured crushing darkness and slow oxygen depletion.",
+    "baseline_diffs": {
+      "PANIC_GRIEF": 0.24,
+      "FEAR": 0.26,
+      "liberty": 0.32,
+      "security": 0.2,
+      "hedonism": -0.2
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "confined crawlspace",
+            "creaking ceiling timbers",
+            "dust falling from above",
+            "restricted air supply"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 2.5,
+        "source": "wound:entombment_survival"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "the earth and stone care nothing for human breath; always identify two unobstructed exits before stepping indoors",
+        "confidence": 0.97,
+        "provenance": "formative:entombment_survival"
+      }
+    ]
+  },
+  {
+    "id": "galley_slave_rower",
+    "category": "scarcity_deprivation",
+    "name": "Chained Galley Oarsman",
+    "description": "Years chained to an oar bench under whip cadence; conditioned to rhythmic agony, acute loss of agency, and explosive latent rebellion.",
+    "baseline_diffs": {
+      "autonomy": -0.25,
+      "liberty": 0.35,
+      "combat": 0.15,
+      "default_trust": -0.3,
+      "PANIC_GRIEF": -0.15,
+      "authority": -0.3,
+      "RAGE": 0.25,
+      "security": 0.2
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "drum cadence",
+            "whip crack",
+            "iron shackle",
+            "rowing bench"
+          ]
+        },
+        "lever": "RAGE",
+        "op": "x",
+        "magnitude": 2.2,
+        "source": "wound:galley_servitude"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "freedom is not granted by masters; it is taken when the overseer turns his back",
+        "confidence": 0.95,
+        "provenance": "formative:galley_slave"
+      }
+    ]
+  },
+  {
+    "id": "marooned_cannibalism_survivor",
+    "category": "scarcity_deprivation",
+    "name": "Marooned Anthropophagy Survivor",
+    "description": "Survived extreme maritime stranding by consuming fallen shipmates; deeply traumatized with shattered moral sanctity.",
+    "baseline_diffs": {
+      "sanctity": -0.35,
+      "care_harm": -0.2,
+      "PANIC_GRIEF": 0.3,
+      "default_trust": -0.35,
+      "emotionality": 0.25,
+      "security": 0.35,
+      "perception": 0.2,
+      "SEEKING": -0.15
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "butchered meat",
+            "starvation pangs",
+            "shipwreck driftwood",
+            "drawn lots"
+          ]
+        },
+        "lever": "PANIC_GRIEF",
+        "op": "x",
+        "magnitude": 2.4,
+        "source": "wound:marooned_cannibalism"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "when starvation strips away civilization, any living body is merely meat",
+        "confidence": 0.95,
+        "provenance": "formative:marooned_cannibalism"
+      }
+    ]
+  },
+  {
+    "id": "salt_caravan_survivor",
+    "category": "scarcity_deprivation",
+    "name": "Deep Desert Salt-Caravan Survivor",
+    "description": "Sole survivor of a lost desert salt traverse where water dried up; hyper-fixated on moisture and resource conservation.",
+    "baseline_diffs": {
+      "conscientiousness": 0.3,
+      "security": 0.35,
+      "hedonism": -0.3,
+      "perception": 0.25,
+      "FEAR": 0.15,
+      "SEEKING": 0.2,
+      "default_trust": -0.15
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "dry throat",
+            "scorching sun",
+            "cracked salt crust",
+            "empty canteen"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 2.1,
+        "source": "wound:salt_caravan_disaster"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "a single mouthful of water is worth more than a wagonload of gold",
+        "confidence": 0.98,
+        "provenance": "formative:salt_caravan"
+      }
+    ]
+  },
+  {
+    "id": "coal_mine_child_draft",
+    "category": "scarcity_deprivation",
+    "name": "Subterranean Coal-Mine Child Draft",
+    "description": "Forced into narrow mine tunnels in childhood to haul heavy coal carts in perpetual dark; stunted, suspicious of surface wealth.",
+    "baseline_diffs": {
+      "autonomy": -0.3,
+      "conformity": 0.25,
+      "perception": 0.3,
+      "fairness": 0.35,
+      "authority": -0.25,
+      "PLAY": -0.35,
+      "competence": 0.2,
+      "openness": -0.2
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "mine shaft collapse",
+            "canary silence",
+            "coal dust choking",
+            "low ceiling"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 2.3,
+        "source": "wound:subterranean_coal_draft"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "the men on the surface live off the lungs and blood broken in the dark below",
+        "confidence": 0.95,
+        "provenance": "formative:coal_mine_draft"
+      }
+    ]
+  },
+  {
+    "id": "besieged_island_collapse_survivor",
+    "category": "scarcity_deprivation",
+    "name": "Besieged Island Ecological Collapse Survivor",
+    "description": "Survived a total blockade and biological collapse on an isolated island where all crops and livestock were exhausted.",
+    "baseline_diffs": {
+      "security": 0.35,
+      "universalism": -0.25,
+      "benevolence": -0.2,
+      "honesty_humility": -0.25,
+      "perception": 0.25,
+      "default_trust": -0.35,
+      "care_harm": -0.15,
+      "SEEKING": 0.25
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "withered crops",
+            "barren landscape",
+            "naval blockade",
+            "scavenged bark"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 2.2,
+        "source": "wound:island_bio_collapse"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "when an isolated world runs out of food, trust is the first thing that gets eaten",
+        "confidence": 0.95,
+        "provenance": "formative:besieged_island"
+      }
+    ]
+  },
+  {
+    "id": "deep_cave_entrapment",
+    "category": "social_isolation",
+    "name": "Deep Speleological Entrapment",
+    "description": "Survived prolonged subterranean entrapment in absolute darkness following a catastrophic cavern collapse.",
+    "baseline_diffs": {
+      "perception": 0.25,
+      "extraversion": -0.28,
+      "autonomy": 0.2,
+      "FEAR": 0.15,
+      "PANIC_GRIEF": -0.15,
+      "security": 0.22,
+      "stimulation": -0.25
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "pitch black",
+            "snuffed torch",
+            "echoing water drop",
+            "narrow cave crawlway",
+            "subterranean tremor"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 2.1,
+        "source": "wound:speleological_entrapment"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "in absolute darkness, vision is a deceit; trusting only what your fingers can grip keeps you alive",
+        "confidence": 0.95,
+        "provenance": "formative:speleological_entrapment"
+      }
+    ]
+  },
+  {
+    "id": "sensory_deprivation_survivor",
+    "category": "social_isolation",
+    "name": "Sensory Deprivation Survivor",
+    "description": "Endured long-term confinement in a soundless, lightless, temperature-neutral isolation chamber designed to erase sensory input.",
+    "baseline_diffs": {
+      "openness": -0.2,
+      "emotionality": -0.22,
+      "insight": 0.3,
+      "relatedness": -0.3,
+      "stimulation": -0.32,
+      "default_trust": -0.25,
+      "self_direction": 0.25
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "anechoic silence",
+            "white noise",
+            "sensory void",
+            "floating weightlessness"
+          ]
+        },
+        "lever": "PANIC_GRIEF",
+        "op": "x",
+        "magnitude": 2.2,
+        "source": "wound:sensory_void"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "when external stimulus ceases, the mind fractures inward and manufactures its own phantoms",
+        "confidence": 0.92,
+        "provenance": "formative:sensory_deprivation"
+      }
+    ]
+  },
+  {
+    "id": "mute_cloistered_ward",
+    "category": "social_isolation",
+    "name": "Mute Cloistered Ward",
+    "description": "Raised from infancy within an ascetic monastic order under a strict perpetual vow of total silence and sign-only communication.",
+    "baseline_diffs": {
+      "conscientiousness": 0.28,
+      "tradition": 0.3,
+      "sanctity": 0.32,
+      "extraversion": -0.32,
+      "insight": 0.26,
+      "authority": 0.22,
+      "hedonism": -0.3
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "shouted dispute",
+            "boisterous laughter",
+            "cacophony",
+            "idle chatter"
+          ]
+        },
+        "lever": "PANIC_GRIEF",
+        "op": "x",
+        "magnitude": 2.0,
+        "source": "taboo:vow_of_silence"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "spoken words cheapen intent; true understanding travels through silence, gesture, and shared discipline",
+        "confidence": 0.94,
+        "provenance": "formative:cloistered_silence"
+      }
+    ]
+  },
+  {
+    "id": "quarantine_island_outcast",
+    "category": "social_isolation",
+    "name": "Quarantine Island Outcast",
+    "description": "Reared in exile on a windswept quarantine island among afflicted outcasts, untouched by unmasked contact with the outside world.",
+    "baseline_diffs": {
+      "default_trust": -0.32,
+      "care_harm": 0.3,
+      "loyalty": 0.25,
+      "fairness": 0.28,
+      "security": -0.22,
+      "relatedness": -0.24,
+      "FEAR": 0.18
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "quarantine banner",
+            "disinfected mask",
+            "bell ringing unclean",
+            "scorched border"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 2.3,
+        "source": "wound:leper_colony_exile"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "those who claim to uphold cleanliness will cast out the vulnerable the moment sickness threatens their comfort",
+        "confidence": 0.93,
+        "provenance": "formative:quarantine_rearing"
+      }
+    ]
+  },
+  {
+    "id": "solitary_sky_tower_astronomer",
+    "category": "social_isolation",
+    "name": "Solitary Sky-Tower Astronomer",
+    "description": "Spent isolated years stationed at an extreme altitude glacial observatory, charting celestial movements without human companionship.",
+    "baseline_diffs": {
+      "openness": 0.3,
+      "self_direction": 0.28,
+      "SEEKING": 0.26,
+      "extraversion": -0.34,
+      "universalism": 0.25,
+      "relatedness": -0.28,
+      "perception": 0.24
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "starlit zenith",
+            "brass astrolabe",
+            "night sky ephemeris",
+            "telescope aperture"
+          ]
+        },
+        "lever": "SEEKING",
+        "op": "x",
+        "magnitude": 2.2,
+        "source": "passion:celestial_cartography"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "human drama is transient dust compared to the mathematically precise orbits of the cosmos",
+        "confidence": 0.95,
+        "provenance": "formative:sky_tower_observatory"
+      }
+    ]
+  },
+  {
+    "id": "handler_betrayal_operative",
+    "category": "relational_betrayal",
+    "name": "Disavowed Deep-Cover Operative",
+    "description": "Spent decades undercover only to be liquidated and framed as a rogue asset by their handler to bury political scandal.",
+    "baseline_diffs": {
+      "default_trust": -0.35,
+      "insight": 0.25,
+      "loyalty": -0.3,
+      "autonomy": 0.25,
+      "perception": 0.2,
+      "FEAR": 0.15,
+      "security": 0.3
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "safehouse compromise",
+            "dead drop signal",
+            "handler summons",
+            "disavowal"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 2.2,
+        "source": "wound:operative_disavowal"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "spies do not have countries or masters; handlers trade agents like spent tallow candles",
+        "confidence": 0.95,
+        "provenance": "formative:handler_betrayal_operative"
+      }
+    ]
+  },
+  {
+    "id": "blood_pact_breached_survivor",
+    "category": "relational_betrayal",
+    "name": "Betrayed Blood-Sworn Companion",
+    "description": "Bound by an inviolable reciprocal life-oath, only to be severed and abandoned to death when the sacrificial burden came due.",
+    "baseline_diffs": {
+      "default_trust": -0.35,
+      "relatedness": -0.35,
+      "sanctity": -0.3,
+      "loyalty": -0.25,
+      "PANIC_GRIEF": 0.25,
+      "RAGE": 0.2,
+      "care_harm": 0.2
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "sworn oath",
+            "blood pact invocation",
+            "companion retreat",
+            "broken covenant"
+          ]
+        },
+        "lever": "PANIC_GRIEF",
+        "op": "x",
+        "magnitude": 2.4,
+        "source": "wound:blood_pact_breach"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "blood covenants and eternal oaths wither the instant mortal sacrifice is demanded",
+        "confidence": 0.94,
+        "provenance": "formative:blood_pact_breached_survivor"
+      }
+    ]
+  },
+  {
+    "id": "disinherited_patron_ward_usurpation",
+    "category": "relational_betrayal",
+    "name": "Deposed Mentor and Defrauded Benefactor",
+    "description": "Nurtured and elevated a destitute ward to mastership, only to be stripped of title and estate through their ward's calculated usurpation.",
+    "baseline_diffs": {
+      "default_trust": -0.35,
+      "benevolence": -0.35,
+      "CARE": -0.3,
+      "power": -0.25,
+      "insight": 0.25,
+      "fairness": 0.3,
+      "PANIC_GRIEF": 0.2
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "inheritance dispute",
+            "ward defiance",
+            "usurpation",
+            "patronage betrayal"
+          ]
+        },
+        "lever": "PANIC_GRIEF",
+        "op": "x",
+        "magnitude": 2.2,
+        "source": "wound:ward_usurpation"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "nurturing an ambitious ward simply arms one's eventual usurper with intimate vulnerabilities",
+        "confidence": 0.92,
+        "provenance": "formative:disinherited_patron_ward_usurpation"
+      }
+    ]
+  },
+  {
+    "id": "abandoned_hostage_scapegoat",
+    "category": "relational_betrayal",
+    "name": "Abandoned Truce Hostage",
+    "description": "Offered as an honorable guarantor hostage to secure a treaty, then abandoned to torture when homeland broke the peace.",
+    "baseline_diffs": {
+      "default_trust": -0.35,
+      "authority": -0.35,
+      "conformity": -0.35,
+      "loyalty": -0.3,
+      "liberty": 0.3,
+      "FEAR": 0.25,
+      "combat": 0.15
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "truce violation",
+            "hostage exchange",
+            "diplomatic pact",
+            "factional sacrifice"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 2.3,
+        "source": "wound:hostage_abandonment"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "political factions view honorable hostages as disposable pawns when opportunistic violence beckons",
+        "confidence": 0.96,
+        "provenance": "formative:abandoned_hostage_scapegoat"
+      }
+    ]
+  },
+  {
+    "id": "excommunicated_penitent_confessor_betrayal",
+    "category": "relational_betrayal",
+    "name": "Anathematized Penitent",
+    "description": "Confided mortal sins under holy seal of the confessional, only to have their confessor weaponize the secrets for public heresy trials.",
+    "baseline_diffs": {
+      "default_trust": -0.35,
+      "sanctity": -0.35,
+      "authority": -0.35,
+      "tradition": -0.3,
+      "self_direction": 0.3,
+      "emotionality": 0.25,
+      "insight": 0.2
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "confessional seal",
+            "ecclesiastical trial",
+            "excommunication decree",
+            "priestly betrayal"
+          ]
+        },
+        "lever": "PANIC_GRIEF",
+        "op": "x",
+        "magnitude": 2.4,
+        "source": "wound:confessor_excommunication"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "sacred vows of silence are readily broken when clergy smell political power",
+        "confidence": 0.95,
+        "provenance": "formative:excommunicated_penitent_confessor_betrayal"
+      }
+    ]
+  },
+  {
+    "id": "alchemical_fire_survivor",
+    "category": "violence_conflict",
+    "name": "Alchemical Fire Survivor",
+    "description": "Survived naval incendiary strikes where water fueled the burning pitch; bears extensive burn tissue and severe pyrophobia.",
+    "baseline_diffs": {
+      "FEAR": 0.25,
+      "emotionality": 0.2,
+      "security": 0.25,
+      "PANIC_GRIEF": 0.15,
+      "combat": 0.15,
+      "hedonism": -0.2,
+      "perception": 0.2
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "hissing oil",
+            "unquenchable flame",
+            "sulfur stench",
+            "burning pitch"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 2.4,
+        "source": "wound:alchemical_burns"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "water does not save you from Greek fire; once the pitch sticks, flesh and iron melt alike",
+        "confidence": 0.95,
+        "provenance": "formative:alchemical_fire_survivor"
+      }
+    ]
+  },
+  {
+    "id": "firing_squad_near_miss_survivor",
+    "category": "violence_conflict",
+    "name": "Partisan Reprisal Survivor",
+    "description": "Crawled out of a mass execution trench after surviving a summary volley beneath the weight of fallen comrades.",
+    "baseline_diffs": {
+      "default_trust": -0.3,
+      "authority": -0.25,
+      "security": 0.3,
+      "perception": 0.25,
+      "FEAR": 0.2,
+      "honesty_humility": -0.15,
+      "liberty": 0.25
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "firing squad command",
+            "blindfold",
+            "brick wall backdrop",
+            "cocking hammers"
+          ]
+        },
+        "lever": "PANIC_GRIEF",
+        "op": "x",
+        "magnitude": 2.3,
+        "source": "wound:summary_execution_near_miss"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "the line between the living and the executed is merely a misfired musket and dead bodies above you",
+        "confidence": 0.95,
+        "provenance": "formative:firing_squad_survivor"
+      }
+    ]
+  },
+  {
+    "id": "siege_counter_sapper_veteran",
+    "category": "violence_conflict",
+    "name": "Siege Sapper & Tunnel Fighter",
+    "description": "Fought subterranean counter-mining skirmishes in pitch darkness with picks, suffocating sulfur smoke, and collapsing earth.",
+    "baseline_diffs": {
+      "combat": 0.25,
+      "perception": 0.25,
+      "FEAR": 0.15,
+      "autonomy": 0.15,
+      "security": 0.2,
+      "openness": -0.15,
+      "competence": 0.2
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "pickaxe tapping",
+            "tunnel tremor",
+            "suffocating smoke",
+            "damp earth"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 2.2,
+        "source": "wound:counter_sapper_warfare"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "above ground you can run; beneath the fortress walls you fight until timber cracks or air rots",
+        "confidence": 0.95,
+        "provenance": "formative:sapper_warfare"
+      }
+    ]
+  },
+  {
+    "id": "penal_battalion_veteran",
+    "category": "violence_conflict",
+    "name": "Penal Battalion Forlorn Hope Veteran",
+    "description": "Expended in human-wave assaults to clear minefields and draw fire under the rifles of rear-guard blocking detachments.",
+    "baseline_diffs": {
+      "authority": -0.3,
+      "conformity": -0.25,
+      "FEAR": 0.2,
+      "combat": 0.3,
+      "default_trust": -0.3,
+      "loyalty": -0.2,
+      "relatedness": -0.2
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "blocking detachment whistle",
+            "minefield tripwire",
+            "expendable vanguard order",
+            "bayonet in back"
+          ]
+        },
+        "lever": "RAGE",
+        "op": "x",
+        "magnitude": 2.4,
+        "source": "wound:penal_battalion"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "commanders consider punishment soldiers cheaper than cannonballs; survival belongs to the low",
+        "confidence": 0.95,
+        "provenance": "formative:penal_battalion"
+      }
+    ]
+  },
+  {
+    "id": "counter_interrogation_survivor",
+    "category": "violence_conflict",
+    "name": "Counter-Interrogation & Torture Survivor",
+    "description": "Endured prolonged coercive extraction and sensory isolation in clandestine black sites without breaking operational networks.",
+    "baseline_diffs": {
+      "default_trust": -0.35,
+      "autonomy": 0.3,
+      "emotionality": -0.25,
+      "insight": 0.3,
+      "security": 0.25,
+      "honesty_humility": -0.2,
+      "liberty": 0.25
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "cell door bolt",
+            "iron restraint clink",
+            "interrogator cadence",
+            "water dripping"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 2.5,
+        "source": "wound:coercive_interrogation"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "pain is an interrogation clock; if you dissociate past the first hour, the flesh breaks before the secret does",
+        "confidence": 0.95,
+        "provenance": "formative:torture_resistance"
+      }
+    ]
+  },
+  {
+    "id": "executioner_headsman_apprentice",
+    "category": "vocation_discipline",
+    "name": "Executioner & Headsman Apprentice",
+    "description": "Apprenticed to the civic executioner; schooled in judicial dispatch, blade maintenance, and bureaucratic death.",
+    "baseline_diffs": {
+      "emotionality": -0.25,
+      "authority": 0.25,
+      "care_harm": -0.2,
+      "relatedness": -0.2,
+      "combat": 0.2,
+      "FEAR": -0.2
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "scaffold",
+            "severing sword",
+            "headsman hood",
+            "condemned prisoner",
+            "public execution"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 0.35,
+        "source": "vocation:executioner_stoicism"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "the stroke of the blade is not murder when signed by the magistrate; precision is the only mercy",
+        "confidence": 0.92,
+        "provenance": "formative:headsman_apprenticeship"
+      }
+    ]
+  },
+  {
+    "id": "deep_pit_miner_canary_watcher",
+    "category": "vocation_discipline",
+    "name": "Deep-Pit Coal Miner & Canary Watcher",
+    "description": "Toiled in pitch-black underground shafts monitoring firedamp gas and structural shifts through songbird behavior.",
+    "baseline_diffs": {
+      "perception": 0.3,
+      "security": 0.25,
+      "openness": -0.15,
+      "loyalty": 0.25,
+      "FEAR": 0.15,
+      "autonomy": -0.15
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "subterranean rumble",
+            "flickering lantern",
+            "silenced canary",
+            "creaking timber props"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 2.2,
+        "source": "vocation:miner_collapse_vigilance"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "the earth always warns you twice before it crushes you; listen to the bird and the props",
+        "confidence": 0.95,
+        "provenance": "formative:pit_canary_watch"
+      }
+    ]
+  },
+  {
+    "id": "alchemical_distiller_explosives_formulator",
+    "category": "vocation_discipline",
+    "name": "Alchemical Distiller & Explosives Formulator",
+    "description": "Specialized in unstable volatile compounds, exothermic salts, fractional distillation, and precision blasting charges.",
+    "baseline_diffs": {
+      "conscientiousness": 0.3,
+      "SEEKING": 0.25,
+      "stimulation": 0.2,
+      "emotionality": -0.15,
+      "insight": 0.2,
+      "default_trust": -0.15
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "hissing retort",
+            "nitrated slurry",
+            "sulfuric vapor",
+            "unstable primer"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 1.8,
+        "source": "vocation:alchemist_volatile_vigilance"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "matter is a caged beast that yields its power only to flawless proportions and absolute stillness of hand",
+        "confidence": 0.94,
+        "provenance": "formative:pyrotechnic_distillation"
+      }
+    ]
+  },
+  {
+    "id": "forensic_anatomist_embalmer",
+    "category": "vocation_discipline",
+    "name": "Mortuary Embalmer & Forensic Anatomist",
+    "description": "Trained in post-mortem dissection, embalming chemistry, preservative infusion, and decoding violent trauma on corpses.",
+    "baseline_diffs": {
+      "perception": 0.25,
+      "conscientiousness": 0.2,
+      "emotionality": -0.25,
+      "insight": 0.25,
+      "sanctity": -0.2
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "reek of decomposition",
+            "dissecting scalpel",
+            "autopsy slab",
+            "mutilated corpse"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 0.35,
+        "source": "vocation:mortuary_habituation"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "the living lie with every breath; the dead tell the truth in cut tendons, poisoned marrow, and fractured bone",
+        "confidence": 0.95,
+        "provenance": "formative:anatomist_training"
+      }
+    ]
+  },
+  {
+    "id": "maritime_navigator_celestial_cartographer",
+    "category": "vocation_discipline",
+    "name": "Maritime Navigator & Celestial Cartographer",
+    "description": "Master of oceanic dead reckoning, astrolabe sighting, tide tables, and chart projection under open sky.",
+    "baseline_diffs": {
+      "self_direction": 0.25,
+      "perception": 0.3,
+      "openness": 0.2,
+      "conscientiousness": 0.25,
+      "FEAR": -0.15,
+      "universalism": 0.15
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "starless storm night",
+            "dead reckoning error",
+            "breaking reef in fog",
+            "shoal soundings"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 1.9,
+        "source": "vocation:navigator_shoal_vigilance"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "the stars do not care where a ship wishes to sail; survival lies in conforming to the heavens",
+        "confidence": 0.95,
+        "provenance": "formative:celestial_navigation"
+      }
+    ]
+  },
+  {
+    "id": "decoy_body_double",
+    "category": "privilege_intrigue",
+    "name": "Decoy Body-Double",
+    "description": "Cosmetically and behaviourally altered to draw assassin bolts and carriage ambushes in place of the true monarch.",
+    "baseline_diffs": {
+      "emotionality": -0.2,
+      "security": 0.3,
+      "autonomy": -0.3,
+      "perception": 0.3,
+      "FEAR": 0.25,
+      "default_trust": -0.35,
+      "loyalty": 0.2
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "drawn crossbow in gallery",
+            "shattered carriage window",
+            "sudden royal carriage stop"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 2.4,
+        "source": "wound:target_displacement"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "to wear the royal doublet is to walk into an unceasing volley; anticipate every trajectory meant for another",
+        "confidence": 0.95,
+        "provenance": "formative:decoy_body_double"
+      }
+    ]
+  },
+  {
+    "id": "royal_poison_taster",
+    "category": "privilege_intrigue",
+    "name": "Royal Poison Taster",
+    "description": "Employed to consume every dish and chalice served to the sovereign, suffering frequent sublethal poisonings and chronic dread.",
+    "baseline_diffs": {
+      "perception": 0.3,
+      "insight": 0.2,
+      "security": 0.25,
+      "hedonism": -0.3,
+      "default_trust": -0.35,
+      "FEAR": 0.2,
+      "sanctity": 0.15
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "bitter draught",
+            "metallic wine",
+            "sudden banquet feast",
+            "royal cupbearer"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 2.3,
+        "source": "wound:poison_vigilance"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "death in court tastes like sweet almond and spiced wine; inspect the taster's tongue before swallowing",
+        "confidence": 0.95,
+        "provenance": "formative:royal_poison_taster"
+      }
+    ]
+  },
+  {
+    "id": "shadow_royal_bastard",
+    "category": "privilege_intrigue",
+    "name": "Shadow-Raised Royal Bastard",
+    "description": "Kept in secretive fosterage as a hidden spare claimant or living blackmail chip against the reigning dynasty.",
+    "baseline_diffs": {
+      "SEEKING": 0.25,
+      "power": 0.3,
+      "achievement": 0.25,
+      "relatedness": -0.3,
+      "honesty_humility": -0.2,
+      "default_trust": -0.3,
+      "insight": 0.25
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "whispered lineage",
+            "royal sigil ring",
+            "legitimacy proclamation"
+          ]
+        },
+        "lever": "SEEKING",
+        "op": "x",
+        "magnitude": 2.2,
+        "source": "wound:stolen_birthright"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "blood gives the right to rule, but only ruthless leverage prevents the cradle from becoming a tomb",
+        "confidence": 0.9,
+        "provenance": "formative:shadow_royal_bastard"
+      }
+    ]
+  },
+  {
+    "id": "hostage_envoy_truce",
+    "category": "privilege_intrigue",
+    "name": "Hostage Envoy Negotiator",
+    "description": "Held as highborn collateral in a hostile rival court while mandated to broker peace accords under threat of execution.",
+    "baseline_diffs": {
+      "agreeableness": 0.2,
+      "conscientiousness": 0.25,
+      "insight": 0.3,
+      "security": 0.25,
+      "FEAR": 0.2,
+      "autonomy": -0.25,
+      "loyalty": 0.25
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "broken ceasefire rumor",
+            "border clash dispatch",
+            "guarded envoy quarters"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 2.4,
+        "source": "wound:collateral_hostage_dread"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "a diplomat under truce is merely a prisoner whose execution date hinges on the next messenger",
+        "confidence": 0.95,
+        "provenance": "formative:hostage_envoy_truce"
+      }
+    ]
+  },
+  {
+    "id": "court_astrologer_augur",
+    "category": "privilege_intrigue",
+    "name": "Court Astrologer and Augur",
+    "description": "Tasked with reading omens and celestial charts to legitimize royal decrees, war declarations, and purges through calculated prophecy.",
+    "baseline_diffs": {
+      "openness": 0.25,
+      "insight": 0.35,
+      "power": 0.2,
+      "honesty_humility": -0.3,
+      "SEEKING": 0.25,
+      "authority": 0.25,
+      "default_trust": -0.25
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "comet sighting",
+            "solar eclipse omen",
+            "monarch demanding favorable horoscope"
+          ]
+        },
+        "lever": "SEEKING",
+        "op": "x",
+        "magnitude": 2.1,
+        "source": "wound:fabricated_prophecy_pressure"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "the stars never dictate policy; kings demand the heavens confirm what their generals already resolved",
+        "confidence": 0.95,
+        "provenance": "formative:court_astrologer_augur"
+      }
+    ]
+  },
+  {
+    "id": "exorcism_ritual_survivor",
+    "category": "spiritual_institutional",
+    "name": "Exorcism Ritual Survivor",
+    "description": "Surviving violent liturgical expulsions left deep psychic scarring, hyper-vigilance against spiritual violation, and fractured grounding.",
+    "baseline_diffs": {
+      "emotionality": 0.25,
+      "FEAR": 0.3,
+      "PANIC_GRIEF": 0.2,
+      "autonomy": -0.2,
+      "sanctity": 0.2,
+      "authority": -0.25,
+      "default_trust": -0.3,
+      "perception": 0.25
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "incense smoke",
+            "restraining bindings",
+            "latin chanting",
+            "demonic accusation"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 2.4,
+        "source": "wound:exorcism_trauma"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "the boundary between sacred rite and torturer's iron is purely ceremonial; when priests speak in tongues, bodies are broken",
+        "confidence": 0.92,
+        "provenance": "formative:exorcism_survivor"
+      }
+    ]
+  },
+  {
+    "id": "oathbreaker_branded_penitent",
+    "category": "spiritual_institutional",
+    "name": "Branded Oathbreaker Penitent",
+    "description": "Bearing ritual branding on flesh for broken sacred vows, condemned to wander in perpetual liturgical atonement.",
+    "baseline_diffs": {
+      "honesty_humility": 0.25,
+      "sanctity": 0.25,
+      "PANIC_GRIEF": 0.2,
+      "conformity": 0.2,
+      "power": -0.3,
+      "loyalty": -0.2,
+      "default_trust": -0.25
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "temple brand",
+            "oath recitation",
+            "holy tribunal",
+            "curse of betrayal"
+          ]
+        },
+        "lever": "PANIC_GRIEF",
+        "op": "x",
+        "magnitude": 2.2,
+        "source": "wound:branded_shame"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "the brand in the flesh burns cooler than the memory of the vow you broke; atonement ends only in the grave",
+        "confidence": 0.95,
+        "provenance": "formative:branded_oathbreaker"
+      }
+    ]
+  },
+  {
+    "id": "consecrated_sacrificial_vessel",
+    "category": "spiritual_institutional",
+    "name": "Consecrated Sacrificial Vessel",
+    "description": "Raised in ceremonial sequestration as an anointed offering whose mortal vessel belongs wholly to the altar.",
+    "baseline_diffs": {
+      "autonomy": -0.35,
+      "sanctity": 0.35,
+      "tradition": 0.3,
+      "conformity": 0.3,
+      "power": -0.3,
+      "SEEKING": -0.25,
+      "FEAR": -0.2,
+      "care_harm": 0.2
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "altar stone",
+            "anointing oil",
+            "sacrificial blade",
+            "divine summons"
+          ]
+        },
+        "lever": "FEAR",
+        "op": "x",
+        "magnitude": 2.3,
+        "source": "conditioning:sacrificial_election"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "my flesh is not property of the self but a borrowed chalice waiting to be emptied for the divine order",
+        "confidence": 0.96,
+        "provenance": "formative:consecrated_vessel"
+      }
+    ]
+  },
+  {
+    "id": "heretical_network_courier",
+    "category": "spiritual_institutional",
+    "name": "Heretical Underground Network Courier",
+    "description": "Smuggler of apocrypha, forbidden liturgies, and clandestine sacraments through hostile inquisition territory.",
+    "baseline_diffs": {
+      "openness": 0.25,
+      "conscientiousness": 0.25,
+      "SEEKING": 0.3,
+      "authority": -0.35,
+      "liberty": 0.3,
+      "loyalty": 0.25,
+      "default_trust": -0.3,
+      "perception": 0.3
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "inquisitorial checkpoint",
+            "censored scripture",
+            "secret cipher",
+            "heretic sign"
+          ]
+        },
+        "lever": "SEEKING",
+        "op": "x",
+        "magnitude": 2.2,
+        "source": "conditioning:subversive_vigilance"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "the living truth survives only in the catacombs; what the high temple canonizes is merely embalmed tyranny",
+        "confidence": 0.91,
+        "provenance": "formative:heretical_courier"
+      }
+    ]
+  },
+  {
+    "id": "zealot_suicide_commando",
+    "category": "spiritual_institutional",
+    "name": "Zealot Sacrosanct Commando",
+    "description": "Conditioned through ascetic mortification and millenarian liturgy to embrace absolute martyrdom for the sacred cause.",
+    "baseline_diffs": {
+      "emotionality": -0.3,
+      "RAGE": 0.3,
+      "sanctity": 0.35,
+      "loyalty": 0.35,
+      "care_harm": -0.3,
+      "combat": 0.3,
+      "autonomy": -0.25,
+      "tradition": 0.25
+    },
+    "catalog_rows": [
+      {
+        "when": {
+          "percept": [
+            "martyrdom decree",
+            "enemy apostate",
+            "holy war hymn",
+            "explosive talisman"
+          ]
+        },
+        "lever": "RAGE",
+        "op": "x",
+        "magnitude": 2.5,
+        "source": "conditioning:martyr_zeal"
+      }
+    ],
+    "vault_belief_seeds": [
+      {
+        "claim": "death in the holy blast is not the end of breath but the violent instantaneous ascension into paradise",
+        "confidence": 0.98,
+        "provenance": "formative:zealot_commando"
+      }
+    ]
+  }
+]

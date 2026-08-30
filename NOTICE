@@ -1,0 +1,38 @@
+Simulated World Evolve
+Copyright 2026 Maximillian Mosley
+
+This product includes software developed for the Simulated World Evolve /
+SimToProse project (https://github.com/amatayomosley-web/SimToProse).
+
+Licensed under the Apache License, Version 2.0. See LICENSE.
+
+-------------------------------------------------------------------------------
+ATTRIBUTION
+-------------------------------------------------------------------------------
+
+Section 4(d) of the Apache License requires that this NOTICE file, and the
+attribution notices it contains, be carried into any Derivative Work you
+distribute. In plain terms: if you fork this engine, embed it, or ship software
+built on it, keep this file with it and keep the line above.
+
+-------------------------------------------------------------------------------
+A REQUEST, NOT A LICENCE CONDITION
+-------------------------------------------------------------------------------
+
+This engine exists to produce novels, and a novel is not a Derivative Work of
+the tool that produced it. Nothing in the Apache License obliges you to credit
+this project in a book, a game, or any other work you write with it. That is
+deliberate: a licence that reached into the output would not be an open licence,
+and the output is yours.
+
+So this is a request and is expressly NOT a condition of the licence:
+
+  If a work you publish was written, planned, or simulated with the help of
+  this engine, we would like it named. A line in an acknowledgements page, a
+  colophon, an About screen, or a repository README is plenty. Something like:
+
+      Written with the help of Simulated World Evolve
+      https://github.com/amatayomosley-web/SimToProse
+
+  Declining costs you nothing and breaches nothing. You keep every right the
+  Apache License grants you either way.

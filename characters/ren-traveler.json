@@ -1,0 +1,299 @@
+{
+  "_meta": {
+    "purpose": "ENGINE FIXTURE — the spider test. Invented, corpus-free, belongs to the engine.",
+    "conforms_to": "docs/character-schema.md",
+    "central_tension": "Brave in general, and morbidly afraid of one specific thing. The whole point of the fixture is that no single trait word describes him: 'brave' is true and 'terrified' is true, and which one you see depends on what is in the room and who is standing behind him.",
+    "calibration": "threat_reactivity low + temperament.FEAR.mean 0.22 => a genuinely steady man. The phobia lives ENTIRELY in baseline.catalog, not in the genotype, which is the point: a global gain cannot say 'brave except about spiders'.",
+    "scale": "all 0..1 unless noted; catalog multipliers are ratios"
+  },
+  "fixed": {
+    "id": "ren",
+    "name": "Ren",
+    "role_tier": "principal",
+    "people": "human",
+    "position": {
+      "place": "no fixed place — a traveller who walks the upland circuit and winters wherever the work is",
+      "class": "itinerant, unpropertied, and entirely unremarkable to anyone who matters; he is trusted on the road because he has never once failed to arrive",
+      "era": "a settled century; the roads are safe enough that the danger left is weather, animals, and bad footing",
+      "niche": "carries goods and word between upland villages, and is the man sent down the old workings when something needs fetching out of the dark"
+    },
+    "genotype": {
+      "threat_reactivity": "low (steady under danger; the road taught him early that panic is what kills you)",
+      "approach_drive": "typical",
+      "affiliation_attachment": "elevated (attaches hard to the few he travels with)",
+      "anger_proneness": "low",
+      "effortful_control": "high (he has talked himself down off worse)",
+      "sensitivity": "typical"
+    },
+    "voice": "level, unhurried, few words on the road and fewer underground",
+    "physical": "forty, weather-cut, long-boned, hands ruined by rope"
+  },
+  "baseline": {
+    "temperament": {
+      "_note": "Panksepp primaries, resting {mean, variability}",
+      "CARE": {
+        "mean": 0.55,
+        "variability": 0.1
+      },
+      "FEAR": {
+        "mean": 0.22,
+        "variability": 0.1,
+        "note": "steady — and this is exactly why the ceiling bites without tier 3"
+      },
+      "RAGE": {
+        "mean": 0.18,
+        "variability": 0.08
+      },
+      "SEEKING": {
+        "mean": 0.5,
+        "variability": 0.1
+      },
+      "LUST": {
+        "mean": 0.2,
+        "variability": 0.06
+      },
+      "PANIC_GRIEF": {
+        "mean": 0.25,
+        "variability": 0.1
+      },
+      "PLAY": {
+        "mean": 0.35,
+        "variability": 0.1
+      },
+      "DISGUST": {
+        "mean": 0.15,
+        "variability": 0.1
+      }
+    },
+    "traits": {
+      "_note": "HEXACO facets {mean, variability}",
+      "honesty_humility": {
+        "mean": 0.8,
+        "variability": 0.08
+      },
+      "emotionality": {
+        "mean": 0.35,
+        "variability": 0.1
+      },
+      "extraversion": {
+        "mean": 0.4,
+        "variability": 0.1
+      },
+      "agreeableness": {
+        "mean": 0.6,
+        "variability": 0.1
+      },
+      "conscientiousness": {
+        "mean": 0.75,
+        "variability": 0.08
+      },
+      "openness": {
+        "mean": 0.55,
+        "variability": 0.1
+      }
+    },
+    "model": {
+      "_note": "weighting over the worth menu + resolution priority",
+      "schwartz": {
+        "benevolence": 0.75,
+        "security": 0.55,
+        "self_direction": 0.7,
+        "universalism": 0.45,
+        "conformity": 0.3,
+        "tradition": 0.3,
+        "achievement": 0.35,
+        "stimulation": 0.4,
+        "power": 0.15,
+        "hedonism": 0.25
+      },
+      "moral_foundations": {
+        "care_harm": 0.75,
+        "fairness": 0.7,
+        "loyalty": 0.65,
+        "authority": 0.35,
+        "liberty": 0.6,
+        "sanctity": 0.2
+      },
+      "needs": {
+        "relatedness": 0.6,
+        "competence": 0.75,
+        "autonomy": 0.7
+      },
+      "resolution_priority": [
+        "get the other one out first > finish the job",
+        "keep walking > explain yourself",
+        "admit the thing you cannot do > let someone rely on you for it"
+      ]
+    },
+    "catalog": {
+      "_note": "TIER 3 — the buff/debuff registry (docs/decision-engine.md §effective-state catalog). Each row is {when, lever, op, magnitude, source}. Rows apply on the STANDING FACT; appraise() fires on the CHANGE. Magnitudes are Class-A authored numbers, calibrated against the direction bands (0.25/0.55/0.80) so a fired row is VISIBLE rather than lost inside a band.",
+      "rows": [
+        {
+          "when": {
+            "percept": [
+              "spider",
+              "spiders",
+              "web",
+              "webbing"
+            ]
+          },
+          "lever": "FEAR",
+          "op": "x",
+          "magnitude": 3.4,
+          "source": "the bite that blinded him three days as a boy — the one thing that is not steady"
+        },
+        {
+          "when": {
+            "percept": [
+              "spider",
+              "spiders",
+              "web",
+              "webbing"
+            ]
+          },
+          "lever": "SEEKING",
+          "op": "x",
+          "magnitude": 0.5,
+          "source": "he stops wanting to know what is further in"
+        },
+        {
+          "when": {
+            "present_edge": {
+              "affinity": 0.7
+            }
+          },
+          "lever": "FEAR",
+          "op": "x",
+          "magnitude": 0.62,
+          "source": "someone at his back he means to bring out — he steadies for them, not for himself"
+        },
+        {
+          "when": {
+            "present_edge": {
+              "affinity": 0.7
+            }
+          },
+          "lever": "CARE",
+          "op": "+",
+          "magnitude": 0.22,
+          "source": "the one he is responsible for is inside the same danger"
+        },
+        {
+          "when": {
+            "condition_at_most": {
+              "energy": 0.35
+            }
+          },
+          "lever": "FEAR",
+          "op": "+",
+          "magnitude": 0.1,
+          "source": "worn down; the talking-himself-down costs more than it used to"
+        }
+      ]
+    },
+    "drives": {
+      "goals": [
+        {
+          "goal": "bring whoever is with him back up the way they came down",
+          "priority": 0.95,
+          "satisfaction": 0.3
+        },
+        {
+          "goal": "finish the fetch and be paid",
+          "priority": 0.55,
+          "satisfaction": 0.4
+        }
+      ],
+      "fears_wounds": [
+        {
+          "wound": "a hunting spider's bite swelled his face shut and left him three days blind when he was a boy; he was alone in a barn loft and nobody came until it had run its course",
+          "intensity": 0.95,
+          "trigger": [
+            "spider",
+            "web",
+            "something moving in the dark above"
+          ],
+          "avoidance": [
+            "will not put a hand where he cannot see",
+            "takes the long way rather than the low crawl"
+          ],
+          "defense": "flee",
+          "_note": "This prose is what the ACTOR reads. The operational half is baseline.catalog row 1 — same wound, stated as a lever so it enters the arithmetic. Authoring one without the other is the defect the catalog exists to end."
+        }
+      ],
+      "orientation": {
+        "locus": "internal-practical",
+        "coping": "keep moving, keep talking, do not look up"
+      }
+    },
+    "skills": {
+      "roping_and_climbing": 0.85,
+      "wayfinding": 0.8,
+      "people_assessment": 0.6,
+      "martial_craft": 0.35,
+      "perception": 0.7
+    },
+    "voice": {
+      "register": "level and unhurried; shorter underground than above",
+      "tics": [
+        "counts steps out loud when the footing is bad",
+        "says 'right' before he moves",
+        "will not say a thing is fine when it is not"
+      ],
+      "assertiveness": 0.55,
+      "silence": "high"
+    },
+    "relationship_priors": {
+      "default_trust": 0.55,
+      "in_group": [
+        "joss_apprentice"
+      ],
+      "update": {
+        "grant_threshold": "moderate",
+        "withdraw_speed": "slow"
+      }
+    },
+    "provenance": {
+      "author": "engine fixture",
+      "purpose": "spider test — tier-3 effective levers"
+    }
+  },
+  "current": {
+    "_note": "turn 0: partway down the old workings on the upland road.",
+    "location": "upland_road",
+    "affect": {
+      "CARE": 0.55,
+      "FEAR": 0.22,
+      "RAGE": 0.15,
+      "LUST": 0.15,
+      "SEEKING": 0.5,
+      "PANIC_GRIEF": 0.25,
+      "PLAY": 0.2,
+      "DISGUST": 0.15
+    },
+    "condition": {
+      "energy": 0.7,
+      "allostatic_load": 0.25,
+      "health": 0.9,
+      "fatigue": 0.25,
+      "injuries": []
+    },
+    "active_goals": [
+      {
+        "goal": "get down, get the thing, get back up before the light goes",
+        "urgency": 0.7
+      }
+    ],
+    "relationships": {
+      "joss_apprentice": {
+        "trust": 0.8,
+        "affinity": 0.9,
+        "respect": 0.55,
+        "debt": 0.0,
+        "known_as": "Joss",
+        "history": "the apprentice; Ren said he would have him back by dark and Joss's mother heard him say it"
+      }
+    },
+    "zone": "optimal"
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "_meta": {
+    "purpose": "Light world slice for the coherence probe (docs/probe-plan.md). NOT teeth — the director probe needs lever-denial; coherence only needs varied events with grounding. Deliberately thin.",
+    "conforms_to": "docs/world-state-ledger.md (locations + standing facts) at minimal depth"
+  },
+  "world": "Ashford — a small upland village",
+  "season": "late autumn; the first fevers of the cold season are starting",
+  "lexicon": {
+    "_note": "This book's perception vocabulary (machine/content seam, g6): the engine's extraction MECHANISM reads these words; the words are Ashford content. attribute_classes: class name surfaces as an overt percept attribute when any keyword appears. subtle_cues: cue name surfaces ONLY behind a perception check. subtle_cue_classes: classes whose presence implies gated fine detail.",
+    "attribute_classes": {
+      "fever":      ["fever", "heat", "burning", "temperature", "climbing", "hot"],
+      "child":      ["child", "boy", "girl", "bryn", "infant", "young"],
+      "death":      ["dies", "died", "dead", "dying", "past saving", "tobin", "lost"],
+      "apprentice": ["joss", "apprentice"],
+      "elder":      ["edda", "elder"],
+      "traveler":   ["ren", "traveler", "traveller", "outsider"],
+      "night":      ["night", "third night", "threshold", "second night", "dawn", "morning"]
+    },
+    "subtle_cues": {
+      "fever-climbing":         ["climbing", "climbs"],
+      "second-night-threshold": ["second night"],
+      "third-night-threshold":  ["third night"],
+      "critical-threshold":     ["rarely turn", "rarely turns"],
+      "terminal-prognosis":     ["past saving"],
+      "exhaustion-cause":       ["exhaustion", "bad water"],
+      "collapse-severity":      ["collapsed", "collapses"]
+    },
+    "subtle_cue_classes": ["fever"]
+  },
+  "standing_facts": [
+    "Ashford is remote: the nearest town with a second healer is two days' walk.",
+    "Maren is the only healer; if she fails, there is no one else nearby.",
+    "Winter fevers here climb over successive nights; past the third night they rarely turn (craft lore, not law).",
+    "It is a close village — most people are in-group to one another; a traveler is a visible outsider."
+  ],
+  "locations": [
+    { "id": "cottage", "what": "Maren's cottage at the village edge — her stores, her workbench, where she sleeps little" },
+    { "id": "square", "what": "the village square — the well, the gathering place" },
+    { "id": "sickhouse", "what": "a spare room off the square kept for the worst cases" },
+    { "id": "upland_road", "what": "the road out, toward the town two days off" }
+  ],
+  "people": [
+    { "id": "edda_elder", "what": "the village elder; long mutual reliance with Maren" },
+    { "id": "joss_apprentice", "what": "Maren's apprentice of two years; gifted, kept from real weight" },
+    { "id": "ren_traveler", "what": "an outsider lately in Ashford; reason for staying unclear" }
+  ]
+}

@@ -1,0 +1,173 @@
+#!/usr/bin/env python3
+"""test_acquisition.py — the vault grows: a durable, subject-bearing turn becomes a recallable belief.
+
+Covers acquisition.assess (the deterministic promotion rule) + Ledger.append_acquisition /
+acquisitions_for (the persistence round-trip). Script-style, stdlib only, exit 0 = all pass.
+"""
+import os
+import sys
+import tempfile
+
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, REPO)
+
+from src.engine import acquisition          # noqa: E402
+from src.engine.ledger import Ledger        # noqa: E402
+
+PASS, FAIL = [], []
+
+
+def check(name, cond, detail=""):
+    (PASS if cond else FAIL).append(name)
+    print(("  PASS  " if cond else "  FAIL  ") + name + (("  — " + detail) if (detail and not cond) else ""))
+
+
+def _char(vault=None):
+    return {"fixed": {"name": "Corin"}, "baseline": {}, "current": {"vault": list(vault or [])}}
+
+
+def test_assess_promotes_durable_subject_turn():
+    print("\n[A] assess — durable + subject -> belief")
+    applied = {"target": "nessa", "dimensions": {"care_relevant": 0.8}}
+    tags = {"type": "aid", "summary": "I forced Father to send help for the worker",
+            "durability": "durable", "confidence": 0.9}
+    b = acquisition.assess(applied, tags, _char())
+    check("durable-subject-promotes", b is not None and b["claim"] == tags["summary"], repr(b))
+    check("provenance-lived", bool(b) and b.get("provenance") == "lived", repr(b))
+    check("links-to-subject", bool(b) and b.get("links") == ["nessa"], repr(b))
+    check("confidence-carried", bool(b) and abs(b.get("confidence", 0) - 0.9) < 1e-9, repr(b))
+
+
+def test_assess_rejects():
+    print("\n[B] assess — rejections")
+    base = {"target": "nessa"}
+    check("transient-none", acquisition.assess(base, {"summary": "I pass the salt", "durability": "transient"}, _char()) is None)
+    check("no-subject-none", acquisition.assess({}, {"summary": "I brood", "durability": "durable"}, _char()) is None)
+    check("no-summary-none", acquisition.assess(base, {"summary": "", "durability": "durable"}, _char()) is None)
+
+
+def test_assess_dedups():
+    print("\n[C] assess — dedup vs existing vault")
+    applied = {"target": "nessa"}
+    tags = {"summary": "I forced Father to send help", "durability": "durable", "confidence": 0.8}
+    ch = _char(vault=[{"claim": "I forced Father to send help", "provenance": "lived"}])
+    check("duplicate-claim-none", acquisition.assess(applied, tags, ch) is None)
+    check("novel-claim-promotes", acquisition.assess(applied, tags, _char(vault=[{"claim": "something else"}])) is not None)
+
+
+def test_ledger_roundtrip():
+    print("\n[D] Ledger.append_acquisition / acquisitions_for")
+    led = Ledger(os.path.join(tempfile.mkdtemp(), "acq.db"))
+    led.create_run("r1", {"catalog_version": 1})
+    led.append_acquisition("r1", "corin", 3, {"claim": "first", "provenance": "lived", "links": ["nessa"]})
+    led.append_acquisition("r1", "corin", 5, {"claim": "second", "provenance": "lived", "links": []})
+    led.append_acquisition("r1", "ilsa", 4, {"claim": "ilsa-only", "provenance": "lived", "links": []})
+    got = led.acquisitions_for("r1", "corin")
+    check("corin-gets-two", len(got) == 2, str(got))
+    check("ordered-by-turn", [b["claim"] for b in got] == ["first", "second"], str(got))
+    check("scoped-by-char", [b["claim"] for b in led.acquisitions_for("r1", "ilsa")] == ["ilsa-only"])
+
+
+def test_reveal_name_monotonic():
+    print("\n[E] reveal_name — monotonic name acquisition (old info preserved)")
+    from src.engine.gate import scope_names
+    ch = _char(vault=[{"claim": "I tended the damaged worker", "provenance": "lived"}])
+    ch["current"]["relationships"] = {"nessa": {"trust": 0.2, "known_as": "the damaged worker"}}
+    before = len(ch["current"]["vault"])
+    b = acquisition.reveal_name(ch, "nessa", "Nessa")
+    check("flips-known-as", ch["current"]["relationships"]["nessa"]["known_as"] == "Nessa")
+    check("returns-learned-belief", bool(b) and b.get("provenance") == "learned" and "Nessa" in b.get("claim", ""), repr(b))
+    check("old-belief-preserved", ch["current"]["vault"][0]["claim"] == "I tended the damaged worker")
+    check("monotonic-append", len(ch["current"]["vault"]) == before + 1)
+    rels = ch["current"]["relationships"]
+    check("name-now-visible-to-knower", scope_names("Nessa enters", rels) == "Nessa enters",
+          scope_names("Nessa enters", rels))
+    check("others-still-masked", "Nessa" not in scope_names("Nessa enters", {"nessa": {"known_as": "the damaged worker"}}))
+    check("no-edge-returns-none", acquisition.reveal_name(_char(), "ghost", "Boo") is None)
+
+
+def test_resume_replay_data():
+    print("\n[F] resume-replay — arc_diffs_for + vault rehydrate")
+    led = Ledger(os.path.join(tempfile.mkdtemp(), "resume.db"))
+    led.create_run("r2", {"catalog_version": 1})
+    led.append_arc_diff("r2", "corin", 2, {"temperament": {"RAGE": 0.05}, "_meta": {"dominant": "RAGE"}})
+    led.append_arc_diff("r2", "corin", 4, {"relationships": {"nessa": {"affinity": 0.1}}})
+    led.append_acquisition("r2", "corin", 3, {"claim": "learned A", "provenance": "lived"})
+    led.append_acquisition("r2", "corin", 5, {"claim": "learned B", "provenance": "lived"})
+    diffs = led.arc_diffs_for("r2", "corin")
+    check("arc-diffs-two-in-order", len(diffs) == 2 and "RAGE" in diffs[0].get("temperament", {}), str(diffs))
+    # the resume replay: a seed char's vault gets the acquisitions appended in order
+    seed = _char(vault=[{"claim": "seed belief"}])
+    seed["current"]["vault"].extend(led.acquisitions_for("r2", "corin"))
+    claims = [b["claim"] for b in seed["current"]["vault"]]
+    check("vault-rehydrated-seed-plus-acquired", claims == ["seed belief", "learned A", "learned B"], str(claims))
+
+
+def test_witness_belief():
+    print("\n[G] witness_belief — bystander remembers a durable act")
+    b = acquisition.witness_belief("Nessa", {"summary": "I covered the child with my body", "durability": "durable"}, "nessa")
+    check("witnessed-deperson", bool(b) and b["claim"].startswith("Nessa covered the child"), repr(b))
+    check("witnessed-provenance-links", bool(b) and b.get("provenance") == "witnessed" and b.get("links") == ["nessa"], repr(b))
+    check("witness-transient-none", acquisition.witness_belief("Nessa", {"summary": "x", "durability": "transient"}, "nessa") is None)
+    nonfirst = acquisition.witness_belief("Nessa", {"summary": "The cup fell", "durability": "durable"}, "nessa")
+    check("witness-nonfirst-person", bool(nonfirst) and nonfirst["claim"].startswith("Nessa — as I saw it"), repr(nonfirst))
+
+
+def test_faithfulness_name_leak():
+    print("\n[H] faithfulness — catch a name the character does not hold")
+    from src.engine import faithfulness
+    rels = {"nessa": {"known_as": "the damaged worker"}}
+    check("leak-detected", faithfulness.check_name_leaks("I will fetch Nessa from the cold.", rels) == [("nessa", "the damaged worker")],
+          str(faithfulness.check_name_leaks("I will fetch Nessa from the cold.", rels)))
+    check("descriptor-is-clean", faithfulness.check_name_leaks("I will fetch the damaged worker.", rels) == [])
+    check("known-name-is-clean", faithfulness.check_name_leaks("Nessa is here", {"nessa": {"known_as": "Nessa"}}) == [])
+    check("no-known_as-is-clean", faithfulness.check_name_leaks("Nessa is here", {"nessa": {"trust": 0.2}}) == [])
+
+
+def test_overheard_names():
+    print("\n[I] overheard_names — transmission: a bystander hears a name and learns it")
+    people = [{"id": "nessa", "name": "Nessa Dorn"}, {"id": "corin", "name": "Corin Holloway"}]
+    masked = {"nessa": {"known_as": "the damaged worker"}}
+    check("masked-name-overheard",
+          acquisition.overheard_names("Send help for Nessa at once.", masked, people) == [("nessa", "Nessa")],
+          str(acquisition.overheard_names("Send help for Nessa at once.", masked, people)))
+    check("descriptor-only-no-transmission",
+          acquisition.overheard_names("Send help for the worker.", masked, people) == [])
+    check("already-known-skipped",
+          acquisition.overheard_names("Nessa is here", {"nessa": {"known_as": "Nessa"}}, people) == [])
+    check("no-edge-skipped", acquisition.overheard_names("Nessa is here", {}, people) == [])
+    check("name-not-in-registry-skipped",
+          acquisition.overheard_names("Nessa is here", masked, []) == [])
+    # end-to-end: overheard -> reveal_name flips known_as forward, monotonically
+    ch = _char(vault=[{"claim": "I tended the damaged worker"}])
+    ch["current"]["relationships"] = {"nessa": {"known_as": "the damaged worker"}}
+    for eid, nm in acquisition.overheard_names("Nessa, come inside.", ch["current"]["relationships"], people):
+        acquisition.reveal_name(ch, eid, nm)
+    check("overheard-then-revealed", ch["current"]["relationships"]["nessa"]["known_as"] == "Nessa")
+    check("old-descriptor-memory-kept", ch["current"]["vault"][0]["claim"] == "I tended the damaged worker")
+
+
+def main():
+    print("test_acquisition.py — the vault grows (knowledge-model.md acquisition)\n")
+    test_assess_promotes_durable_subject_turn()
+    test_assess_rejects()
+    test_assess_dedups()
+    test_ledger_roundtrip()
+    test_reveal_name_monotonic()
+    test_resume_replay_data()
+    test_witness_belief()
+    test_faithfulness_name_leak()
+    test_overheard_names()
+    total = len(PASS) + len(FAIL)
+    print("\n--- summary ---\n  %d / %d passed" % (len(PASS), total))
+    if FAIL:
+        print("  FAILED:")
+        for f in FAIL:
+            print("    " + f)
+        return 1
+    print("VERDICT: PASS")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
