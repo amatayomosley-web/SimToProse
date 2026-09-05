@@ -293,3 +293,156 @@ CREATE TRIGGER IF NOT EXISTS relationship_deltas_no_delete
 BEFORE DELETE ON relationship_deltas BEGIN
     SELECT RAISE(ABORT, 'relationship_deltas is append-only (CLAUDE.md hard rule 2): DELETE refused. A correction is a NEW row, never a rewritten one.');
 END;
+
+-- ============================================================================
+-- v22 (2026-09-05): the eight tables the public template lacked.
+--
+-- Added AHEAD of their readers, deliberately and for exactly the length of the
+-- module port that follows: eight engine modules cannot land until these exist, so
+-- the schema has to precede them. Every one has a named module in the queue. A table
+-- that still has no reader when the port ends is debt, and should be recorded as debt
+-- rather than left to look intentional.
+--
+-- Additive only. No existing table, column or trigger is touched, and schema.sql is
+-- idempotent, so a v9 database gains these on next open via db._migrate.
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS utterances (
+    utterance_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id TEXT NOT NULL REFERENCES runs(run_id) CHECK (run_id <> ''),
+    turn         INTEGER NOT NULL,
+    speaker TEXT NOT NULL CHECK (speaker <> ''),
+    said         TEXT    NOT NULL,          -- VERBATIM. The extract is an index into this, never a
+                                            -- substitute: "when I was a girl" may be the whole point.
+    tier         TEXT    NOT NULL DEFAULT 'superposed' CHECK (tier <> '')
+);
+
+CREATE TRIGGER IF NOT EXISTS utterances_no_update BEFORE UPDATE ON utterances
+BEGIN SELECT RAISE(ABORT, 'utterances is append-only (CLAUDE.md hard rule 2): tier is DERIVED by folding claim_resolutions, never rewritten'); END;
+
+CREATE TRIGGER IF NOT EXISTS utterances_no_delete BEFORE DELETE ON utterances
+BEGIN SELECT RAISE(ABORT, 'utterances is append-only (CLAUDE.md hard rule 2): a declined claim is resolved to fiction, never deleted'); END;
+
+CREATE TABLE IF NOT EXISTS claim_extracts (
+    utterance_id INTEGER NOT NULL REFERENCES utterances(utterance_id),
+    ord_no       INTEGER NOT NULL,
+    subject TEXT NOT NULL CHECK (subject <> ''),
+    predicate TEXT NOT NULL CHECK (predicate <> ''),
+    object       TEXT    NOT NULL DEFAULT '',
+    PRIMARY KEY (utterance_id, ord_no)
+);
+
+CREATE TRIGGER IF NOT EXISTS claim_extracts_no_update BEFORE UPDATE ON claim_extracts
+BEGIN SELECT RAISE(ABORT, 'claim_extracts is append-only (CLAUDE.md hard rule 2): it is derived from an utterance that cannot change'); END;
+
+CREATE TRIGGER IF NOT EXISTS claim_extracts_no_delete BEFORE DELETE ON claim_extracts
+BEGIN SELECT RAISE(ABORT, 'claim_extracts is append-only (CLAUDE.md hard rule 2): resolve the utterance to fiction instead'); END;
+
+CREATE TABLE IF NOT EXISTS claim_resolutions (
+    resolution_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id TEXT NOT NULL REFERENCES runs(run_id) CHECK (run_id <> ''),
+    utterance_id  INTEGER NOT NULL REFERENCES utterances(utterance_id),
+    at_turn       INTEGER NOT NULL,
+    verdict       TEXT    NOT NULL CHECK (verdict IN ('authored','established','superposed','fiction')),
+    rationale     TEXT    NOT NULL DEFAULT ''
+);
+
+CREATE TRIGGER IF NOT EXISTS claim_resolutions_no_update BEFORE UPDATE ON claim_resolutions
+BEGIN SELECT RAISE(ABORT, 'claim_resolutions is append-only (CLAUDE.md hard rule 2): append a new verdict'); END;
+
+CREATE TRIGGER IF NOT EXISTS claim_resolutions_no_delete BEFORE DELETE ON claim_resolutions
+BEGIN SELECT RAISE(ABORT, 'claim_resolutions is append-only (CLAUDE.md hard rule 2): append a new verdict'); END;
+
+CREATE TABLE IF NOT EXISTS edl (
+    run_id TEXT NOT NULL REFERENCES runs(run_id) CHECK (run_id <> ''),
+    -- A cut is REVISED by appending a whole new generation, never by rewriting the old one. The
+    -- triggers below say "revise by appending" and until schema v17 there was nowhere to append TO:
+    -- PRIMARY KEY (run_id, ord_no) meant a second pass collided, and appending at fresh ord_nos
+    -- made the renderer emit the UNION of both cuts. A run got exactly one cut, forever.
+    generation INTEGER NOT NULL DEFAULT 0,
+    ord_no   INTEGER NOT NULL,
+    kind     TEXT    NOT NULL CHECK (kind IN ('SCENE', 'SUMMARY', 'BREAK', 'NOTE')),
+    payload  TEXT    NOT NULL,             -- JSON, shape per kind (src/engine/edl.py)
+    PRIMARY KEY (run_id, generation, ord_no)
+);
+
+CREATE TRIGGER IF NOT EXISTS edl_no_update BEFORE UPDATE ON edl
+BEGIN SELECT RAISE(ABORT, 'edl is append-only (CLAUDE.md hard rule 2): revise by appending'); END;
+
+CREATE TRIGGER IF NOT EXISTS edl_no_delete BEFORE DELETE ON edl
+BEGIN SELECT RAISE(ABORT, 'edl is append-only (CLAUDE.md hard rule 2): revise by appending'); END;
+
+CREATE TABLE IF NOT EXISTS scene_cfgs (
+    fingerprint TEXT PRIMARY KEY CHECK (fingerprint <> ''),          -- sha256 over the canonical cfg payload, not the file bytes
+    recorded_at TEXT NOT NULL,
+    body        TEXT NOT NULL              -- JSON: the cfg as the run loaded it
+);
+
+CREATE TRIGGER IF NOT EXISTS scene_cfgs_no_update BEFORE UPDATE ON scene_cfgs
+BEGIN SELECT RAISE(ABORT, 'scene_cfgs is append-only (CLAUDE.md hard rule 2): a cfg body must not change under its fingerprint'); END;
+
+CREATE TRIGGER IF NOT EXISTS scene_cfgs_no_delete BEFORE DELETE ON scene_cfgs
+BEGIN SELECT RAISE(ABORT, 'scene_cfgs is append-only (CLAUDE.md hard rule 2): a scene row still points at this pin'); END;
+
+CREATE TABLE IF NOT EXISTS time_declarations (
+    decl_id  INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id TEXT NOT NULL CHECK (run_id <> ''),
+    turn     INTEGER NOT NULL,                  -- the turn the declaration takes effect BEFORE
+    elapsed  REAL    NOT NULL CHECK (elapsed > 0),
+    source   TEXT    NOT NULL DEFAULT '',       -- prose: what the director said passed
+    UNIQUE (run_id, turn)
+);
+
+CREATE TRIGGER IF NOT EXISTS time_declarations_no_update
+BEFORE UPDATE ON time_declarations BEGIN
+    SELECT RAISE(ABORT, 'time_declarations is append-only (CLAUDE.md hard rule 2): UPDATE refused. A correction is a NEW row, never a rewritten one.');
+END;
+
+CREATE TRIGGER IF NOT EXISTS time_declarations_no_delete
+BEFORE DELETE ON time_declarations BEGIN
+    SELECT RAISE(ABORT, 'time_declarations is append-only (CLAUDE.md hard rule 2): DELETE refused. A correction is a NEW row, never a rewritten one.');
+END;
+
+CREATE TABLE IF NOT EXISTS toward_deltas (
+    delta_id  INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id TEXT NOT NULL CHECK (run_id <> ''),
+    turn      INTEGER NOT NULL,
+    perceiver TEXT NOT NULL CHECK (perceiver <> ''),  -- whose feeling moved
+    target TEXT NOT NULL CHECK (target <> ''),  -- who it is toward
+    primary_  TEXT    NOT NULL CHECK (primary_ <> ''),                 -- one of records.PRIMARIES ('primary' is SQL-reserved)
+    delta     REAL    NOT NULL,                 -- SIGNED; the sign carries the direction
+    source    TEXT    NOT NULL DEFAULT '',      -- prose: what moved it
+    UNIQUE (run_id, turn, perceiver, target, primary_)
+);
+
+CREATE TRIGGER IF NOT EXISTS toward_deltas_no_update
+BEFORE UPDATE ON toward_deltas BEGIN
+    SELECT RAISE(ABORT, 'toward_deltas is append-only (CLAUDE.md hard rule 2): UPDATE refused. A correction is a NEW row, never a rewritten one.');
+END;
+
+CREATE TRIGGER IF NOT EXISTS toward_deltas_no_delete
+BEFORE DELETE ON toward_deltas BEGIN
+    SELECT RAISE(ABORT, 'toward_deltas is append-only (CLAUDE.md hard rule 2): DELETE refused. A correction is a NEW row, never a rewritten one.');
+END;
+
+CREATE TABLE IF NOT EXISTS wound_deltas (
+    delta_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id TEXT NOT NULL CHECK (run_id <> ''),
+    char_id TEXT NOT NULL CHECK (char_id <> ''),
+    turn     INTEGER NOT NULL,
+    wound_id TEXT NOT NULL CHECK (wound_id <> ''),  -- fears_wounds[].id; a wound without one is unreachable
+    delta    REAL    NOT NULL,                  -- SIGNED change in intensity; sign carries direction
+    kind     TEXT    NOT NULL CHECK (kind IN ('event', 'erosion', 'correction')),
+    source   TEXT    NOT NULL DEFAULT '',       -- prose: WHY a durable trait moved
+    UNIQUE (run_id, char_id, turn, wound_id)
+);
+
+CREATE TRIGGER IF NOT EXISTS wound_deltas_no_update
+BEFORE UPDATE ON wound_deltas BEGIN
+    SELECT RAISE(ABORT, 'wound_deltas is append-only (CLAUDE.md hard rule 2): UPDATE refused. A correction is a NEW row, never a rewritten one.');
+END;
+
+CREATE TRIGGER IF NOT EXISTS wound_deltas_no_delete
+BEFORE DELETE ON wound_deltas BEGIN
+    SELECT RAISE(ABORT, 'wound_deltas is append-only (CLAUDE.md hard rule 2): DELETE refused. A correction is a NEW row, never a rewritten one.');
+END;
