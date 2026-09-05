@@ -26,6 +26,7 @@ import copy
 
 from .records import PRIMARIES
 from .state import _ALLELE
+from . import heritable
 from .errors import EngineError
 
 # Class-B, probe-calibrated starts (arc-engine.md: threshold + magnitudes are calibration, not derived).
@@ -42,7 +43,7 @@ def _clamp01(x):
 
 
 def _allele(raw):
-    return _ALLELE.get(str(raw).split()[0].lower(), 1.0)
+    return _ALLELE.get(heritable.word(raw), 1.0)
 
 
 def derive_resilience(char, condition):

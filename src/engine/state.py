@@ -15,6 +15,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 from src.engine.records import PRIMARIES, admits_role
 from .errors import EngineError
 from .decay_law import relax
+from . import heritable
 
 # ---------------------------------------------------------------------------
 # Class-B constants — theory-anchored, probe-calibrated.
@@ -25,12 +26,9 @@ from .decay_law import relax
 # Source: coherence_probe.py ALLELE dict (same vocabulary; we inherit, don't invent).
 # Theory: docs/baseline-generation.md §Genetics, HEXACO threat-reactivity → FEAR gain.
 # Probe-calibrated start.
-_ALLELE = {
-    "low":      0.75,
-    "typical":  1.0,
-    "elevated": 1.2,
-    "high":     1.3,
-}
+# ONE OWNER. `arc.py` imports this name from here, so the binding stays; the table itself
+# lives in heritable.py alongside the parser that reads it.
+_ALLELE = heritable.GAIN
 
 # DIM_TO_PRIMARY: appraisal dimension -> [(primary, base_push)].
 # Theory: docs/state-engine.md §Appraisal module step 2; OCC/Scherer compression.
@@ -238,8 +236,7 @@ def _clamp(x):
 def _allele(axis, genotype):
     """Return numeric allele gain for one heritable axis.
     docs/baseline-generation.md §Genetics; allele vocabulary = coherence_probe.py ALLELE."""
-    raw = str(genotype.get(axis, "typical")).split()[0].lower()
-    return _ALLELE.get(raw, 1.0)
+    return heritable.gain(axis, genotype)
 
 
 def _regard(profile, target, target_group):

@@ -1,6 +1,6 @@
 # MAP — what is in this project and what owns what
 
-**Why this file exists.** `docs/` holds 68 design docs, `src/engine/` 28 modules,
+**Why this file exists.** `docs/` holds 68 design docs, `src/engine/` 29 modules,
 `tests/` 51 suites. Nobody — human or agent — can hold that in their head, and reading it all every
 session is not practical. **The failure this prevents is real and happened:** a session spent hours
 reasoning about the decision layer from four docs and inference, invented a parallel vocabulary
@@ -170,7 +170,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `world-model` | the other half of the loop (SEED — to co-design) |
 | `world-state-ledger` | the live now (design the machinery; the line items are runtime) |
 
-## src/engine/ — 28 modules (normative for what IS)
+## src/engine/ — 29 modules (normative for what IS)
 
 | src | lines | owns |
 |---|---|---|
@@ -191,6 +191,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `faithfulness` | the deterministic half of the faithfulness guard: catch NAME leaks in a turn. |
 | `faults` | the engine-fault detector: the machine-side twin of the chair's world-fault inbox. |
 | `gate` | Relevancy Gate: perception-mode wall + recall-mode trigger-matching. |
+| `heritable` | one parser for the allele vocabulary, which three readers had spelled apart. |
 | `identity_view` | the STABLE identity prefix, said in words. |
 | `ledger` | the event-sourced spine: append-only log + atomic turn-commit + pure fold + resume. |
 | `levers` | the effective-levers tier (the buff/debuff catalog). |

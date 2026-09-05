@@ -31,6 +31,7 @@ from src.engine.gate import (  # noqa: E402
     _display_name,
 )
 from .errors import EngineError
+from . import heritable
 
 # ---------------------------------------------------------------------------
 # Public entry point
@@ -253,7 +254,9 @@ def _allele_word(value):
     """Keep the allele token, drop the authored parenthetical rationale:
     'high (the innate empathy ...)' -> 'high'. The gain math reads the token; the rationale is
     authoring commentary that must not reach the prompt."""
-    return str(value).split(" (", 1)[0].strip()
+    # Was `.split(" (", 1)[0].strip()` — the one reader of three that never lowercased, so a
+    # capitalised allele reached the prompt as "High" while the gain math read "high".
+    return heritable.word(value)
 
 
 def _sort_nested(obj):
