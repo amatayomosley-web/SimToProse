@@ -1,7 +1,7 @@
 # MAP — what is in this project and what owns what
 
-**Why this file exists.** `docs/` holds 68 design docs, `src/engine/` 27 modules,
-`tests/` 50 suites. Nobody — human or agent — can hold that in their head, and reading it all every
+**Why this file exists.** `docs/` holds 68 design docs, `src/engine/` 28 modules,
+`tests/` 51 suites. Nobody — human or agent — can hold that in their head, and reading it all every
 session is not practical. **The failure this prevents is real and happened:** a session spent hours
 reasoning about the decision layer from four docs and inference, invented a parallel vocabulary
 ("vectors"), and rebuilt a worse version of the buff/debuff registry that `decision-engine.md`
@@ -170,7 +170,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `world-model` | the other half of the loop (SEED — to co-design) |
 | `world-state-ledger` | the live now (design the machinery; the line items are runtime) |
 
-## src/engine/ — 27 modules (normative for what IS)
+## src/engine/ — 28 modules (normative for what IS)
 
 | src | lines | owns |
 |---|---|---|
@@ -185,6 +185,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `compounds` | the named emotions, as coordinates over the primitives. |
 | `consolidation` | Gate 4: Consolidation Validation. |
 | `db` | SQLite connection + schema migration for the engine spine. |
+| `decay_law` | the one equation every decay in this engine already was. |
 | `direction` | numbers to qualitative DIRECTION (gate 5, the backstage guardrail). |
 | `errors` | the single typed refusal channel for the whole engine. |
 | `faithfulness` | the deterministic half of the faithfulness guard: catch NAME leaks in a turn. |
@@ -214,7 +215,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `narrate` | 232 | the narrator (design.md layer 7, narration.md): a canonized scene -> POV-bound prose. |
 | `scene` | 393 | the multi-agent scene runner (the director sets the scene; the agents push it). |
 
-## tests/ — 50 suites (each is a PROOF of the gate it names)
+## tests/ — 51 suites (each is a PROOF of the gate it names)
 
 | tests | lines | owns |
 |---|---|---|
@@ -233,6 +234,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `test_consolidation` |  |
 | `test_critic` |  |
 | `test_cut` |  |
+| `test_decay_law` | the two identities every caller relies on, and the three refusals. |
 | `test_declared_is_read` | the guard for this repo's named dominant defect class. |
 | `test_direction` |  |
 | `test_disgust` | the eighth primitive, and what it unlocked. |

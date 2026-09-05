@@ -14,6 +14,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from src.engine.records import PRIMARIES, admits_role
 from .errors import EngineError
+from .decay_law import relax
 
 # ---------------------------------------------------------------------------
 # Class-B constants — theory-anchored, probe-calibrated.
@@ -526,7 +527,7 @@ def decay(affect, temperament, profile):
     for p in PRIMARIES:
         mean = float(temperament[p]["mean"])
         r    = float(decay_rates.get(p, _DECAY_RATE[p]))
-        # Ai <- mean + (Ai - mean) * r
-        out[p] = _clamp(mean + (float(affect[p]) - mean) * r)
+        # Ai <- mean + (Ai - mean) * r, the elapsed=1 case of the one law (decay_law.relax)
+        out[p] = _clamp(relax(float(affect[p]), mean, r, 1.0))
 
     return out

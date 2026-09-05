@@ -33,6 +33,7 @@ from .code_families import (  # noqa: E402
     _SPINE,
     _DIRECTION,
     _MIGRATED,
+    _DECAY,
 )
 
 # One dict per module as its gate lands. Merged into CODES below.
@@ -42,6 +43,7 @@ _REGISTRY.update(_TAG)
 _REGISTRY.update(_SPINE)
 _REGISTRY.update(_DIRECTION)
 _REGISTRY.update(_MIGRATED)
+_REGISTRY.update(_DECAY)
 
 CODES = frozenset(_REGISTRY)
 

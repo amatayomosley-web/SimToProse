@@ -466,3 +466,14 @@ _MIGRATED = {
         "retarget: tags must be a dict, got %r",
 }
 
+
+
+# ---- DECAY_* — the one relaxation law (src/engine/decay_law.py) ----
+_DECAY = {
+    "DECAY_INPUT_NOT_NUMERIC":
+        "relax: value, rest, retention and elapsed must all be numbers",
+    "DECAY_ELAPSED_NEGATIVE":
+        "relax: elapsed must be >= 0 - a negative exponent AMPLIFIES the deviation",
+    "DECAY_RETENTION_OUT_OF_RANGE":
+        "relax: retention must be in [0,1] - outside it the deviation grows or alternates sign",
+}

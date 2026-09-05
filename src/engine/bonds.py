@@ -46,6 +46,7 @@ from .gate import PERCEPTION_DC_IDENTITY, PERCEPTION_DC_SUBTLE, _passes_check
 from .records import RELATIONSHIP_AXES
 from .state import _relevance
 from .errors import EngineError
+from .decay_law import relax
 
 # --- Class-B calibration. Directions are prescribed by relationships.md; magnitudes are chosen
 # starts, falsifiable by a run that reads as either glacial or hysterical. ---
@@ -382,8 +383,7 @@ def drift(edge, priors=None, elapsed=1.0):
     for axis in RELATIONSHIP_AXES:
         if axis not in edge:
             continue
-        r = _RETENTION[axis] ** elapsed
-        out[axis] = _clamp01(rest[axis] + (float(edge[axis]) - rest[axis]) * r)
+        out[axis] = _clamp01(relax(float(edge[axis]), rest[axis], _RETENTION[axis], elapsed))
     return out
 
 
