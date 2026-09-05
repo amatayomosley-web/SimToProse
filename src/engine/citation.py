@@ -59,14 +59,14 @@ class Citation:
 def parse(token):
     """'turn:14' -> Citation. Raises CitationError on anything malformed."""
     if not isinstance(token, str) or not token.strip():
-        raise CitationError("CITATION_EMPTY_NOT_A_STRING", "citation must be a non-empty string, got %r" % (token,))
+        raise CitationError("CITATION_TOKEN_EMPTY", "citation must be a non-empty string, got %r" % (token,))
     m = _TOKEN.match(token.strip())
     if not m:
-        raise CitationError("CITATION_ARGS_MALFORMED", "citation %r is not '<kind>:<args>'" % token)
+        raise CitationError("CITATION_TOKEN_SHAPE", "citation %r is not '<kind>:<args>'" % token)
     kind, rest = m.group(1), m.group(2)
     if kind not in _known():
-        raise CitationError(
-            "CITATION_UNKNOWN", "unknown citation namespace %r (known: %s)"
+        raise CitationError("CITATION_NAMESPACE_UNKNOWN",
+            "unknown citation namespace %r (known: %s)"
             % (kind, ", ".join(sorted(_known())))
         )
     return Citation(token.strip(), kind, rest.split(":"))
@@ -154,7 +154,7 @@ def _int(s):
     try:
         return int(s)
     except (TypeError, ValueError):
-        raise CitationError("CITATION_INTEGER_NOT_AN_INT", "citation expected an integer, got %r" % (s,))
+        raise CitationError("CITATION_ARG_NOT_INT", "citation expected an integer, got %r" % (s,))
 
 
 def resolve_one(con, run_id, token):
@@ -169,7 +169,7 @@ def resolve_one(con, run_id, token):
         # entity", and conflating them is the bug the three-state design exists
         # to prevent.
         if len(c.args) != 1:
-            raise CitationError("CITATION_TAKES_INVALID", "citation %r takes 1 argument, got %d" % (c.raw, len(c.args)))
+            raise CitationError("CITATION_ARITY_MISMATCH", "citation %r takes 1 argument, got %d" % (c.raw, len(c.args)))
         pinned = bible.for_run(con, run_id)
         if pinned is None:
             return UNVERIFIABLE, "this run pinned no bible (predates bible-in-db)"
@@ -178,8 +178,8 @@ def resolve_one(con, run_id, token):
         return (RESOLVED, detail) if ok else (UNRESOLVED, detail)
     fn, arity = _RESOLVERS[c.kind]
     if len(c.args) != arity:
-        raise CitationError(
-            "CITATION_TAKES_WRONG_ARITY", "citation %r takes %d argument(s), got %d" % (c.raw, arity, len(c.args))
+        raise CitationError("CITATION_ARITY_MISMATCH",
+            "citation %r takes %d argument(s), got %d" % (c.raw, arity, len(c.args))
         )
     if fn(con, run_id, c.args):
         return RESOLVED, ""
@@ -229,14 +229,14 @@ def verify_envelope(envelope, con, run_id):
         raise CitationError("CITATION_ENVELOPE_NOT_A_DICT", "envelope must be a dict, got %r" % type(envelope).__name__)
     kind = envelope.get("kind")
     if kind not in KINDS:
-        raise CitationError("CITATION_ENVELOPE_KIND_NOT_IN_SET", "envelope kind %r not in %s" % (kind, ", ".join(KINDS)))
+        raise CitationError("CITATION_ENVELOPE_KIND_UNKNOWN", "envelope kind %r not in %s" % (kind, ", ".join(KINDS)))
 
     claims = envelope.get("claims", [])
     if not isinstance(claims, list):
-        raise CitationError("CITATION_ENVELOPE_CLAIMS_NOT_A_LIST", "envelope 'claims' must be a list")
+        raise CitationError("CITATION_ENVELOPE_CLAIMS_TYPE", "envelope 'claims' must be a list")
     unknowns = envelope.get("unknowns", [])
     if not isinstance(unknowns, list):
-        raise CitationError("CITATION_ENVELOPE_UNKNOWNS_NOT_A_LIST", "envelope 'unknowns' must be a list")
+        raise CitationError("CITATION_ENVELOPE_UNKNOWNS_TYPE", "envelope 'unknowns' must be a list")
 
     failures, unverifiable, checked = [], [], 0
 
@@ -245,11 +245,11 @@ def verify_envelope(envelope, con, run_id):
             raise CitationError("CITATION_CLAIM_NOT_A_DICT", "claim[%d] must be a dict" % i)
         mode = claim.get("mode")
         if mode not in MODES:
-            raise CitationError("CITATION_CLAIM_MODE_NOT_IN_SET", "claim[%d] mode %r not in %s" % (i, mode, ", ".join(MODES)))
+            raise CitationError("CITATION_CLAIM_MODE_UNKNOWN", "claim[%d] mode %r not in %s" % (i, mode, ", ".join(MODES)))
         field = "cite" if mode == "cited" else "from"
         tokens = claim.get(field, [])
         if not isinstance(tokens, list):
-            raise CitationError("CITATION_CLAIM_NOT_A_LIST", "claim[%d] %r must be a list" % (i, field))
+            raise CitationError("CITATION_CLAIM_TOKENS_TYPE", "claim[%d] %r must be a list" % (i, field))
         if not tokens:
             # A cited/derived claim with no support is the failure this gate exists
             # for. It is a VERDICT, not a contract breach — deny, don't raise.

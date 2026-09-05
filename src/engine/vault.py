@@ -160,4 +160,31 @@ def load_book(book_dir):
         chars[c["id"].lower().replace(" ", "_")] = char
     if not chars:
         raise VaultError("VAULT_NO_CHARACTERS", "%s: no character notes found" % book_dir)
+
+    # STAMP THE AUTHORED BELIEFS. `parse_note` reads one file and has no world to resolve names
+    # against; here both exist. Measured 2026-08-30 on this book: ELEVEN of twelve authored beliefs
+    # across two characters carried an empty `links` list, including "Tam Rill is not a coward about
+    # work" — a belief that names a person and could not say so. The entity axis was in the schema
+    # and empty in practice because it depended on an author remembering to bracket a name.
+    #
+    # Additive: an author's own [[links]] are merged, never replaced. A belief whose subject is a
+    # PRONOUN ("He will come up that hill one day") resolves to nothing and stays that way — that
+    # one only the writer can settle, and guessing it would fire the belief in the wrong scenes.
+    from .facets import stamp as _stamp_facets
+    for _ch in chars.values():
+        for _b in (_ch.get("current", {}).get("vault") or []):
+            _stamp_facets(_b, world)
     return world, chars
+
+
+def character_or_raise(chars, char_id):
+    """One character out of a loaded book -> its sheet, or raise naming what the book HAS.
+
+    The cast is what `load_book` returned, so the module that loaded it is the one that can say
+    who is in it. `scripts/direct.py` said it instead, from the same dict, in its own words.
+    """
+    if char_id in (chars or {}):
+        return chars[char_id]
+    raise VaultError("VAULT_CHARACTER_UNKNOWN",
+                     "character %r is not in this book (it has: %s)"
+                     % (char_id, ", ".join(sorted(chars or {})) or "none"))

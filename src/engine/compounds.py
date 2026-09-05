@@ -195,15 +195,15 @@ def compose(name, intensity=1.0, targets=None):
     Raises CompoundError on an unknown name or a recipe citing a primitive the basis lacks.
     """
     if name not in COMPOUNDS:
-        raise CompoundError("COMPOUNDS_COMPOSE_UNKNOWN_COMPOUND_UNKNOWN", "compose: unknown compound %r (known: %s)"
+        raise CompoundError("COMPOUND_NAME_UNKNOWN", "compose: unknown compound %r (known: %s)"
                             % (name, ", ".join(sorted(COMPOUNDS))))
     if not isinstance(intensity, (int, float)) or not (0.0 <= float(intensity) <= 1.0):
-        raise CompoundError("COMPOUNDS_COMPOSE_INTENSITY_NOT_NUMERIC", "compose: intensity must be a number in [0,1], got %r" % (intensity,))
+        raise CompoundError("COMPOUND_INTENSITY_RANGE", "compose: intensity must be a number in [0,1], got %r" % (intensity,))
     recipe = COMPOUNDS[name]
     missing = sorted({p for p in recipe if p not in PRIMARIES})
     if missing:
-        raise CompoundError(
-            "COMPOUNDS_COMPOSE_REQUIRES_PRIMITIVE_INVALID", "compose: %r requires primitive(s) %s which the basis does not carry. "
+        raise CompoundError("COMPOUND_RECIPE_BLOCKED",
+            "compose: %r requires primitive(s) %s which the basis does not carry. "
             "Either the recipe is wrong or the basis is incomplete — see docs/emotion-basis.md; "
             "this is reported rather than silently dropped." % (name, missing))
     targets = targets or {}
@@ -225,7 +225,7 @@ def recognise(vector, top=3, floor=0.0):
     separability() exists to surface.
     """
     if not isinstance(vector, dict):
-        raise CompoundError("COMPOUNDS_RECOGNISE_VECTOR_NOT_A_DICT", "recognise: vector must be a dict, got %r" % type(vector).__name__)
+        raise CompoundError("COMPOUND_VECTOR_NOT_AN_OBJECT", "recognise: vector must be a dict, got %r" % type(vector).__name__)
     v = [float(vector.get(p, 0.0)) for p in PRIMARIES]
     scored = []
     for name, recipe in COMPOUNDS.items():
@@ -276,7 +276,7 @@ def recipe_sum(name, intensity=1.0):
     moment" — the decay rate answers a different question (how fast do I return) with a constant.
     """
     if name not in COMPOUNDS:
-        raise CompoundError("COMPOUNDS_RECIPE_SUM_UNKNOWN_COMPOUND_UNKNOWN", "recipe_sum: unknown compound %r" % (name,))
+        raise CompoundError("COMPOUND_NAME_UNKNOWN", "recipe_sum: unknown compound %r" % (name,))
     return sum(w for w, _r in COMPOUNDS[name].values()) * float(intensity)
 
 
@@ -307,7 +307,7 @@ def blend(name, baseline, intensity=1.0, targets=None):
     """
     coord = compose(name, intensity, targets)
     if not isinstance(baseline, dict):
-        raise CompoundError("COMPOUNDS_BLEND_BASELINE_NOT_A_DICT", "blend: baseline must be a dict, got %r" % type(baseline).__name__)
+        raise CompoundError("COMPOUND_BASELINE_NOT_AN_OBJECT", "blend: baseline must be a dict, got %r" % type(baseline).__name__)
     total = sum(v["magnitude"] for v in coord.values())
     bleed = max(0.0, 1.0 - total)
     out = {}

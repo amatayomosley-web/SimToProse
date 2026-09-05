@@ -118,3 +118,154 @@ We've gone deep on the *character* half; the **world** is the comparable other h
 - **The world is the other half of the loop.** Characters act ON the world; the world's state pushes BACK as circumstance. A static set-dressing world starves the biographies — they go inert with nothing real to push against. Realism needs a world with real levers too.
 - **Same architecture as a character:** ground-truth **bible** (laws, economy, religion, geography, factions, history — Scribe's W1–W7) + an evolving **world-state ledger** + **dynamics** (how it changes on its own and reacts to character action). Detail it **where it's levered on** (a source of circumstance and consequence); resolve consequences **lazily / on-demand** (don't pre-simulate the whole economy); author the hinges — same frame-problem discipline as the vault.
 - So "design the world" isn't a new paradigm — it's *state + lazy-resolution + levers + ledger* applied to the world instead of the person, coupled to the characters through action and circumstance. (Seeded now: `world-model.md`.)
+
+## THE THREE LAYERS — base, genotype, experience (NORMATIVE, 2026-08-31)
+
+**The author's statement of the model, which this section exists to record:**
+
+> *"The base sets their starting point. The genotype is their bias, their experiences shape who they are now.*
+>
+> *A base happy person who was a slave and beaten for years can be a very angry and hostile person today. Because their circumstances created the conditions for so many negative vectors to apply."*
+
+Three layers, three jobs, and each must keep doing only its own:
+
+| layer | what it is | who writes it | lifetime |
+|---|---|---|---|
+| **BASE** | where the person STARTED — the authored temperament means, relationship priors, wound intensities | the author, once | never moves; preserved even as the effective value changes |
+| **GENOTYPE** | their BIAS — per-primary gains and the global sensitivity allele; how hard the same event lands on this person | the author or a seeded draw, once | fixed for life |
+| **EXPERIENCE** | who they are NOW — the accumulated vectors of what happened to them | the engine, per durable event | additive over the base, in both directions |
+
+### The four laws
+
+1. **The base is preserved, never overwritten.** The effective value is `base + experience`; both must remain readable. A fold that writes the sum over the base destroys the only record of who the author wrote, and no later code can tell an authored trait from an accumulated one. (`arc.apply` did exactly this until 2026-08-31; `_authored_mean` and `_authored_regard` now hold the base, and `_authored_intensity` does the same for a wound.)
+
+2. **Preserving the base is NOT flooring at it.** Experience may take the effective value BELOW where the person started. A happy man's joy can be destroyed; that is the point of the model. Any mechanism that can only accumulate upward is not implementing this.
+
+3. **The genotype biases the write, at every tier.** If genotype is the bias, then an anger-prone person must accumulate RAGE faster than a placid one from the same beating. A durable write that ignores the per-primary gains applies the same experience identically to two different people, which is the tag this whole design exists to avoid.
+
+4. **One pricing table, applied at every timescale.** What an event does to a person is a property of the event and the person, not of how long the effect lasts. `state._DIM_TO_PRIMARY` is that table: it prices all eight primaries and carries negatives. A second, thinner table for durable writes is a duplicate that will drift — and has.
+
+### The measurement that made this normative
+
+A base-happy character (PLAY 0.80, CARE 0.75, RAGE 0.15, FEAR 0.20) was run through **80 durable diffs** of beatings (`threat` 0.85 / `social_violation` 0.70) and degradation (`social_violation` 0.90 / `threat` 0.40) — a life of it.
+
+| primary | authored | what the engine produced | what one pricing table produces |
+|---|---|---|---|
+| RAGE | 0.15 | **0.150 — never moves** | 1.000 |
+| DISGUST | 0.20 | **0.200 — never moves** | 0.926 |
+| PLAY | 0.80 | **0.800 — never moves** | 0.118 |
+| FEAR | 0.20 | 1.000 *(saturated)* | 0.945 |
+| CARE | 0.75 | 0.750 | 0.750 |
+
+The engine produced **a maximally terrified man who was exactly as playful, as loving and as un-angry as the day he was born** — and once FEAR reached 1.000 he became incapable of further change of any kind. Forty more years moved no number.
+
+The right-hand column is the same life priced with the table the CURRENT tier already uses. It is the character the author described: furious, contemptuous, frightened, his joy nearly gone — **and still able to love**, because nothing in the table maps threat or degradation onto CARE. That last detail was not designed; it fell out of a table that was already there, and it is the strongest argument for having only one.
+
+### What violates the model today
+
+- `arc.assess` writes **four** primaries (CARE, FEAR, SEEKING, PANIC_GRIEF) and **every one of its seven writes is positive** — RAGE, DISGUST, PLAY and LUST have no durable path at all. Law 2 and law 4.
+- `arc.assess` scales by `_BASE_STEP x impact` and resilience; the genotype gains never enter the durable write. Law 3.
+- `_regard` is the only connection-shaped term and is clamped to `[0,1]` with the comment "affinity lifts, never lowers", so a bond can recover impact lost to a bigotry but can never amplify it. A stranger's death and a beloved's death produce the same magnitude.
+- Nothing holds a per-target per-primary vector, so the MICRO half of experience — what this person specifically does to you — has no home. `bonds` is per-target on four relationship axes; `targets` stores aboutness, not magnitude.
+
+Law 1 holds everywhere as of 2026-08-31. Laws 2, 3 and 4 hold in the current tier and fail in the arc.
+
+## DECAY AND CONNECTION (NORMATIVE, 2026-08-31)
+
+**Every decay in this engine is already the same equation.** Nothing new needs inventing; the
+tiers differ only in what they rest at, how fast, and on which clock.
+
+```
+value  <-  rest + (value - rest) x retention ^ elapsed
+```
+
+| what fades | rests at | how fast | clock |
+|---|---|---|---|
+| the feeling of the moment | the character's temperament | fast — a few beats | per beat |
+| a relationship edge | the resting prior | slow | declared time |
+| a wound | the wound's own permanence floor | very slow | declared time |
+| a temperament mean | the AUTHORED base (`_authored_mean`) | barely at all | declared time |
+| a feeling toward one person | **zero** | per primary, see below | declared time |
+
+Two clocks and no third: per-BEAT for the moment's feeling, and the DIRECTOR'S DECLARED elapsed for
+everything else. A single conversation must not erode a friendship, which is why the slow tiers do
+not tick per beat.
+
+### Feelings toward a person fade at different rates
+
+Ordered as `state._DECAY_RATE` already orders the primaries, because the fast/slow ordering is a
+property of the emotion system and not of which tier is asking:
+
+  fear of someone fades FASTEST · then playfulness, which needs re-supply · then seeking, rage ·
+  then lust, care · **contempt and grief fade SLOWEST**
+
+That ordering does dramaturgy by itself. Someone wrongs you and you do not see them for a season:
+the fear goes, the anger cools, the warmth you had drains away — and what is left standing is the
+contempt. You have stopped being angry at them and started simply not respecting them. **That is
+estrangement, produced by arithmetic with no further events.**
+
+### CONNECTION SLOWS DECAY, and it is the same term that amplifies impact
+
+The author's rule: the stronger the bond, the larger the impact — **and the longer it lasts.**
+One quantity, two jobs, no second store:
+
+```
+retention_effective  =  retention + (1 - retention) x k x connection
+```
+
+Connection takes a bounded fraction of the remaining headroom toward 1.0 and can never reach it, so
+no feeling becomes permanent by this route. At `k = 0.5` and full connection a feeling lasts roughly
+TWICE as long: anger toward a stranger halving in about 14 units of story time, toward someone
+beloved in about 27. `k` is CALIBRATION and needs a probe; the bounded-headroom FORM is what matters.
+
+Three consequences worth stating, because each is a design claim and not an accident:
+
+1. **A beloved's betrayal both cuts deeper and lasts longer.** The same connection term amplifies
+   the magnitude and slows the fade. That is the archetype, and it falls out of applying one number
+   in two places rather than being authored anywhere.
+2. **Connection itself needs no decay.** It is READ LIVE off the relationship edge, which already
+   drifts. When a friendship cools, both the amplification and the slowed fade cool with it —
+   for free, and without a fifth store to keep in sync.
+3. **Drifting apart accelerates forgetting.** As the edge relaxes toward its prior, feelings toward
+   that person start fading faster. The mechanism describes exactly what it should: you get over
+   people you have already grown away from.
+
+### Connection needs three things (NORMATIVE)
+
+The author's requirement: **a way to increase, a way to decrease, and a relevancy floor — low
+connections get no modifiers at all.** Two of the three already exist, because connection is a READ
+off the relationship edge rather than a store of its own, and so inherits everything that moves it.
+
+**INCREASE** — `bonds.observe` raises affinity, trust and respect on a witnessed act, learning rate
+`_ALPHA_POS` 0.12.
+
+**DECREASE** — three distinct ways, which is more than the design needed to specify:
+  · `_ALPHA_NEG` 0.30 — a bond leaves 2.5x faster than it arrives. Trust arrives on foot.
+  · `bonds.drift` relaxes an untouched edge toward its resting prior over declared time.
+  · **the cliff** — `_CLIFF_SEVERITY` 0.80 on an act of `_CLIFF_RELEVANCE` 0.60 collapses trust to
+    `_CLIFF_FLOOR` 0.15 outright. Erosion AND rupture: a bond can fall off, not only wear down.
+
+**THE RELEVANCY FLOOR — the part that does not exist yet, and must.**
+
+Below a floor, connection contributes NOTHING: the magnitude multiplier is exactly 1.0 and the
+retention is exactly its unmodified rate. Not a value that happens to be small — a DEAD ZONE where
+the mechanism does not participate.
+
+A HARD threshold, not a soft ramp, and the reason is the purpose. A book carries dozens of people
+and only a handful should be moving anyone's numbers. Without a floor, every passing acquaintance at
+affinity 0.52 earns a sliver of amplification and a sliver of slowed decay: every number in the run
+becomes slightly different for no dramatic reason, the audit trail fills with rows that move
+nothing a reader could notice, and any probe of the real effect is buried in that noise. The floor
+buys SILENCE, and a ramp does not.
+
+The precedent is `arc._ARC_THRESHOLD` 0.18 — below it no durable diff is written at all, and "most
+events stay transient" is the stated intent. This is the same shape: most people are not close
+enough to change how anything lands.
+
+Stated so a reader can judge it rather than a number they cannot: **someone must be more than a
+passing acquaintance before their presence changes any arithmetic at all.** The threshold value is
+CALIBRATION and needs a probe; the dead-zone FORM is the normative part.
+
+One consequence worth stating, because it is a feature: the floor means connection is INACTIVE for
+most of a cast, most of the time. If a run shows connection modifying most of its beats, the floor
+is set too low, and that is a measurable failure rather than a matter of taste.

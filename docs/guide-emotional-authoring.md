@@ -1,6 +1,17 @@
 # Guide — authoring a character's emotional makeup
 
 *(WORKFLOW. `emotion-basis.md` owns the theory — which emotions are irreducible and why.
+
+THE REST OF THE EMOTION LAYER, which this guide referenced nowhere until 2026-09-03 and which the
+character blueprint therefore could not reach through it: `emotion-scales.md` is **normative for
+what a value MEANS** (authored 2026-08-31, and before it the rendering bands in `direction.py` were
+the de facto specification — a display constant standing in for a definition); `emotion-vocabulary.md`
+defines every nameable state and locates it on the primitives it sits on; `emotion-list.md` stages
+those names by degree; and `docs/emotion-names/` splits each primitive by TARGET — outward,
+reflexive, unbound — because a name that ignores who the feeling is aimed at names the wrong state.
+`emotion-names/_ROUTING.md` records which names a rule moved off the table they were first swept
+onto. This guide owns the ORDER you author in; those own the words and the numbers.
+
 `emotion-recipes.md` is the generated recipe sheet. `guide-content.md` owns the per-field
 live-vs-inert table. This owns the ORDER: what you do, in what sequence, and what proves each step
 landed.)*

@@ -111,10 +111,14 @@ def test_sections_hold_when_acts_are_injected():
 
 def test_reply_skeleton_dimensions_are_the_dimension_names():
     """`"dimensions": {...}` defines the scale the actor writes ON. It held the EDGES string."""
-    seg = _after(_usr(), '"dimensions": {', 320)
+    seg = _after(_usr(), '"dimensions": {', 260)
     for dim in _DIMS:
-        assert '"%s": 0..1' % dim in seg, (
+        assert '"%s": "<severity>"' % dim in seg, (
             "dimension %r missing from the reply skeleton; got: %r" % (dim, seg[:200]))
+    for dim in _DIMS:
+        assert '"%s": 0..1' % dim not in seg, (
+            "dimension %r still offers a bare float — severity is an engine-owned vocabulary "
+            "now (src/engine/severity.py), not a number the actor invents" % dim)
     for wrong in (_MARK_EDGE, _MARK_GOAL, _MARK_PERCEPT, _MARK_CLAIM):
         assert wrong not in seg, "reply skeleton dimensions hold %r" % wrong
 

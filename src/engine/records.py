@@ -19,6 +19,14 @@ from .errors import EngineError
 # insertion in the middle would silently re-index every stored comparison. DISGUST goes last.
 PRIMARIES = ("SEEKING", "FEAR", "RAGE", "LUST", "CARE", "PANIC_GRIEF", "PLAY", "DISGUST")
 
+# The `kind` of a wound delta names its CAUSE, never its direction — the sign of `delta` already
+# carries direction, so a confirmation/disconfirmation vocabulary would say the same thing twice.
+# Three causes: an event fired the wound's own triggers, time passed with nothing firing, or the
+# log is being corrected (`correction` is the repo's existing house word — consolidation.py's
+# SYSTEM_TYPES). Mirrored by a CHECK constraint on the column, so the database refuses a word this
+# tuple does not contain; `levers.py` imports it rather than keeping a second copy.
+WOUND_DELTA_KINDS = ("event", "erosion", "correction")
+
 # ---------------------------------------------------------------------------
 # DIRECTEDNESS — what each primitive can be ABOUT.
 #
@@ -134,6 +142,25 @@ def admits_role(primitive, role):
     if derived == "self":
         return bool(row["reflexive"])
     return derived == "object"
+
+
+def direction_changes(primitive):
+    """Does this primitive need DIFFERENT stage directions when its bind is reflexive?
+
+    The second column of the law above, and NOT the same question as `admits_role(p, "self")`.
+    `reflexive` asks whether the bind is legal; this asks whether the action tendency BREAKS under
+    it. PANIC_GRIEF is the case that separates them — bound to the self all the time, and its
+    despair phase is undirected posture, so it needs no new words.
+
+    Read this, never the `reflexive` column, when choosing a reflexive phrase. Before 2026-09-01
+    `direction.py:_phrase_for` gated on `admits_role` while its own docstring cited this field;
+    PANIC_GRIEF passed that gate and was saved only by having no entry in the phrase table. A law
+    enforced by an absent row is enforced by luck.
+
+    Unknown primitive -> False, matching `admits_role`'s fail-closed contract.
+    """
+    row = DIRECTEDNESS.get(primitive)
+    return bool(row["direction_changes"]) if row else False
 VISIBILITIES = ("public", "private-to-actor")
 RELATIONSHIP_AXES = ("trust", "affinity", "respect", "debt")
 
@@ -143,13 +170,15 @@ class RecordError(EngineError):
 
 
 def _require(cond, code, msg):
-    """Refuse with a registered CODE, not just prose.
+    """Refuse with a REGISTERED code. `errors.EngineError` refuses to construct an unknown one, so
+    the registry cannot drift from the raises.
 
-    The code parameter is not decoration. This helper is a refusal DOORWAY, and a
-    doorway is what an AST raise-scan cannot see through: the sibling instance's audit
-    certified its engine fully converted while 44 prose refusals sat behind a helper of
-    exactly this shape. Every caller names its own code so the scan in
-    tests/test_errors.py sees one refusal per CALL SITE, not one per doorway.
+    THE SIGNATURE GAINED `code` ON 2026-09-02, and the reason is worth keeping: as `(cond, msg)`
+    this helper raised `RecordError(msg)` — a parameter as the sole argument — and the conversion
+    audit's doorway rule read any parameter-first raise as ALREADY coded. So the module carrying
+    the record contract's forty-four refusals reported as raising nothing at all, and the whole
+    engine reported converted while the surface a malformed commit meets had no handles. The rule
+    now requires a doorway to pass a code AND a message; this signature is what makes that true.
     """
     if not cond:
         raise RecordError(code, msg)
@@ -169,15 +198,15 @@ class Event:
     effective_at: Optional[int] = None   # default: caused_at
 
     def validate(self):
-        _require(isinstance(self.type, str) and self.type.strip(), "RECORDS_EVENT_TYPE_NOT_A_STRING", "Event.type must be a non-empty string")
-        _require(isinstance(self.payload, dict), "RECORDS_EVENT_PAYLOAD_NOT_A_DICT", "Event.payload must be a dict")
-        _require(self.visibility in VISIBILITIES, "RECORDS_EVENT_VISIBILITY_NOT_IN_SET", "Event.visibility %r not in %s" % (self.visibility, list(VISIBILITIES)))
+        _require(isinstance(self.type, str) and self.type.strip(), "RECORD_EVENT_TYPE_EMPTY", "Event.type must be a non-empty string")
+        _require(isinstance(self.payload, dict), "RECORD_EVENT_PAYLOAD_TYPE", "Event.payload must be a dict")
+        _require(self.visibility in VISIBILITIES, "RECORD_EVENT_VISIBILITY_UNKNOWN", "Event.visibility %r not in %s" % (self.visibility, list(VISIBILITIES)))
         if self.caused_at is not None:
-            _require(isinstance(self.caused_at, int) and self.caused_at >= 0, "RECORDS_EVENT_CAUSED_AT_INVALID", "Event.caused_at must be int >= 0")
+            _require(isinstance(self.caused_at, int) and self.caused_at >= 0, "RECORD_EVENT_CAUSED_AT_INVALID", "Event.caused_at must be int >= 0")
         if self.effective_at is not None:
-            _require(isinstance(self.effective_at, int), "RECORDS_EVENT_EFFECTIVE_AT_NOT_AN_INT", "Event.effective_at must be int")
-            _require(self.caused_at is not None, "RECORDS_EVENT_EFFECTIVE_AT_WITHOUT_CAUSED_AT", "Event.effective_at set without caused_at")
-            _require(self.effective_at >= self.caused_at, "RECORDS_EVENT_EFFECTIVE_AT_BEFORE_CAUSED_AT", "Event.effective_at %s < caused_at %s" % (self.effective_at, self.caused_at))
+            _require(isinstance(self.effective_at, int), "RECORD_EVENT_EFFECTIVE_AT_INVALID", "Event.effective_at must be int")
+            _require(self.caused_at is not None, "RECORD_EVENT_EFFECTIVE_AT_UNANCHORED", "Event.effective_at set without caused_at")
+            _require(self.effective_at >= self.caused_at, "RECORD_EVENT_EFFECT_BEFORE_CAUSE", "Event.effective_at %s < caused_at %s" % (self.effective_at, self.caused_at))
 
 
 @dataclass
@@ -194,13 +223,75 @@ class RelationshipDelta:
     cause_event: Optional[int] = None    # events.event_id once the cause row exists
 
     def validate(self):
-        _require(isinstance(self.perceiver, str) and self.perceiver.strip(), "RECORDS_RELATIONSHIPDELTA_PERCEIVER_EMPTY", "RelationshipDelta.perceiver must be non-empty")
-        _require(isinstance(self.target, str) and self.target.strip(), "RECORDS_RELATIONSHIPDELTA_TARGET_EMPTY", "RelationshipDelta.target must be non-empty")
-        _require(self.axis in RELATIONSHIP_AXES, "RECORDS_RELATIONSHIPDELTA_AXIS_NOT_IN_SET", "RelationshipDelta.axis %r not in %s" % (self.axis, list(RELATIONSHIP_AXES)))
+        _require(isinstance(self.perceiver, str) and self.perceiver.strip(), "RECORD_PERCEIVER_EMPTY", "RelationshipDelta.perceiver must be non-empty")
+        _require(isinstance(self.target, str) and self.target.strip(), "RECORD_TARGET_EMPTY", "RelationshipDelta.target must be non-empty")
+        _require(self.axis in RELATIONSHIP_AXES, "RECORD_AXIS_UNKNOWN", "RelationshipDelta.axis %r not in %s" % (self.axis, list(RELATIONSHIP_AXES)))
         _require(isinstance(self.delta, (int, float)) and -1.0 <= float(self.delta) <= 1.0,
-                 "RECORDS_RELATIONSHIPDELTA_DELTA_NOT_NUMERIC", "RelationshipDelta.delta must be a number in [-1, 1], got %r" % (self.delta,))
+                 "RECORD_DELTA_RANGE",
+                 "RelationshipDelta.delta must be a number in [-1, 1], got %r" % (self.delta,))
         _require(self.order in ("first", "second"),
-                 "RECORDS_RELATIONSHIPDELTA_ORDER_INVALID", "RelationshipDelta.order must be 'first' or 'second', got %r" % (self.order,))
+                 "RECORD_ORDER_UNKNOWN",
+                 "RelationshipDelta.order must be 'first' or 'second', got %r" % (self.order,))
+
+
+@dataclass
+class WoundDelta:
+    """One movement of a wound's intensity — the wound tier's write-record.
+
+    SIGNED, and the sign carries the direction: negative heals, positive deepens. `kind` therefore
+    names the CAUSE and never repeats the direction — an event fired the wound's own triggers, time
+    passed with nothing firing, or the log is being corrected (the repo's existing house word).
+
+    Rides INSIDE `TurnCommit`, not as a separate post-commit append. `append_arc_diff` is called
+    after `append_turn`, so a crash between them leaves the turn permanently committed with the
+    diff lost and `turns`' PRIMARY KEY refusing a re-append. Not a gap worth copying.
+    """
+    char_id: str
+    wound_id: str
+    delta: float
+    kind: str
+    source: str = ""
+
+    def validate(self):
+        _require(isinstance(self.char_id, str) and self.char_id.strip(), "RECORD_CHAR_ID_EMPTY", "WoundDelta.char_id must be non-empty")
+        _require(isinstance(self.wound_id, str) and self.wound_id.strip(),
+                 "RECORD_WOUND_ID_EMPTY",
+                 "WoundDelta.wound_id must be non-empty — a wound with no id can never be folded back")
+        _require(isinstance(self.delta, (int, float)) and -1.0 <= float(self.delta) <= 1.0,
+                 "RECORD_DELTA_RANGE",
+                 "WoundDelta.delta must be a number in [-1, 1], got %r" % (self.delta,))
+        _require(self.kind in WOUND_DELTA_KINDS,
+                 "RECORD_WOUND_KIND_UNKNOWN",
+                 "WoundDelta.kind %r not in %s — the kind names the CAUSE; the sign of `delta` "
+                 "already carries the direction" % (self.kind, list(WOUND_DELTA_KINDS)))
+        _require(isinstance(self.source, str), "RECORD_SOURCE_TYPE", "WoundDelta.source must be str")
+
+
+@dataclass
+class TowardDelta:
+    """One movement of what a specific person makes the perceiver FEEL — the MICRO tier.
+
+    Distinct from RelationshipDelta: that carries an `axis` in trust|affinity|respect|debt and
+    answers "do I trust them"; this carries a `primary` from the eight affective primitives and
+    answers "what do they make me feel". Both are per-target and neither is redundant.
+    """
+    perceiver: str
+    target: str
+    primary: str
+    delta: float
+    source: str = ""
+
+    def validate(self):
+        _require(isinstance(self.perceiver, str) and self.perceiver.strip(), "RECORD_PERCEIVER_EMPTY", "TowardDelta.perceiver must be non-empty")
+        _require(isinstance(self.target, str) and self.target.strip(), "RECORD_TARGET_EMPTY", "TowardDelta.target must be non-empty")
+        _require(self.primary in PRIMARIES,
+                 "RECORD_PRIMARY_UNKNOWN",
+                 "TowardDelta.primary %r not in %s — the MICRO tier is priced on the affective "
+                 "primitives, not the relationship axes" % (self.primary, list(PRIMARIES)))
+        _require(isinstance(self.delta, (int, float)) and -1.0 <= float(self.delta) <= 1.0,
+                 "RECORD_DELTA_RANGE",
+                 "TowardDelta.delta must be a number in [-1, 1], got %r" % (self.delta,))
+        _require(isinstance(self.source, str), "RECORD_SOURCE_TYPE", "TowardDelta.source must be str")
 
 
 @dataclass
@@ -219,33 +310,44 @@ class TurnCommit:
     recall: Optional[list] = None                         # belief refs the gate injected (record-contract)
     manifest: Optional[dict] = None                       # decision-input manifest (record-contract)
     rel_deltas: list = field(default_factory=list)        # [RelationshipDelta]
+    wound_deltas: list = field(default_factory=list)      # [WoundDelta] — rides the turn, never a post-commit append
+    toward_deltas: list = field(default_factory=list)     # [TowardDelta] — the MICRO tier, same discipline
 
     def validate(self):
-        _require(isinstance(self.run_id, str) and self.run_id.strip(), "RECORDS_TURNCOMMIT_RUN_ID_EMPTY", "TurnCommit.run_id must be non-empty")
-        _require(isinstance(self.turn, int) and self.turn >= 0, "RECORDS_TURNCOMMIT_TURN_INVALID", "TurnCommit.turn must be int >= 0")
-        _require(isinstance(self.actor, str) and self.actor.strip(), "RECORDS_TURNCOMMIT_ACTOR_EMPTY", "TurnCommit.actor must be non-empty")
-        _require(isinstance(self.thought, str), "RECORDS_TURNCOMMIT_THOUGHT_INVALID", "TurnCommit.thought must be str")
-        _require(isinstance(self.action, str), "RECORDS_TURNCOMMIT_ACTION_INVALID", "TurnCommit.action must be str")
-        _require(isinstance(self.tags, dict), "RECORDS_TURNCOMMIT_TAGS_INVALID", "TurnCommit.tags must be dict")
-        _require(isinstance(self.affect, dict), "RECORDS_TURNCOMMIT_AFFECT_NOT_A_DICT", "TurnCommit.affect must be dict")
+        _require(isinstance(self.run_id, str) and self.run_id.strip(), "RECORD_RUN_ID_EMPTY", "TurnCommit.run_id must be non-empty")
+        _require(isinstance(self.turn, int) and self.turn >= 0, "RECORD_TURN_INVALID", "TurnCommit.turn must be int >= 0")
+        _require(isinstance(self.actor, str) and self.actor.strip(), "RECORD_ACTOR_EMPTY", "TurnCommit.actor must be non-empty")
+        _require(isinstance(self.thought, str), "RECORD_FIELD_TYPE", "TurnCommit.thought must be str")
+        _require(isinstance(self.action, str), "RECORD_FIELD_TYPE", "TurnCommit.action must be str")
+        _require(isinstance(self.tags, dict), "RECORD_FIELD_TYPE", "TurnCommit.tags must be dict")
+        _require(isinstance(self.affect, dict), "RECORD_FIELD_TYPE", "TurnCommit.affect must be dict")
         missing = [p for p in PRIMARIES if p not in self.affect]
-        _require(not missing, "RECORDS_MISSING_PRIMARIES", "TurnCommit.affect missing primaries: %s" % missing)
+        _require(not missing, "RECORD_AFFECT_MISSING_PRIMARIES", "TurnCommit.affect missing primaries: %s" % missing)
         extra = [k for k in self.affect if k not in PRIMARIES]
-        _require(not extra, "RECORDS_UNKNOWN_KEYS", "TurnCommit.affect has unknown keys: %s" % extra)
+        _require(not extra, "RECORD_AFFECT_UNKNOWN_KEYS", "TurnCommit.affect has unknown keys: %s" % extra)
         for p, v in self.affect.items():
             _require(isinstance(v, (int, float)) and 0.0 <= float(v) <= 1.0,
-                     "RECORDS_TURNCOMMIT_AFFECT_VALUE_OUT_OF_RANGE", "TurnCommit.affect[%s] must be in [0, 1], got %r" % (p, v))
-        _require(isinstance(self.condition, dict), "RECORDS_TURNCOMMIT_CONDITION_INVALID", "TurnCommit.condition must be dict")
-        _require(isinstance(self.events, list), "RECORDS_TURNCOMMIT_EVENTS_NOT_A_LIST", "TurnCommit.events must be a list")
+                     "RECORD_AFFECT_VALUE_RANGE",
+                     "TurnCommit.affect[%s] must be in [0, 1], got %r" % (p, v))
+        _require(isinstance(self.condition, dict), "RECORD_FIELD_TYPE", "TurnCommit.condition must be dict")
+        _require(isinstance(self.events, list), "RECORD_FIELD_TYPE", "TurnCommit.events must be a list")
         for ev in self.events:
-            _require(isinstance(ev, Event), "RECORDS_TURNCOMMIT_EVENTS_INVALID", "TurnCommit.events items must be Event, got %r" % type(ev).__name__)
+            _require(isinstance(ev, Event), "RECORD_LIST_ITEM_TYPE", "TurnCommit.events items must be Event, got %r" % type(ev).__name__)
             ev.validate()
         if self.recall is not None:
-            _require(isinstance(self.recall, list), "RECORDS_TURNCOMMIT_RECALL_NOT_A_LIST", "TurnCommit.recall must be a list of belief refs")
+            _require(isinstance(self.recall, list), "RECORD_FIELD_TYPE", "TurnCommit.recall must be a list of belief refs")
         if self.manifest is not None:
-            _require(isinstance(self.manifest, dict), "RECORDS_TURNCOMMIT_MANIFEST_INVALID", "TurnCommit.manifest must be dict")
-        _require(isinstance(self.rel_deltas, list), "RECORDS_TURNCOMMIT_REL_DELTAS_NOT_A_LIST", "TurnCommit.rel_deltas must be a list")
+            _require(isinstance(self.manifest, dict), "RECORD_FIELD_TYPE", "TurnCommit.manifest must be dict")
+        _require(isinstance(self.rel_deltas, list), "RECORD_FIELD_TYPE", "TurnCommit.rel_deltas must be a list")
         for rd in self.rel_deltas:
-            _require(isinstance(rd, RelationshipDelta), "RECORDS_TURNCOMMIT_REL_DELTAS_INVALID", "TurnCommit.rel_deltas items must be RelationshipDelta")
+            _require(isinstance(rd, RelationshipDelta), "RECORD_LIST_ITEM_TYPE", "TurnCommit.rel_deltas items must be RelationshipDelta")
             rd.validate()
+        _require(isinstance(self.wound_deltas, list), "RECORD_FIELD_TYPE", "TurnCommit.wound_deltas must be a list")
+        for wd in self.wound_deltas:
+            _require(isinstance(wd, WoundDelta), "RECORD_LIST_ITEM_TYPE", "TurnCommit.wound_deltas items must be WoundDelta")
+            wd.validate()
+        _require(isinstance(self.toward_deltas, list), "RECORD_FIELD_TYPE", "TurnCommit.toward_deltas must be a list")
+        for td in self.toward_deltas:
+            _require(isinstance(td, TowardDelta), "RECORD_LIST_ITEM_TYPE", "TurnCommit.toward_deltas items must be TowardDelta")
+            td.validate()
         return self

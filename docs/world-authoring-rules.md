@@ -23,15 +23,55 @@ a harbour town, a levy, a ferryman — so this file stays upstreamable to the te
 
 ---
 
-## 2. Rule 2: Four Fields Are Live — The Rest Is Stored, Not Executed
-- **The Law**: Of the world engine block, only **`lexicon`, `locations`, `people`, `laws`** have
-  runtime effect. `world` title, `season`, and `standing_facts` are **INERT**
+## 2. Rule 2: Five Fields Are Live — The Rest Is Stored, Not Executed
+- **The Law**: Of the world engine block, only **`lexicon`, `locations`, `people`, `laws`,
+  `tensions`** have runtime effect. `world` title, `season`, and `standing_facts` are **INERT**
   (`guide-content.md:74`) — excellent authorial anchors, zero machine consequence.
 - **The Violation**: Rewriting `standing_facts` to change how characters behave. Nothing changes.
 - **The Valid Form**: If a standing fact must reach an actor *today*, route it: into a **law** (if
   the world refuses something), a **lexicon class** (if it must be perceived), a **belief** on the
   character who holds it, or the **event text** of the scene.
 - **Falsification**: edit a standing fact, rebuild the bible, diff behaviour. It will not move.
+
+
+### 2a. `tensions` — the fifth live field (added 2026-09-02)
+
+A tension is a **standing, named grievance** the world already carries: the contested border, the
+old feud, the suppressed faction. `history.md` says where they come from — *"History's output is the
+present's **unresolved** tensions… the **fuel** for the director's circumstances."* You author them;
+nothing invents one. A model may report that an act happened; naming new world structure is a
+willful act and `world-dynamics.md` seats will with the director: *"the world is **directed** (the
+room acts it)… its will is the director."*
+
+```json
+"tensions": [
+  {"id": "harbour-levy",
+   "what": "the levy on the ferry crossing, resented by the boatmen",
+   "temperature": 0.1,
+   "factions": ["guild", "boatmen"],
+   "watches": {"parties": ["guild", "boatmen", "ferryman_tam"], "locations": ["crossing"]},
+   "interests": {"social_violation": 0.6, "threat": 0.3, "loss": 0.4},
+   "cooling": "slow"}
+]
+```
+
+- **`watches`** is SCOPE: whose acts, and where, can touch this at all. Name at least one party or
+  location, or nothing can ever be in scope and the tension sits inert while looking live.
+- **`interests`** is WHAT IT IS ABOUT, weighted over the seven appraisal dimensions the engine
+  already prices events in. **This is why you never say which tension an act is about**:
+  `world-dynamics.md` specifies *"(typed event × standing interests) → state delta, computed, never
+  guessed"*, so an act is priced against EVERY live tension and lands on the ones that watch it. One
+  act may heat several — a public killing raising both the levy dispute and the old feud is two true
+  facts, not a collision.
+- **`cooling`** is `slow` / `typical` / `fast` — heat fades absent fuel, applied at read.
+- **The Violation**: authoring a tension nothing watches, or whose interests name a dimension
+  outside the seven. `scripts/lint_book.py` refuses both, and warns when a watch names a location or
+  person the world does not register.
+- **Falsification**: author a tension watching nobody and nowhere; the linter fails before a run.
+
+**A threat that no tension watches is not a world event.** It is a beat, the appraisal tier already
+recorded it, and the emitting seat refuses it saying so. That is how *"only the levered is
+written"* (`world-state-ledger.md`) stays true without anyone policing it.
 
 ---
 
@@ -44,7 +84,7 @@ a harbour town, a levy, a ferryman — so this file stays upstreamable to the te
   breaking it.
 - **The Valid Form**: `{"id": "levy-binds-at-majority", "domain": "legal",
   "act": "evade-the-harbour-levy"}` — now `laws_bearing_on()` and `verdict_for()`
-  (`bible.py:400,411`) can reach it.
+  (`law.py:324,340`) can reach it.
 - **Test**: for every rule your book states out loud in dialogue, grep the engine block for its
   `act`. If it is absent, the scene is asserting a law the world does not have.
 

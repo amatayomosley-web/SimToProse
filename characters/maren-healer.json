@@ -157,7 +157,10 @@
             "over-control / cannot delegate",
             "will not name the grief aloud",
             "works past exhaustion rather than stop"
-          ]
+          ],
+          "intensity": 0.85,
+          "id": "maren-suil",
+          "class_dim": "loss"
         },
         {
           "fear": "being too late / not enough",
@@ -168,7 +171,9 @@
           "avoidance": [
             "hoards responsibility",
             "over-prepares"
-          ]
+          ],
+          "intensity": 0.5,
+          "id": "maren-too-late"
         }
       ],
       "orientation": {

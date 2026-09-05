@@ -8,7 +8,7 @@ says 'spent 3 focus'."
 Phrasing is NEUTRAL qualitative description, not prose flourish — narration.md owns voice.
 All functions pure, deterministic, stdlib-only, digit-free output (the guardrail test).
 """
-from .records import PRIMARIES, admits_role
+from .records import PRIMARIES, direction_changes
 from .errors import EngineError
 
 # Class-B band edges: four absolute levels per primary. Provenance: design.md direction rule;
@@ -124,6 +124,23 @@ _UNBOUND_PHRASES = {
 
 _DEV_THRESH = 0.15   # deviation from temperament mean that reads as rising/settling (Class-B, probe-calibrated start)
 
+# ---------------------------------------------------------------------------------------------
+# SLOPE — how fast it moved, which is a DIFFERENT question from how far it sits from rest.
+#
+# `_DEV_THRESH` above compares a value to the character's TEMPERAMENT MEAN: "elevated versus your
+# resting state". Nothing compared turn N to turn N-1, so a character who leapt from the quiet band
+# to the top in one beat received the identical phrase to one who climbed there over ten. *He had
+# been getting angrier all evening* and *he snapped* were the same state to the renderer, and for a
+# novel the slope is frequently the story.
+#
+# The two markers COMPOSE and do not overlap: a character can be steadily elevated and not moving
+# (dev high, slope flat), or moving hard through their own normal range (dev low, slope steep).
+#
+# Class-B, probe-calibrated start, and set ABOVE `_DEV_THRESH` deliberately: a beat that moves a
+# primary further than its whole distance-from-rest threshold is a lurch, and marking anything less
+# would put a movement clause on almost every line. The clause is worth having because it is rare.
+_SLOPE_THRESH = 0.20
+
 # Condition bands (energy after allostatic weighting — same read the gate's budget uses).
 _COND = ((0.25, "you take the shortest path and you will not do the thorough version of anything"),
          (0.50, "you do what is asked and none of the extra"),
@@ -193,8 +210,14 @@ def _phrase_for(primary, band, targets, me):
 
     Three cases, in the order the registry decides them:
       * bound to the CHARACTER and the registry says the direction changes -> the reflexive variant
-        (`records.DIRECTEDNESS[p]["direction_changes"]`). PANIC_GRIEF is bound-to-self all the time
-        and deliberately does NOT take this branch: its shutdown never pointed at anything.
+        (`records.direction_changes`). PANIC_GRIEF is bound-to-self all the time and deliberately
+        does NOT take this branch: its shutdown never pointed at anything. Until 2026-09-01 this
+        line described the intent and the code below gated on `admits_role(p, "self")` — the
+        `reflexive` column, which PANIC_GRIEF passes. Nothing rendered wrongly, because the phrase
+        table happened to hold exactly the two direction-changing primitives; the law was enforced
+        by an absent row rather than by the column that states it. Both halves are now checked:
+        the branch reads the column, and `test_direction` asserts the table's keys EQUAL the
+        direction_changes-True set.
       * bound to NOBODY and the primitive would otherwise hand the actor a dangling deictic -> the
         unbound phrase. LUST only; see `_UNBOUND_PHRASES`.
       * everything else -> the ordinary object phrase, which is what every caller got before targets
@@ -202,7 +225,7 @@ def _phrase_for(primary, band, targets, me):
     """
     bound = (targets or {}).get(primary)
     if bound is not None and me is not None and str(bound).lower() == str(me).lower():
-        if admits_role(primary, "self"):
+        if direction_changes(primary):
             variant = _REFLEXIVE_PHRASES.get(primary)
             if variant and variant[band] is not None:
                 return variant[band]
@@ -246,12 +269,36 @@ def name_compound(vector):
     return ranked[0][0]
 
 
-def direct_affect(affect, temperament, targets=None, me=None):
+def _slope_marker(primary, v, prev):
+    """The movement clause for one primary since the previous COMMITTED turn, or "".
+
+    `prev` is the previous affect vector, or None for a first turn / a caller that does not pass
+    one — in which case there is no movement to describe and the line is what it always was.
+    Returns a clause with no "; " in it, because that is this module's clause separator and a
+    consumer splitting on it would mis-count (pinned by test_direction).
+    """
+    if not prev or primary not in prev:
+        return ""
+    try:
+        delta = float(v) - float(prev[primary])
+    except (TypeError, ValueError):
+        return ""
+    if delta >= _SLOPE_THRESH:
+        return " and it came on you fast, this last moment"
+    if delta <= -_SLOPE_THRESH:
+        return " and it has just dropped away from you"
+    return ""
+
+
+def direct_affect(affect, temperament, targets=None, me=None, prev=None):
     """Affect vector -> one digit-free, second-person line of STAGE DIRECTIONS — what the actor
     DOES, not what it feels. Surfaces any primary at present level or above, or one deviating past
     _DEV_THRESH from its resting mean (with a rising/settling marker) — an anxious baseline must
     not read as a fresh spike, and a primary in the quiet band is genuinely not asking for
     attention.
+
+    `prev` (the previous committed turn's affect vector) adds a MOVEMENT clause: how fast this got
+    here, which is not the same question as how far it sits from rest. Omitted, no line changes.
 
     `targets` ({primary: target_id}) and `me` (this character's id) select the REFLEXIVE variant for
     a primitive bound to the character themselves, where the registry says its direction changes.
@@ -261,10 +308,20 @@ def direct_affect(affect, temperament, targets=None, me=None):
     CARE 0.30 and 0.45 both surfaced while 0.54 fell silent, telling the actor LESS was happening
     at higher care. Anything that has surfaced must keep surfacing as the value rises."""
     if not isinstance(affect, dict) or not isinstance(temperament, dict):
-        raise EngineError("DIRECTION_AFFECT_TEMPERAMENT_INVALID", "direction: affect and temperament must be dicts")
+        raise DirectionError(
+            "DIRECTION_PACKET_NOT_AN_OBJECT",
+            "direction.direct_affect: affect and temperament must both be dicts, got %s and %s. "
+            "This layer is the only thing standing between a stored number and the prompt "
+            "(CLAUDE.md hard rule 5), so it refuses a packet it cannot read rather than "
+            "translating part of one." % (type(affect).__name__, type(temperament).__name__))
     missing = [p for p in PRIMARIES if p not in affect]
     if missing:
-        raise EngineError("DIRECTION_AFFECT_MISSING_PRIMARIES", "direction: affect missing primaries: %s" % missing)
+        raise DirectionError(
+            "DIRECTION_AFFECT_MISSING_PRIMARY",
+            "direction.direct_affect: affect is missing %s. Every primary is described or the "
+            "actor is told less is happening than the state says — a silent omission here reads "
+            "to the actor as a feeling that is absent rather than one that went unrendered."
+            % ", ".join(missing))
     parts = []
     for p in PRIMARIES:
         v = _check_num("affect[%s]" % p, affect[p])
@@ -284,6 +341,9 @@ def direct_affect(affect, temperament, targets=None, me=None):
             phrase += ", though that is beginning to slip" if b == 0 else ", more than is usual for you"
         elif dev < -_DEV_THRESH:
             phrase += ", which is not like you" if b == 0 else ", quieter than your usual"
+        # SLOPE last, because it qualifies the whole clause: where the deviation marker says how
+        # this compares to your resting state, this says how fast you got here.
+        phrase += _slope_marker(p, v, prev)
         parts.append(phrase)
     named = name_compound(affect)
     if named:
@@ -296,7 +356,10 @@ def direct_affect(affect, temperament, targets=None, me=None):
 def direct_condition(condition):
     """Condition -> a digit-free line, via the same energy/load read the gate's budget uses."""
     if not isinstance(condition, dict):
-        raise EngineError("DIRECTION_CONDITION_NOT_A_DICT", "direction: condition must be a dict")
+        raise DirectionError(
+            "DIRECTION_PACKET_NOT_AN_OBJECT",
+            "direction.direct_condition: condition must be a dict, got %s"
+            % type(condition).__name__)
     energy = _check_num("condition.energy", condition.get("energy", 1.0))
     load = _check_num("condition.allostatic_load", condition.get("allostatic_load", 0.0))
     effective = energy * (1.0 - load * 0.5)   # mirrors gate._energy_budget (one read, two surfaces)
@@ -338,7 +401,9 @@ def direct_edge(edge):
     indifferent has to be stageable differently from someone who believes it is returned.
     """
     if not isinstance(edge, dict):
-        raise EngineError("DIRECTION_EDGE_NOT_A_DICT", "direction: edge must be a dict")
+        raise DirectionError(
+            "DIRECTION_PACKET_NOT_AN_OBJECT",
+            "direction.direct_edge: edge must be a dict, got %s" % type(edge).__name__)
     parts = []
     for axis in ("trust", "affinity", "respect", "debt"):
         if axis in edge:

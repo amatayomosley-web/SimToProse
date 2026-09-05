@@ -30,11 +30,12 @@ REPO = os.path.dirname(HERE)
 # Not plain pass/fail suites — each has its own contract, run separately by the verify block.
 _PROBES = {"coherence_probe.py", "basis_probe.py"}
 # Make live model calls; opt in with --slow.
-# EMPTY since 2026-09-04, and that is a measurement. test_pipeline_e2e.py was inherited
-# here from the sibling by copy, where it is genuinely slower; timed in THIS repo it runs
-# in 360ms, exits 0, and makes no model calls. Excluding it meant every documented verify
-# run skipped the one suite that exercises the whole pipeline, and the summary line said
-# "1 slow skipped" in a way that read as deliberate. Time a suite before adding one.
+# EMPTY since 2026-09-04, and that is a measurement. test_pipeline_e2e.py sat here on the
+# assumption that an end-to-end suite must be slow; timed, it runs in 601ms, exits 0, and
+# greps 0 hits for openrouter/api_key/requests.post — it is stub-only. Excluding it meant
+# every documented verify run skipped the ONE suite that exercises the whole pipeline, and
+# the summary line said so ("1 slow skipped") in a way that read as deliberate. The sibling
+# template inherited the same exclusion by copy. Put a suite here only after TIMING it.
 _SLOW = set()
 
 

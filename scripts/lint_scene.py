@@ -131,8 +131,17 @@ def lint_cfg(cfg, world, chars):
             if k not in _LEGAL_DIMS:
                 errors.append("opening_tags.dimensions key %r is not one of the legal seven (%s) — "
                               "appraise() silently ignores it" % (k, ", ".join(sorted(_LEGAL_DIMS))))
+            elif isinstance(v, str):
+                # A WORD is the authored form (standard-vectors.md §3); scene.py resolves it at the
+                # cfg parse seam. Only an unknown word is an error, and the message names the ladder.
+                from src.engine.severity import WORDS
+                if v.strip().lower() not in WORDS:
+                    errors.append("opening_tags.dimensions[%r] = %r is not a severity word — use one "
+                                  "of: %s" % (k, v, ", ".join(WORDS)))
             elif not isinstance(v, (int, float)) or not (0.0 <= float(v) <= 1.0):
-                errors.append("opening_tags.dimensions[%r] = %r is not a number in [0,1]" % (k, v))
+                errors.append("opening_tags.dimensions[%r] = %r is neither a severity word (%s) nor "
+                              "a number in [0,1]" % (k, v, ", ".join(__import__(
+                                  "src.engine.severity", fromlist=["WORDS"]).WORDS)))
 
     act = (cfg.get("opening_tags") or {}).get("act") or cfg.get("act")
     if act and str(act) not in acts:

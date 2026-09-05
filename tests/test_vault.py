@@ -35,7 +35,7 @@ CHAR_ENGINE = {
         "anger_proneness": "low", "effortful_control": "typical", "sensitivity": "elevated"}},
     "baseline": {
         "temperament": {p: {"mean": m, "variability": 0.1} for p, m in
-                        zip(PRIMARIES, (0.6, 0.4, 0.2, 0.2, 0.5, 0.3, 0.35))},
+                        zip(PRIMARIES, (0.6, 0.4, 0.2, 0.2, 0.5, 0.3, 0.35, 0.2))},
         "traits": {"emotionality": {"mean": 0.5}, "agreeableness": {"mean": 0.6}, "extraversion": {"mean": 0.4}},
         "model": {"schwartz": {"security": 0.6, "benevolence": 0.7}, "moral_foundations": {"care_harm": 0.7},
                   "needs": {"relatedness": 0.6, "competence": 0.5}},

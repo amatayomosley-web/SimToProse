@@ -61,8 +61,19 @@ def _rows(paths, describe):
 
 
 def _listing(d, pattern, exclude=()):
-    return sorted(os.path.join(REPO, d, f) for f in os.listdir(os.path.join(REPO, d))
-                  if re.match(pattern, f) and f not in exclude)
+    """Every matching file under `d`, RECURSIVELY.
+
+    This used os.listdir, which does not descend — so `docs/authoring/` (the three BLUEPRINT files
+    and START-HERE, the primary authoring guides at roughly 1800 lines each) and
+    `docs/emotion-names/` (18 files) were absent from the routing table MAP.md is, while MAP's own
+    header counted "62 design docs" and meant "62 files that happened to sit at the top level".
+    A generated inventory is only as honest as its walk.
+    """
+    out = []
+    for root, _dirs, files in os.walk(os.path.join(REPO, d)):
+        out += [os.path.join(root, f) for f in files
+                if re.match(pattern, f) and f not in exclude]
+    return sorted(out)
 
 
 def sections():

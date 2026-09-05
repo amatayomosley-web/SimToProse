@@ -224,7 +224,7 @@ Park a run you're leaving: `led.set_status(run_id, "parked")` — appends are re
 | `[turn-error, degraded: ...]` + turn-skipped event | LLM call/parse failed after retries | normal at ~1/25 on haiku; re-run the turn next burst if it matters |
 | escalate=1 on a turn | self-report incoherent with percepts/skills | inspect; the action/thought are usually fine — the TAGS are suspect |
 | detector FLAG (probe) | state-sanity breach (saturation/oscillation/drift) | real coupling problem; check recent tag dims vs hints; `--corrupt` proves the detectors themselves |
-| `RESUME DIVERGENCE` | cache ≠ replay | investigate, never bypass (above) |
+| `RESUME DIVERGENCE` | cache ≠ replay | never disable the CHECK; discard the CACHE — see "If a run refuses to resume" below |
 | OpenRouter nulls/throttle | burst rate limit (~250 calls observed) | backoff; for judging, the fallback is an opus subagent on blinded transcript files (the 2026-06-10/11 pattern) |
 
 ## What the system does NOT do (don't look for it)
@@ -244,3 +244,20 @@ prompt (numbers → direction).
   until move/harm/reveal events populate it).
 
 The `runs/*.db` files are runtime artifacts, gitignored — back them up like save-files, not like code.
+
+### If a run refuses to resume with RESUME DIVERGENCE
+
+The message means the cached snapshot and the from-zero fold disagree. **The check is doing its job
+— do not disable it.** In every case it means the CACHE is stale, and the cache is a cache: it is
+safe to throw away, and the fold rebuilds it from the log.
+
+    sqlite3 <run.db> "DELETE FROM snapshots WHERE run_id = '<run_id>';"
+
+Then resume normally. Nothing is lost: `snapshots` is one of the two tables schema v9 deliberately
+leaves mutable, because *a cache that cannot be rewritten is not a cache*.
+
+**One known cause, now fixed forward.** Runs touched by `scripts/keeper.py` before 2026-09-01 can
+hit this: the keeper appended world events at or below a parked snapshot's turn and did not
+invalidate it, so `resume`'s incremental replay could not see them. `world_events.append` now
+invalidates inside the same transaction as the insert. Runs created after that cannot reach this
+state through the keeper; older ones need the DELETE above, once.

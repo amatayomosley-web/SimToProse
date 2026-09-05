@@ -22,10 +22,10 @@ flag) — throws no flag and is invisible here. Catching those needs the actor t
 these fit" (a prompt signal) — a clean v2.
 """
 import json
+from .records import RecordError   # rule 6's bad-input type
 import re
 
 from .consolidation import CATALOG
-from .errors import EngineError
 
 # Class-B calibration: a reason recurring at/above BOTH of these is a structural gap, not noise.
 _MIN_COUNT = 2
@@ -142,7 +142,7 @@ def scan_run(ledger, run_id, min_count=_MIN_COUNT, min_fraction=_MIN_FRACTION):
     {kind, subject, count, turns, fraction, actors, message, severity}.
     Pure read; the ledger raises on an unknown run. Fail loud on a bad ledger handle."""
     if not hasattr(ledger, "con"):
-        raise EngineError("FAULTS_SCAN_RUN_NOT_A_LEDGER", "scan_run: ledger must be a Ledger (got %r)" % type(ledger).__name__)
+        raise RecordError("FAULT_LEDGER_HANDLE_INVALID", "scan_run: ledger must be a Ledger (got %r)" % type(ledger).__name__)
     rows = ledger.con.execute(
         "SELECT turn, actor, tags, validation FROM turns WHERE run_id = ? ORDER BY turn", (run_id,)).fetchall()
     total = len(rows)
@@ -213,7 +213,7 @@ def scan_run(ledger, run_id, min_count=_MIN_COUNT, min_fraction=_MIN_FRACTION):
 def render(result):
     """Render a scan result as the developer-facing engine-fault report (printed at park)."""
     if not isinstance(result, dict):
-        raise EngineError("FAULTS_RENDER_RESULT_NOT_A_DICT", "render: result must be the dict scan_run returns")
+        raise RecordError("FAULT_SCAN_RESULT_INVALID", "render: result must be the dict scan_run returns")
     faults = result.get("faults", [])
     stats = result.get("stats", {})
     if stats.get("turns", 0) == 0:

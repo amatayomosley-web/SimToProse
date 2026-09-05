@@ -426,17 +426,169 @@ def test_regard_leaves_targetless_unchanged():
 # Main
 # ---------------------------------------------------------------------------
 
+def test_decay_is_heritable_PER_PRIMITIVE_not_just_globally():
+    """One allele, two effects. The rise was already personal; the fall was one global shape
+    scaled by one number, so no character could be quick to anger and slow to forgive.
+
+    Four things must hold, and the fourth is the compatibility contract."""
+    from src.engine.state import build_profile, PRIMARIES
+
+    def sheet(**over):
+        g = {"threat_reactivity": "typical", "approach_drive": "typical",
+             "anger_proneness": "typical", "affiliation_attachment": "typical",
+             "sensitivity": "typical", "effortful_control": "typical"}
+        g.update(over)
+        return {"fixed": {"genotype": g}, "baseline": {"traits": {}, "model": {}}, "current": {}}
+
+    typical = build_profile(sheet())["decay_rates"]
+    hot     = build_profile(sheet(anger_proneness="high"))["decay_rates"]
+    calm    = build_profile(sheet(threat_reactivity="low"))["decay_rates"]
+
+    # 1. a hot-tempered character HOLDS rage longer than a typical one
+    assert hot["RAGE"] > typical["RAGE"], (hot["RAGE"], typical["RAGE"])
+    # 2. and a low-threat character SHEDS fear faster
+    assert calm["FEAR"] < typical["FEAR"], (calm["FEAR"], typical["FEAR"])
+    # 3. an allele reaches ONLY the primitives it feeds — anger_proneness must not move FEAR
+    assert hot["FEAR"] == typical["FEAR"], "anger_proneness leaked into FEAR"
+    assert calm["RAGE"] == typical["RAGE"], "threat_reactivity leaked into RAGE"
+    # LUST, PLAY and DISGUST have no axis, so they take the species prior in BOTH directions
+    for p in ("LUST", "PLAY", "DISGUST"):
+        assert hot[p] == calm[p] == typical[p], "%s moved without a heritable axis" % p
+
+    # 4. THE COMPATIBILITY CONTRACT. An all-typical genotype must reproduce the pre-change rates
+    #    exactly, or every character already authored silently changed when this landed.
+    from src.engine.state import _DECAY_RATE, _REG_FLOOR
+    for p in PRIMARIES:
+        was = max(_REG_FLOOR, min(0.98, 1.0 - (1.0 - _DECAY_RATE[p]) * 1.0))
+        assert abs(typical[p] - was) < 1e-12, "%s moved for an all-typical genotype: %r vs %r" % (
+            p, typical[p], was)
+
+
+def test_persistence_and_regulation_COMPOSE_rather_than_cancel():
+    """The two terms act on the same expression, so it is worth asserting they do not undo
+    each other: a regulated person returns faster OVERALL, and within that, their heritable axes
+    decide which feelings they hold longest."""
+    from src.engine.state import build_profile
+
+    def sheet(reg, anger):
+        return {"fixed": {"genotype": {"threat_reactivity": "typical", "approach_drive": "typical",
+                                       "anger_proneness": anger,
+                                       "affiliation_attachment": "typical",
+                                       "sensitivity": "typical", "effortful_control": reg}},
+                "baseline": {"traits": {}, "model": {}}, "current": {}}
+
+    # regulation still dominates the direction: high EC returns FASTER than low EC at equal anger
+    hi = build_profile(sheet("high", "typical"))["decay_rates"]["RAGE"]
+    lo = build_profile(sheet("low", "typical"))["decay_rates"]["RAGE"]
+    assert hi < lo, "regulation stopped speeding the return (%r vs %r)" % (hi, lo)
+
+    # and within one regulation level, anger_proneness still separates the two characters
+    hi_hot = build_profile(sheet("high", "high"))["decay_rates"]["RAGE"]
+    assert hi < hi_hot, "persistence was cancelled by regulation (%r vs %r)" % (hi, hi_hot)
+    # the regulated hothead still returns faster than an unregulated calm one — no inversion
+    assert hi_hot < lo, "persistence overwhelmed regulation (%r vs %r)" % (hi_hot, lo)
+
+
+
+def test_persistence_reads_an_ANNOTATED_allele_the_same_way_gain_does():
+    """The two effects of one allele must read that allele the SAME WAY.
+
+    Sheets annotate an allele with a parenthetical, and `_allele` normalises with
+    `.split()[0].lower()` precisely so that still reads as its word. `_persist` looked the raw
+    string up directly, missed every key, and fell to the species prior — so on the reference
+    fixture the GAIN fired at 1.3 and the PERSISTENCE silently did nothing.
+
+    The suite was green because every persistence test used clean words. This one does not."""
+    import json
+    import os
+    from src.engine.heritable import word_of as _allele_word
+    from src.engine.state import _allele, _persist, build_profile
+
+    annotated = {"affiliation_attachment": "high (anxious-leaning bond style)",
+                 "anger_proneness": "low  (slow to take offence)",
+                 "threat_reactivity": "TYPICAL"}
+    check_pairs = [("affiliation_attachment", "CARE", "high"),
+                   ("anger_proneness", "RAGE", "low"),
+                   ("threat_reactivity", "FEAR", "typical")]
+    for axis, primary, word in check_pairs:
+        assert _allele_word(axis, annotated) == word, (axis, _allele_word(axis, annotated))
+        # the load-bearing assertion: BOTH effects must recognise the annotated allele
+        assert _allele(axis, annotated) != 1.0 or word == "typical", axis
+        assert _persist(primary, annotated) != 1.0 or word == "typical", (
+            "%s persistence fell to the species prior on an annotated %r allele" % (primary, word))
+
+    # and on the REAL fixture, end to end through build_profile
+    repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    path = os.path.join(repo, "characters", "maren-healer.json")
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as fh:
+            ch = json.load(fh)
+        g = ch.get("fixed", {}).get("genotype", {})
+        if "(" in str(g.get("affiliation_attachment", "")):
+            assert _persist("CARE", g) != 1.0, (
+                "the reference fixture annotates its allele and persistence ignored it")
+
+
+def test_EVERY_refusal_in_this_module_carries_a_REGISTERED_code():
+    """19 prose raises in the module every committed turn passes through TWICE, and an operator
+    debugging a malformed affect vector had only a sentence to grep.
+
+    Parsed, never listed — a hand-kept list of raise sites is the duplicate CLAUDE.md tabulates
+    seven failures of."""
+    import ast, re
+    from src.engine import codes
+    with open(os.path.join(REPO, "src", "engine", "state.py"), encoding="utf-8") as fh:
+        src = fh.read()
+    uncoded, raised = [], set()
+    for n in ast.walk(ast.parse(src)):
+        if not isinstance(n, ast.Raise) or not isinstance(n.exc, ast.Call):
+            continue
+        a0 = n.exc.args[0] if n.exc.args else None
+        if (isinstance(a0, ast.Constant) and isinstance(a0.value, str)
+                and re.fullmatch(r"[A-Z][A-Z0-9]*_[A-Z0-9_]+", a0.value or "")):
+            raised.add(a0.value)
+        else:
+            uncoded.append(n.lineno)
+    assert not uncoded, "state.py raises without a code at line(s) %s" % uncoded
+    assert len(raised) >= 10, "the scan found %d codes — it is not reading the module" % len(raised)
+    unregistered = sorted(c for c in raised if not codes.is_registered(c))
+    assert not unregistered, "state.py raises unregistered code(s) %s" % unregistered
+
+
+def test_appraise_and_decay_SHARE_a_code_where_they_share_a_condition():
+    """The six checks both functions perform are ONE condition each, not twelve.
+
+    Also the falsification: if a later edit gives them separate codes, the count moves and this
+    fails rather than silently doubling the namespace an operator has to know."""
+    from src.engine.records import RecordError
+    from src.engine.state import appraise, decay
+    bad = {p: 0.5 for p in PRIMARIES}
+    bad["SEEKING"] = 2.0                                   # out of [0,1], the same fault both sides
+    profile = maren_profile()
+    seen = set()
+    for label, call in (
+        ("appraise", lambda: appraise(bad, {"type": "mundane"}, profile)),
+        ("decay", lambda: decay(bad, {p: {"mean": 0.5} for p in PRIMARIES}, profile)),
+    ):
+        try:
+            call()
+            raise AssertionError("%s accepted an out-of-range primary" % label)
+        except RecordError as e:
+            seen.add(e.code)
+            assert e.code == "STATE_AFFECT_VALUE_RANGE", "%s got %r" % (label, e.code)
+    assert len(seen) == 1, (
+        "appraise and decay refuse the same condition with different codes %s — the namespace an "
+        "operator has to know just doubled for one fault" % sorted(seen))
+
+
 def main():
-    tests = [
-        ("two_courageous_people",    test_two_courageous_people),
-        ("relevance_discrimination", test_relevance_discrimination),
-        ("decay_asymmetry",          test_decay_asymmetry),
-        ("boundedness",              test_boundedness),
-        ("target_aware_regard",      test_target_aware_regard),
-        ("regard_targetless_unchanged", test_regard_leaves_targetless_unchanged),
-        ("fail_loud",                test_fail_loud),
-        ("probe_preflight",          test_probe_preflicht),
-    ]
+    # DISCOVERED, NOT LISTED. A hand-written tuple here is the duplicate CLAUDE.md tabulates, and
+    # on 2026-09-01 that shape hid a determinism guard in test_scene.py for a whole run. Ordered by
+    # definition line so the printed run reads in file order.
+    tests = [(fn.__name__[5:], fn) for fn in
+             sorted((v for k, v in globals().items()
+                     if k.startswith("test_") and callable(v)),
+                    key=lambda f: f.__code__.co_firstlineno)]
     failed = 0
     for name, fn in tests:
         try:

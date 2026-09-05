@@ -378,14 +378,53 @@ def test_probe_preflight():
 # Main
 # ---------------------------------------------------------------------------
 
+
+def test_build_edges_is_ORDER_DETERMINISTIC():
+    """HARD RULE 4, at a seam that had no test. `_build_edges` walked `present_entity_ids` — a SET —
+    so the edge list came out in hash order and varied per PROCESS. Measured 2026-09-01: the e2e
+    exited 0 then 1 on consecutive identical --stub runs, because the stub read the first edge to
+    pick an addressee and got a different party each time.
+
+    THIS MUST RUN IN SUBPROCESSES. Set iteration is stable WITHIN a process, so calling the function
+    twice in one run proves nothing — a first draft of this guard did exactly that and did NOT fire
+    when the sort was reverted. Varying PYTHONHASHSEED across processes is the only way to observe
+    the property that actually broke."""
+    import subprocess
+
+    prog = chr(10).join((
+        "import sys, json",
+        "sys.path.insert(0, %r)" % REPO,
+        "from src.engine.scene import _build_edges",
+        "ks = ['zeta_one', 'alpha_two', 'mid_three', 'kappa_four', 'beta_five']",
+        "rels = {k: {'trust': 0.5} for k in ks}",
+        "pcs = [{'ref': 'entity.' + k, 'recognized_as': ''} for k in ks]",
+        "print(json.dumps([e.get('target') for e in "
+        "_build_edges({'relationships': rels}, pcs, {})]))",
+    ))
+    runs = []
+    for seed in ("0", "1", "2", "3", "5", "8"):
+        env = dict(os.environ, PYTHONHASHSEED=seed)
+        out = subprocess.run([sys.executable, "-c", prog], capture_output=True, text=True, env=env)
+        runs.append(out.stdout.strip())
+    check("edge-order-identical-across-hash-seeds", len(set(runs)) == 1,
+          "six PYTHONHASHSEEDs produced %d distinct orders: %s — every positional read of edges is "
+          "then non-deterministic across runs" % (len(set(runs)), sorted(set(runs))))
+    check("edge-order-is-sorted", runs[0] and json.loads(runs[0]) == sorted(json.loads(runs[0])),
+          "got %s" % runs[0])
+
+
 def main():
     print("test_scene.py — Gate 3 scene-assembly + relevancy-gate\n")
 
-    test_whitelist()
-    test_stable_prefix_stability()
-    test_manifest_fidelity()
-    test_fail_loud()
-    test_probe_preflight()
+    # DISCOVERED, NOT LISTED. This was a hand-written call list, so a test added to the file did
+    # not run — measured 2026-09-01, when a determinism guard sat here unexecuted while the suite
+    # printed VERDICT: PASS. Same defect `test_arc.py` already fixed, and the eighth row of
+    # CLAUDE.md's duplicates table: a list mirroring what the module already knows. Ordered by
+    # definition line so the printed headings stay in reading order.
+    for t in sorted((v for k, v in globals().items()
+                     if k.startswith("test_") and callable(v)),
+                    key=lambda f: f.__code__.co_firstlineno):
+        t()
 
     total  = len(PASS) + len(FAIL)
     n_pass = len(PASS)

@@ -10,16 +10,18 @@ Pure; the harness (direct.py:run_turn) persists it (Ledger.append_acquisition) a
 """
 import re
 
-from .gate import _normalize
+from .gate import _normalize, belief_id
+from .records import RecordError   # rule 6's bad-input type
+
 from .consolidation import is_durable
-from .errors import EngineError
+from .facets import stamp as _stamp_facets
 
 # The durability predicate is imported, never re-spelled. This module used to carry
 # `_DURABLE = ("durable", "marking", "reshaping")` — a THIRD vocabulary, accepting two values
 # `consolidation._VALID_DURABILITY` rejects, in the module whose writes are PERMANENT.
 
 
-def assess(applied, tags, char):
+def assess(applied, tags, char, world=None):
     """A committed turn -> a belief to acquire, or None. DETERMINISTIC over the recorded turn + vault.
 
     Promote iff the event is DURABLE (it would mark the actor) AND names a SUBJECT (a memory is ABOUT
@@ -46,21 +48,22 @@ def assess(applied, tags, char):
     norm = summary.lower()
     for b in vault:                                       # structural dedup: the same lived fact, once
         if isinstance(b, dict) and str(b.get("claim", "")).strip().lower() == norm:
-            return None
+            if not tags.get("supersedes") and b.get("target_actor") == tags.get("target_actor") and b.get("epistemic_stance") == tags.get("epistemic_stance"):
+                return None
     try:
         conf = float(tags.get("confidence", 0.8))
     except (TypeError, ValueError):
         conf = 0.8
-    return {
-        "claim": summary,
-        "confidence": max(0.0, min(1.0, conf)),
-        "provenance": "lived",
-        "believed_value": True,
-        "links": [str(subject)],
-    }
+    return _build_belief(
+        summary,
+        conf,
+        subject,
+        tags,
+        vault,
+        world)
 
 
-def reveal_name(char, entity_id, name):
+def reveal_name(char, entity_id, name, world=None):
     """The name-reveal as a MONOTONIC acquisition: the character learns an entity's NAME.
 
     Flips the relationship edge's `known_as` to the name so FUTURE rendering uses it (the masking wall
@@ -79,13 +82,13 @@ def reveal_name(char, entity_id, name):
     old = str(edge.get("known_as", "") or "").strip()
     edge["known_as"] = str(name)                          # FORWARD: future prompts + edge labels render the name
     knew_as = ("the one I knew as '%s'" % old) if old else "the one I had not named"
-    belief = {
+    belief = _stamp_facets({
         "claim": "%s is named %s" % (knew_as, name),
         "confidence": 1.0,
         "provenance": "learned",
         "believed_value": True,
         "links": [str(entity_id)],
-    }
+    }, world, subject=entity_id)
     char["current"].setdefault("vault", []).append(belief)  # ADD — prior beliefs are left exactly as they were
     return belief
 
@@ -109,7 +112,7 @@ _WITNESS_CEILING = 0.88    # nobody is CERTAIN of another person's account of ev
                            # warns about: a number that changed and a rendering that did not.)
 
 
-def witness_belief(actor_name, tags, actor_id, trust=None):
+def witness_belief(actor_name, tags, actor_id, trust=None, world=None, witness_id=None):
     """What a PRESENT bystander takes from watching `actor` do a durable thing this turn — a belief
     for their own vault. knowledge-model.md transmission: B's vault gains what B saw. Returns the
     belief, or None for a transient turn / no summary. The caller appends it to each present witness's
@@ -129,7 +132,14 @@ def witness_belief(actor_name, tags, actor_id, trust=None):
         return None
     if not is_durable(tags):
         return None
-    summary = str(tags.get("summary", "") or "").strip()
+    is_target = bool(witness_id and str(tags.get("target_actor")) == str(witness_id))
+    is_epistemic_blind = tags.get("epistemic_stance") in ("ignorant_of", "deceived_about")
+    if is_target and is_epistemic_blind:
+        if not tags.get("public_summary"):
+            return None
+        summary = str(tags.get("public_summary")).strip()
+    else:
+        summary = str(tags.get("public_summary") or tags.get("summary", "") or "").strip()
     if not summary:
         return None
     name = str(actor_name or actor_id or "someone").strip()
@@ -143,19 +153,19 @@ def witness_belief(actor_name, tags, actor_id, trust=None):
         try:
             t = max(0.0, min(1.0, float(trust)))
         except (TypeError, ValueError):
-            raise EngineError("ACQUISITION_WITNESS_BELIEF_TRUST_NOT_NUMERIC", "witness_belief: trust must be a number in [0,1], got %r" % (trust,))
+            raise RecordError("ACQUISITION_WITNESS_TRUST_INVALID", "witness_belief: trust must be a number in [0,1], got %r" % (trust,))
         conf = round(_WITNESS_BASE * (0.4 + 1.2 * t), 4)   # neutral trust reproduces the base value
         conf = max(0.05, min(_WITNESS_CEILING, conf))
         if t <= _REPORTED_AT:                              # a discounted rumour, kept but attributed
             prov = "reported"
             claim = "%s claims: %s" % (name, summary[2:].strip() if summary[:2].lower() == "i " else summary)
-    return {
+    return _stamp_facets({
         "claim": claim,
         "confidence": conf,
         "provenance": prov,
         "believed_value": True,
         "links": [str(actor_id)],
-    }
+    }, world, subject=actor_id)
 
 
 def overheard_names(text, relationships, people):
@@ -180,3 +190,119 @@ def overheard_names(text, relationships, people):
         if re.search(r"\b%s\b" % re.escape(first), text, re.IGNORECASE):
             out.append((eid, first))
     return out
+
+
+# ---- Track 1: Belief Revision & Contradiction Helpers ----
+
+_POLARITY_PAIRS = (
+    ("alive", "dead"),
+    ("living", "dead"),
+    ("loyal", "traitor"),
+    ("innocent", "guilty"),
+    ("safe", "danger"),
+    ("safe", "threat"),
+    ("won", "lost"),
+    ("refused", "accepted"),
+    ("enemy", "friend"),
+    ("enemy", "ally"),
+)
+
+
+def detect_contradiction(new_claim, old_claim):
+    """True if new_claim asserts a direct polarity reversal of old_claim."""
+    n = _normalize(str(new_claim or ""))
+    o = _normalize(str(old_claim or ""))
+    if not n or not o:
+        return False
+    stopwords = {"the", "a", "an", "to", "of", "and", "is", "in", "it", "on", "for", "at", "by", "this", "that", "there"}
+    w_n = set(re.findall(r"\b\w+\b", n)) - stopwords
+    w_o = set(re.findall(r"\b\w+\b", o)) - stopwords
+    if not (w_n & w_o):
+        return False
+    for pos, neg in _POLARITY_PAIRS:
+        n_pos = re.search(r"\b%s\b" % re.escape(pos), n) is not None
+        n_neg = re.search(r"\b%s\b" % re.escape(neg), n) is not None
+        o_pos = re.search(r"\b%s\b" % re.escape(pos), o) is not None
+        o_neg = re.search(r"\b%s\b" % re.escape(neg), o) is not None
+        if (n_pos and o_neg) or (n_neg and o_pos):
+            return True
+    if (re.search(r"\bis not\b", n) and re.search(r"\bis\b", o) and not re.search(r"\bis not\b", o)) or        (re.search(r"\bis not\b", o) and re.search(r"\bis\b", n) and not re.search(r"\bis not\b", n)):
+        return True
+    if (re.search(r"\bhas no\b", n) and re.search(r"\bhas\b", o) and not re.search(r"\bhas no\b", o)) or        (re.search(r"\bhas no\b", o) and re.search(r"\bhas\b", n) and not re.search(r"\bhas no\b", n)):
+        return True
+    return False
+
+
+def fold_vault(vault):
+    """Walk vault beliefs in chronological order and mark superseded entries."""
+    if not isinstance(vault, list):
+        return vault
+    by_id = {}
+    for b in vault:
+        if not isinstance(b, dict):
+            continue
+        bid = b.get("bid") or belief_id(b)
+        b["bid"] = bid
+        b.setdefault("status", "active")
+        by_id[bid] = b
+
+    for b in vault:
+        if not isinstance(b, dict):
+            continue
+        curr_bid = b.get("bid") or belief_id(b)
+        superseded_targets = b.get("supersedes") or []
+        for target in superseded_targets:
+            if target in by_id and target != curr_bid:
+                by_id[target]["status"] = "superseded"
+                by_id[target]["superseded_by"] = curr_bid
+    return vault
+
+
+def _build_belief(summary, conf, subject, tags, vault, world):
+    superseded_bids = []
+    raw_sup = tags.get("supersedes")
+    curr_tgt = tags.get("target_actor")
+    if raw_sup:
+        sup_list = raw_sup if isinstance(raw_sup, (list, tuple)) else [raw_sup]
+        for s in sup_list:
+            s_str = str(s).strip()
+            for b in vault:
+                if not isinstance(b, dict):
+                    continue
+                if b.get("target_actor") != curr_tgt:
+                    continue
+                bid = b.get("bid") or belief_id(b)
+                s_norm = _normalize(s_str)
+                c_norm = _normalize(str(b.get("claim", "")))
+                if s_str == bid or (s_norm and s_norm == c_norm):
+                    superseded_bids.append(bid)
+
+    if subject:
+        subj_str = str(subject).lower()
+        for b in vault:
+            if not isinstance(b, dict) or b.get("status") in ("superseded", "refuted"):
+                continue
+            if b.get("target_actor") != curr_tgt:
+                continue
+            b_links = [str(l).lower() for l in (b.get("links") or [])]
+            b_about = [str(a).lower() for a in (b.get("about") or [])]
+            if subj_str in b_links or subj_str in b_about or subj_str in str(b.get("claim", "")).lower():
+                if detect_contradiction(summary, b.get("claim", "")):
+                    bid = b.get("bid") or belief_id(b)
+                    superseded_bids.append(bid)
+
+    b = {
+        "claim": summary,
+        "confidence": max(0.0, min(1.0, conf)),
+        "provenance": "lived",
+        "believed_value": True,
+        "links": [str(subject)],
+        "status": "active",
+    }
+    if tags.get("target_actor"):
+        b["target_actor"] = str(tags["target_actor"])
+        b["epistemic_stance"] = str(tags.get("epistemic_stance", "believes"))
+    if superseded_bids:
+        b["supersedes"] = sorted(set(superseded_bids))
+
+    return _stamp_facets(b, world, subject=subject)

@@ -69,13 +69,18 @@ Four documents bind what you author. They are contracts, not advice:
 | Contract | Governs | Enforcement |
 |---|---|---|
 | `world-authoring-rules.md` | the world note + `people/` | `scripts/lint_book.py` |
+
+**The PROCEDURE is `guide-building-a-world.md`.** The row above is the CONTRACT — what the
+machine accepts. Until 2026-09-01 nothing walked a blank page to a loadable world, so an author
+arriving here had a linter and a framework library and no order to decide things in.
 | `character-authoring-rules.md` | character notes + the `## Beliefs` vault | `scripts/lint_book.py` |
 | `scene-authoring-rules.md` | scene configs, drives, props, magnitudes | `scripts/lint_scene.py` (rules 1–3 only; 4–7 are unmechanized) |
 | **`standard-vectors.md`** | **every number that describes an event** | none — read §3 |
 
 `standard-vectors.md` is the one authors never find, so: **§3 is the severity anchor scale** —
-what 0.3 vs 0.7 vs 1.0 actually mean, per dimension. `0.1–0.3` ordinary friction · `0.3–0.5` real
-but bounded · `0.5–0.7` severe · `0.7–0.9` grave · `1.0` reserve. Omission is the default for most
+what each severity WORD means, per dimension: faint 0.05 · slight 0.15 · mild 0.30 · moderate 0.45 · marked 0.60 · severe 0.78 · extreme 0.95. The actor writes the word; `severity.py` owns the value. `mild` is ordinary friction · `moderate` real
+but bounded · `marked` the event people retell · `severe` grave, irreversible loss probable ·
+`extreme` reserve it. Omission is the default for most
 dimensions of most events.
 
 **Do not inflate a magnitude to make something happen.** §3 states plainly that a single appraisal
@@ -156,8 +161,26 @@ Two of these carry rules worth memorizing:
 - **A faithful refusal is a success, not a failure.** If no circumstance can motivate a beat, the
   beat is wrong for these characters — revise the beat, not the character.
 - **Correct forward, never backward.** The log is append-only, enforced by SQLite triggers. A bad
-  record already appended is fixed by a compensating event, never a silent edit or delete
-  (`Premise`-level rule: *the log is never rewound; it is forked*).
+  record already appended is fixed by a compensating event (`correction`, one of
+  `consolidation.SYSTEM_TYPES`), never a silent edit or delete.
+
+  **This paragraph used to end "*the log is never rewound; it is forked*", and there is no fork.**
+  `runs` has no parent column (`src/engine/schema.sql`), nothing in `src/engine/` or `scripts/`
+  defines one, and every other `fork` in these docs means an agent toolbox or `arc.py`'s
+  damage/growth branch. The sentence read as a promise of branching to anyone who had not gone
+  looking. It is the same defect as a documented key with no reader, one doc later, and
+  `tests/test_capability_claims.py` now carries `run fork` as a DEFERRED claim so the gap prints
+  on every run instead of reading as a feature.
+
+  **What re-running a scene actually does.** `scripts/scene.py` takes the NEXT scene number
+  (`ledger.next_scene_no`) and `append_scene` is a plain INSERT. So a "retry" lands as scene N+1,
+  the rejected scene stays in the chronicle, and the cast opens the retry carrying the state the
+  rejected scene gave them — a **sequel**, performed by characters that scene already changed. That
+  is correct for an append-only log; it is simply not what "retry" means to a writer.
+
+  **The recovery path is the save-file discipline.** `guide-operating.md` — *back the `runs/*.db`
+  files up like save-files, not like code.* Copy the db before a scene you might reject; restore it
+  if you do. That is the whole mechanism today.
 
 ---
 

@@ -226,7 +226,7 @@ The actor must return **one JSON object**:
   never combine types.
 - **Tags report what OBJECTIVELY happened**, not how the actor feels about it — temperament
   amplifies downstream, so pre-amplifying double-counts. Calibration given to the actor: most
-  moments are 0.1–0.3 or omit the dimension entirely; reserve >0.6 for a genuinely severe event.
+  moments are `faint` or `mild`, or omit the dimension entirely; reserve `marked` and above for an event that would genuinely change someone.
   `durable` is rare — only something that would change a person for years.
 - **`addressee`** — the id of the one present party spoken *to*. Distinct from `tags.subject`,
   which is who the moment is *about*.

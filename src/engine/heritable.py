@@ -1,39 +1,34 @@
-"""heritable.py — one parser for the allele vocabulary, which three readers had spelled apart.
+"""heritable.py — the genotype: how it is READ, and what each allele does.
 
-`docs/baseline-generation.md` defines the genotype as one allele per heritable axis, drawn from a
-CLOSED four-word vocabulary. Authors write the word plus an optional parenthetical rationale:
+`docs/baseline-generation.md` calls the genotype *"a combinatorial preset draw — one allele per
+heritable axis (the tuple = a preset)"*. Six words, authored on the sheet, and authors annotate them:
 
     "affiliation_attachment": "high (anxious-leaning bond style)"
 
-MEASURED IN THIS TREE 2026-09-04, THREE READERS PARSED THAT INDEPENDENTLY:
+So every consumer has to take the leading token and drop the rationale. **Four places did that
+independently** — `state._allele`, `arc._allele`, `scene._allele_word` and `lint_book`'s inline
+`split()[0].lower()` — and on 2026-09-01 a fifth reader was added that DIDN'T, which is the whole
+reason this file exists.
 
-    state._allele        str(...).split()[0].lower()          # gain math
-    arc._allele          str(raw).split()[0].lower()          # gain math, same spelling
-    scene._allele_word   str(value).split(" (", 1)[0].strip() # display, splits on a LITERAL " ("
+That fifth reader was `state._persist`, the persistence half of "one allele, two effects". It looked
+the raw string up in its own table, missed every key on an annotated allele, and returned the species
+prior. The GAIN fired at 1.3 and the PERSISTENCE silently did nothing — on the repo's own reference
+fixture — while the suite stayed green, because every persistence test used bare words.
 
-`arc.py` already imports the `_ALLELE` gain TABLE from `state`, so the table was shared while the
-PARSE was not — and the parse is the half that drifted. `scene`'s version never lowercases, so on
-a capitalised allele it returned "High" where the gain math read "high". No fixture carries one
-today, which is exactly why it went unnoticed: a disagreement that only fires on input nobody has
-written yet is still a disagreement, and it fires the day someone writes it.
+`CLAUDE.md` tabulates seven instances of one class: *a hand-written list that mirrors something the
+code already knows.* A hand-repeated PARSE is the same defect wearing different clothes, and it fails
+the same way — silently, in the copy nobody re-checked. One reading, here, and every consumer calls
+it.
 
-WHY A SHARED PARSER IS SAFE HERE, and would not be everywhere: the vocabulary is CLOSED and every
-token is a single word (`state._ALLELE` has four keys — low, typical, elevated, high). So
-"first whitespace-delimited word, lowercased" and "everything before the parenthetical" return the
-same token for every value this repo can hold. On an open or multi-word vocabulary they would
-diverge and this lift would be wrong.
-
-WHAT IS DELIBERATELY NOT HERE. The sibling instance's version of this module also carries a
-`PERSIST` table and a `persist()` reader — the duration half of the same allele, one allele with
-two effects. This tree has no mechanism for it: `state.build_profile` computes
-`eff_r = 1.0 - (1.0 - base_r) * regulation` with no persistence divisor. Landing that half now
-would either fail `tests/test_reachable.py` on arrival or change genotype behaviour under cover of
-a refactor. It comes back WITH its caller, or not at all.
+TWO EFFECTS, TWO TABLES. An allele scales how hard a primitive is hit (`GAIN`) and how long it is
+held (`PERSIST`). Separate maps on purpose: the relationship between magnitude and duration is not
+known to be 1:1, and forcing it would make one of them untunable. `PERSIST`'s spread is the narrower
+one because retention compounds every beat, so the same multiplier is a far larger effect there.
 """
-from __future__ import annotations
 
-#: allele -> multiplicative gain on the axis's trait sensitivity. The vocabulary is closed;
-#: `state._ALLELE` is bound to this table so there is one owner rather than two copies.
+# The allele vocabulary. Mirrored by `tests/coherence_probe.py` ALLELE and validated at the
+# authoring boundary by `scripts/lint_book.py`, which reports an unrecognised leading token rather
+# than letting it read as TYPICAL and lose the authored trait.
 GAIN = {
     "low":      0.75,
     "typical":  1.0,
@@ -41,32 +36,54 @@ GAIN = {
     "high":     1.3,
 }
 
+PERSIST = {
+    "low":      0.85,
+    "typical":  1.0,
+    "elevated": 1.10,
+    "high":     1.15,
+}
 
-def word(value):
-    """The allele token from an authored value, without its rationale.
+# Which axis lends itself to which primitive — the SAME wiring for both effects, so the two cannot
+# drift apart. LUST, PLAY and DISGUST are absent because no heritable axis feeds them; they take the
+# species prior in both directions. Whether they SHOULD have axes changes what a genotype IS, and is
+# an authoring decision rather than an engine one.
+AXIS_FOR = {
+    "FEAR":        "threat_reactivity",
+    "SEEKING":     "approach_drive",
+    "RAGE":        "anger_proneness",
+    "CARE":        "affiliation_attachment",
+    "PANIC_GRIEF": "affiliation_attachment",
+}
 
-    'high (anxious-leaning bond style)' -> 'high';  'High' -> 'high'.
+AXES = ("threat_reactivity", "approach_drive", "affiliation_attachment",
+        "anger_proneness", "effortful_control", "sensitivity")
 
-    Lowercased, because the gain table is lowercase and an author who capitalises should not
-    silently fall through to the default. Splitting on whitespace rather than on the literal
-    " (" handles both the parenthetical form and a bare word, and is what the two gain-math
-    readers already did.
+
+def word(value, default="typical"):
+    """An authored allele value -> its bare allele word.
+
+    `"high (anxious-leaning bond style)"` -> `"high"`. THE one reading; call this rather than
+    writing `.split()[0].lower()` again.
     """
-    return str(value).split()[0].lower() if str(value).split() else ""
+    tok = str(default if value is None else value).split()
+    return tok[0].lower().rstrip("(") if tok else str(default).lower()
 
 
-def word_of(genotype, axis, default="typical"):
-    """The allele token for one axis of a genotype mapping, defaulted when absent."""
-    if not isinstance(genotype, dict):
-        return default
-    return word(genotype.get(axis, default))
+def word_of(axis, genotype, default="typical"):
+    """The allele word for one axis of a genotype, or the species default."""
+    return word((genotype or {}).get(axis, default), default)
 
 
-def gain(axis, genotype, default=1.0):
-    """The numeric gain for one heritable axis. Unknown alleles fall back to `default`.
+def gain(axis, genotype):
+    """How hard this axis makes its primitives land. Unknown allele -> 1.0, the species prior."""
+    return GAIN.get(word_of(axis, genotype), 1.0)
 
-    Unknown rather than refused, deliberately: an author's typo should damp the axis to neutral
-    and keep the run going, not abort a chronicle mid-beat. The authoring lint is where a bad
-    allele should be caught loudly.
+
+def persist(primary, genotype):
+    """How long this character holds this primitive, from the allele that already sets its gain.
+
+    1.0 for a primitive with no heritable axis and for an unknown allele — the species prior.
+    Never 0: callers divide by it.
     """
-    return GAIN.get(word_of(genotype, axis), default)
+    axis = AXIS_FOR.get(primary)
+    return 1.0 if axis is None else PERSIST.get(word_of(axis, genotype), 1.0)

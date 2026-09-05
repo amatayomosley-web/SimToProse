@@ -24,6 +24,7 @@ import json
 import os
 import sys
 import time
+import uuid
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO)
@@ -32,25 +33,52 @@ sys.path.insert(0, os.path.join(REPO, "scripts"))
 from src.engine.vault import load_book                              # noqa: E402
 from src.engine.scene import assemble, resolve_subject, subject_groups, norm_id  # noqa: E402
 from src.engine import acquisition                                  # noqa: E402  (witness-propagation + name-transmission)
+from src.engine import integrity                              # noqa: E402
 from src.engine.state import build_profile, appraise, decay         # noqa: E402
+# NOT the `decay` above — that one is state.decay, the AFFECT relaxation. This is the
+# belief-decay module. The names collide, so both are only ever reached under an alias
+# here; importing it bare would silently rebind the affect function.
+from src.engine import decay as _belief_decay                       # noqa: E402
+from src.engine import clock as _clock                              # noqa: E402
 from src.engine.targets import retarget                             # noqa: E402  (per-primitive aboutness)
 from src.engine.direction import direct_affect                      # noqa: E402
-from src.engine.records import PRIMARIES, Event, TurnCommit, RelationshipDelta  # noqa: E402
+from src.engine.records import (PRIMARIES, Event, TurnCommit, RelationshipDelta, WoundDelta,
+                                TowardDelta)  # noqa: E402
 from src.engine.consolidation import (validate_tags, CATALOG, TagError, tag_refusal,
                                        render_flag)         # noqa: E402  (validate the actor's same-pass self-report)
 from src.engine.ledger import Ledger                               # noqa: E402  (the chronicle the scene now persists to)
 from src.engine import arc                                         # noqa: E402  (durable baseline evolution across scenes)
 from src.engine import bonds                                       # noqa: E402  (the relationship tier — per WITNESS, not per actor)
+from src.engine import levers                                      # noqa: E402  (the wound refold on resume)
+from src.engine import wound                                       # noqa: E402  (the wound tier's mover)
+from src.engine import toward                                      # noqa: E402  (the MICRO tier)
+from src.engine import connection                                  # noqa: E402  (the investment multiplier)
 from src.engine import faithfulness                                # noqa: E402  (the name-leak wall a SUPPLIED turn must pass too)
+from src.engine.severity import normalise_dimensions               # noqa: E402
 from src.engine.prompt import build_turn_messages                  # noqa: E402  (the act seam's outbound half)
 import direct                                                       # noqa: E402  (LAST_USAGE — token accounting)
 from direct import faithful_turn, DEFAULT_MODEL, _ollama            # noqa: E402  (reuse the harness dispatch + active faithfulness guard; _ollama for the pre-warm)
 
 # urge weights — Class-B director-set starts (calibrate against runs)
-_FLOOR_THRESHOLD = 0.06   # below this max urge, no one is moved enough to answer -> the scene lulls
-_ADDRESSED_BONUS = 0.15   # being spoken to / about pulls you to reply
-_RECENCY_PENALTY = 0.20   # you just spoke -> step back (decays over ~3 beats); breaks two-person monopoly
-_INHIBITION      = 0.10   # timid (low-extraversion) actors hold back
+# ---- the floor economy: MOVED to src/engine/floor.py -----------------------------------------
+# Five value-computing functions and these three constants lived here until 2026-09-03. CLAUDE.md's
+# Modes section says a driver never computes a value, and `tests/run_all.py` discovers suites under
+# tests/ — so nothing under tests/ could import them, and `tests/test_bonds.py` was loading this
+# entire 1052-line CLI through `spec_from_file_location` to exercise a nine-line function.
+#
+# THE OLD PRIVATE NAMES ARE KEPT because nine tests load THIS FILE by path and one calls
+# `sc._bond_moves`. Same move `ledger.py` makes for the fold: the seam is real, the call sites are
+# untouched, and a test that reaches for a name still finds it.
+from src.engine import floor as _floor
+from src.engine.prompt import compose_event as _compose_event   # perception assembly, not floor
+_salience        = _floor.salience
+_bond_moves      = _floor.bond_moves
+_order_weight    = _floor.order_weight
+_urge            = _floor.urge
+_ADDRESSED_BONUS = _floor.ADDRESSED_BONUS
+_RECENCY_PENALTY = _floor.RECENCY_PENALTY
+_INHIBITION      = _floor.INHIBITION
+_FLOOR_THRESHOLD = _floor.FLOOR_THRESHOLD
 
 # ---- BP1.3 scene config: situation + present acting cast + each actor's DRIVE (genuine, blind to outcome) ----
 BP13 = {
@@ -93,6 +121,50 @@ def _display_names(world):
     return out
 
 
+def law_preflight(led, cfg, world, chars, run_id=None, fp=None):
+    """Does the world permit this circumstance at all? Refuses before anything is written.
+
+    CALLED TWICE, and the placement is the point. `main` calls it on the NEW-RUN branch BEFORE
+    `create_run`, so a scene the world refuses never mints a chronicle row; `run_scene` calls it on
+    the resume path, where the pinned fingerprint genuinely does come from the run.
+
+    THAT SPLIT WAS THE CORRECTION. I named the empty run a known wart and declined to fix it,
+    asserting that the check could not move because it needs the pinned bible — true on RESUME,
+    false on a new run, where `bible.build` hands back the fingerprint one line earlier. A blocker
+    asserted for both branches that binds one. And the residue was not inert: `canon_digest`
+    selects the newest row (`canon_digest.py:45`), so the digest's default landed on the EMPTY run
+    and digested nothing while the real one sat a row back.
+
+    `guide-content.md:146` — IMPOSSIBLE denies the circumstance; FORBIDS allows it and attaches
+    teeth. The act is AUTHORED in the scene cfg and the check is skipped without one: measured on
+    the active book, act=None makes all 27 laws bear and 24 of them deny, so a blanket call would
+    refuse every scene. Inferring the act from prose is a classifier problem, not a call site.
+    """
+    from src.engine import bible
+    act = cfg.get("act")
+    if not act:
+        return None
+    if fp is None:
+        # The hasattr guard here was ALWAYS FALSE — `run_config` existed nowhere on Ledger — so the
+        # pinned-bible lookup never ran and this always rebuilt from the current notes, which is
+        # exactly the mid-book drift hard rule 1 pins the bible to catch.
+        fp = (led.run_config(run_id) or {}).get(bible.CONFIG_KEY) if run_id else None
+        fp = fp or bible.build(led.con, world, chars)
+    verdict = bible.verdict_for(led.con, fp, act=act, location=cfg.get("location"))
+    try:
+        bible.require_allowed(verdict, act)          # the ruling and the refusal are one thing
+    except bible.BibleError as e:
+        raise SystemExit("scene refused: %s" % e)
+    if verdict["violations"]:
+        print("  LAW: %r is FORBIDDEN but possible - it runs, and it costs." % act)
+        for law_id, teeth in zip(verdict["violations"],
+                                 verdict["teeth"] or [""] * len(verdict["violations"])):
+            print("       %s -> %s" % (law_id, teeth))
+    if verdict.get("undecidable"):
+        print("  LAW: %r is contested-unknowable; the world declines to rule." % act)
+    return verdict
+
+
 def load_scene_cfg(path):
     """Load a director-authored scene cfg from JSON — the director's interface for a book's scenes
     (the hardcoded BP13 above is just the default fixture). Required: situation (non-empty str) and
@@ -119,84 +191,36 @@ def load_scene_cfg(path):
     props = cfg.get("props")
     cfg["props"] = [str(x).strip() for x in props if str(x).strip()] if isinstance(props, list) else []
     cfg.setdefault("opening_tags", {"type": "mundane", "dimensions": {}, "durability": "transient"})
+    # THE SAME SEAM AS THE ACTOR'S REPLY. `severity.normalise_dimensions` resolves a WORD to its
+    # float here, at the parse boundary, so everything downstream — lint, `_salience`, `appraise` —
+    # sees the floats it has always seen. Numbers still pass through untouched, so every cfg written
+    # before the ladder existed runs byte-identically.
+    #
+    # This was a real docs-vs-engine break for a day: `template-scene-blueprint.md` was rewritten to
+    # say "a WORD, not a number" while `lint_scene.py` rejected words and `appraise` raised on one.
+    # The doc was right about the design and the engine had not been told — so the engine was told.
+    cfg["opening_tags"] = normalise_dimensions(cfg["opening_tags"])
     cfg.setdefault("name", os.path.splitext(os.path.basename(path))[0])
+    # PER-SCENE NARRATION (schema v13). The director already chooses `pov` per scene; voice and
+    # knowledge are the same authority through the same column family, and they are what makes a
+    # mixed-voice book possible — Bleak House alternates first and third, Gone Girl alternates two
+    # first-person narrators. Defaults are what every scene was before the columns existed.
+    #
+    # Validated HERE rather than trusted: a migrated DB has no CHECK on `knowledge` (SQLite cannot
+    # add one by ALTER), so the guard has to live where both the fresh and the migrated path pass.
+    # THE VOCABULARY COMES FROM THE MODULE THAT DEFINES IT, and the check from the same place.
+    # This read VOICES/KNOWLEDGE out of `narrate.py` — a sibling SCRIPT — and then re-implemented
+    # `narration_modes.validate` beside them, so the engine module that owns both axes sat unused
+    # with its two registered codes never raised. Two spellings of one contract, already drifting.
+    from src.engine.narration_modes import VOICES, KNOWLEDGE, validate as _validate_modes
+    from narrate import DEFAULT_VOICE, DEFAULT_KNOWLEDGE
+    cfg["voice"] = str(cfg.get("voice") or DEFAULT_VOICE)
+    cfg["knowledge"] = str(cfg.get("knowledge") or DEFAULT_KNOWLEDGE)
+    try:
+        _validate_modes(cfg["voice"], cfg["knowledge"])
+    except Exception as e:                       # noqa: BLE001 — the CLI reports, never tracebacks
+        raise SystemExit("scene cfg %r: %s" % (cfg.get("name"), e))
     return cfg
-
-
-def _compose_event(situation, log, names=None, n=4):
-    """What the next actor perceives: the standing situation + the recent transcript (rolling context,
-    so they can see what they have already said and not repeat it).
-
-    Three things this used to get wrong, all of them reaching the actor:
-    1. On an EMPTY log it appended "The table has just been served; the evening is beginning." —
-       BP13 dinner-fixture text, unconditional, so the FIRST BEAT OF EVERY SCENE IN EVERY BOOK was
-       told it was evening at a table. Measured on a dawn dock scene 2026-08-29.
-    2. It truncated each action to 300 characters, so a long beat reached the next actor cut off
-       mid-sentence and they answered a fragment.
-    3. "The exchange at the table" assumed the fixture's furniture in every scene.
-    The situation is the director's, and it is returned untouched.
-    """
-    names = names or {}
-    if not log:
-        return situation
-    lines = "\n".join("%s: \"%s\"" % (names.get(b["who"], b["who"]), str(b["action"]).replace("\n", " "))
-                      for b in log[-n:])
-    return "%s\n\nThe exchange so far (most recent last):\n%s" % (situation, lines)
-
-
-def _salience(tags, target, tgroup, listener):
-    applied = dict(tags)
-    if target:
-        applied["target"] = target
-    if tgroup:
-        applied["target_group"] = tgroup
-    appraised = appraise(listener["affect"], applied, listener["profile"])
-    return sum(abs(appraised[p] - listener["affect"][p]) for p in PRIMARIES)
-
-
-def _bond_moves(actors, present, speaker, applied):
-    """Every OTHER person in the room re-reads the speaker -> [(witness_id, deltas, their_view_deltas)].
-
-    The loop the engine did not have: `arc.assess` runs on the SPEAKER but an edge is the
-    PERCEIVER's belief (`bonds.py` docstring has the measurement). READS the edges and returns the
-    moves without applying them, so the caller can commit them before touching a character sheet.
-    """
-    moves = []
-    for wid in [i for i in present if i != speaker]:
-        w = actors[wid]
-        act = bonds.act_from_tags(applied, speaker, wid)
-        if not act:
-            continue
-        edge = (w["char"]["current"].get("relationships") or {}).get(speaker, {})
-        # presence is not perception: a subtle act needs noticing, and pinning one on a STRANGER
-        # needs recognising them (bonds.witnessed, on gate.py's own DCs)
-        if not bonds.witnessed(act, w["char"]["baseline"].get("skills", {}), edge):
-            continue
-        model = w["char"]["baseline"].get("model", {})
-        deltas = bonds.observe(edge, act, model)
-        # ...and if the act was aimed AT them, it also revises what they think the speaker makes of
-        # THEM (relationships.md's second order). Same evidence, a different belief.
-        view = bonds.reflect(edge, act, model)
-        if deltas or view:
-            moves.append((wid, deltas, view))
-    return moves
-
-
-def _order_weight(profile):
-    """The listener's stake in ORDER/standing — the mean of the standing-cluster values. High for a
-    decorum-keeper: a heated exchange at the table is, to them, a violation worth intervening on."""
-    s = profile.get("model", {}).get("schwartz", {})
-    return sum(float(s.get(k, 0.5)) for k in ("conformity", "security", "power")) / 3.0
-
-
-def _urge(tags, target, tgroup, listener, addressed, beats_since):
-    """How urgently this listener wants the floor. Returns (urge, salience, disruption) for display."""
-    sal = _salience(tags, target, tgroup, listener)
-    addr = _ADDRESSED_BONUS if addressed else 0.0
-    disruption = float((tags.get("dimensions") or {}).get("social_violation", 0.0)) * _order_weight(listener["profile"])
-    recency = _RECENCY_PENALTY * max(0.0, 1.0 - beats_since / 3.0)
-    inhibition = _INHIBITION * (1.0 - listener["extraversion"])
-    return sal + addr + disruption - recency - inhibition, sal, disruption
 
 
 def _law_events(led, run_id, world, chars, turn, speaker, location=None, tick=None):
@@ -226,7 +250,19 @@ def _law_events(led, run_id, world, chars, turn, speaker, location=None, tick=No
     _sheet = (chars.get(speaker) or {}).get("fixed") or {}
     _actor_class = ((_sheet.get("position") or {}).get("class") or None)
     try:
-        fp = bible.build(led.con, world, chars)
+        # THE PIN, NOT THE CURRENT NOTES. This read `bible.build(led.con, world, chars)`, which
+        # fingerprints whatever world is in memory — while `run_scene`'s pre-flight forty lines
+        # below correctly reads the run's pinned bible first. On a RESUMED run whose notes were
+        # edited between sessions the two disagree, so the same scene adjudicated its pre-flight
+        # against the pin and its per-turn acts against the edited world. CLAUDE.md hard rule 1
+        # pins the bible precisely so a mid-book edit cannot silently change what turns were
+        # computed from; the drift check reports the divergence and, by that same rule, does not
+        # abort. The `or build(...)` fallback keeps an unpinned run working.
+        # (That check is named without its parentheses on purpose: tests/test_bible.py's
+        # `test_both_resume_paths_actually_call_it` asserts the call is on the resume branch by
+        # comparing STRING OFFSETS of the two literals, so a mere comment mentioning it earlier in
+        # the file turns that test red. Recorded in this gate's OMISSIONS as a fragile proxy.)
+        fp = (led.run_config(run_id) or {}).get(bible.CONFIG_KEY) or bible.build(led.con, world, chars)
         v = bible.verdict_for(led.con, fp, act=act, location=location,
                               actor_class=_actor_class, tick=tick)
     except bible.BibleError as exc:
@@ -278,25 +314,14 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
     # laziness: measured on the active book, act=None makes all 27 laws bear and 24 of them deny,
     # so a blanket call would refuse every scene. Inferring the act from prose is a classifier
     # problem, not a call site.
-    _act = cfg.get("act")
-    if _act:
-        from src.engine import bible
-        # The hasattr guard here was ALWAYS FALSE — `run_config` existed nowhere on Ledger — so the
-        # pinned-bible lookup never ran and this always rebuilt from the current notes, which is
-        # exactly the mid-book drift hard rule 1 pins the bible to catch. Ledger.run_config exists now.
-        _fp = (led.run_config(run_id) or {}).get(bible.CONFIG_KEY)
-        _fp = _fp or bible.build(led.con, world, chars)
-        _v = bible.verdict_for(led.con, _fp, act=_act, location=cfg.get("location"))
-        if not _v["allowed"]:
-            raise SystemExit(
-                "scene refused: the world does not permit %r.\n  denied by: %s\n  %s"
-                % (_act, ", ".join(_v["denied_by"]), _v.get("reason", "")))
-        if _v["violations"]:
-            print("  LAW: %r is FORBIDDEN but possible - it runs, and it costs." % _act)
-            for _law, _teeth in zip(_v["violations"], _v["teeth"] or [""] * len(_v["violations"])):
-                print("       %s -> %s" % (_law, _teeth))
-        if _v.get("undecidable"):
-            print("  LAW: %r is contested-unknowable; the world declines to rule." % _act)
+    # ON RESUME the pinned fingerprint genuinely does come from the run, so the check stays here.
+    # It re-parks on refusal: `main` flips a parked run to `active` before this point, and a scene
+    # the world refuses must not leave the run looking live.
+    try:
+        law_preflight(led, cfg, world, chars, run_id=run_id)
+    except SystemExit:
+        led.set_status(run_id, "parked")
+        raise
 
     # The act vocabulary the actor may report from, drawn from the world's own laws. Empty for
     # a lawless world, in which case nothing is injected and the prompt is unchanged.
@@ -322,6 +347,10 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
     # engine holds no world clock, so nothing here converts days into anything.
     elapsed = cfg.get("elapsed")
     if elapsed:
+        # DECLARED, THEN APPLIED. The declaration is the CAUSE and it is what gets logged; drift
+        # and wound erosion are both DERIVED from it at replay. Before this line, drift ran here,
+        # mutated memory, and reached no table — so a resumed cast lost every winter that passed.
+        led.declare_time(run_id, start_turn, elapsed, str(cfg.get("name", "") or ""))
         for i in ids:
             ch = actors[i]["char"]
             priors = ch["baseline"].get("relationship_priors", {})
@@ -329,6 +358,22 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
             for tgt, edge in rels.items():
                 if isinstance(edge, dict):
                     rels[tgt] = dict(edge, **bonds.drift(edge, priors, elapsed))
+            # the SAME declared unit erodes an untouched wound — one clock, two tiers
+            # (docs/character-model.md "DECAY AND CONNECTION": two clocks and no third).
+            for _w in ((ch["baseline"].get("drives") or {}).get("fears_wounds") or []):
+                if isinstance(_w, dict) and "intensity" in _w:
+                    _e = wound.erode(_w, elapsed)
+                    if _e:
+                        _w.setdefault("_authored_intensity", float(_w["intensity"]))
+                        _w["intensity"] = max(0.0, min(1.0, float(_w["intensity"]) + _e))
+            # THE SAME DECLARED UNIT, three tiers. Edges drift toward their priors, wounds erode
+            # toward their floor, temperament returns toward what the author wrote, and feelings
+            # toward a person fade toward ZERO — slower for people this character is invested in,
+            # because connection does its second job here (docs/character-model.md).
+            arc.erode(ch, elapsed)
+            _conns = {who: connection.for_target(rels, who)
+                      for who in ((ch["current"].get("toward") or {}))}
+            toward.erode(ch, elapsed, _conns)
         print("\n  elapsed %s since the last scene — edges relaxed toward each character's"
               " resting disposition" % elapsed)
 
@@ -366,7 +411,16 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
                        # check, itself behind an `if _act:` guard most scenes never set.
                        # Falls back to the sheet, so a cfg with no location is unchanged.
                        "location": cfg.get("location") or a["char"]["current"].get("location")}
-        packet = assemble(a["char"], world, scene_slice, a["affect"], a["char"]["current"]["condition"])
+        # Same four decay arguments as direct.py's run_turn — see the comment there.
+        # Without them every recall in a cast scene ran at turn 0 with no history.
+        packet = assemble(a["char"], world, scene_slice, a["affect"],
+                          a["char"]["current"]["condition"],
+                          prev_affect=led.previous_affect(run_id, speaker, turn_no),
+                          current_turn=turn_no,
+                          relationships=a["char"]["current"].get("relationships", {}),
+                          recall_history=_belief_decay.fold_recall_history(
+                              led.con, run_id, speaker),
+                          elapsed=_clock.elapsed_since(led.con, run_id, turn_no))
         # name hygiene rides in build_turn_messages — mask every name this speaker never acquired;
         # faithful_turn REGENERATES on any latent name-leak the mask couldn't stop, before we commit.
         # seed = seed_base*1000 + beat. It used to be the bare beat index, which made the seed a pure
@@ -399,10 +453,15 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
             print("  [supplied turn accepted for validation — %d char action]" % len(turn["action"]))
             supplied = None          # one supplied beat per invocation; the rest act normally
         else:
+            # `information` is the snapshot's fact -> knowers map. Passing it turns the
+            # faithfulness guard from name-shaped to fact-shaped: an actor stating something
+            # nobody told them is regenerated, the same as a name it does not hold.
             turn, leaks = faithful_turn(packet, event_text, a["temperament"], model, stub, think=think,
                                         seed=seed_base * 1000 + beat, acts=_law_acts,
-                                        relationships=rels)
-        if leaks:                                       # a name-leak survived retries -> skip this beat; never commit a leak
+                                        relationships=rels,
+                                        information=(led.fold(run_id, max(turn_no - 1, 0)) or {}).get("information"),
+                                        char_id=speaker)
+        if leaks:                                       # a leak survived retries -> skip this beat; never commit one
             led.record_turn_skipped(run_id, turn_no, speaker, "faithfulness: %s" % ", ".join(n for n, k in leaks))
             print("-- beat %d (turn %d) -- %s [faithfulness reject: %s — skipped]" % (
                 beat + 1, turn_no, names.get(speaker, speaker), ", ".join(n for n, k in leaks)))
@@ -422,7 +481,10 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
                 break
             speaker = others[0]
             continue
-        tags = turn["tags"] if isinstance(turn.get("tags"), dict) else {"dimensions": {}}
+        # THE SEVERITY SEAM — twin of scripts/direct.py. Words -> floats on the existing
+        # 0..1 scale, before validate_tags and every downstream reader.
+        tags = normalise_dimensions(
+            turn["tags"] if isinstance(turn.get("tags"), dict) else {"dimensions": {}})
         target, tgroup = resolve_subject(packet["volatile"]["edges"], gi, tags.get("subject"))
         if target:
             scene_target = target          # carries into the NEXT beat's ctx (target_edge)
@@ -479,6 +541,34 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
             led.log_llm_call(run_id, turn_no, "act", direct.LAST_USAGE["model"],
                              direct.LAST_USAGE.get("tokens_in"), direct.LAST_USAGE.get("tokens_out"),
                              scene=cfg.get("name"))
+        # THE WOUND TIER MOVES HERE, BEFORE THE COMMIT, so the deltas ride the turn's own
+        # transaction. `arc.assess` runs AFTER append_turn and calls `append_arc_diff` separately —
+        # a crash between the two leaves the turn permanently committed with the diff lost, and
+        # `turns`' PRIMARY KEY refuses a re-append. That gap is documented, not copied.
+        #
+        # Matched against the PERCEIVED trigger set from the manifest, never `event_text`. A wound
+        # must not move on something its owner did not see.
+        # THE MICRO TIER accrues here, on the same pre-commit line as the wound trial and for the
+        # same reason: the deltas ride `append_turn`'s own transaction rather than a separate
+        # post-commit call that a crash can lose. What happened between this actor and the event's
+        # SUBJECT becomes what that person makes them feel.
+        toward_deltas = []
+        _subj = applied.get("subject") or applied.get("target")
+        if _subj:
+            for _prim, _d in toward.observe(applied.get("dimensions") or {}).items():
+                toward_deltas.append(TowardDelta(perceiver=speaker, target=str(_subj),
+                                                 primary=_prim, delta=_d, source=event_text[:200]))
+        _res = arc.derive_resilience(a["char"], a["char"]["current"].get("condition", {}))
+        _wounds = (a["char"]["baseline"].get("drives") or {}).get("fears_wounds") or []
+        wound_deltas = []
+        for _w in _wounds:
+            if not isinstance(_w, dict) or not str(_w.get("id", "")).strip():
+                continue
+            _d = wound.trial(_w, applied.get("dimensions") or {}, _res,
+                             packet["manifest"].get("surfaces") or [])
+            if _d:
+                wound_deltas.append(WoundDelta(char_id=speaker, wound_id=str(_w["id"]),
+                                               delta=_d, kind="event", source=event_text[:200]))
         led.append_turn(TurnCommit(
             run_id=run_id, turn=turn_no, actor=speaker,
             thought=str(turn["thought"]), action=str(turn["action"]),
@@ -495,8 +585,34 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
                                                   # fell through and a terminal harm marked the ACTOR dead, never the
                                                   # person harmed; the betray/bond branch was unreachable entirely.
                           actor=speaker)],
-            manifest=packet["manifest"], recall=packet["recall_refs"], rel_deltas=rel_deltas))
+            manifest=packet["manifest"], recall=packet["recall_refs"], rel_deltas=rel_deltas,
+            wound_deltas=wound_deltas, toward_deltas=toward_deltas))
         # the commit held, so the in-memory sheets may now follow the log
+        if toward_deltas:
+            toward.replay(a["char"], led.toward_deltas_for(run_id, speaker))
+            _seen = sorted({t.target for t in toward_deltas})
+            print("   TOWARD : %s  %s" % (names.get(speaker, speaker), ", ".join(
+                "%s %s" % (names.get(w, w), " ".join("%s%+0.3f" % (k, v) for k, v in
+                                                     sorted((a["char"]["current"]["toward"].get(w) or {}).items())))
+                for w in _seen)))
+        if wound_deltas:
+            # RE-FOLD FROM THE LOG, never hand-apply. A first version of this incremented the
+            # in-memory intensity per beat -- `clamp(intensity + delta)` -- while the resume path
+            # computes `clamp(authored + SUM(deltas))`. With two trials on one wound in a scene
+            # those DIVERGE the moment an intermediate value clamps, so the same scene played
+            # straight and resumed would end at different intensities. Clamp-per-step is
+            # order-dependent; `replay_wound_deltas` sums first for exactly that reason and says so
+            # in its own docstring, which the hand-copy then ignored.
+            # Calling the SAME function on the SAME rows the resume path reads makes divergence
+            # impossible rather than unlikely. `bonds.py` records this lesson for edges: a replay
+            # hand-copied into each driver drifts, and the copies are the defect.
+            levers.replay_wound_deltas(_wounds, led.wound_deltas_for(run_id, speaker))
+            for _wd in wound_deltas:
+                _now = next((float(_w["intensity"]) for _w in _wounds
+                             if str(_w.get("id", "")) == _wd.wound_id), None)
+                print("   WOUND  : %s  %s %+0.4f -> %.3f"
+                      % (names.get(speaker, speaker), _wd.wound_id, _wd.delta, _now))
+
         for wid, deltas, view in bond_moves:
             rels = actors[wid]["char"]["current"].setdefault("relationships", {})
             edge = rels.get(speaker, {})
@@ -521,9 +637,10 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
         # GATED: `assess` reads the raw tags by design, so a turn the engine REFUSED must not
         # reach it. Ungated, a schema-invalid tag still carried a merged `target` and wrote a
         # permanent vault belief out of a self-report validate_tags had just rejected.
-        acquired = acquisition.assess(applied, tags, a["char"]) if validation["ok"] else None
+        acquired = acquisition.assess(applied, tags, a["char"], world) if validation["ok"] else None
         if acquired:
             a["char"]["current"].setdefault("vault", []).append(acquired)
+            acquisition.fold_vault(a["char"]["current"]["vault"])
             led.append_acquisition(run_id, speaker, turn_no, acquired)
 
         print("-- beat %d (turn %d) -- %s" % (beat + 1, turn_no, names.get(speaker, speaker)))
@@ -532,8 +649,10 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
         # ending mid-word gave no sign it had been cut.
         print("   ACTION : %s" % str(turn["action"]).replace("\n", " "))
         print("   THOUGHT: %s" % str(turn["thought"]).replace("\n", " "))
-        # `addressee` is worth _ADDRESSED_BONUS (0.15) against a _FLOOR_THRESHOLD of 0.06 — 2.5x the
-        # whole threshold — so it single-handedly decides whether a two-hander continues. It was
+        # `addressee` is worth _ADDRESSED_BONUS against _FLOOR_THRESHOLD — several times the
+        # whole threshold (both are in src/engine/floor.py; this comment deliberately does NOT
+        # restate their values, because a number copied into prose is the duplicate-of-a-source-
+        # of-truth class and drifts silently) — so it single-handedly decides whether a two-hander continues. It was
         # read by the urge loop and rendered nowhere: on 2026-08-29 a scene ended at max urge 0.022
         # (the addressed branch computes to 0.179) and establishing that the actor had left the
         # field empty took arithmetic rather than reading. A term that decides an outcome and is
@@ -566,12 +685,13 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
             wchar = actors[wid]["char"]
             wedge = (wchar["current"].get("relationships") or {}).get(speaker) or {}
             wb = acquisition.witness_belief(names.get(speaker, speaker), tags, speaker,
-                                            trust=wedge.get("trust"))
+                                            trust=wedge.get("trust"), world=world, witness_id=wid)
             if not wb:
-                break                                   # transient / no summary — nothing for anyone
+                continue                                # transient / no summary / deceived target — next witness
             wvault = wchar["current"].setdefault("vault", [])
             if not any(isinstance(x, dict) and x.get("claim") == wb["claim"] for x in wvault):
                 wvault.append(dict(wb))
+                acquisition.fold_vault(wvault)
                 led.append_acquisition(run_id, wid, turn_no, dict(wb))
 
         # name-transmission (auto name-reveal): a bystander who hears a name spoken aloud — one they
@@ -584,7 +704,7 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
             for eid, nm in acquisition.overheard_names(str(turn.get("action", "")),
                                                        wchar["current"].get("relationships", {}),
                                                        world.get("people", [])):
-                belief = acquisition.reveal_name(wchar, eid, nm)
+                belief = acquisition.reveal_name(wchar, eid, nm, world)
                 if belief:
                     led.append_acquisition(run_id, wid, turn_no, belief)
                     print("   >> %s overhears the name %r (learned)" % (wid, nm))
@@ -598,21 +718,18 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
                 ended = "exit"
                 break
 
-        others = [i for i in present if i != speaker]
-        if not others:
+        # THE DECISION IS THE ENGINE'S; THE REPORTING IS THIS FILE'S. Every input to the
+        # floor economy moved to src/engine/floor.py on 2026-09-03 and the choice combining
+        # them was the one piece left behind, so the module named for the economy did not
+        # hold the decision and the decision could not be tested without running a scene.
+        nxt, urges, ended_because = _floor.next_speaker(
+            actors, present, speaker, applied, target, tgroup, addressee, beat)
+        if ended_because == "empty":
             ended = "empty"
             break
-        urges = {}
-        for o in others:
-            # `startswith` on a bare id could never match what the actor is actually shown — the
-            # capitalised display name, or the `entity.<id>` percept ref. norm_id accepts every
-            # spelling the prompt displays.
-            addressed = bool(addressee) and norm_id(addressee) == norm_id(o)
-            urges[o] = _urge(applied, target, tgroup, actors[o], addressed, beat - actors[o]["last_spoke"])
-        nxt = max(urges, key=lambda k: urges[k][0])
-        if urges[nxt][0] < _FLOOR_THRESHOLD:
+        if ended_because == "lull":
             print("\n== lull — no one is moved enough to answer (max urge %.3f, floor %.3f). "
-                  "The scene settles. ==" % (urges[nxt][0], _FLOOR_THRESHOLD))
+                  "The scene settles. ==" % (urges[_floor.leader(urges)][0], _FLOOR_THRESHOLD))
             print("   urges  : %s   [spoken to: %s]" % (
                 "  ".join("%s=%.3f%s" % (k, v[0], "+addr" if bool(addressee) and norm_id(addressee) == norm_id(k) else "")
                           for k, v in urges.items()),
@@ -628,8 +745,77 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
     return turn_no
 
 
+def record_and_park(led, run_id, scene_cfg, start_turn, next_turn, cast_ids=(), announce=True):
+    """Close a scene: record its boundary, persist the snapshot, park the run. -> the last turn index.
+
+    EXTRACTED 2026-09-03 BECAUSE A TEST WAS REIMPLEMENTING IT. `tests/test_pipeline_e2e.py` carried a
+    `_run_scene` whose docstring read "Mirror scene.py:main's run + boundary-record (the
+    orchestration the CLI does)" — and the copy had already drifted from the original in four ways,
+    which is what a copy does when the original moves:
+
+      1. it called `append_scene` with six positional arguments, so it passed no `cfg` — the schema
+         v14 PIN, the thing that lets a resumed run say what location, cast, props and opening tags
+         produced the turns it replays. The suite named end-to-end never once exercised it, and
+         every scene row it wrote carried an empty fingerprint where the driver's carries a hash.
+      2. no `voice`, so the per-scene narration choice defaulted silently.
+      3. no `knowledge`, likewise.
+      4. no `persist_snapshot` and no `set_status(..., "parked")` — neither the snapshot cache nor
+         the park transition was covered by the suite that claims the widest coverage in the repo.
+
+    Nobody introduced those four deliberately. That is the argument for the extraction rather than
+    for fixing the copy: CLAUDE.md's own rule is that a list mirroring what the code already knows
+    should be DERIVED, and a second implementation is that same defect with more lines.
+
+    `announce` exists so the driver keeps printing its line and a test harness stays quiet.
+
+    RECORDING AND PARKING ARE SEPARATE, and the split came out of retiring that copy rather than
+    from taste: a boundary is recorded PER SCENE, while parking is what an INVOCATION does on its
+    way out. The driver runs one scene and exits, so it does both and the distinction is invisible
+    there; `tests/test_pipeline_e2e.py` runs several scenes in one process, and the first thing it
+    did with a combined function was park the run and then fail its own second scene with
+    LEDGER_RUN_NOT_ACTIVE. The copy had hidden that seam by implementing neither half.
+    """
+    last = record_boundary(led, run_id, scene_cfg, start_turn, next_turn, cast_ids, announce)
+    park(led, run_id, last)
+    return last
+
+
+def record_boundary(led, run_id, scene_cfg, start_turn, next_turn, cast_ids=(), announce=True):
+    """Write the scene row for the turns just committed. -> the last turn index. Per SCENE."""
+    last = max(next_turn - 1, 0)
+    if next_turn > start_turn:                          # at least one beat committed -> record it
+        scene_no = led.next_scene_no(run_id)
+        pov = scene_cfg.get("pov") or (cast_ids[0] if cast_ids else None)
+        led.append_scene(run_id, scene_no, scene_cfg.get("name", "scene"), pov, start_turn, last,
+                         voice=scene_cfg.get("voice", "close-third"),
+                         knowledge=scene_cfg.get("knowledge", "pov"),
+                         cfg=scene_cfg)
+        if announce:
+            print("recorded scene %d: %r (turns %d-%d, pov=%s)"
+                  % (scene_no, scene_cfg.get("name", "scene"), start_turn, last, pov))
+    return last
+
+
+def park(led, run_id, last):
+    """Persist the snapshot cache and park the run. Per INVOCATION, not per scene."""
+    led.persist_snapshot(run_id, last, led.fold(run_id, last))
+    led.set_status(run_id, "parked")
+
+
 def main():
-    ap = argparse.ArgumentParser(description="the multi-agent scene runner — set the scene, the agents push it; the chronicle persists")
+    ap = argparse.ArgumentParser(
+        description="the multi-agent scene runner - set the scene, the agents push it; the chronicle persists",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        # THE POINT OF USE. This is the only surface a user reaches without first knowing which of
+        # the 62 docs to open, and the fact below is the one that costs work when it is not known.
+        epilog="""RE-RUNNING A SCENE IS NOT A RETRY.
+  The log is append-only. A re-run takes the NEXT scene number, so the scene you rejected stays
+  in the chronicle and the cast opens the new one carrying the state it gave them. You get a
+  sequel, played by characters that scene already changed.
+
+  There is no fork and no undo. The recovery path is the save-file discipline: copy the run db
+  before a scene you might reject, and restore it if you do.
+  See docs/guide-user-path.md section 6.""")
     ap.add_argument("--book", default=None, help="a REAL BOOK: slug under $SWE_BOOKS, or a path")
     ap.add_argument("--vault", default=None, help="older spelling of --book (a path)")
     ap.add_argument("--stub", action="store_true", help="deterministic stand-in, no API")
@@ -690,6 +876,30 @@ def main():
     scene_cfg = load_scene_cfg(args.scene) if args.scene else BP13             # director-authored scene, or the default fixture
     cast_ids = [c["id"] for c in scene_cfg["cast"]]
 
+    # THE CAST MUST BE IN THE BOOK, and this refuses instead of dying nine lines later on a KeyError.
+    #
+    # CLAUDE.md records that an entire scene from a private novel once served as this file's DEFAULT
+    # fixture, so every no-argument run played someone's book. The content was scrubbed; the SHAPE
+    # survived — BP13 is still a hardcoded scene whose cast is ilsa/arden/corin, and `--book <any
+    # other book>` with no `--scene` indexed `chars[cid]` for people that book has never heard of.
+    # Measured 2026-09-02, the first time either driver's main() was ever run by a test:
+    # `KeyError: 'ilsa'` before a single turn.
+    #
+    # It REFUSES rather than substituting the book's own cast: BP13's situation text names Pell,
+    # Holloway, Arden, Ilsa and Corin in prose, so pairing it with a different cast would produce a
+    # beat whose words describe people who are not in it — a silent wrong answer instead of a loud
+    # refusal.
+    _absent = [cid for cid in cast_ids if cid not in chars]
+    if _absent:
+        raise SystemExit(
+            ("scene cast %s is not in this book.%s" + chr(10) +
+             "  this book's characters: %s" + chr(10) +
+             "  pass --scene <cfg.json> with a cast drawn from them; the built-in scene is a "
+             "fixture for this repo's own characters and fits no other book.")
+            % (", ".join(repr(c) for c in _absent),
+               "" if args.scene else "  (no --scene given, so the built-in fixture scene was used)",
+               ", ".join(sorted(chars)) or "none"))
+
     if args.resume:
         run_id = args.resume
         led.set_status(run_id, "active")
@@ -702,10 +912,27 @@ def main():
         # Detection only, deliberately: an author legitimately edits a book between scenes, and
         # refusing to resume would make the common case the error case.
         from src.engine import bible                  # local, as everywhere else in this file
+        from src.engine import scene_cfg as scene_cfg_mod   # aliased: `scene_cfg` is the loaded dict here
         _drift, _detail = bible.drifted(led.con, run_id, world, chars)
         if _drift:
             print("  [!] %s" % _detail)
             print("      earlier turns were computed from the pinned bible; later ones will not be.")
+        # CFG DRIFT — the same detection for the other authored input (schema v14). The bible pin
+        # covers the world and the cast; the cfg covers the location, the props and the opening
+        # tags, and it shaped every turn in the scene it ran. Detection only, for the reason above.
+        #
+        # Compared ONLY against scenes recorded under this cfg's own name. Every other scene in the
+        # run legitimately ran from a different cfg, so comparing against all of them would report
+        # drift on every resume — a guard that cries wolf is a guard that gets switched off
+        # (`bible._canonical` states the rule).
+        _cfg_name = scene_cfg.get("name", "scene")
+        for _s in led.scenes_for(run_id):
+            if _s["label"] != _cfg_name:
+                continue
+            _cd, _cdet = scene_cfg_mod.drifted(led.con, run_id, _s["scene_no"], scene_cfg)
+            if _cd:
+                print("  [!] scene %d (%s): %s" % (_s["scene_no"], _cfg_name, _cdet))
+                print("      that scene's turns were computed from the pinned cfg, not this one.")
         for cid in cast_ids:                                       # rehydrate each cast member the prior scene evolved
             ch = chars[cid]
             for diff in led.arc_diffs_for(run_id, cid):
@@ -713,15 +940,38 @@ def main():
             acq = led.acquisitions_for(run_id, cid)
             if acq:
                 ch["current"].setdefault("vault", []).extend(acq)
+            from src.engine.acquisition import fold_vault
+            ch["current"]["vault"] = fold_vault(ch["current"].get("vault", []))
             # EDGES — replayed from the append-only log, the same way the arc is. Without this a
             # resumed cast reverted to sheet-authored relationships and every trust movement from
             # prior scenes was silently gone (the arc stopped writing edges when bonds.py took
             # them, and nothing replaced the replay).
             _moves = led.edge_deltas_for(run_id, cid)
-            bonds.replay(ch["current"].setdefault("relationships", {}), _moves)
+            # ORDERED REHYDRATE: declarations and movements interleaved in the order they
+            # happened, because drift and deltas do not commute.
+            bonds.rehydrate(ch["current"].setdefault("relationships", {}),
+                            ch["baseline"].get("relationship_priors", {}),
+                            led.timeline_for(run_id, cid))
             if _moves:                       # OPERATOR output, not the prompt — rule 5 is the prompt
                 print("   %s: refolded %d edge movement(s) toward %s"
                       % (cid, len(_moves), ", ".join(sorted({m[0] for m in _moves}))))
+            # THE WOUND TIER. Same shape as the edge refold above, and the same failure if it is
+            # omitted: a resumed cast's wounds silently return to SHEET strength, so a phobia the
+            # character spent a whole book walking into hits exactly as hard on the next page.
+            # `replay_wound_deltas` stamps `_authored_intensity` BEFORE applying anything — that
+            # ordering is what keeps `levers.scale_to_wounds` scaling against the AUTHORED value
+            # rather than the already-healed one.
+            _tmoves = led.toward_deltas_for(run_id, cid)
+            toward.replay(ch, _tmoves)
+            if _tmoves:
+                print("   %s: refolded %d micro movement(s) toward %d person(s)"
+                      % (cid, len(_tmoves), len({m[0] for m in _tmoves})))
+            _wmoves = led.wound_deltas_for(run_id, cid)
+            levers.replay_wound_deltas(
+                (ch["baseline"].get("drives") or {}).get("fears_wounds") or [], _wmoves)
+            if _wmoves:                      # OPERATOR output, not the prompt — rule 5 is the prompt
+                print("   %s: refolded %d wound movement(s) on %s"
+                      % (cid, len(_wmoves), ", ".join(sorted({m[0] for m in _wmoves}))))
             latest = led.latest_affect(run_id, cid)
             if latest:
                 ch["current"]["affect"] = latest["affect"]
@@ -729,31 +979,68 @@ def main():
         start_turn = state["turn"] + 1
         print("resumed %s at turn %d (determinism OK)\n" % (run_id, state["turn"]))
     else:
-        run_id = "scene-%s-%d" % (book_name, int(time.time()))
+        # A UNIQUENESS SUFFIX, as `direct.py:688` has carried all along. Epoch SECONDS alone
+        # collide when an operator refuses a scene, fixes the cfg and reruns within the same
+        # second — `create_run` then hits the primary key and raises a RAW sqlite3.IntegrityError
+        # with no code behind it. Reproduced 2026-09-03.
+        run_id = "scene-%s-%d-%s" % (book_name, int(time.time()), uuid.uuid4().hex[:6])
         run_cfg = {"catalog_version": 1,
                    "models": {"turn": "stub" if args.stub else args.model},
                    "prompt_versions": {"turn": 1}}
         from src.engine import bible
-        run_cfg[bible.CONFIG_KEY] = bible.build(led.con, world, chars)   # pin the bible
+        _fp = bible.build(led.con, world, chars)                          # pin the bible
+        # REFUSE BEFORE THE RUN EXISTS. The pre-flight used to sit inside `run_scene`, after this
+        # line, so a scene the world refuses left an `active` run with zero turns — permanent, the
+        # log being append-only, and picked as the newest row by `canon_digest._latest_run`, which
+        # made the digest's default selection land on the empty one. The fingerprint is already in
+        # hand here, so nothing about the check needs the run.
+        law_preflight(led, cfg=scene_cfg, world=world, chars=chars, fp=_fp)
+        run_cfg[bible.CONFIG_KEY] = _fp
         led.create_run(run_id, run_cfg)
         for cid in cast_ids:
             led.register_character(run_id, cid, chars[cid]["fixed"], chars[cid]["baseline"])
+        # THE DIRECTOR SEEDS AS EVENTS, NEVER AS A DECREE (`world-state-ledger.md` write-path #3:
+        # the director "may seed ledger state ... but always as an event"). That is what makes
+        # creating a tension and minting one mid-run the SAME mechanism at different turns.
+        from src.engine import tensions as _tn
+        from src.engine.records import Event as _Ev
+        from src.engine import world_events as _we
+        _seeds = _tn.seed_events(world)
+        if _seeds:
+            _we.append(led, run_id, 0, [_Ev(type=s["type"], payload=s["payload"]) for s in _seeds])
+            print("seeded %d authored tension(s)" % len(_seeds))
         start_turn = 0
         print("new chronicle: %s\n" % run_id)
+
+    # REGISTER THE CAST ON EVERY PATH, not only on create. `characters` IS the engine's definition
+    # of who is real — `Ledger._seed` reads it to seed the fold's agents — and registration used to
+    # run only inside the create-run branch. CLAUDE.md makes both drivers first-class writers to the
+    # SAME chronicle, so a run started by one and continued by the other committed turns for people
+    # the chronicle never recorded as existing: `_project` setdefaults any string an event names, so
+    # the phantom folds identically both ways and `resume` returns OK. Their life_status and
+    # location then come from a default rather than a sheet.
+    #
+    # An append, not a rewrite: schema v20's triggers refuse UPDATE and DELETE on `characters` and
+    # leave INSERT alone, which is exactly the shape a late-joining cast member needs.
+    _known = {r["char_id"] for r in led.con.execute(
+        "SELECT char_id FROM characters WHERE run_id=?", (run_id,))}
+    for cid in cast_ids:
+        if cid not in _known and cid in chars:
+            led.register_character(run_id, cid, chars[cid]["fixed"], chars[cid]["baseline"])
+            print("registered late-joining cast member: %s" % cid)
+
+    # THE SWEEP IS PRINTED, NOT RAISED, AND NOT RESUME-GATED. Unlike `bible.drifted`, which
+    # has nothing pinned to compare on a new run, the DANGEROUS case here IS the new run: a
+    # fresh run_id written into a database that lost 50 of its 68 walls on migration and
+    # never said so.
+    print(integrity.startup_line(led.con))
 
     next_turn = run_scene(world, chars, scene_cfg, led, run_id, start_turn, args.model, args.stub, args.budget,
                           think=args.think, seed_base=args.seed_base,
                           prompt_only=args.prompt_only, supplied=supplied)
     if args.prompt_only:                                # outbound half emitted; nothing was acted
         return
-    last = max(next_turn - 1, 0)
-    if next_turn > start_turn:                          # at least one beat committed -> record the scene boundary
-        scene_no = led.next_scene_no(run_id)
-        pov = scene_cfg.get("pov") or (cast_ids[0] if cast_ids else None)
-        led.append_scene(run_id, scene_no, scene_cfg.get("name", "scene"), pov, start_turn, last)
-        print("recorded scene %d: %r (turns %d-%d, pov=%s)" % (scene_no, scene_cfg.get("name", "scene"), start_turn, last, pov))
-    led.persist_snapshot(run_id, last, led.fold(run_id, last))
-    led.set_status(run_id, "parked")
+    last = record_and_park(led, run_id, scene_cfg, start_turn, next_turn, cast_ids)
     print("\nparked %s at turn %d — continue with: python scripts/scene.py --vault \"%s\"%s --resume %s" % (
         run_id, last, book_dir, " --stub" if args.stub else "", run_id))
     return 0

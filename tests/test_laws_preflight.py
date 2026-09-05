@@ -21,7 +21,6 @@ What this pins:
   3. An act no law bears on is allowed. The check must not over-refuse.
   4. No act means no check — every scene authored before this ran unchanged.
 """
-import hashlib as _hashlib
 import os
 import sys
 
@@ -145,19 +144,7 @@ def test_real_book_if_present():
             continue
         if w.get("laws"):
             world, chars = w, c
-            # NEVER print the directory name — it is a real book TITLE, and this suite
-            # runs on every `python tests/run_all.py`, i.e. on every verification the
-            # operator does, into whatever terminal, scrollback or shared log is open.
-            # Hard rule 1 says no book title lives in this repo; a title STREAMING OUT of
-            # it on every run is the same leak with a shorter half-life. Measured
-            # 2026-09-04: SWE_BOOKS was set and the name was being emitted.
-            #
-            # Fixed in CODE rather than by "remember to unset SWE_BOOKS", because a rule
-            # enforced by habit is a rule that has never been tested. The digest is stable
-            # across runs, so a reader can still tell WHICH book was used run-to-run
-            # without the name ever existing outside the vault.
-            print("       using book %s (name withheld — hard rule 1)"
-                  % _hashlib.sha256(d.encode("utf-8")).hexdigest()[:8])
+            print("       using %s" % d)
             break
     if world is None:
         print("       no book carries laws — skipped")
@@ -190,6 +177,12 @@ def test_post_action_teeth():
     _sp.loader.exec_module(sc)
     world, chars = _fixture()
     led = Ledger(":memory:")
+    # THE RUN MUST EXIST. `_law_events` now reads the run's PINNED bible rather than rebuilding one
+    # from whatever world is in memory (CLAUDE.md hard rule 1), so it consults `runs` — and this
+    # fixture never created "r1", which went unnoticed only because nothing here had ever needed a
+    # run row. Left unpinned deliberately: no bible fingerprint in the config, so this exercises the
+    # `or build(...)` fallback, which is the shape every one of these assertions was written for.
+    led.create_run("r1", {"catalog_version": 1})
 
     ev = sc._law_events(led, "r1", world, chars, {"act": "draw-a-blade"}, "someone")
     check("forbids-produces-an-event", len(ev) == 1, len(ev))

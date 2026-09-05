@@ -471,11 +471,11 @@ def validate_tags(tags, percepts, skills):
     """
     # ---- fail-loud on malformed inputs (not tag-content failures) ----
     if not isinstance(tags, dict):
-        raise EngineError("CONSOLIDATION_VALIDATE_TAGS_NOT_A_DICT", "validate_tags: tags must be a dict, got %r" % type(tags).__name__)
+        raise TagError("TAG_TAGS_NOT_AN_OBJECT", "tags must be a dict, got %r" % type(tags).__name__)
     if not isinstance(percepts, list):
-        raise EngineError("CONSOLIDATION_VALIDATE_TAGS_PERCEPTS_NOT_A_LIST", "validate_tags: percepts must be a list, got %r" % type(percepts).__name__)
+        raise TagError("TAG_PERCEPTS_NOT_A_LIST", "percepts must be a list, got %r" % type(percepts).__name__)
     if not isinstance(skills, dict):
-        raise EngineError("CONSOLIDATION_VALIDATE_TAGS_SKILLS_NOT_A_DICT", "validate_tags: skills must be a dict, got %r" % type(skills).__name__)
+        raise TagError("TAG_SKILLS_NOT_AN_OBJECT", "skills must be a dict, got %r" % type(skills).__name__)
 
     ok    = True
     flags = []

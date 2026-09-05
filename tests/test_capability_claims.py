@@ -1,24 +1,5 @@
 """test_capability_claims.py — a mechanism a doc NAMES as available must have a code path.
 
-PORTED 2026-09-04 from the sibling instance, and RE-CLASSIFIED against this tree rather
-than inherited. Every one of the sibling's twelve BUILT claims failed here on the first
-run — not as regressions but because the sibling built them after this template was
-exported, while the template's own docs kept promising them. For a PUBLIC template that
-is the finding that matters: a reader clones it and reads promises the engine does not
-keep.
-
-Ten are now DEFERRED — still promised by a doc that is IN THIS REPO, still unbuilt, and
-now reported every run instead of read as shipped. Two were removed rather than deferred,
-because nothing here promises them: "lore accretes about a place" cites
-docs/keeper-of-truth.md and src/engine/claims.py, neither of which exists in this tree,
-and "omniscient narration" was promised in conversation and a cairn backlog, not by any
-document a cloner would read.
-
-The control was re-pointed too: it asserted on `ledger.previous_affect`, a method only the
-sibling has, so it failed for a portability reason and not a real one. A control asserting
-on another repo's shapes is this suite's own defect class, one level up.
-
-
 WHY THIS EXISTS. `tests/test_citations.py` verifies that a cited `symbol :NN` is DEFINED at that
 line. Its own docstring says the rest of the job is out of scope: "mechanical only — this suite
 cannot read intent". So it catches a citation that DRIFTED and cannot catch a capability that was
@@ -127,20 +108,26 @@ CLAIMS = {
         lambda: _defines("src/engine/ledger.py", "fork") or _cli_flag("scripts/scene.py", "--fork"),
     ),
     "first-person narration": (
-        DEFERRED,
+        BUILT,
         'docs/narration.md — "POV-bounded narrator (close third or first)"',
         "a voice selector on narrate.py",
         lambda: _cli_flag("scripts/narrate.py", "--voice") or _cli_flag("scripts/narrate.py", "--first-person"),
     ),
+    "omniscient narration": (
+        BUILT,
+        "William 2026-09-01 — unlocked as a user choice (see cairn backlog)",
+        "a knowledge selector on narrate.py",
+        lambda: _cli_flag("scripts/narrate.py", "--knowledge") or _cli_flag("scripts/narrate.py", "--omniscient"),
+    ),
     "direction_changes is read": (
-        DEFERRED,
+        BUILT,
         "src/engine/records.py sets it on 8 primitives; direction.py cites it in _phrase_for's docstring",
         "records.direction_changes existing AND _phrase_for calling it, not admits_role",
         lambda: _defines("src/engine/records.py", "direction_changes")
         and _calls("src/engine/direction.py", "direction_changes"),
     ),
     "threaten moves tensions": (
-        DEFERRED,
+        BUILT,
         'src/engine/consolidation.py CATALOG — threaten carries world_map: "tensions"',
         "a branch in ledger._project AND the chassis it delegates to",
         lambda: _fold_branches("threaten"),
@@ -154,7 +141,7 @@ CLAIMS = {
         and _fold_branches("uprising"),
     ),
     "the EDL": (
-        DEFERRED,
+        BUILT,
         'docs/cutting-room.md — "decisions append to the EDL; narration renders from it"',
         "an edl table, a validating writer, AND narration reading from it — a record with no "
         "reader would be this suite's own defect class",
@@ -164,7 +151,7 @@ CLAIMS = {
         and _calls("scripts/cut.py", "edl_mod.append"),
     ),
     "severity words": (
-        DEFERRED,
+        BUILT,
         "docs/standard-vectors.md §3 — the author writes a WORD",
         "severity.normalise_dimensions resolving words at the parse seam",
         lambda: _defines("src/engine/severity.py", "normalise_dimensions")
@@ -172,7 +159,7 @@ CLAIMS = {
         and _calls("scripts/scene.py", "normalise_dimensions"),
     ),
     "the world snapshot moves": (
-        DEFERRED,
+        BUILT,
         'docs/guide-operating.md — "sparse until move/harm/reveal events populate it"; '
         "src/engine/world_events.py states the warrant rule",
         "an emitter for the eight world-moving types, plus the fold-and-diff warrant test",
@@ -180,8 +167,18 @@ CLAIMS = {
         and _defines("src/engine/world_events.py", "would_change")
         and _calls("scripts/keeper.py", "world_events.append"),
     ),
+    "lore accretes about a place": (
+        BUILT,
+        "docs/keeper-of-truth.md is normative for the tier model; src/engine/claims.py was a "
+        "detector with no table and no writer",
+        "utterances persisted with derived tier, and read_api.place reading them",
+        lambda: "utterances" in _read("src/engine/schema.sql")
+        and _defines("src/engine/claims.py", "record")
+        and _defines("src/engine/read_api.py", "place")
+        and _calls("src/engine/read_api.py", "claims.for_run"),
+    ),
     "the leak wall is fact-shaped": (
-        DEFERRED,
+        BUILT,
         "src/engine/faithfulness.py caught leaked NAMES only; not every secret is a name",
         "check_fact_leaks existing AND both drivers passing the information registry",
         lambda: _defines("src/engine/faithfulness.py", "check_fact_leaks")
@@ -189,7 +186,7 @@ CLAIMS = {
         and "information=" in _read("scripts/scene.py"),
     ),
     "the slope is rendered": (
-        DEFERRED,
+        BUILT,
         "src/engine/direction.py's only movement marker compares to the temperament MEAN, so a "
         "leap and a climb read identically",
         "a slope marker reading the previous committed turn, and drivers supplying it",
@@ -198,7 +195,7 @@ CLAIMS = {
         and _calls("scripts/scene.py", "led.previous_affect"),
     ),
     "composition pass phase A": (
-        DEFERRED,
+        BUILT,
         "docs/composition-pass.md specifies classify (LLM) + compose (script); only compose shipped",
         "a classifier prompt builder and a validator that refuses final numbers",
         lambda: _defines("scripts/composition_pass.py", "build_classify_prompt")
@@ -206,7 +203,7 @@ CLAIMS = {
         and _cli_flag("scripts/composition_pass.py", "--classify"),
     ),
     "scene cfg is pinned": (
-        DEFERRED,
+        BUILT,
         "the bible is pinned by fingerprint (src/engine/bible.py); the scene cfg now is too (v14)",
         "a scene_cfg module with fingerprint/record/drifted, and append_scene calling record",
         lambda: _defines("src/engine/scene_cfg.py", "fingerprint")
@@ -262,13 +259,9 @@ def test_the_checker_can_fail():
     assert not _calls("scripts/direct.py", "a_function_nobody_calls")
     # and the specific blindness this suite was measured to have: an import must not satisfy a call
     assert not _calls("tests/test_capability_claims.py", "sys")
-    # and the two def-finders answer DIFFERENT questions: a method is not a module-level def.
-    # Uses `create_run`, a method THIS ledger has — the ported version named
-    # `previous_affect`, which exists only in the sibling, so the control failed for a
-    # portability reason and not a real one. A control asserting on another repo's shapes
-    # is the same defect class this suite exists to catch, one level up.
-    assert _method("src/engine/ledger.py", "create_run")
-    assert not _defines("src/engine/ledger.py", "create_run")
+    # and the two def-finders answer DIFFERENT questions: a method is not a module-level def
+    assert _method("src/engine/ledger.py", "previous_affect")
+    assert not _defines("src/engine/ledger.py", "previous_affect")
 
 
 if __name__ == "__main__":

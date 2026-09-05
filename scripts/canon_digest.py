@@ -137,6 +137,25 @@ def render(con, run_id, slug):
     return "\n".join(out)
 
 
+def _open_readonly(db):
+    """The chronicle, opened so it CANNOT be written.
+
+    A bare `sqlite3.connect` here carried none of `db.connect`'s protections — most sharply
+    `PRAGMA recursive_triggers=ON`, which exists because INSERT OR REPLACE performs its delete
+    WITHOUT firing the delete trigger unless it is set. So an accidental write from this reader
+    would bypass hard rule 2's append-only triggers, and `wound_deltas`/`toward_deltas`/
+    `relationship_deltas` carry no timestamp or version column — nothing in the row afterward
+    would say it had been rewritten.
+
+    Routing through `db.connect` is NOT the fix: it MIGRATES on open, so a read would silently
+    move a v12 chronicle to v22. `mode=ro` reads a live WAL database correctly and refuses writes,
+    which is the same trade `scripts/doctor.py` makes for the same reason.
+    """
+    import os as _os
+    return sqlite3.connect("file:%s?mode=ro" % _os.path.abspath(db).replace(chr(92), "/"),
+                           uri=True)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--book", required=True, help="book slug under $SWE_BOOKS, or a path")
@@ -155,10 +174,12 @@ def main():
     # sibling scripts carried a second, differently-written copy of the same derivation.
     slug = books.slug(book_dir)
     db = args.db or books.db_path(book_dir)
-    if not os.path.isfile(db):
-        raise SystemExit("no chronicle at %s — nothing to digest" % db)
+    try:                               # books.py resolved the path; it answers for the path
+        books.db_or_raise(db)
+    except books.BookError as e:
+        raise SystemExit(str(e))
 
-    con = sqlite3.connect(db)
+    con = _open_readonly(db)
     run_id = args.run or _latest_run(con)
     if run_id is None:
         raise SystemExit("%s holds no runs" % db)

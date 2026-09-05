@@ -10,8 +10,9 @@ Public API consumed by scene.py:
 
 All functions are PURE + deterministic. No I/O, no LLM, no randomness.
 """
-from .errors import EngineError
 
+import hashlib
+from .records import RecordError   # rule 6's bad-input type; codes.py GATE_*
 # ---- Percept type (scene-assembly.md §"The packet") ----
 
 def _make_percept(ref, channel, fidelity, attributes, recognized_as=None, must_surface=False):
@@ -35,7 +36,6 @@ def _make_percept(ref, channel, fidelity, attributes, recognized_as=None, must_s
         p["recognized_as"] = recognized_as
     return p
 
-
 # ---- DC table (relevancy-gate.md §Resolution — deterministic, not director-set; 2026-06-10 audit) ----
 # Connection cost = 1.0 - confidence (edge faintness); budget = energy * (1 - allostatic_load * 0.5)
 PERCEPTION_DC_PLAIN    = 0.00  # overt, named — automatic pass
@@ -43,7 +43,6 @@ PERCEPTION_DC_IDENTITY = 0.55  # recognising an entity not clearly identified
 PERCEPTION_DC_SUBTLE   = 0.60  # noticing a subtle cue (faint signs, emotional tells)
 
 ALLOSTATIC_PENALTY = 0.5  # half-penalty at maximum load (relevancy-gate.md §Connection energy)
-
 
 def _energy_budget(condition):
     """Compute cognitive connection budget from condition dict.
@@ -56,7 +55,6 @@ def _energy_budget(condition):
     load   = float(condition.get("allostatic_load", 0.0))
     return max(0.0, energy * (1.0 - load * ALLOSTATIC_PENALTY))
 
-
 def _passes_check(skill_value, dc):
     """Deterministic check: passes iff skill_value >= dc.
 
@@ -64,7 +62,6 @@ def _passes_check(skill_value, dc):
     No randomness. A check at DC=0.0 always passes.
     """
     return float(skill_value) >= float(dc)
-
 
 # ---- Normalisation (accent-tolerant matching — vault claims may carry diacritics) ----
 
@@ -84,7 +81,6 @@ def _normalize(s):
     for src, dst in replacements:
         t = t.replace(src, dst)
     return t
-
 
 # ---- Step 2: Perception scope (perception-mode wall) ----
 
@@ -111,17 +107,17 @@ def perception_scope(scene_slice, world, skills, condition, relationships=None):
     Raises ValueError on malformed input.
     """
     if not isinstance(scene_slice, dict):
-        raise EngineError("GATE_PERCEPTION_SCOPE_SCENE_SLICE_NOT_A_DICT", "perception_scope: scene_slice must be a dict")
+        raise RecordError("GATE_SCENE_SLICE_NOT_AN_OBJECT", "perception_scope: scene_slice must be a dict")
     if not isinstance(world, dict):
-        raise EngineError("GATE_PERCEPTION_SCOPE_WORLD_NOT_A_DICT", "perception_scope: world must be a dict")
+        raise RecordError("GATE_WORLD_NOT_AN_OBJECT", "perception_scope: world must be a dict")
     if not isinstance(skills, dict):
-        raise EngineError("GATE_PERCEPTION_SCOPE_SKILLS_NOT_A_DICT", "perception_scope: skills must be a dict")
+        raise RecordError("GATE_SKILLS_NOT_AN_OBJECT", "perception_scope: skills must be a dict")
     if not isinstance(condition, dict):
-        raise EngineError("GATE_PERCEPTION_SCOPE_CONDITION_NOT_A_DICT", "perception_scope: condition must be a dict")
+        raise RecordError("GATE_CONDITION_NOT_AN_OBJECT", "perception_scope: condition must be a dict")
 
     event = scene_slice.get("event")
     if not isinstance(event, dict) or "text" not in event:
-        raise EngineError("GATE_PERCEPTION_SCOPE_SCENE_SLICE_EVENT_NOT_A_DICT", "perception_scope: scene_slice.event must be a dict with 'text'")
+        raise RecordError("GATE_EVENT_MISSING_TEXT", "perception_scope: scene_slice.event must be a dict with 'text'")
 
     event_text = str(event.get("text", ""))
     event_kind = str(event.get("kind", "mundane"))
@@ -232,8 +228,69 @@ def perception_scope(scene_slice, world, skills, condition, relationships=None):
 
     return percepts
 
-
 # ---- Step 3: Trigger extraction (from PerceptSet only — never ground truth) ----
+
+def belief_id(belief):
+    """A belief -> a stable identity derived from its CLAIM TEXT.
+
+    WHY THIS EXISTS. The gate's only handle on a belief was `vault[N]` — its POSITION in the
+    character's vault list — and `scene.assemble` wrote that string into `recall_events`, a table
+    the schema-v9 triggers refuse to UPDATE or DELETE. The position means nothing outside the exact
+    note revision that produced it: add one bullet above an entry and every stored reference below
+    it names a different belief, permanently and uncorrectably. The Beck Hollow chronicle already
+    spans two bible fingerprints, so its stored `vault[2]` strings are ALREADY ambiguous.
+
+    Derived from the claim, not from `acquisition_id`, because authored seed beliefs have no
+    acquisition row and they are the majority of every vault in every book — an id scheme covering
+    only acquired beliefs would leave the authored ones exactly as unidentifiable as before.
+
+    A claim whose WORDS changed is a different thing to have believed, so it gets a different id.
+    That matches the monotonic-add vault (`knowledge-model.md`) and the append-only log: beliefs are
+    added and superseded, never edited in place.
+
+    Stable across processes: hashlib, not Python's salted `hash()`.
+    """
+    # `_normalize` lowercases and folds diacritics but does NOT collapse whitespace — it is built
+    # for trigger matching, where runs of spaces never occur. An author REFLOWING a belief line
+    # must not create a new belief, so the collapse happens here rather than by changing a
+    # normaliser the matcher also depends on.
+    d = belief or {}
+    claim = " ".join(_normalize(str(d.get("claim", ""))).split())
+    k = "%s|%s|%s" % (claim, str(d.get("target_actor") or "").strip().lower(), str(d.get("epistemic_stance") or "").strip().lower()) if (d.get("target_actor") or d.get("epistemic_stance")) else claim
+    return "b:" + hashlib.sha1(k.encode("utf-8")).hexdigest()[:12]
+
+def perceived_surfaces(percepts):
+    """The PerceptSet's raw phrasings — what the character actually saw, UNSHREDDED.
+
+    The twin of `extract_triggers`, and it exists because those two answer different questions.
+    `extract_triggers` shreds each attribute into single words for the RECALL GATE, which matches
+    trigger words against belief PROSE: perceive a wolf and "the wolf came down the fell road"
+    should surface. Word-level overlap is right for that.
+
+    It is wrong for an AUTHORED trigger. `docs/authoring/BLUEPRINT-character.md`'s wound box
+    instructs "2-4 short phrases, in the words a scene would actually use", so authors write
+    "a child with fever" — and the shredded bag is ['child','fever','tosses','cot'], with "a" and
+    "with" dropped by the stoplist and everything under three characters gone. The phrase can never
+    be a substring of that, so a wound authored exactly as documented never fires. MEASURED on this
+    repo's own fixture before this function existed.
+
+    SAME PERCEPTS, so the perception wall is untouched: "you cannot be triggered by what you didn't
+    perceive" is a property of the PerceptSet, and any view derived from the same list inherits it.
+    This is a second READING of what was perceived, never a second SOURCE.
+    """
+    if not isinstance(percepts, list):
+        raise RecordError("GATE_PERCEPTS_NOT_A_LIST", "perceived_surfaces: percepts must be a list")
+    out = []
+    for p in percepts:
+        if not isinstance(p, dict):
+            continue
+        for attr in p.get("attributes", []) or []:
+            if str(attr).strip():
+                out.append(_normalize(str(attr)))
+        rec = p.get("recognized_as")
+        if rec and str(rec).strip():
+            out.append(_normalize(str(rec)))
+    return out
 
 def extract_triggers(percepts):
     """Extract trigger strings from the PerceptSet.
@@ -245,7 +302,7 @@ def extract_triggers(percepts):
     Returns list of lowercase normalised trigger strings.
     """
     if not isinstance(percepts, list):
-        raise EngineError("GATE_EXTRACT_TRIGGERS_PERCEPTS_NOT_A_LIST", "extract_triggers: percepts must be a list")
+        raise RecordError("GATE_PERCEPTS_NOT_A_LIST", "extract_triggers: percepts must be a list")
 
     triggers = []
     for p in percepts:
@@ -277,93 +334,37 @@ def extract_triggers(percepts):
             out.append(t)
     return out
 
-
 # ---- Step 4: Recall pass (recall-mode gate) ----
 
-def run_gate(triggers, vault, skills, goals, condition):
+def run_gate(triggers, vault, skills, goals, condition, current_turn=0, relationships=None, recall_history=None, elapsed=None):
     """Match triggers against the vault and return active recall.
 
     relevancy-gate.md: trigger-match -> vault -> skill -> goal-salience -> energy budget.
-    Energy budget: spend descending salience (goal-bearing first); stop when budget runs out.
-
-    Parameters
-    ----------
-    triggers  : [str]  normalised trigger strings (from extract_triggers)
-    vault     : [dict] list of belief dicts {claim, believed_value, provenance, confidence, ...}
-    skills    : dict   {skill_name: float}
-    goals     : [dict] active_goals list [{goal: str, urgency: float}]
-    condition : dict   {energy, allostatic_load}
-
-    Returns list of matched belief dicts augmented with:
-        ref       -- "vault[N]" stable reference
-        cost      -- float (connection cost = 1 - confidence)
-        triggered -- the trigger word(s) that matched
+    Optional decay parameters: current_turn, relationships, recall_history, elapsed.
     """
     if not isinstance(triggers, list):
-        raise EngineError("GATE_RUN_GATE_TRIGGERS_NOT_A_LIST", "run_gate: triggers must be a list")
+        raise RecordError("GATE_TRIGGERS_NOT_A_LIST", "run_gate: triggers must be a list")
     if not isinstance(vault, list):
-        raise EngineError("GATE_RUN_GATE_VAULT_NOT_A_LIST", "run_gate: vault must be a list")
+        raise RecordError("GATE_VAULT_NOT_A_LIST", "run_gate: vault must be a list")
     if not isinstance(skills, dict):
-        raise EngineError("GATE_RUN_GATE_SKILLS_NOT_A_DICT", "run_gate: skills must be a dict")
+        raise RecordError("GATE_SKILLS_NOT_AN_OBJECT", "run_gate: skills must be a dict")
     if not isinstance(goals, list):
-        raise EngineError("GATE_RUN_GATE_GOALS_NOT_A_LIST", "run_gate: goals must be a list")
+        raise RecordError("GATE_GOALS_NOT_A_LIST", "run_gate: goals must be a list")
     if not isinstance(condition, dict):
-        raise EngineError("GATE_RUN_GATE_CONDITION_NOT_A_DICT", "run_gate: condition must be a dict")
+        raise RecordError("GATE_CONDITION_NOT_AN_OBJECT", "run_gate: condition must be a dict")
 
     budget = _energy_budget(condition)
     goal_texts = [_normalize(g.get("goal", "")) for g in goals]
 
-    # Phase 1: find all vault entries that match any trigger
-    candidates = []
-    for idx, belief in enumerate(vault):
-        if not isinstance(belief, dict):
-            continue
-        claim = str(belief.get("claim", ""))
-        confidence = float(belief.get("confidence", 0.5))
-        cost = 1.0 - confidence   # relevancy-gate.md: edge cost = edge faintness = 1-confidence
-        # [[links]] are live machinery (vault.py): a belief's linked note names join its matchable
-        # surface — author-controlled trigger anchors, not substring luck.
-        surface = _normalize(claim) + " " + " ".join(_normalize(str(l)) for l in belief.get("links", []))
-
-        matched_triggers = []
-        for trig in triggers:
-            if _normalize(trig) in surface:
-                matched_triggers.append(trig)
-
-        if not matched_triggers:
-            continue
-
-        # goal salience: does this belief touch an active goal?
-        # relevancy-gate.md §Goal salience: beliefs bearing on active goals rank first
-        is_goal_bearing = False
-        for gt in goal_texts:
-            if gt and _keyword_overlap(_normalize(claim), gt):
-                is_goal_bearing = True
-                break
-        # also check claim keywords against goal texts (bidirectional)
-        if not is_goal_bearing:
-            claim_words = set(_normalize(claim).split())
-            for g in goals:
-                goal_words = set(_normalize(g.get("goal", "")).split())
-                if claim_words & goal_words - {"the", "a", "an", "to", "of", "and", "is", "in"}:
-                    is_goal_bearing = True
-                    break
-
-        candidates.append({
-            "idx":            idx,
-            "ref":            "vault[%d]" % idx,
-            "claim":          claim,
-            "believed_value": belief.get("believed_value"),
-            "provenance":     belief.get("provenance", ""),
-            "confidence":     confidence,
-            "cost":           cost,
-            "triggered":      matched_triggers,
-            "is_goal_bearing": is_goal_bearing,
-        })
+    # Phase 1: generate candidates via 1-hop matching and multi-hop associative traversal
+    from .associative import find_associative_candidates
+    candidates = find_associative_candidates(
+        triggers, vault, goals, budget, current_turn=current_turn,
+        relationships=relationships, recall_history=recall_history, elapsed=elapsed)
 
     # Phase 2: sort by salience descending (goal-bearing first, then by confidence)
     # relevancy-gate.md: "Explore from triggers by ascending cost / descending salience"
-    candidates.sort(key=lambda c: (0 if c["is_goal_bearing"] else 1, -c["confidence"]))
+    candidates.sort(key=lambda c: (0 if c["is_goal_bearing"] else 1, -c.get("confidence_eff", c["confidence"])))
 
     # Phase 3: spend budget — inject until budget exhausted
     injected = []
@@ -377,7 +378,6 @@ def run_gate(triggers, vault, skills, goals, condition):
 
     return injected
 
-
 # ---- Internal helpers — event classification and attribute extraction ----
 # MACHINE/CONTENT SEAM (g6): the extraction MECHANISM lives here; the WORDS live in the book's
 # world package under world["lexicon"] = {attribute_classes: {class: [keywords]},
@@ -389,7 +389,6 @@ def _lexicon(world):
     lex = world.get("lexicon", {})
     return (lex.get("attribute_classes", {}), lex.get("subtle_cues", {}), lex.get("subtle_cue_classes", []))
 
-
 def _has_subtle_cues(text, kind, world):
     """True if this event carries gated fine detail: a subtle-cue class keyword is present,
     or the event kind is inherently cue-bearing (threat/loss — catalog machinery, not content)."""
@@ -399,7 +398,6 @@ def _has_subtle_cues(text, kind, world):
         if any(_normalize(kw) in t for kw in classes.get(cls, [])):
             return True
     return kind in ("threat", "loss")
-
 
 def _extract_event_attributes(text, kind, world):
     """Perceivable attributes from the event text (plain, overt) — lexicon-classed, no invention.
@@ -416,7 +414,6 @@ def _extract_event_attributes(text, kind, world):
         attrs.append(" ".join(text.split()[:6]))
     return list(dict.fromkeys(attrs))
 
-
 def _extract_subtle_attributes(text, kind, world):
     """Check-gated fine-grained attributes — lexicon-driven, no invention."""
     attrs = []
@@ -426,7 +423,6 @@ def _extract_subtle_attributes(text, kind, world):
         if any(_normalize(marker) in t for marker in cues[cue]):
             attrs.append(cue)
     return attrs
-
 
 def _extract_named_entities(text, world):
     """Return [(entity_id, entity_label, [observable_attrs])] for known entities mentioned.
@@ -451,7 +447,6 @@ def _extract_named_entities(text, world):
 
     return results
 
-
 def _lookup_location(location_str, world):
     """Return the world location entry matching the location string, or None."""
     if not location_str:
@@ -464,11 +459,9 @@ def _lookup_location(location_str, world):
             return loc
     return None
 
-
 def _safe_ref(s):
     """Convert an arbitrary string to a safe identifier fragment."""
     return "".join(c if c.isalnum() else "_" for c in _normalize(s)).strip("_")
-
 
 def _words_from_attr(attr):
     """Split an attribute string into meaningful word-level triggers."""
@@ -484,14 +477,12 @@ def _words_from_attr(attr):
             out.append(w)
     return out
 
-
 def _keyword_overlap(text, query):
     """Return True if any query word appears in text (word-level overlap)."""
     stop = {"the", "a", "an", "to", "of", "and", "is", "in"}
     qwords = {w for w in _normalize(query).split() if w not in stop and len(w) >= 3}
     twords = set(_normalize(text).split())
     return bool(qwords & twords)
-
 
 # ---- Name hygiene: render entities by acquaintance, never by the canonical id ----
 # knowledge-model.md §"keeping the WRONG facts OUT": a character must not see a name they never
@@ -506,7 +497,6 @@ def _display_name(entity_id):
     """Canonical display name from an entity id: 'first_last' -> 'First Last',
     'solo' -> 'Solo'. What an actor sees for someone they know. Never an engine id form."""
     return " ".join(w.capitalize() for w in str(entity_id).split("_") if w) or str(entity_id)
-
 
 def scope_names(text, relationships):
     """Replace a person's first name with the term THIS actor uses for them — but ONLY where the

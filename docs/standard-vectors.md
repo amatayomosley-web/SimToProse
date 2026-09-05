@@ -159,20 +159,26 @@ event text becomes the vault entry (provenance seeds memory, `baseline-generatio
 
 ## 3. The severity anchor scale
 
-The scale answers "what does 0.3 vs 0.7 vs 1.0 MEAN" in describable terms, per dimension. Its
+The scale answers what each severity WORD means, per dimension. Its
 spine is `state-engine.md:34-39`'s factoring, restated as two author-answerable questions:
 **worst credible outcome if this runs its course** (damage-potential, from the event's and the
 world's own properties — a bible fact, never a mood) × **how live is that outcome here**
 (hit-probability × context — distance, escape routes, season, witnesses).
 
-| magnitude | means (per dimension) | anchors |
-|---|---|---|
-| omit / 0.0 | the stake is not touched | the default; most dimensions of most events |
-| 0.1–0.3 | ordinary friction: recoverable, routine, the texture of a day | the prompt's own calibration clause (`prompt.py:82`) **[CALIBRATION]**; probe corpus routine rows sit here (`coherence_probe.py:135-136,142`) |
-| 0.3–0.5 | real but bounded: a genuine stake, recoverable on a normal path | probe: an outsider collapses, ill not dying — `threat 0.5` (`:148`) |
-| 0.5–0.7 | severe: a menu item genuinely at risk; the event people retell | `>0.6` = "genuinely severe (a child dying, a betrayal, a rescue from real danger)" (`prompt.py:82-83`) **[CALIBRATION]**; 0.6 is also the arc-candidate line (`arc.py:20`) and the primary-driver line is 0.5 (`consolidation.py:42`) — three constants, deliberately kept in agreement |
-| 0.7–0.9 | grave: irreversible loss probable, not merely possible | probe: third fever night "past which fevers here rarely turn" `threat 0.85` (`:143`); a death in your hands `loss 0.8` (`:151`) |
-| 1.0 | the maximum this world can deliver on that stake: certain death, total loss | reserve; a 1.0 leaves the engine nowhere to go (§10.3) |
+**The author writes a WORD, not a number.** `src/engine/severity.py` owns the seven anchors and
+`severity.normalise_dimensions` resolves them at the parse seam; the numeric column below is the
+scale they resolve ONTO, kept because the engine's own thresholds are stated in it.
+
+| word | value | means (per dimension) | anchors |
+|---|---|---|---|
+| *omit* | — | the stake is not touched | the default; most dimensions of most events |
+| `faint` | 0.05 | registered, and did not persist | the floor — below this, omit the dimension |
+| `slight` | 0.15 | noticed, and gone by the next thing that happened | probe corpus routine rows (`coherence_probe.py:135-136,142`) |
+| `mild` | 0.30 | carried into the next few minutes | ordinary friction: recoverable, the texture of a day |
+| `moderate` | 0.45 | carried for the rest of the day | probe: an outsider collapses, ill not dying (`:148`) |
+| `marked` | 0.60 | **would begin to change them if it kept happening** | the durable line: meets `arc._DURABLE_DIM` (0.60) and `bonds._OVERT_SEVERITY` (0.55); the primary-driver line is 0.5 (`consolidation.py`) — kept in agreement |
+| `severe` | 0.78 | reshapes them on its own, with no repetition | probe: third fever night `threat 0.85` (`:143`); a death in your hands `loss 0.8` (`:151`) |
+| `extreme` | 0.95 | the worst of its kind a life contains | the only word reaching `bonds._CLIFF_SEVERITY` (0.80), the unforgivable act |
 
 **What one unit of severity buys, on the reference sheet** — the species prior
 (`reference-species-prior.md`), neutral genotype. Per-dimension delta into the pushed primary is

@@ -71,12 +71,17 @@ Derived from engine architecture (`docs/world-model.md`, `docs/scene-assembly.md
 
   | magnitude | means |
   |---|---|
-  | omit / 0.0 | the stake is not touched — the default for most dimensions of most events |
-  | 0.1–0.3 | ordinary friction: recoverable, routine, the texture of a day |
-  | 0.3–0.5 | real but bounded: a genuine stake, recoverable on a normal path |
-  | 0.5–0.7 | severe: a menu item genuinely at risk; the event people retell |
-  | 0.7–0.9 | grave: irreversible loss probable, not merely possible |
-  | 1.0 | reserve — a 1.0 leaves the engine nowhere to go |
+  | omit | the stake is not touched — the default for most dimensions of most events |
+  | `faint` / `slight` / `mild` | ordinary friction: recoverable, routine, the texture of a day |
+  | `moderate` | real but bounded: a genuine stake, recoverable on a normal path |
+  | `marked` | a menu item genuinely at risk; the event people retell |
+  | `severe` | grave: irreversible loss probable, not merely possible |
+  | `extreme` | reserve it — the top of the scale leaves the engine nowhere to go |
+
+  The words are the authored form and `src/engine/severity.py` owns their values; `scripts/scene.py`
+  resolves them at the cfg parse seam, so a number still works and still means what it did. Write
+  the word: the rows above used to be numeric ranges, which invited a choice between two numbers
+  nobody could tell apart — the miscalibration the ladder exists to remove.
 
 - **The trap this rule exists to prevent**: sizing a number up so that something visibly happens.
   `standard-vectors.md` §3 is explicit that **a single appraisal on a neutral sheet almost never

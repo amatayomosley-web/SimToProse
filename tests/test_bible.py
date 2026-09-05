@@ -203,6 +203,144 @@ def test_drift_is_silent_for_legacy_runs(con):
     assert not d and "predates" in detail, detail
 
 
+# --- the pin governs the PER-TURN law check, not just the pre-flight -------
+
+# scripts/scene.py's `_law_events` ran `bible.build(led.con, world, chars)` — fingerprinting
+# whatever world was in memory — while `run_scene`'s pre-flight forty lines below read the run's
+# PINNED bible. On a resumed run whose notes were edited between sessions the two disagree, so one
+# scene adjudicated its pre-flight against the pin and its per-turn acts against the edited world.
+# Contract 1 of this file, applied one layer down: a run is answerable to the bible it pinned.
+
+_LAW_WORLD = dict(WORLD, laws=[{"id": "no-smuggling", "domain": "legal", "modality": "FORBIDS",
+                                "statement": "Goods pass the counting-house or they do not pass.",
+                                "act": "smuggle", "teeth": "the harbourmaster takes the cargo"}])
+_EDITED_WORLD = dict(WORLD, laws=[])          # the author deleted the law between sessions
+
+
+def _ledger_over(con):
+    """A real Ledger on the same file the harness opened — not a shim.
+
+    `_law_events` touches `led.con` and `led.run_config` only, but the point of the test is the
+    contract between scene.py and the REAL accessor, so a stand-in would assert nothing.
+    """
+    from src.engine.ledger import Ledger
+    path = con.execute("PRAGMA database_list").fetchall()[0][2]
+    return Ledger(path)
+
+
+def _law_event_payloads(led, run_id, world):
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "swe_scene_under_test", os.path.join(REPO, "scripts", "scene.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    evs = mod._law_events(led, run_id, world, CHARS, {"act": "smuggle"}, "vesk")
+    return [e.payload for e in evs]
+
+
+def test_law_check_reads_the_pin_not_the_edited_world(con):
+    """THE DEFECT. Pinned to a bible that forbids the act; the in-memory world no longer does."""
+    fp_pinned = bible.build(con, _LAW_WORLD, CHARS)
+    _pin(con, RUN, fp_pinned)
+    assert bible.fingerprint(_EDITED_WORLD, CHARS) != fp_pinned,         "fixture is inert: the edit must actually change the fingerprint"
+    led = _ledger_over(con)
+    try:
+        payloads = _law_event_payloads(led, RUN, _EDITED_WORLD)
+    finally:
+        led.con.close()
+    assert any("no-smuggling" in (p.get("laws") or []) for p in payloads),         "the pinned law did not fire — the check used the edited world: %r" % (payloads,)
+
+
+def test_an_unpinned_run_still_falls_back_to_the_loaded_world(con):
+    """THE CONTROL, and the reason the fallback stays. OLD_RUN's config predates pinning."""
+    bible.build(con, _LAW_WORLD, CHARS)         # present in the DB, but NOT pinned to this run
+    led = _ledger_over(con)
+    try:
+        payloads = _law_event_payloads(led, OLD_RUN, _EDITED_WORLD)
+    finally:
+        led.con.close()
+    assert not any("no-smuggling" in (p.get("laws") or []) for p in payloads),         "an unpinned run must adjudicate the world it loaded, not a stray bible: %r" % (payloads,)
+
+
+# --- every BIBLE_ refusal, EXECUTED --------------------------------------------------------------
+#
+# `tests/test_errors.py` proves by PARSING that this module carries no prose raise and that every
+# registered code is raised somewhere. Neither of those runs a line of it: a code can be registered,
+# spelled right at the raise, and wired to a condition that never fires, and both scans stay green.
+#
+# The table is checked AGAINST the registry, so a new BIBLE_ code with no executing case is red —
+# that is the direction that fails silent if nobody looks.
+
+def _law(**over):
+    """A VALID law. Every case below breaks exactly one thing about it."""
+    row = {"id": "L1", "statement": "no one flies", "domain": "physical", "modality": "IMPOSSIBLE"}
+    row.update(over)
+    return row
+
+
+def _bible_cases(con):
+    from src.engine import bible as B
+    return {
+        "BIBLE_WORLD_NOT_A_DICT":        lambda: B.fingerprint("not a world", {}),
+        "BIBLE_CHARACTERS_NOT_A_DICT":   lambda: B.fingerprint({}, "not characters"),
+        "BIBLE_NOT_JSON_SERIALIZABLE":   lambda: B.fingerprint({"x": {1, 2}}, {}),
+        "BIBLE_LAWS_FIELD_NOT_A_LIST":   lambda: B._authored_laws({"laws": "nope"}),
+        "BIBLE_LAW_ENTRY_NOT_A_DICT":    lambda: B._authored_laws({"laws": ["nope"]}),
+        "BIBLE_LAW_ID_MISSING":          lambda: B._authored_laws({"laws": [_law(id="")]}),
+        "BIBLE_LAW_STATEMENT_MISSING":   lambda: B._authored_laws({"laws": [_law(statement="")]}),
+        "BIBLE_LAW_DOMAIN_UNKNOWN":      lambda: B._authored_laws({"laws": [_law(domain="vibes")]}),
+        "BIBLE_LAW_MODALITY_UNKNOWN":    lambda: B._authored_laws({"laws": [_law(modality="MAYBE")]}),
+        "BIBLE_LAW_EPISTEMIC_UNKNOWN":   lambda: B._authored_laws({"laws": [_law(epistemic="dubious")]}),
+        "BIBLE_LAW_EXCEPTS_NOT_PERMITS": lambda: B._authored_laws({"laws": [_law(excepts=["L2"])]}),
+        "BIBLE_LAW_EXCEPTS_EMPTY":       lambda: B._authored_laws(
+            {"laws": [_law(modality="PERMITS", excepts=[])]}),
+        "BIBLE_LAW_ID_DUPLICATE":        lambda: B._authored_laws({"laws": [_law(), _law()]}),
+        "BIBLE_LAW_EXCEPTS_UNKNOWN_ID":  lambda: B._project_laws(
+            {"laws": [_law(modality="PERMITS", excepts=["no-such-law"])]}),
+        "BIBLE_ENTITY_KIND_UNKNOWN":     lambda: B.entity_exists(con, "fp", "e", kind="banana"),
+        "BIBLE_WORLD_STEP1_INCOMPLETE":  lambda: B.build(con, {}, {}, strict=True),
+        # the refusal that the bible/law split existed to unblock: it lives WITH the ruling now,
+        # not restated in scripts/scene.py's own words.
+        "BIBLE_ACT_IMPOSSIBLE":          lambda: B.require_allowed(
+            {"allowed": False, "denied_by": ["no-flight"], "reason": "people do not fly"}, "fly"),
+    }
+
+
+def test_every_BIBLE_case_refuses_with_its_OWN_code(con):
+    from src.engine.bible import BibleError
+    wrong = []
+    for code, call in sorted(_bible_cases(con).items()):
+        try:
+            call()
+            wrong.append("%s: ACCEPTED" % code)
+        except BibleError as e:
+            if e.code != code:
+                wrong.append("%s: got %r" % (code, e.code))
+        except Exception as e:                                    # noqa: BLE001
+            wrong.append("%s: raised %s (%s)" % (code, type(e).__name__, str(e)[:60]))
+    assert not wrong, "; ".join(wrong)
+
+
+def test_the_BIBLE_case_table_is_CHECKED_AGAINST_the_registry(con):
+    from src.engine import codes
+    registered = {c for c in codes.CODES if c.startswith("BIBLE_")}
+    cases = set(_bible_cases(con))
+    assert not (registered - cases), (
+        "registered with no executing case: %s" % sorted(registered - cases))
+    assert not (cases - registered), (
+        "a case names an unregistered code: %s" % sorted(cases - registered))
+
+
+def test_a_VALID_law_still_normalises(con):
+    """The control. A validator that refused everything would pass every case above."""
+    from src.engine import bible as B
+    rows = B._authored_laws({"laws": [_law()]})
+    assert len(rows) == 1 and rows[0]["law_id"] == "L1", str(rows)
+    permits = B._project_laws({"laws": [_law(),
+                                        _law(id="L2", modality="PERMITS", excepts=["L1"])]})
+    assert len(permits) >= 2, "a PERMITS row excepting a REAL law was refused: %s" % permits
+
+
 def main():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     failed = 0

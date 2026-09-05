@@ -63,6 +63,7 @@ EXEMPT = {
     ("read_api.py", "edges"):        "read tier: public API for external consumers, not engine-internal",
     ("read_api.py", "snapshot_at"):  "read tier: public API for external consumers, not engine-internal",
     ("read_api.py", "scene_of"):     "read tier: public API for external consumers, not engine-internal",
+    ("read_api.py", "place"):        "read tier: public API for external consumers, not engine-internal",
 }
 
 # THE RATCHET, and why it is a ratchet rather than a failure. On the day this guard was written it
@@ -75,31 +76,30 @@ EXEMPT = {
 # Each entry names where it IS tested, because "tested but unwired" is the specific shape and a
 # reader should not have to re-derive it. Measured 2026-09-03.
 UNWIRED_AT_FIRST_MEASUREMENT = {
-    # BASELINE FOR THIS REPO, taken 2026-09-04 when the guard was ported from the sibling
-    # instance. The sibling's list named six functions this engine does not have
-    # (claims.resolve/tested, decay.record_belief_recall, scene_cfg.for_scene,
-    # severity.rubric, toward.apply_deltas) and one that IS wired here (bonds.replay) —
-    # a ratchet copied rather than measured is not a ratchet. SHRINK-ONLY: an entry that
-    # becomes wired must be DELETED, and the suite fails until it is.
-    ("citation.py", "verify_envelope"):  "tested in test_citation; a gate that gates nothing - "
-                                         "no engine caller verifies an envelope before use",
-    ("compounds.py", "blend"):           "tested in test_compounds; no engine caller",
-    ("compounds.py", "recipe_sum"):      "tested in test_compounds; no engine caller",
-    ("compounds.py", "separability"):    "tested in test_compounds; no engine caller",
-    ("compounds.py", "validate"):        "tested in test_compounds; no engine caller",
-    ("profiles.py", "admit"):            "THE ENGINE HALF OF AN UNBUILT FEATURE, not an oversight. "
-                                         "docs/composition-pass.md:52 specifies it as the admission "
-                                         "gate and tests/test_formative_profiles.py exercises it at "
-                                         "three call sites, but nothing in production calls it "
-                                         "because there is no proposal to admit: CLAUDE.md:220 "
-                                         "records that the composition pass's SCRIPT half is built "
-                                         "and 'the LLM classification step is not'. The sibling "
-                                         "wires it at scripts/composition_pass.py:127, in a branch "
-                                         "parsing a model reply's `propose` key that does not exist "
-                                         "here. Wire it when that step lands; inventing a caller now "
-                                         "would be a fake reader for a real key.",
+    ("bonds.py", "replay"):                 "tested in test_bonds/test_effective; no engine caller",
+    ("citation.py", "verify_envelope"):     "tested in test_coded_refusals; a gate that gates nothing",
+    ("claims.py", "resolve"):               "tested in test_books/test_place; no engine caller",
+    ("claims.py", "tested"):                "tested in test_claims; no engine caller",
+    ("compounds.py", "blend"):              "tested in test_compounds/basis_probe; no engine caller",
+    ("compounds.py", "recipe_sum"):         "tested in test_compounds; no engine caller",
+    ("compounds.py", "separability"):       "tested in test_compounds; no engine caller",
+    ("compounds.py", "validate"):           "tested in test_compounds/coherence_probe; no engine caller",
+    # fold_recall_history left this list on 2026-09-04 — both chronicle drivers now call it
+    # and feed the result to assemble(). Do not re-add it.
+    ("decay.py", "record_belief_recall"):   "tested in test_memory_decay. The IMPERATIVE twin of "
+                                            "fold_recall_history: it writes last_recalled_turn and "
+                                            "recall_count onto the belief dict, while the fold "
+                                            "DERIVES the same two facts from the append-only "
+                                            "decision_manifests table. Wiring both gives one fact "
+                                            "two sources of truth, against 'cause is logged once; "
+                                            "effect is derived at replay' (decay.py:30). The fold "
+                                            "was wired 2026-09-04; this is likely superseded and "
+                                            "should be deleted rather than wired — but that is a "
+                                            "removal decision, not a reachability exemption.",
+    ("scene_cfg.py", "for_scene"):          "tested in test_ledger; the v14 cfg pin has no reader",
+    ("severity.py", "rubric"):              "tested in test_severity + two others; no engine caller",
+    ("toward.py", "apply_deltas"):          "NOT EVEN TESTED — reached by nothing, anywhere",
 }
-
 
 
 def _module_files():

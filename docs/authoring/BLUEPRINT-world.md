@@ -261,11 +261,11 @@ names the switches as the single exception to its otherwise-permissive "only set
 story actually leans on" rule (`docs/universal-law.md:12`).
 
 >> **HOW THIS IS USED:** the completeness check walks exactly these three names —
-`_SWITCHES = ("magic", "divine", "beings")` (`src/engine/bible.py:106`) — and requires each to
+`_SWITCHES = ("magic", "divine", "beings")` (`src/engine/law.py:103`) — and requires each to
 be a real true/false. Anything that is not produces a problem coded `switch-unanswered`
-(`src/engine/bible.py:299-307`). A world can be built with that check switched off, but when it
+(`src/engine/law.py:242-250`). A world can be built with that check switched off, but when it
 is on, an unanswered switch stops the build and names the switch
-(`src/engine/bible.py:339-354`).
+(`src/engine/bible.py:105-120`).
 
 **IF YOU LEAVE ONE BLANK:** the book still loads. But the world's completeness report will name
 the switch you skipped, and any run that asks for a strict build will refuse and say so. More
@@ -276,7 +276,7 @@ will decide for you.
 also write at least one law in the `supernatural` domain that says what the thing *cannot* do.
 The check is exactly that blunt: if any switch is true and no authored law has
 `domain: "supernatural"`, you get a problem coded `unbounded-switch`
-(`src/engine/bible.py:312-321`), quoting the rubric's line that "a power with no stated limit is
+(`src/engine/law.py:208-217`), quoting the rubric's line that "a power with no stated limit is
 the director's get-out-of-jail card and makes the probe hollow." Author the ceiling, not just
 the ability.
 
@@ -317,7 +317,7 @@ supernatural law bounding it: ______________________________________
 Every world starts out mundane. Before you write a single law of your own, five laws are already
 in force. You did not write them and you do not have to.
 
-Here they are, exactly as they exist in the code (`src/engine/bible.py:79-100`):
+Here they are, exactly as they exist in the code (`src/engine/law.py:75-96`):
 
 | what it says | the act it is keyed to | domain |
 |---|---|---|
@@ -329,19 +329,19 @@ Here they are, exactly as they exist in the code (`src/engine/bible.py:79-100`):
 
 All five are `IMPOSSIBLE` and all five are `known-true`. They are why a world that has not
 answered a single law-question can still refuse something — and why, when it refuses, the
-refusal names a rule beginning `default-` rather than shrugging (`src/engine/bible.py:229-238`).
+refusal names a rule beginning `default-` rather than shrugging (`src/engine/law.py:175-184`).
 
 **How one drops out.** You do not delete a default. You *overwrite* it, by writing a law of
 your own with the same `act`, or the same `id`. The suppression is deliberately dumb: a default
 drops out if and only if one of your laws carries the identical `act` string or the identical
 `id` — `if d["act"] in taken_acts or d["id"] in taken_ids: continue`
-(`src/engine/bible.py:245-249`). It never *infers*. Writing a lot of supernatural laws does not
+(`src/engine/law.py:191-195`). It never *infers*. Writing a lot of supernatural laws does not
 quietly switch off "there is no magic"; only a law keyed to the act `cast` does that.
 
 **How to turn all five off.** Write `"blueprint_defaults": false`.
 
 >> **HOW THIS IS USED:** the check is literally `if world.get("blueprint_defaults") is False`
-(`src/engine/bible.py:243`). Read that as strictly as it is written. **Only the bare JSON word
+(`src/engine/law.py:189`). Read that as strictly as it is written. **Only the bare JSON word
 `false` opts out.** The string `"false"`, the number `0`, an empty list, the word `no` — none of
 them are the actual value `false`, so all of them leave the five defaults switched **on**. This
 is the one place on this sheet where a near-miss silently does the opposite of what you meant.
@@ -487,7 +487,7 @@ what can be climbed, what can be heard from here, who can see you.
 >> **HOW THIS IS USED:** the `what` text is handed to every character in the scene verbatim, as
 the sole attribute of the location percept (`src/engine/gate.py:225-230`). It also goes to the
 continuity critic as the "WHERE" line (`scripts/critic.py:84`), and is stored as this place's
-description in the book's pinned entity register (`src/engine/bible.py:159-161`).
+description in the book's pinned entity register (`src/engine/bible.py:99-101`).
 
 **IF YOU LEAVE IT BLANK:** the location percept is produced with an empty description — the
 character knows they are somewhere, and nothing about it.
@@ -604,10 +604,10 @@ when this person is named in a scene (`src/engine/gate.py:430-451`). It is the k
 relationship record must point at, or that edge never surfaces
 (`scripts/lint_book.py:162-164`; also `scripts/direct.py:258-261`). And it is registered in the
 book's pinned entity store, so a citation naming this person resolves as real rather than
-fabricated (`src/engine/bible.py:154-158`).
+fabricated (`src/engine/bible.py:94-98`).
 
 **IF YOU LEAVE IT BLANK:** the entry is skipped when entities are projected
-(`src/engine/bible.py:155-156`), and the linter names the index that has no id
+(`src/engine/bible.py:95-96`), and the linter names the index that has no id
 (`scripts/lint_book.py:95-97`).
 
 ## 7.3 `people[].name`
@@ -667,7 +667,7 @@ them a person rather than a job title.
 
 >> **HOW THIS IS USED:** it is the sole attribute of the entity percept when recognition
 succeeds (`src/engine/gate.py:203-209`). It is also the description stored in the book's pinned
-entity register (`src/engine/bible.py:157`) and the "WHO" line the critic gets
+entity register (`src/engine/bible.py:102`) and the "WHO" line the critic gets
 (`scripts/critic.py:83`).
 
 **IF YOU LEAVE IT BLANK:** recognition still fires, but hands over the person's first name and
@@ -946,7 +946,7 @@ scene can be caught breaking it.
 **How a law reaches a scene.** A scene may declare an `act` — one word for what is being
 attempted. The engine collects every law bearing on that act and returns a verdict: allowed or
 not, with the rules that decided it and any consequences attached
-(`src/engine/bible.py:441-490`, called from the scene pre-flight at
+(`src/engine/law.py:340-389`, called from the scene pre-flight at
 `scripts/scene.py:281-299`). If the verdict is a refusal, the scene does not run and the
 refusal quotes the rule.
 
@@ -962,13 +962,13 @@ Worked examples (`Beck Hollow/world/BeckHollow.md:167, 176, 186`): `no-help-befo
 `a-wolf-is-an-animal`, `the-mill-must-run`.
 
 >> **HOW THIS IS USED:** it is the citation. A refusal reports `denied_by: ["no-help-before-thaw"]`
-(`src/engine/bible.py:482`) and the scene pre-flight prints it
+(`src/engine/law.py:381`) and the scene pre-flight prints it
 (`scripts/scene.py:290-293`). It is also what a `law:` citation elsewhere in the system
-resolves against (`src/engine/bible.py:380-388`).
+resolves against (`src/engine/law.py:282-290`).
 
 **IF YOU LEAVE IT BLANK:** the book refuses to load and says so directly — "has no id — a law
-must be citable" (`src/engine/bible.py:175-176`). Two laws with the same id also refuse, naming
-the duplicate (`src/engine/bible.py:223-224`).
+must be citable" (`src/engine/law.py:123-124`). Two laws with the same id also refuse, naming
+the duplicate (`src/engine/law.py:169-170`).
 
 ## 9.2 `laws[].statement`
 
@@ -981,11 +981,11 @@ Worked example (`Beck Hollow/world/BeckHollow.md:183`):
 
 >> **HOW THIS IS USED:** it is quoted verbatim when the law fires. The verdict's `reason` field
 is built by joining the statements of the laws that denied or were violated
-(`src/engine/bible.py:486-488`), and that text is printed in the refusal
+(`src/engine/law.py:385-387`), and that text is printed in the refusal
 (`scripts/scene.py:290-293`).
 
 **IF YOU LEAVE IT BLANK:** the book refuses to load, by name — "has no statement — a denial
-must be able to quote the rule" (`src/engine/bible.py:178-179`).
+must be able to quote the rule" (`src/engine/law.py:125-126`).
 
 **Write it as the rule, plus what it means.** The second sentence in the example above — "a
 stopped mill in deep winter is the village going hungry" — is what makes the refusal land as a
@@ -994,9 +994,9 @@ fact about this world rather than a rules lawyer's note.
 ## 9.3 `laws[].domain`
 
 **REQUIRED.** One of exactly eight words. Any other value refuses the book and lists all eight
-back at you (`src/engine/bible.py:180-182`).
+back at you (`src/engine/law.py:127-129`).
 
-The eight, from the code (`src/engine/bible.py:44-49`):
+The eight, from the code (`src/engine/law.py:38-43`):
 
 | domain | what belongs in it |
 |---|---|
@@ -1013,17 +1013,17 @@ The first five are the deep ground truth; the last three are how people organise
 top of it.
 
 >> **HOW THIS IS USED:** it is validated against that exact list
-(`src/engine/bible.py:180-182`), and it is what the switch check counts — if you switched a
+(`src/engine/law.py:127-129`), and it is what the switch check counts — if you switched a
 supernatural switch on, this check looks for at least one law whose domain is `supernatural`
-(`src/engine/bible.py:312-321`).
+(`src/engine/law.py:208-217`).
 
 **IF YOU LEAVE IT BLANK:** the book refuses to load and names the law.
 
 ## 9.4 `laws[].modality` — the field that decides everything
 
 **REQUIRED.** One of exactly four words, in capitals. Anything else refuses the book and lists
-all four (`src/engine/bible.py:184-185`). The four are
-`("IMPOSSIBLE", "FORBIDS", "REQUIRES", "PERMITS")` (`src/engine/bible.py:50`).
+all four (`src/engine/law.py:131-132`). The four are
+`("IMPOSSIBLE", "FORBIDS", "REQUIRES", "PERMITS")` (`src/engine/law.py:45`).
 
 Here is what each one actually does to a scene, in plain words.
 
@@ -1033,9 +1033,9 @@ The scene is **refused**. It does not run. The pre-flight raises and prints whic
 it and what that law says (`scripts/scene.py:290-293`).
 
 This is the *only* modality that denies. That is deliberate and it is stated in the code:
-`_DENYING = ("IMPOSSIBLE",)` (`src/engine/bible.py:65`), with the reason written beside it —
+`_DENYING = ("IMPOSSIBLE",)` (`src/engine/law.py:61`), with the reason written beside it —
 "a gate that denied every ILLEGAL act would make crime unwritable... A character breaking a law
-is not a gate failure, it is the story" (`src/engine/bible.py:61-64`).
+is not a gate failure, it is the story" (`src/engine/law.py:57-60`).
 
 Use it for things that are not *possible*: people cannot fly, the dead do not return, no rider
 can reach the valley before the thaw.
@@ -1044,7 +1044,7 @@ can reach the valley before the thaw.
 
 The scene **runs**. The act is against the rules and it happens anyway, and then it costs
 something. The verdict returns it as a violation with its `teeth` attached
-(`src/engine/bible.py:477, 485`), the pre-flight prints "is FORBIDDEN but possible - it runs,
+(`src/engine/law.py:376, 485`), the pre-flight prints "is FORBIDDEN but possible - it runs,
 and it costs" together with the consequence (`scripts/scene.py:294-297`), and after the beat a
 law-violation event is recorded in the run's log (`scripts/scene.py:252-255`).
 
@@ -1055,7 +1055,7 @@ story; the teeth are what make it cost.
 
 The scene **runs**, and the *omission* is recorded as a violation, with teeth, exactly like a
 `FORBIDS` (they are handled by the same branch — `r["modality"] in ("FORBIDS", "REQUIRES")`,
-`src/engine/bible.py:476-477`).
+`src/engine/law.py:375-376`).
 
 Use it for duties. The reference book's third law is one: the mill race must be kept clear
 through a frost (`Beck Hollow/world/BeckHollow.md:178-187`), which hands a character a duty he
@@ -1065,7 +1065,7 @@ already discharges without counting it as courage.
 
 The scene **runs**, and this rule *disarms other rules*. A permit with no `excepts` list is a
 general allowance: while it bears on the act, nothing else denies and nothing else counts as
-violated (`src/engine/bible.py:469, 472-477`).
+violated (`src/engine/law.py:368, 472-477`).
 
 Use it sparingly, and prefer the narrow form — see `excepts` at 9.9.
 
@@ -1080,28 +1080,28 @@ modality:  ____________________   (IMPOSSIBLE / FORBIDS / REQUIRES / PERMITS)
 ## 9.5 `laws[].epistemic` — is this actually true, or only believed?
 
 **REQUIRED in four domains, and worth writing everywhere.** One of exactly three values
-(`src/engine/bible.py:57`):
+(`src/engine/law.py:52`):
 
 | value | what it means | what the engine does |
 |---|---|---|
-| `known-true` | this is really how the world works | the law binds — it can deny and it can be violated (`src/engine/bible.py:466`) |
+| `known-true` | this is really how the world works | the law binds — it can deny and it can be violated (`src/engine/law.py:365`) |
 | `known-false` | people believe it; it is not so | the law **never** constrains anything — excluded by the same line above; a world where people believe the dead walk is not a world where they do |
-| `contested-unknowable` | the world deliberately never decides | the verdict comes back **undecidable** rather than allowed. The gate refuses to invent the ground truth in either direction (computed at `src/engine/bible.py:467-468, 480`); the pre-flight prints "the world declines to rule" (`scripts/scene.py:298-299`) |
+| `contested-unknowable` | the world deliberately never decides | the verdict comes back **undecidable** rather than allowed. The gate refuses to invent the ground truth in either direction (computed at `src/engine/law.py:366-367, 480`); the pre-flight prints "the world declines to rule" (`scripts/scene.py:298-299`) |
 
 Two shorthands are accepted and quietly translated: `true` becomes `known-true` and `believed`
 becomes `known-false` — `_EPISTEMIC_ALIASES = {"true": "known-true", "believed": "known-false"}`
-(`src/engine/bible.py:58`). Anything else refuses the book and lists the three
-(`src/engine/bible.py:188-189`).
+(`src/engine/law.py:53`). Anything else refuses the book and lists the three
+(`src/engine/law.py:135-136`).
 
 >> **HOW THIS IS USED:** only `known-true` laws bind. Everything else is filtered out before the
-verdict is computed (`src/engine/bible.py:466`).
+verdict is computed (`src/engine/law.py:365`).
 
-**IF YOU LEAVE IT BLANK:** it silently becomes `known-true` (`src/engine/bible.py:186`). For a
+**IF YOU LEAVE IT BLANK:** it silently becomes `known-true` (`src/engine/law.py:133`). For a
 law about physics or the market that is fine. For a law about the supernatural, about souls and
 death, about fate, or about the shape of reality, it means you have fixed a truth you never
 chose — so the completeness check names it, coded `epistemic-unstated`, in exactly those four
 domains (`_EPISTEMIC_REQUIRED_IN = ("supernatural", "persons", "fate", "cosmology")`,
-`src/engine/bible.py:113`; the problem is raised at `:328-335`).
+`src/engine/law.py:111`; the problem is raised at `:328-335`).
 
 **`contested-unknowable` is the interesting one.** It is how you write a world that refuses to
 say whether the gods are real. Both the devout and the sceptic are simulated identically; only
@@ -1130,8 +1130,8 @@ Worked examples (`Beck Hollow/world/BeckHollow.md:164, 173, 182`):
 >> **HOW THIS IS USED:** it is the key that decides whether a law bears on a moment at all. A
 law bears when its act matches the act the scene declared, or when the law names no act —
 `if row["act"] and act is not None and row["act"] != act: return False`
-(`src/engine/bible.py:408`). The match is exact, never fuzzy; the code says why — "a near-match
-would deny the wrong thing" (`src/engine/bible.py:392-393`).
+(`src/engine/law.py:309`). The match is exact, never fuzzy; the code says why — "a near-match
+would deny the wrong thing" (`src/engine/law.py:293-294`).
 
 **IF YOU LEAVE IT BLANK:** the law bears on **everything**. Every scene that declares any act
 gets this law in its bearing set. On a live book measured by the engine's own authors, an
@@ -1157,7 +1157,7 @@ Worked example (`Beck Hollow/world/BeckHollow.md:184`):
 > "the Hollow goes short, and everyone knows whose work it was"
 
 >> **HOW THIS IS USED:** the teeth of every violated law are collected into the verdict
-(`src/engine/bible.py:485`), printed beside the law when the scene pre-flight allows a forbidden
+(`src/engine/law.py:384`), printed beside the law when the scene pre-flight allows a forbidden
 act (`scripts/scene.py:294-297`), and recorded in the run's log as part of the law-violation
 event (`scripts/scene.py:252-255`).
 
@@ -1166,7 +1166,7 @@ behalf; turning a consequence into a real change is the director's judgement
 (`scripts/scene.py:214-216`).
 
 **IF YOU LEAVE IT BLANK:** the violation is still recorded, but the reason line reads "no stated
-consequence" (`src/engine/bible.py:487`). A `FORBIDS` with no teeth is a rule that costs
+consequence" (`src/engine/law.py:386`). A `FORBIDS` with no teeth is a rule that costs
 nothing, which is the same as no rule.
 
 **A good teeth clause vs a weak one.**
@@ -1200,17 +1200,17 @@ to mean the same thing in both places, write it in both places — `people[].gro
 `fixed.position.class` on the character sheet — because nothing keeps them in sync for you.
 
 >> **HOW THIS IS USED — all six scopes are wired.** Each scope is parsed and carried onto the
-law's row (`src/engine/bible.py:204-208`) and stored with it (`src/engine/bible.py:369-375`). The
+law's row (`src/engine/law.py:151-155`) and stored with it (`src/engine/bible.py:149-155`). The
 narrowing lives in one function, `bible._applies`, and as of 2026-08-30 it checks all six —
 `act`, `location_scope`, `actor_class`, `target_class`, `time_from`/`time_to` — where it used to
 read only the first two. A scope left blank on the law bears on all; a scope you set must match,
 exactly, never fuzzily — `location_scope` for instance is a plain string equality against the
 location the scene declared, never a substring or a fuzzy guess
-(`src/engine/bible.py:391-421`, the six checks themselves at `:408-420`).
+(`src/engine/law.py:292-322`, the six checks themselves at `:408-420`).
 
 **The one thing "live" does not mean: that every scope narrows every decision.** `_applies`
 treats a scope argument the CALLER never supplies as "cannot tell, so don't narrow" — never as a
-mismatch (`src/engine/bible.py:402-406` states why: a law the gate misses is a false PASS, and a
+mismatch (`src/engine/law.py:303-307` states why: a law the gate misses is a false PASS, and a
 caller ignorant of the actor's class must not get a quieter world than the one you wrote). This
 engine has exactly two callers, and they do not supply the same facets:
 
@@ -1265,7 +1265,7 @@ the schema (`src/engine/schema.sql:219-220`). An earlier draft of this worked ex
 `"dusk"`/`"dawn"` as the values, matching how the field reads in prose; that is now a documented
 mistake, not a style choice — comparing an integer tick against a string time crashes with a raw
 Python `TypeError` the moment a beat inside the window is recorded, and that error is not a
-`BibleError`, so nothing in the pipeline catches it (`src/engine/bible.py:416-420` does the
+`BibleError`, so nothing in the pipeline catches it (`src/engine/law.py:317-321` does the
 comparison; `scripts/scene.py:232` only catches `bible.BibleError`). Pick the turn numbers this
 window should span the way you would pick any other number for this sheet: ask what beat the gate
 closes on and what beat it opens again, and write those.
@@ -1278,26 +1278,26 @@ A `PERMITS` with no `excepts` disarms **everything** bearing on that act. That i
 much. `excepts` narrows it: this permit disarms only the laws you name.
 
 >> **HOW THIS IS USED:** a permit with an `excepts` list disarms only the ids in it; one without
-disarms every law bearing on the act (`src/engine/bible.py:469-477`). Every id you name is
+disarms every law bearing on the act (`src/engine/law.py:368-376`). Every id you name is
 checked against the final rule set — including the five inherited defaults, so a permit may
 legitimately except `default-no-flight` — and an unknown id refuses the book by name
-(`src/engine/bible.py:264-271`).
+(`src/engine/law.py:208-215`).
 
 **Must an excepted id share this permit's own `act`? No — nothing checks that, and nothing works
 unless it effectively does anyway.** The only validation `excepts` gets is that every id names a
 real law somewhere in the final rule set — checked against ALL of them, not just the ones sharing
-this permit's `act` (`src/engine/bible.py:264-271`, the same lines as above). But the disarm
+this permit's `act` (`src/engine/law.py:208-215`, the same lines as above). But the disarm
 itself only ever happens inside `verdict_for`, against `bearing` — a set already narrowed to laws
 matching the CURRENT act (and location, and so on) before `excepts` is even consulted
-(`src/engine/bible.py:464`, disarm logic at `:469-477`). So excepting a law with a different,
+(`src/engine/law.py:363`, disarm logic at `:469-477`). So excepting a law with a different,
 specific `act` parses cleanly, refuses nothing when the book loads, and then does **nothing** at
 runtime — that law can never appear in the set this permit is evaluated against. Except only a
 law that shares this permit's own `act`, or one that carries no `act` at all (an unscoped law
 bears on every act, this one included, so excepting it always has an effect).
 
 **IF YOU PUT IT ON ANYTHING BUT A PERMITS:** the book refuses to load — "excepts is only
-meaningful on a PERMITS row" (`src/engine/bible.py:194-195`). An empty list, or a list with a
-blank entry, also refuses (`src/engine/bible.py:198-201`).
+meaningful on a PERMITS row" (`src/engine/law.py:141-142`). An empty list, or a list with a
+blank entry, also refuses (`src/engine/law.py:145-148`).
 
 ## 9.10 `laws[].source_note` — write it for yourself
 
@@ -1312,11 +1312,11 @@ Worked examples (`Beck Hollow/world/BeckHollow.md:166, 175, 185`):
 > - "switches.magic is false; this law makes the mundane frame refusable rather than assumed"
 > - "gives Tam a duty he already discharges — competence he does not count as courage"
 
->> **HOW THIS IS USED:** it is carried onto the law's row (`src/engine/bible.py:210`) and stored
-with the pinned bible (`src/engine/bible.py:369-375`) — but nothing reads it back out. It is
+>> **HOW THIS IS USED:** it is carried onto the law's row (`src/engine/law.py:157`) and stored
+with the pinned bible (`src/engine/bible.py:149-155`) — but nothing reads it back out. It is
 recorded, not consumed. The one place the engine writes into it itself is on the five inherited
 defaults, where it stamps which meta-rule the default came from
-(`src/engine/bible.py:253-254`).
+(`src/engine/law.py:198-199`).
 
 **IF YOU LEAVE IT BLANK:** nothing happens. Write it anyway. A law with no stated reason is the
 first one you will delete by mistake.

@@ -461,42 +461,42 @@ def test_preflight_all_25_events():
 
 # ==== Runner ====
 
-def main():
-    tests = [
-        # Schema
-        test_schema_unknown_type,
-        test_schema_bad_dim_value,
-        test_schema_bad_durability,
-        test_schema_bad_confidence,
-        # Containment
-        test_containment_target_perceived,
-        test_containment_target_not_perceived,
-        test_containment_target_not_perceived_escalates,
-        # Dim-type mismatch
-        test_dim_type_mismatch_mundane_threat,
-        test_dim_type_mismatch_mundane_valid_dims,
-        test_affront_hosts_social_violation,
-        # Capability
-        test_capability_harm_maren_fails,
-        test_capability_harm_high_combat_passes,
-        test_capability_no_req_types,
-        # Confidence composition
-        test_confidence_composition_one_soft_fail,
-        test_confidence_composition_clean_tag,
-        test_confidence_default_no_flags,
-        # Escalation boundary
-        test_escalation_below_theta,
-        test_escalation_above_theta,
-        test_escalation_at_theta,
-        # Catalog completeness
-        test_catalog_completeness,
-        # Fail-loud
-        test_fail_loud_non_dict_tags,
-        test_fail_loud_non_list_percepts,
-        test_fail_loud_non_dict_skills,
-        # Pre-flight
-        test_preflight_all_25_events,
+def test_the_three_MALFORMED_INPUT_refusals_carry_REGISTERED_codes():
+    """The module held up thirteen coded TAG_ refusals and answered three inputs in prose — the
+    half-converted state that tells a reader to grep for a handle and then does not have one.
+
+    It stayed invisible for a different reason worth recording: a regex sweep over `raise X(` sees
+    `_require(cond, code, msg)` as an uncoded raise and never sees the thirteen codes at all, so it
+    filed this module as ALL-PROSE. `tests/test_errors.py` parses instead, and that is what found
+    it."""
+    from src.engine import codes
+    from src.engine.consolidation import TagError
+    cases = [
+        ("TAG_TAGS_NOT_AN_OBJECT", lambda: validate_tags("not a dict", [], {})),
+        ("TAG_PERCEPTS_NOT_A_LIST", lambda: validate_tags({"type": "mundane"}, "nope", {})),
+        ("TAG_SKILLS_NOT_AN_OBJECT", lambda: validate_tags({"type": "mundane"}, [], "nope")),
     ]
+    for want, call in cases:
+        try:
+            call()
+        except TagError as e:
+            assert e.code == want, "expected %s, got %r" % (want, e.code)
+            assert codes.is_registered(e.code), "%s is raised but not registered" % e.code
+        else:
+            raise AssertionError("%s: the malformed input was ACCEPTED" % want)
+
+
+def main():
+    # DISCOVERED, NOT LISTED — the SEVENTH instance of this shape found in two days, and the same
+    # duplicate that hid a determinism guard in test_scene.py and swallowed a counter-instrument in
+    # test_errors.py. Stated accurately: this list was CORRECT when it was replaced, naming all 24
+    # tests then defined. That is the point rather than a mitigation — the list is not dangerous
+    # because it is wrong today, it is dangerous because it goes stale the moment someone adds a
+    # test and forgets the second edit, and it fails SILENT when it does: the run still prints PASS
+    # for everything it did run and says nothing about what it skipped.
+    tests = sorted((v for k, v in globals().items()
+                    if k.startswith("test_") and callable(v)),
+                   key=lambda f: f.__code__.co_firstlineno)
     passed = failed = 0
     for fn in tests:
         try:
@@ -506,10 +506,10 @@ def main():
         except AssertionError as e:
             print("FAIL  %s — %s" % (fn.__name__, e))
             failed += 1
-        except Exception as e:
+        except Exception as e:                        # noqa: BLE001 — a harness reports, never raises
             print("ERROR %s — %s" % (fn.__name__, e))
             failed += 1
-    print("\n%d passed, %d failed" % (passed, failed))
+    print(chr(10) + "%d passed, %d failed" % (passed, failed))
     return 0 if failed == 0 else 1
 
 

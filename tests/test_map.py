@@ -83,7 +83,24 @@ def test_the_check_can_fail():
 # tolerance. The test below fails if the set grows AND if it shrinks: a new name means a module
 # crossed the line, and a departing name means this list is stale and should be tightened.
 # Splitting these four is its own arc; recording them is not the same as accepting them.
-_OVER_AT_FIRST_MEASUREMENT = {"bible.py", "consolidation.py", "gate.py", "state.py"}
+# A RATCHET, not a permission slip. This was a set of NAMES, so a grandfathered file could grow
+# without limit and the guard structurally could not object — measured 2026-09-01 by an adversarial
+# review: bible 515->546, consolidation 525->650, gate 505->597, state 531->665, and this session
+# added ~130 lines to state.py while the suite stayed green.
+#
+# It is a CEILING PER FILE now. Debt is allowed to persist and is not allowed to grow: work on one
+# of these either shrinks it or splits it, and the number below only ever moves DOWN. A file that
+# needs to grow is a file that needs splitting — which is what `snapshots.py`, `scene_cfg.py` and
+# `world_events.py` are, each carved out the moment `ledger.py` crossed the line.
+_OVER_AT_FIRST_MEASUREMENT = {
+    # bible.py LEFT this list on 2026-09-03 at 546 lines — split into bible.py (the PIN) and
+    # law.py (the RULING) because the debt had stopped being debt and started blocking work: a
+    # ready delegation took it to 562 and this ratchet refused it. Removing it here is the point
+    # of the ratchet, not a concession to it — the list is a high-water mark that must fall.
+    "consolidation.py": 650,
+    "gate.py":          521,
+    "state.py":         606,
+}
 
 
 def test_the_500_line_rule_is_measured_at_all():
@@ -121,18 +138,69 @@ def test_the_500_line_rule_is_measured_at_all():
     check("the-check-walks-the-whole-engine", checked >= 20,
           "only %d modules walked — the listing is wrong" % checked)
     check("no-NEW-module-crossed-500",
-          not (set(over) - _OVER_AT_FIRST_MEASUREMENT),
-          "newly over: %s" % ", ".join(sorted(set(over) - _OVER_AT_FIRST_MEASUREMENT)))
+          not (set(over) - set(_OVER_AT_FIRST_MEASUREMENT)),
+          "newly over: %s" % ", ".join(sorted(set(over) - set(_OVER_AT_FIRST_MEASUREMENT))))
     check("the-debt-list-is-not-stale",
-          not (_OVER_AT_FIRST_MEASUREMENT - set(over)),
+          not (set(_OVER_AT_FIRST_MEASUREMENT) - set(over)),
           "back under the bound, remove from _OVER_AT_FIRST_MEASUREMENT: %s"
-          % ", ".join(sorted(_OVER_AT_FIRST_MEASUREMENT - set(over))))
+          % ", ".join(sorted(set(_OVER_AT_FIRST_MEASUREMENT) - set(over))))
+    # THE RATCHET. Existing debt may stay; it may not GROW. Without this the two checks above pass
+    # while a 505-line file becomes a 900-line one, which is how all four of these got where they
+    # are. Lower the number when you shrink a file; never raise it.
+    grew = ["%s %d -> %d" % (f, _OVER_AT_FIRST_MEASUREMENT[f], n)
+            for f, n in sorted(over.items())
+            if f in _OVER_AT_FIRST_MEASUREMENT and n > _OVER_AT_FIRST_MEASUREMENT[f]]
+    check("no-GRANDFATHERED-module-grew", not grew,
+          "over-bound files may not grow — split instead: %s" % "; ".join(grew))
+    shrank = ["%s %d -> %d" % (f, _OVER_AT_FIRST_MEASUREMENT[f], n)
+              for f, n in sorted(over.items())
+              if f in _OVER_AT_FIRST_MEASUREMENT and n < _OVER_AT_FIRST_MEASUREMENT[f]]
+    for line in shrank:                       # progress is REPORTED, never a failure
+        print("       SHRANK  %s — lower it in _OVER_AT_FIRST_MEASUREMENT" % line)
+
+
+def test_the_layer_marker_has_a_READER():
+    """`__layer__ = "engine"` was declared by five modules and read by NOTHING.
+
+    Measured 2026-09-03: grep over src/, scripts/ and tests/ returned zero non-declaration
+    references. A declared-never-read key is the class this repo has spent a week removing
+    (`_KNOWN_DIMS` discarding every appraisal, `run_config` guarded by an always-false hasattr,
+    `verdict_for`'s teeth computed and consumed by no one) — and the fifth instance was added by
+    the floor extraction, by me, the same day.
+
+    THIS IS THE WEAK FORM, and the weakness is the point of saying so: it checks that every module
+    which DECLARES the marker declares "engine" and lives under src/engine/. It does NOT require
+    every engine module to declare one — roughly nineteen do not, and making that mandatory is a
+    decision about whether the convention is wanted at all, not a test to smuggle in. What this
+    stops is the marker drifting into a second value, or onto a file outside the engine, unnoticed.
+    """
+    import re
+    declared = {}
+    for root, _dirs, files in os.walk(os.path.join(REPO, "src")):
+        for fn in files:
+            if not fn.endswith(".py"):
+                continue
+            path = os.path.join(root, fn)
+            m = re.search("""^__layer__\s*=\s*['"](.+?)['"]""",
+                          io.open(path, encoding='utf-8').read(), re.M)
+            if m:
+                declared[os.path.relpath(path, REPO).replace("\\", "/")] = m.group(1)
+    check("the-marker-is-declared-somewhere", bool(declared),
+          "nobody declares __layer__ — the convention is gone, retire this test")
+    wrong_value = {f: v for f, v in declared.items() if v != "engine"}
+    check("every-declarer-says-engine", not wrong_value, wrong_value)
+    misplaced = [f for f in declared if not f.startswith("src/engine/")]
+    check("every-declarer-lives-in-the-engine", not misplaced, misplaced)
+    print("       %d module(s) declare __layer__; this is the marker's only reader" % len(declared))
 
 
 def main():
     print("test_map.py — the routing table, checked against the tree")
-    for t in (test_map_matches_the_tree, test_regeneration_is_a_fixed_point,
-              test_the_check_can_fail, test_the_500_line_rule_is_measured_at_all):
+    # DISCOVERED, NOT LISTED — the duplicate CLAUDE.md tabulates, and the shape that hid a
+    # determinism guard in test_scene.py for a whole run on 2026-09-01.
+    for t in sorted((v for k, v in globals().items()
+                     if k.startswith("test_") and callable(v)),
+                    key=lambda f: f.__code__.co_firstlineno):
         t()
     print("\nVERDICT: %s" % ("PASS" if not _FAILS else "FAIL -> %s" % _FAILS))
     return 1 if _FAILS else 0

@@ -666,11 +666,22 @@ def test_edges_survive_the_scene():
           abs(rels["a"]["their_view"]["affinity"] - 0.30) < 1e-9, rels["a"].get("their_view"))
     check("the-orders-do-not-collide",
           rels["a"]["affinity"] != rels["a"]["their_view"]["affinity"])
+    # THE FOLD BOTH DRIVERS NOW CALL is `rehydrate`, which walks declarations and movements
+    # INTERLEAVED by turn — drift is multiplicative toward a prior and a delta is additive, so they
+    # do not commute and a delta-only fold arrives at a number the run never held. `replay` above
+    # is still the delta-only fold and is still exercised; this asserts the resume paths use the
+    # ordered one.
+    tl = [("edge", t, a, d, o) for t, a, d, o in rows]
+    r2 = bonds.rehydrate({"a": {"trust": 0.80, "affinity": 0.70}}, {}, tl)
+    check("rehydrate-matches-replay-with-no-declarations", r2["a"] == rels["a"],
+          "%s vs %s" % (r2["a"], rels["a"]))
+    check("rehydrate-keeps-the-second-order",
+          abs(r2["a"]["their_view"]["affinity"] - 0.30) < 1e-9, r2["a"].get("their_view"))
     for _script in ("scene.py", "direct.py"):                       # BOTH resume paths, one fold
         _src = open(os.path.join(REPO, "scripts", _script), encoding="utf-8").read()
         check("%s-replays-through-bonds" % _script[:-3],
-              "bonds.replay" in _src and "edge_deltas_for" in _src,
-              "the reader exists but this resume path does not call it")
+              "bonds.rehydrate" in _src and "timeline_for" in _src,
+              "the ordered fold exists but this resume path does not call it")
     check("replay-refuses-an-unknown-axis",
           _raises(lambda: bonds.replay({}, [("a", "loyalty", 0.1, "first")])))
     check("bad-order-fails-loud",

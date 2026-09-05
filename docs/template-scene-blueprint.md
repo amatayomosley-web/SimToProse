@@ -129,8 +129,13 @@ engine derives its own version from the sheets; this section does not feed it.
 ## 5. Opening Tags — 🟢 ENGINE (`dimensions` only)
 
 ```json
-"opening_tags": {"type": "mundane", "dimensions": {"threat": 0.2, "care_relevant": 0.65}, "durability": "durable"}
+"opening_tags": {"type": "mundane", "dimensions": {"threat": "slight", "care_relevant": "marked"}, "durability": "durable"}
 ```
+
+A number still works and still means what it always did — `scripts/scene.py` resolves the word
+at the cfg parse seam, so nothing authored before the ladder changed. Write the word: the point
+of the ladder is that choosing between 0.45 and 0.5 is a choice nobody can defend, and the two
+forms hash identically, so switching one for the other never reads as cfg drift.
 
 - **`dimensions`** — 🟢 the live field. Legal keys, and only these seven:
   `attraction`, `care_relevant`, `loss`, `mastery`, `relief`, `social_violation`, `threat`.
@@ -139,9 +144,12 @@ engine derives its own version from the sheets; this section does not feed it.
 
   **Size them against `standard-vectors.md` §3, which is normative and owns this** — do not
   calibrate by feel, and do not treat the summary below as the source:
-  `0.1–0.3` ordinary friction · `0.3–0.5` real but bounded · `0.5–0.7` severe, the event people
-  retell · `0.7–0.9` grave, irreversible loss probable · `1.0` reserve. Omission is the default for
-  most dimensions of most events. `scene-authoring-rules.md` Rule 7 states the binding.
+  a WORD, not a number: `faint` · `slight` · `mild` ordinary friction · `moderate` real but
+  bounded · `marked` the event people retell · `severe` grave, irreversible loss probable ·
+  `extreme` reserve it. Omission is the default for most dimensions of most events, and a word you
+  cannot defend against its neighbour is a word to leave out. `scene-authoring-rules.md` Rule 7
+  states the binding; `scripts/scene.py` resolves the word to its value at the cfg parse seam, so
+  a number still works and means exactly what it always did.
 
   **Do not inflate a magnitude to make something happen.** §3 is explicit that a single appraisal
   on a neutral sheet almost never changes the next staging line, *by design* — `care_relevant`

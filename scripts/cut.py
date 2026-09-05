@@ -105,11 +105,64 @@ def main():
     ap.add_argument("--run", required=True, help="run_id to view")
     ap.add_argument("--db", default=None, help="chronicle db path (default <vault>/runs/<book>.db)")
     ap.add_argument("--top", type=int, default=8, help="how many biggest-moment candidates to show")
+    ap.add_argument("--edl", default=None, metavar="FILE",
+                    help="record an EDL from a JSON file of entries the ROOM decided "
+                         "(a list of {ord_no, kind, ...}); prints the trace audit, does not view")
+    ap.add_argument("--revise", action="store_true",
+                    help="record the --edl file as a REVISION: a new generation that supersedes "
+                         "the current cut, which stays in the log")
+    ap.add_argument("--show-edl", action="store_true", dest="show_edl",
+                    help="print this run's recorded EDL and the trace audit")
     args = ap.parse_args()
 
     from src.engine.vault import load_book
     _world, _chars = load_book(args.vault)
     led = Ledger(args.db or books.db_path(args.vault))
+
+    # ---- THE RECORD HALF (cutting-room.md part 3). The room decides; this writes it down.
+    # Deliberately a file of entries rather than anything computed: the automated selection
+    # pipeline is REJECTED in cutting-room.md and nothing here proposes, ranks or gates a cut.
+    if args.revise and not args.edl:
+        raise SystemExit("--revise records a REVISION of a cut; pass --edl FILE with the entries "
+                         "to record. On its own it would silently do nothing.")
+    if args.edl:
+        from src.engine import edl as edl_mod
+        with open(args.edl, encoding="utf-8") as fh:
+            entries = json.load(fh)
+        if not isinstance(entries, list):
+            raise SystemExit("--edl file must hold a LIST of entries, got %s" % type(entries).__name__)
+        # REVISION IS A GENERATION. Without this flag the room could record a cut once and never
+        # change its mind from any user surface: a second --edl run collided on the primary key and
+        # the error told the operator to call next_generation() — a Python API. The library could
+        # revise and the CLI could not, which is the capability-with-no-writer class again.
+        gen = edl_mod.next_generation(led.con, args.run) if args.revise else None
+        with led.con:
+            for i, e in enumerate(entries):
+                e = dict(e)
+                kind = e.pop("kind", None)
+                ordn = e.pop("ord_no", i)
+                e.pop("generation", None)     # the flag decides it; a payload key would be swallowed
+                edl_mod.append(led.con, args.run, ordn, kind, e, generation=gen)
+        print("recorded %d EDL entries for run %s%s"
+              % (len(entries), args.run,
+                 (" as generation %d (the previous cut is superseded, not deleted)" % gen)
+                 if args.revise else ""))
+        args.show_edl = True
+
+    if args.show_edl:
+        from src.engine import edl as edl_mod
+        scene_rows = led.scenes_for(args.run)      # ROWS: traces needs the turn ranges
+        for e in edl_mod.entries_for(led.con, args.run):
+            print("  [%d] %-8s %s" % (e["ord_no"], e["kind"],
+                                      {k: v for k, v in e.items() if k not in ("ord_no", "kind")}))
+        ok, problems = edl_mod.traces(led.con, args.run, scene_rows)
+        # "every prose unit traces to an EDL entry; every entry traces to recorded events" — the
+        # second clause, checked. Reported, never raised: an audit that aborts cannot show the list.
+        print("TRACE AUDIT: %s" % ("every entry traces to a recorded scene" if ok else "FAILED"))
+        for pr in problems:
+            print("  [!] %s" % pr)
+        return 0 if ok else 1
+
     d = dailies(led, args.run, args.top)
 
     print("=== DAILIES: run %s ===\n" % args.run)

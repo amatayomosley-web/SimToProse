@@ -408,6 +408,33 @@ claim from "she is frightened in chapter one".
 | `PLAY` | engagement for its own sake, without stake |
 | `DISGUST` | expel — *this would contaminate me* |
 
+*(This table is copied from `docs/emotion-basis.md` so you do not have to leave the page for eight
+names. It is a duplicate of a normative source, which is a thing this project treats as a defect —
+so it is CHECKED: `tests/test_citations.py` resolves the citation above against the tree on every
+run. If the basis doc changes and this table does not, the suite says so.)*
+
+### WHERE THE NUMBERS COME FROM, AND WHAT THEY MEAN
+
+You are writing sentences and someone else is turning them into figures. Those figures are not
+arbitrary and they are not yours to invent — three documents own them, and this section pointed at
+none of them until 2026-09-03:
+
+| you want to know | read | why that one |
+|---|---|---|
+| what a VALUE means — is 0.62 fear a lot? | `docs/emotion-scales.md` | **normative** for what each value MEANS. Before it existed, `direction.py`'s rendering bands were the de facto specification: a display constant standing in for a definition |
+| what to CALL a state you can picture but not name | `docs/emotion-vocabulary.md` | every nameable state, defined, located on the primitives it sits on, with its magnitude span — written so you can choose between two neighbours |
+| the same names STAGED BY DEGREE | `docs/emotion-list.md` | one row per family, five degrees each. *Annoyance* and *rage* are one circuit at two heights |
+| where a specific name sits, and its variants | `docs/emotion-names/` | one file per primitive-and-target, e.g. `CARE-outward.md` vs `CARE-reflexive.md` vs `CARE-unbound.md`. `_ROUTING.md` records the names a rule MOVED from the table they were first swept onto |
+
+**THE TARGET IS PART OF THE FEELING, and this is the thing most likely to be got wrong here.** CARE
+directed outward at a person, CARE turned reflexively on yourself, and CARE with no object at all
+are three different states, and `docs/emotion-names/` splits them because a name that ignores the
+target is a name for the wrong thing. When you write "she is tender," say tender *toward whom*.
+
+**A compound is not a primitive.** Part three asks for eight resting levels and nothing else —
+disdain, contempt, and shame are combinations and do not get a slot. Name them in your sentences by
+all means; `emotion-vocabulary.md` says what they are made of, and the sizer prices the parts.
+
 **YOUR JOB — write one sentence per primitive.** Where does this person sit when the room is quiet?
 
 ```
@@ -1160,7 +1187,7 @@ to record why the four circles are where they are, and both real characters use 
 first part of that person's id — `faron` from the key `faron` — and **erases it from the entire
 prompt**, replacing every occurrence with your description. Not just from the relationship line: the
 identity block, the voice, the recalled beliefs, the moment itself, all of it
-(`src/engine/gate.py:510-529`, applied across both halves of the prompt at
+(`src/engine/gate.py:427-449`, applied across both halves of the prompt at
 `src/engine/prompt.py:122-127`). The actor is never shown a name its character never learned.
 
 **Worked example (Tam's second edge, which exists precisely to exercise this):**
@@ -1179,7 +1206,7 @@ In every scene those two share, Tam's actor is told about *"the man with the dog
 
 **Three things that follow, and you should know all three:**
 
-- **The masking keys off the id.** It masks the id's first segment (`src/engine/gate.py:526`). If
+- **The masking keys off the id.** It masks the id's first segment (`src/engine/gate.py:440-441`). If
   the person's id is `the_drover` and their name is Faron, the mask replaces *"the"* and does
   nothing useful. **Give people ids that are their first names** and this works exactly as you
   expect.
@@ -1195,7 +1222,7 @@ In every scene those two share, Tam's actor is told about *"the man with the dog
 
 >> **HOW THIS IS USED:** as the actor's own label for that person on the "Those present" line
 >> (`src/engine/scene.py:351`), and as the mask applied across the whole prompt
->> (`src/engine/gate.py:510-529`, `src/engine/prompt.py:126-127`).
+>> (`src/engine/gate.py:427-449`, `src/engine/prompt.py:126-127`).
 
 **IF YOU LEAVE IT BLANK:** the character knows the name — which is the right default and is almost
 always what you want. **You author ignorance; you never blanket-hide.**

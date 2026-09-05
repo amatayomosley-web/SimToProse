@@ -17,9 +17,22 @@ import os
 import sys
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_FIXTURE_SUFFIXES = ("", "-slice", "-healer")   # this repo's fixture stems — they live HERE, not in src/engine (hard rule 1)
 sys.path.insert(0, REPO)
 
 from src.engine.records import PRIMARIES                            # noqa: E402
+from src.engine import books
+from src.engine.state import _DIM_TO_PRIMARY                        # noqa: E402  (the appraisal vocabulary, DERIVED)
+
+# Never a second hand-written list: `state._DIM_TO_PRIMARY` IS the engine's dimension
+# vocabulary, and a copy here would be the eighth row of CLAUDE.md's duplicates table.
+_APPRAISAL_DIMS = frozenset(_DIM_TO_PRIMARY)
+
+# DERIVED from the gate's own list, never a second copy — the words a percept drops.
+from src.engine.gate import _words_from_attr as _wfa                 # noqa: E402
+_STOPWORDS = frozenset(w for w in
+                       ("the a an to of and is in at on by for with her his their its"
+                        " she he they it who was has have").split())
 
 _OPTIONAL_BASELINE = ("traits", "model", "skills", "voice", "drives")
 
@@ -162,6 +175,32 @@ def lint(world, chars):
     for i, p in enumerate(world.get("people") or []):
         if not (isinstance(p, dict) and p.get("id")):
             warnings.append("world.people[%d]: missing id" % i)
+    # AUTHORED TENSIONS — the fifth live field (world-state-ledger.md). Validated at the authoring
+    # boundary, because a tension with an unusable interest or an empty watch looks live and can
+    # never move: nothing would be in scope, nothing would price, and it would sit inert for a whole
+    # book with no error anywhere. Also cross-checked against the world's own ids, so a tension that
+    # watches a place the world does not register is caught here rather than by silence.
+    try:
+        from src.engine.tensions import from_world as _tensions_from_world
+        from src.engine.errors import EngineError as _EngErr
+        _tensions = _tensions_from_world(world)
+    except _EngErr as _te:
+        _tensions = []
+        errors.append("world.tensions: %s" % _te)
+    except ImportError:
+        _tensions = []
+    _people_ids = {p.get("id") for p in (world.get("people") or []) if isinstance(p, dict)}
+    for _t in _tensions:
+        _w = _t.get("watches") or {}
+        for _loc in (_w.get("locations") or []):
+            if location_ids and _loc not in location_ids:
+                warnings.append("world.tensions[%s] watches location %r, which is not registered — "
+                                "no act there can ever be in scope for it (Rule 6)"
+                                % (_t.get("id"), _loc))
+        for _who in (_w.get("parties") or []):
+            if _people_ids and _who not in _people_ids and _who not in (chars or {}):
+                warnings.append("world.tensions[%s] watches party %r, which is neither a registered "
+                                "person nor a cast member — check the id" % (_t.get("id"), _who))
 
     # CAST-JOIN checks (character-authoring-rules.md Rule 1c). The packet is built by JOINS on ids;
     # the engine never infers a connection. A character authored only in characters/ is invisible to
@@ -271,13 +310,14 @@ def lint(world, chars):
         # man who trusts nobody read with ordinary attachment. An ERROR, not a warning: it changes
         # who the character IS and says nothing.
         try:
-            from src.engine.state import _ALLELE
-            _AXES = ("threat_reactivity", "approach_drive", "affiliation_attachment",
-                     "anger_proneness", "effortful_control", "sensitivity")
+            # THE one reading and THE one axis list, both from `heritable.py`. This inline
+            # `split()[0].lower()` was the fourth copy of the parse; a fifth reader that omitted it
+            # made the persistence half of the genotype a silent no-op.
+            from src.engine.heritable import GAIN as _ALLELE, AXES as _AXES, word as _word
             for ax, val in sorted((fixed.get("genotype") or {}).items()):
                 if ax.startswith("_") or ax not in _AXES:
                     continue
-                lead = str(val).split()[0].lower() if str(val).split() else ""
+                lead = _word(val, default="")
                 if lead not in _ALLELE:
                     errors.append("%s: genotype.%s starts %r, which is not an allele - it reads as "
                                   "TYPICAL and the authored trait is lost. Use one of %s as the "
@@ -299,11 +339,113 @@ def lint(world, chars):
             errors.append("%s: baseline.catalog %s" % (tag, e))
         except ImportError:
             pass
-        # THE PAIRING CHECK, and it is the point of this whole block: a wound authored with a
-        # trigger list but NO catalog row means the phobia is prose the engine cannot compute.
-        # That is the exact defect the effective-levers tier exists to end -- authored, moving,
-        # and reaching no arithmetic.
         wounds = ((baseline.get("drives") or {}).get("fears_wounds") or [])
+        # THE WOUND'S OWN FIELDS, checked before the pairing below. A wound with no `intensity` was
+        # not caught anywhere, and `identity_view._said` supplies 0.5 for an absent weight -- so a
+        # dead daughter reached the actor as "it catches you sometimes", banded from a number
+        # nobody wrote. That is a value INVENTED and then shown to the character as true, which is
+        # a worse failure than an absent feature: it is not a gap, it is a lie with a phrase
+        # attached. The fix is here, at the author's boundary, and NOT in `_said` -- `_say_scalars`
+        # records that refusing authored fields "took down two real books on their FIRST contact
+        # with it", so the renderer must stay tolerant of fields the engine never specified.
+        #
+        # The LABEL key is checked too, and deliberately not normalised. `_said` carries every key
+        # except `intensity` straight through to the prompt, so `wound:` and `fear:` are both words
+        # the actor reads about themselves -- an author calling one a fear and the other a wound is
+        # saying something, and rewriting it would edit their prose. What cannot stand is neither
+        # (nothing to render) or both (two names for one thing, and no way to say which is meant).
+        for wi, wnd in enumerate(wounds):
+            if not isinstance(wnd, dict):
+                errors.append("%s: fears_wounds[%d] is not a dict" % (tag, wi))
+                continue
+            labels = [k for k in ("wound", "fear") if str(wnd.get(k, "")).strip()]
+            if not labels:
+                errors.append(
+                    "%s: fears_wounds[%d] has no `wound` or `fear` text - the actor is shown an "
+                    "intensity phrase attached to nothing" % (tag, wi))
+            elif len(labels) > 1:
+                errors.append(
+                    "%s: fears_wounds[%d] carries BOTH `wound` and `fear` - both reach the actor's "
+                    "prompt verbatim, so this renders two names for one thing. Keep the one you "
+                    "mean." % (tag, wi))
+            if not str(wnd.get("id", "")).strip():
+                errors.append(
+                    "%s: fears_wounds[%d] has no `id`. A wound is keyed by id everywhere it can "
+                    "MOVE - the catalog row that names it (levers.scale_to_wounds) and the "
+                    "wound_deltas log that records a change both look it up. Without one this "
+                    "wound can never be scaled, healed or deepened; it is decoration."
+                    % (tag, wi))
+            _perm = wnd.get("permanence")
+            if _perm is not None and not (isinstance(_perm, (int, float))
+                                          and not isinstance(_perm, bool) and 0.0 <= float(_perm) <= 1.0):
+                errors.append(
+                    "%s: fears_wounds[%d] permanence=%r must be a number in [0,1]. It is the FLOOR "
+                    "this wound can ease to: 0.0 can vanish, 1.0 never eases at all."
+                    % (tag, wi, _perm))
+            _cls = wnd.get("class_dim")
+            if _cls is not None and _cls not in _APPRAISAL_DIMS:
+                errors.append(
+                    "%s: fears_wounds[%d] class_dim=%r is not an appraisal dimension. It names "
+                    "WHICH dimension of an event this wound is about — a bereavement is 'loss', a "
+                    "phobia is 'threat'. One of: %s"
+                    % (tag, wi, _cls, ", ".join(sorted(_APPRAISAL_DIMS))))
+            # A TRIGGER THAT CANNOT FIRE. Matching is word-boundary for a single word and
+            # substring for a phrase (wound.fires / facets._mentions), against the raw phrasings a
+            # percept carries. A single-word trigger under three characters, or one that is only a
+            # stopword, can never be produced by any scene -- and a wound whose EVERY trigger is
+            # like that is decoration. Measured: this repo's own fixture had every trigger written
+            # as a phrase, which could not match the shredded word bag the matcher used before the
+            # surfaces view existed, so the deepest wound in the book was permanently inert.
+            _trigs = [str(t).strip() for t in (wnd.get("trigger") or []) if str(t).strip()]
+            if _trigs:
+                _dead = [t for t in _trigs
+                         if " " not in t and (len(t) < 3 or t.lower() in _STOPWORDS)]
+                if len(_dead) == len(_trigs):
+                    warnings.append(
+                        "%s: fears_wounds[%d] has no trigger a scene could match %s - a single-word "
+                        "trigger must be 3+ characters and not a stopword; longer triggers should "
+                        "be phrases in the words a scene would actually use"
+                        % (tag, wi, _dead[:3]))
+            elif str(wnd.get("id", "")).strip():
+                warnings.append(
+                    "%s: fears_wounds[%d] has NO trigger list at all - nothing can ever fire it"
+                    % (tag, wi))
+            if "intensity" not in wnd:
+                errors.append(
+                    "%s: fears_wounds[%d] (%r) has no `intensity` - identity_view._said would "
+                    "supply 0.5 and the actor would be told this %s, from a number you did not "
+                    "write. Author it against the direction bands: below 0.25 'an old scar you "
+                    "rarely feel', 0.25-0.55 'it catches you sometimes', 0.55-0.80 'it takes hold "
+                    "of you when it comes', 0.80+ 'it takes you over'."
+                    % (tag, wi, str(wnd.get(labels[0]) if labels else "")[:60],
+                       "catches you sometimes"))
+        # THE DECLARED LINK, checked both ways. A catalog row may name the wound it belongs to;
+        # `levers.scale_to_wounds` then scales its magnitude by what remains of that wound. A row
+        # naming an id no wound carries is scaled by nothing and fires at full strength forever --
+        # silently, because an unlinked row is exactly what every pre-existing row looks like.
+        _wids = {str(w.get("id")) for w in wounds
+                 if isinstance(w, dict) and str(w.get("id", "")).strip()}
+        for ri, row in enumerate(rows if isinstance(rows, list) else []):
+            if not isinstance(row, dict):
+                continue
+            named = str(row.get("wound", "") or "").strip()
+            if named and named not in _wids:
+                errors.append(
+                    "%s: baseline.catalog row %d names wound %r, which no fears_wounds entry "
+                    "carries as an `id`. The row would fire at full magnitude no matter what "
+                    "happens to that wound. Known ids: %s"
+                    % (tag, ri, named, sorted(_wids) or "none - no wound carries an id"))
+        # THE PAIRING CHECK: a wound authored with a trigger list but NO catalog row means the
+        # phobia is prose the engine cannot compute. That is the exact defect the effective-levers
+        # tier exists to end -- authored, moving, and reaching no arithmetic.
+        # `any`, NOT `every`, and that is load-bearing. A build plan for this gate proposed
+        # tightening it; checked against the fixtures first, `every` FLAGS A CORRECT CHARACTER --
+        # ren-traveler's triggers are ["spider", "web", "something moving in the dark above"] while
+        # his rows key on ["spider","spiders","web","webbing"], and his own `_note` documents the
+        # split on purpose: "This prose is what the ACTOR reads. The operational half is
+        # baseline.catalog row 1". Evocative trigger prose with the operative words in the catalog
+        # is the authored pattern, not a defect. (Same shape as the magnitude guard that reported
+        # five false positives against a live book before it was split bounded/unbounded.)
         row_words = " ".join(str(w).lower()
                              for r in rows
                              for w in ((r.get("when") or {}).get("percept") or []))
@@ -337,11 +479,10 @@ def lint(world, chars):
 
 def _load_fixture(book, char):
     def find(folder, stem):
-        for cand in (stem, stem + "-slice", stem + "-healer"):
-            p = os.path.join(REPO, folder, cand + ".json")
-            if os.path.exists(p):
-                return p
-        raise SystemExit("no %s/%s*.json found" % (folder, stem))
+        try:                           # ONE copy of this search — direct.py carried the other
+            return books.fixture_path(REPO, folder, stem, _FIXTURE_SUFFIXES)
+        except books.BookError as e:
+            raise SystemExit(str(e))
     with open(find("world", book), encoding="utf-8") as fh:
         world = json.load(fh)
     with open(find("characters", char), encoding="utf-8") as fh:

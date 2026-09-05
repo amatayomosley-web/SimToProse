@@ -271,7 +271,7 @@ list; use one of those ids exactly, spelling and hyphens included.
 > slice at `src/engine/gate.py:127`). That is how Tam knows he is standing at a chest-high drystone
 > wall on the low pasture and not in a warm mill. The same location also scopes the world's laws: a
 > law written to apply only at one place bears on this scene only if the scene is there
-> (`src/engine/bible.py:391-421`).[^2]
+> (`src/engine/law.py:292-322`).[^2]
 
 > **IF YOU LEAVE IT BLANK:** each acting character falls back to their **own** character sheet's
 > `current.location` for their own percept: `cfg.get("location") or a["char"]["current"].get("location")`
@@ -284,7 +284,7 @@ list; use one of those ids exactly, spelling and hyphens included.
 > the world's law check reads the cfg location directly, with no fallback to any sheet
 > (`scripts/scene.py:289`) — and an omitted location does **not** narrow a location-scoped law
 > away; a caller who supplies no location is handed the same laws as one whose location happens to
-> match, on purpose (`src/engine/bible.py:391-407`, docstring). A blank location does not make a
+> match, on purpose (`src/engine/law.py:292-308`, docstring). A blank location does not make a
 > location-scoped law go quiet.
 
 > **A common mistake:** inventing a location instead of using a registered id. Writing
@@ -790,7 +790,7 @@ Use an act exactly as the world note spells it.
 > (`scripts/scene.py:281-299`). Which laws bear on the question is scoped: a law is consulted only
 > where its act matches and its place matches — so the same act may be permitted in one location and
 > impossible in another — and that scoping is honoured, never fuzzy-matched
-> (`src/engine/bible.py:391-421`, called from `scripts/scene.py:289` with both the act and this
+> (`src/engine/law.py:292-322`, called from `scripts/scene.py:289` with both the act and this
 > scene's location). Laws may also be scoped to who is acting, who is acted on, and a window of
 > time, and those scopes are live too: a law scoped `actor_class: "noble"` bears on a noble and not
 > on a peasant, and a law scoped `time_from: 100` / `time_to: 200` bears at ticks 100–200 inclusive
@@ -1123,13 +1123,13 @@ at `scripts/narrate.py:167`. Treat it as required, as this form does.
 
 [^4]: **Corrected from an earlier version of this document.** This footnote used to say law scoping
 by actor class, target class, and time window was stored but "being wired into the bearing check."
-As of 2026-08-30 it is wired, and is the live check: `src/engine/bible.py:391-421` (`_applies`),
-storage at `src/engine/bible.py:204-208`, persisted at `370-374`. Verified: a law scoped
+As of 2026-08-30 it is wired, and is the live check: `src/engine/law.py:292-322` (`_applies`),
+storage at `src/engine/law.py:151-155`, persisted at `370-374`. Verified: a law scoped
 `actor_class: "noble"` bears on a noble and not a peasant; a law scoped `time_from: 100` /
 `time_to: 200` bears at ticks 100–200 inclusive and not at 50 or 250; an unscoped law still bears
 on everyone, always. And the asymmetry that matters for a caller: a scope the caller cannot supply
 (an argument left `None`) does **not** narrow the law away — only a scope the caller *can* supply
-and that disagrees rules the law out (`src/engine/bible.py:391-407`, docstring). Write scoped laws
+and that disagrees rules the law out (`src/engine/law.py:292-308`, docstring). Write scoped laws
 expecting the scope to be honoured.
 
 [^5]: **Corrected from an earlier version of this document.** This footnote used to say

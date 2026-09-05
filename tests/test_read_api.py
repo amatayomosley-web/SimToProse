@@ -237,6 +237,75 @@ def test_every_result_serialises(con):
         assert d["trace"], "every result must carry a trace"
 
 
+def test_every_refusal_carries_a_REGISTERED_code(con):
+    """The read tier joins the coded channel (2026-09-02).
+
+    Small on purpose. This tier refuses only a malformed REQUEST — the argument contracts, plus the
+    ONE scope question (`READ_RUN_UNKNOWN`) that the next test's principle itself calls malformed."""
+    from src.engine import codes
+    cases = [
+        ("READ_RUN_UNKNOWN",      lambda: R.state(con, "no-such-run", "maren", 0)),
+        ("READ_RUN_UNKNOWN",      lambda: R.said(con, "", 0)),
+        ("READ_AS_OF_NOT_AN_INT", lambda: R.snapshot_at(con, RUN, "three")),
+        ("READ_AS_OF_NEGATIVE",   lambda: R.snapshot_at(con, RUN, -1)),
+        ("READ_TURN_NOT_AN_INT",  lambda: R.said(con, RUN, "x")),
+        ("READ_PLACE_ID_EMPTY",   lambda: R.place(con, RUN, "   ", 0)),
+    ]
+    for want, call in cases:
+        try:
+            call()
+            raise AssertionError("%s: the malformed request was ACCEPTED" % want)
+        except R.ReadError as e:
+            assert e.code == want, "expected %s, got %r" % (want, e.code)
+            assert codes.is_registered(e.code), "%s is raised but not registered" % e.code
+
+    # a bool is not an int here, and the check that lets one through is the classic
+    try:
+        R.said(con, RUN, True)
+        raise AssertionError("a bool passed as a turn index")
+    except R.ReadError as e:
+        assert e.code == "READ_TURN_NOT_AN_INT", e.code
+
+
+def test_a_MISS_is_still_not_an_ERROR(con):
+    """THE LINE THIS TIER DRAWS, and the reason there is no READ_NOT_FOUND.
+
+    A well-formed question about a turn that recorded nothing has a true answer: nothing. Coding
+    that as a refusal would turn every honest absence into an error and push callers into
+    try/except around normal reads — so a miss reports itself in the TRACE and returns no rows.
+
+    Guarded because the conversion is exactly when someone would "finish the job" by adding a
+    not-found code.
+
+    THIS TEST WAS ITSELF WRONG until 2026-09-02: it passed `"r1"`, which is not this fixture's run,
+    so the "honest miss" it certified was a miss on a run that DID NOT EXIST — the one absence that
+    is not a true answer. It proved the opposite of its own point and stayed green, because nothing
+    checked the run either. Reading `RUN` is the fix and `_known_run` is why it can no longer
+    happen quietly."""
+    res = R.snapshot_at(con, RUN, 999)
+    assert not res.found, "a turn with nothing recorded returned rows"
+    assert any("MISS" in t for t in res.trace), (
+        "a miss must SAY so in the trace, not merely return empty: %r" % res.trace)
+
+    # AN ALLOWLIST, NOT A SUBSTRING FILTER. Forbidding NOT_FOUND and MISSING was evadable by
+    # synonym — READ_NO_SUCH_TURN, READ_EMPTY_RESULT and READ_ABSENT all walk straight past it, and
+    # the whole point of this assertion is that it stands where someone would add exactly such a
+    # code. So the family is CLOSED: a new READ_ code has to be argued for here, in this list, in
+    # front of the paragraph saying why absences are not refusals.
+    from src.engine import codes
+    ALLOWED = {
+        "READ_AS_OF_NOT_AN_INT", "READ_AS_OF_NEGATIVE",       # argument contracts
+        "READ_TURN_NOT_AN_INT", "READ_PLACE_ID_EMPTY",
+        "READ_RUN_UNKNOWN",     # the ONE scope question: an unknown run has no world to be absent from
+    }
+    read_codes = {c for c in codes.CODES if c.startswith("READ_")}
+    assert read_codes, "the READ_ family vanished"
+    assert read_codes == ALLOWED, (
+        "the READ_ family changed: added %s, removed %s. Every code here refuses a malformed "
+        "QUESTION; a code for an ABSENCE (however it is spelled — NOT_FOUND, NO_SUCH_X, EMPTY_X) "
+        "would turn every honest miss into a refusal and put a try/except around every normal read."
+        % (sorted(read_codes - ALLOWED) or "nothing", sorted(ALLOWED - read_codes) or "nothing"))
+
 def main():
     tmp = tempfile.mkdtemp(prefix="swe_readapi_test_")
     con = None

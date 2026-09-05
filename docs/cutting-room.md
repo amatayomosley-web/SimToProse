@@ -28,10 +28,18 @@ Decisions made in the room land in an append-only **edit decision list** — the
 
 ```
 EDL entry kinds:
-  SCENE   { scene_id, pov: character_id, trim: [event_id…] | FULL, placement: chrono | flashback(anchor: recall_event_id) }
+  SCENE   { scene_no, pov: character_id, trim: [event_id…] | FULL, placement: chrono | flashback(anchor: recall_event_id) }
+          # trim names EVENT ids; the manuscript's unit is the TURN, and `edl.turns_for_trim`
+          # resolves one to the other. They are different keys — the first renderer compared
+          # them directly and a conforming trim silently emptied the scene.
   SUMMARY { span: [tick_a, tick_b], pov: character_id, basis: [event_id…] }     # compression, never invention
   BREAK   { level: chapter | act }
   NOTE    { rationale }                                                          # why we cut it this way — the room's memory
+
+A cut is REVISED by appending a whole new GENERATION (schema v17); `edl.entries_for` renders the
+highest one and the superseded decisions stay in the log, because the room's memory of what it
+tried is worth keeping. Before that column the table's own append-only trigger said "revise by
+appending" and there was nowhere to append to.
 ```
 Every prose unit traces to an EDL entry; every entry traces to recorded events. *"Every line of the book traces to a recorded biographical moment"* (README) is auditable because the discussion's output is structured, even though the discussion itself is free.
 

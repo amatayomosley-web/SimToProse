@@ -140,7 +140,8 @@
           "lever": "FEAR",
           "op": "x",
           "magnitude": 3.4,
-          "source": "the bite that blinded him three days as a boy — the one thing that is not steady"
+          "source": "the bite that blinded him three days as a boy — the one thing that is not steady",
+          "wound": "ren-spider"
         },
         {
           "when": {
@@ -154,7 +155,8 @@
           "lever": "SEEKING",
           "op": "x",
           "magnitude": 0.5,
-          "source": "he stops wanting to know what is further in"
+          "source": "he stops wanting to know what is further in",
+          "wound": "ren-spider"
         },
         {
           "when": {
@@ -218,7 +220,8 @@
             "takes the long way rather than the low crawl"
           ],
           "defense": "flee",
-          "_note": "This prose is what the ACTOR reads. The operational half is baseline.catalog row 1 — same wound, stated as a lever so it enters the arithmetic. Authoring one without the other is the defect the catalog exists to end."
+          "_note": "This prose is what the ACTOR reads. The operational half is baseline.catalog row 1 — same wound, stated as a lever so it enters the arithmetic. Authoring one without the other is the defect the catalog exists to end.",
+          "id": "ren-spider"
         }
       ],
       "orientation": {

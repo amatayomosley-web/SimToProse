@@ -8,8 +8,10 @@ never a hardcoded list. The one-pass tag instruction carries the measured anti-o
 calibration (consolidation-loop.md Principle 1; calibrated against haiku this arc).
 """
 import json
+from .records import RecordError   # rule 6's bad-input type
 
 from .consolidation import CATALOG
+from .severity import gloss as severity_gloss
 from .direction import direct_affect, direct_condition, direct_edge, sureness
 from .identity_view import direct_goals, direct_identity, direct_percepts
 from .state import _DIM_TO_PRIMARY
@@ -18,7 +20,6 @@ from .gate import scope_names
 # Types the ACTOR may self-tag: pure-appraisal catalog rows (no world fold) that are not
 # system-emitted. System types are the engine's own records, never an actor's claim.
 from .consolidation import ACTOR_TAG_TYPES, SYSTEM_TYPES        # noqa: E402,F401  (derived once, beside CATALOG)
-from .errors import EngineError
 
 _DIMS = tuple(sorted(_DIM_TO_PRIMARY))
 
@@ -30,9 +31,9 @@ def build_turn_messages(packet, event_text, temperament, relationships=None, act
     The never-invent line is scoped to WORLD facts; the actor's interior is licensed (the
     blind-judge finding: clamping invention must not clamp legitimate interiority)."""
     if not isinstance(packet, dict) or "stable" not in packet or "volatile" not in packet:
-        raise EngineError("PROMPT_BUILD_TURN_MESSAGES_PACKET_CARRY_INVALID", "build_turn_messages: packet must carry stable and volatile halves")
+        raise RecordError("PROMPT_PACKET_INCOMPLETE", "build_turn_messages: packet must carry stable and volatile halves")
     if not isinstance(event_text, str) or not event_text.strip():
-        raise EngineError("PROMPT_BUILD_TURN_MESSAGES_EVENT_TEXT_EMPTY_NOT_A_STRING", "build_turn_messages: event_text must be a non-empty string")
+        raise RecordError("PROMPT_EVENT_TEXT_EMPTY", "build_turn_messages: event_text must be a non-empty string")
     # THE ACT: the actor names what it did in the WORLD's vocabulary, so a law can be keyed to it
     # after the fact. Closed list, drawn from the authored laws; empty is always allowed and is
     # the right answer for most beats. Injected ONLY when the world declares laws.
@@ -49,12 +50,34 @@ def build_turn_messages(packet, event_text, temperament, relationships=None, act
     # state-engine.md:12, "what the decision actually sees, after context". The .get falls back
     # to the current tier so a packet built before this tier existed still renders.
     _st = vol["state"]
+    # `previous` is the last committed turn's affect, when the driver put one on the packet. It
+    # adds the MOVEMENT clause — how fast this came on — which is a different fact from the
+    # deviation marker's "elevated versus your resting state". Absent, the line is unchanged.
     staging = "%s. %s." % (direct_affect(_st.get("effective") or _st["affect"], temperament,
                                         targets=_st.get("targets"),
-                                        me=(packet.get("stable", {}).get("persona") or {}).get("id")),
+                                        me=(packet.get("stable", {}).get("persona") or {}).get("id"),
+                                        prev=_st.get("previous")),
                            direct_condition(_st["condition"]))
-    recall = "; ".join("%s (%s — %s)" % (r["claim"], r.get("provenance", ""), sureness(r.get("confidence", 0.5)))
-                       for r in vol["recall"]) or "nothing in particular"
+    first_order = []
+    second_order = []
+    for r in vol["recall"]:
+        tgt = r.get("target_actor")
+        stance = r.get("epistemic_stance")
+        sure = sureness(r.get("confidence", 0.5))
+        if tgt and stance:
+            if stance == "ignorant_of":
+                phrase = "you believe %s is unaware that: %s" % (tgt, r["claim"])
+            elif stance == "deceived_about":
+                phrase = "you believe %s is deceived into thinking: %s" % (tgt, r["claim"])
+            else:
+                phrase = "you believe %s knows: %s" % (tgt, r["claim"])
+            second_order.append("%s (%s)" % (phrase, sure))
+        else:
+            first_order.append("%s (%s — %s)" % (r["claim"], r.get("provenance", ""), sure))
+    parts = []
+    if first_order: parts.append("; ".join(first_order))
+    if second_order: parts.append("What others believe: " + "; ".join(second_order))
+    recall = " | ".join(parts) or "nothing in particular"
     edges = "; ".join("%s: %s" % (e.get("label") or e.get("target", "?"), direct_edge(e)) for e in vol["edges"]) or "no one in mind"
     sys_p = ("You ARE the person defined below. Be them, faithfully — including hesitating, "
              "over-controlling, or refusing when that is true to them. Do not perform a story; "
@@ -89,9 +112,10 @@ def build_turn_messages(packet, event_text, temperament, relationships=None, act
            "them' above) the event most concerns — copy its id exactly; leave \"\" if it concerns no "
            "one in particular or only you. (Report WHO; never how you regard them — not yours to weigh.)\n"
            "tags = what OBJECTIVELY happened, for the event log — report the event's own severity, NOT how "
-           "you feel about it (temperament amplifies downstream; do not pre-amplify). CALIBRATION: most "
-           "moments are ordinary — emit 0.1-0.3, or omit the dimension entirely. Reserve >0.6 for a genuinely "
-           "severe event (a child dying, a betrayal, a rescue from real danger). 'durable' is RARE: only an "
+           "you feel about it (temperament amplifies downstream; do not pre-amplify). Each severity is ONE "
+           "word: %s. CALIBRATION: most moments are ordinary — emit faint or mild, or omit the dimension "
+           "entirely. Reserve marked and above for an event that would genuinely change someone (a child "
+           "dying, a betrayal, a rescue from real danger). 'durable' is RARE: only an "
            "event that would change a person for years. confidence = how sure you are the tags fit (0..1).\n"
            "tags.attribution (OPTIONAL — leave \"\" unless it applies) = ONE word, accident or coerced "
            "or negligence, when what you did was NOT deliberate: a hand slipped, you were made to, you "
@@ -116,13 +140,46 @@ def build_turn_messages(packet, event_text, temperament, relationships=None, act
                recall,                                              # 4  What it brings to mind:
                edges,                                               # 5  Those present
                event_text,                                          # 6  The moment:
-               ", ".join('"%s": 0..1' % d for d in _DIMS),           # 7  reply "dimensions": {...}
+               ", ".join('"%s": "<severity>"' % d for d in _DIMS),  # 7  reply "dimensions": {...}
                _act_slot,                                           # 8  reply skeleton act field
                _act_rule,                                           # 9  the act instruction
-               ", ".join(ACTOR_TAG_TYPES)))                          # 10 tags.type vocabulary
+               ", ".join(ACTOR_TAG_TYPES),                           # 10 tags.type vocabulary
+               severity_gloss()))                                    # 11 the severity ladder, defined
     # final name-hygiene wall: mask, across the WHOLE prompt (identity/voice, recall, moment, edges),
     # the name of anyone this actor knows only by a descriptor — a name never acquired never reaches
     # the model. relationships carry `known_as`; the canonical id stays engine-side (the seam law).
     rels = relationships or {}
     return [{"role": "system", "content": scope_names(sys_p, rels)},
             {"role": "user", "content": scope_names(usr, rels)}]
+
+
+# ---- what the next actor PERCEIVES ------------------------------------------------------------
+# This lived in `scripts/scene.py`, moved to `floor.py` with the turn-taking economy on 2026-09-03,
+# and landed here the same day. It was the odd one out in `floor.py`: four of those functions decide
+# WHO SPEAKS NEXT and return numbers, this one decides WHAT THE SPEAKER IS SHOWN and returns text.
+#
+# NOT scene.py, which was the first correction and would have pushed that module to 521 lines
+# against hard rule 6's bound — the right home is the module whose stated job is already prompt text
+# built engine-side, book-agnostic, with content arriving only through the packet. Engine-side
+# prompt text is not a layering violation: rule 5 bans NUMBERS reaching the prompt, and this carries
+# none.
+
+def compose_event(situation, log, names=None, n=4):
+    """What the next actor perceives: the standing situation + the recent transcript (rolling context,
+    so they can see what they have already said and not repeat it).
+
+    Three things this used to get wrong, all of them reaching the actor:
+    1. On an EMPTY log it appended "The table has just been served; the evening is beginning." —
+       BP13 dinner-fixture text, unconditional, so the FIRST BEAT OF EVERY SCENE IN EVERY BOOK was
+       told it was evening at a table. Measured on a dawn dock scene 2026-08-29.
+    2. It truncated each action to 300 characters, so a long beat reached the next actor cut off
+       mid-sentence and they answered a fragment.
+    3. "The exchange at the table" assumed the fixture's furniture in every scene.
+    The situation is the director's, and it is returned untouched.
+    """
+    names = names or {}
+    if not log:
+        return situation
+    lines = "\n".join("%s: \"%s\"" % (names.get(b["who"], b["who"]), str(b["action"]).replace("\n", " "))
+                      for b in log[-n:])
+    return "%s\n\nThe exchange so far (most recent last):\n%s" % (situation, lines)

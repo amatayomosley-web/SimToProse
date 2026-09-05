@@ -27,6 +27,7 @@ What this pins, and why each matters:
   6. NO ACTION SELECTION. decision-engine.md:85 is normative: the catalog computes STATE, never the
      action. If an argmax ever appears in levers.py this suite should be the thing that objects.
 """
+import copy
 import json
 import os
 import sys
@@ -281,11 +282,181 @@ def test_antagonistic_edges():
         check("unknown-edge-clause-fails-loud", True)
 
 
+def test_a_wound_scales_the_row_it_names():
+    """THE WIRE. Before this, a wound's `intensity` and its row's `magnitude` were two authored
+    numbers with nothing between them: `grep intensity src/engine/levers.py` returned nothing, so
+    fading Ren's phobia from 0.95 to 0.10 changed which of four phrases the actor read and left his
+    FEAR multiplier at 3.4. The field was prose with a number on it."""
+    print("\n[9] a wound scales the row it names")
+    from src.engine.levers import scale_to_wounds
+    ren = json.load(open(os.path.join(REPO, "characters/ren-traveler.json"), encoding="utf-8"))
+    wounds = ren["baseline"]["drives"]["fears_wounds"]
+    rows = [r for r in ren["baseline"]["catalog"]["rows"] if r.get("wound")]
+    check("the-fixture-actually-links-rows", len(rows) >= 2 and wounds[0].get("id"),
+          "no linked rows -> this test would prove nothing")
+
+    full = {r["lever"]: r["magnitude"] for r in scale_to_wounds(rows, wounds)}
+    check("at-authored-intensity-nothing-moves",
+          full["FEAR"] == 3.4 and full["SEEKING"] == 0.5, str(full))
+
+    healed = copy.deepcopy(wounds)
+    healed[0]["_authored_intensity"], healed[0]["intensity"] = 0.95, 0.15
+    part = {r["lever"]: r["magnitude"] for r in scale_to_wounds(rows, healed)}
+    check("a-healed-wound-hits-softer", 1.0 < part["FEAR"] < 3.4, str(part))
+    # a DEBUFF multiplier (0.5) must decay UPWARD to 1.0, not downward — both directions relax
+    # toward the operation's own identity, or a fading wound would invert into a buff.
+    check("a-debuff-decays-upward", 0.5 < part["SEEKING"] < 1.0, str(part))
+
+    gone = copy.deepcopy(wounds)
+    gone[0]["_authored_intensity"], gone[0]["intensity"] = 0.95, 0.0
+    zero = {r["lever"]: r["magnitude"] for r in scale_to_wounds(rows, gone)}
+    check("a-spent-wound-is-the-identity", zero["FEAR"] == 1.0 and zero["SEEKING"] == 1.0, str(zero))
+
+    # and it must reach the VECTOR, not just the row
+    base = {p: 0.3 for p in PRIMARIES}
+    check("the-scaling-reaches-effective",
+          effective(base, scale_to_wounds(rows, healed))["FEAR"]
+          < effective(base, scale_to_wounds(rows, wounds))["FEAR"])
+
+
+def test_an_unlinked_row_is_untouched():
+    """THE MIGRATION GUARANTEE, and the reason this shipped opt-in. Every row in every book
+    authored before the wire exists carries no `wound` key."""
+    print("\n[10] an unlinked row is byte-identical")
+    from src.engine.levers import scale_to_wounds
+    rows = [{"lever": "FEAR", "op": "x", "magnitude": 3.4, "source": "s"},
+            {"lever": "CARE", "op": "+", "magnitude": 0.22, "source": "s"}]
+    wounds = [{"id": "w", "wound": "x", "intensity": 0.1, "_authored_intensity": 0.9}]
+    out = scale_to_wounds(rows, wounds)
+    check("unlinked-rows-pass-through", out == rows, str(out))
+    check("no-wounds-at-all-is-a-no-op", scale_to_wounds(rows, []) == rows)
+
+
+def test_the_authored_magnitude_survives_for_the_trace():
+    """`scene.assemble` publishes the fired rows as the audit trace. A trace showing only the
+    scaled number could not be checked against the sheet it came from."""
+    print("\n[11] the authored magnitude rides along")
+    from src.engine.levers import scale_to_wounds
+    rows = [{"wound": "w", "lever": "FEAR", "op": "x", "magnitude": 3.4, "source": "s"}]
+    wounds = [{"id": "w", "wound": "x", "intensity": 0.2, "_authored_intensity": 0.8}]
+    out = scale_to_wounds(rows, wounds)[0]
+    check("authored-kept", out["_authored_magnitude"] == 3.4, str(out))
+    check("effective-differs", out["magnitude"] != 3.4, str(out))
+
+
+def test_a_wound_that_cannot_scale_fails_loud():
+    """A non-numeric intensity reaches no arithmetic, and a zero authored intensity makes the ratio
+    undefined. Both are refused by name rather than silently treated as 'no change'."""
+    print("\n[12] fail loud, never a silent full-strength row")
+    from src.engine.levers import scale_to_wounds
+    rows = [{"wound": "w", "lever": "FEAR", "op": "x", "magnitude": 3.4, "source": "s"}]
+    for bad, why in (([{"id": "w", "intensity": "it takes me over"}], "prose intensity"),
+                     ([{"id": "w", "intensity": 0.0, "_authored_intensity": 0.0}], "zero denominator")):
+        try:
+            scale_to_wounds(rows, bad)
+            check("raises-on-%s" % why, False, "returned instead of raising")
+        except ValueError as e:
+            check("raises-on-%s" % why, "w" in str(e), str(e))
+
+
+def test_the_fold_stamps_the_authored_value_before_it_moves_anything():
+    """THE ACCEPTANCE TEST FOR THE WHOLE TIER, and the order is the entire point.
+
+    `scale_to_wounds` divides by `_authored_intensity` and falls back to the CURRENT value when the
+    key is absent. Stamp AFTER folding and that fallback reads the already-healed number, the ratio
+    becomes 1.0, and a wound faded to nothing goes on hitting the arithmetic at full authored
+    strength forever — silently. A review of the store called this the one decision most likely to
+    be quietly wrong, because the sibling fold (`arc.apply`) does not stamp anything and a
+    copy-the-neighbour implementation would reintroduce it.
+    """
+    print("\n[13] the fold stamps before it moves")
+    from src.engine.levers import replay_wound_deltas, scale_to_wounds
+    sheet = [{"id": "w", "wound": "the bite", "intensity": 0.95}]
+    check("sheet-starts-unstamped", "_authored_intensity" not in sheet[0], str(sheet[0]))
+    replay_wound_deltas(sheet, [("w", -0.4, "event"), ("w", -0.2, "event")])
+    check("authored-is-the-ORIGINAL", abs(sheet[0]["_authored_intensity"] - 0.95) < 1e-9, str(sheet[0]))
+    check("intensity-is-the-FOLDED", abs(sheet[0]["intensity"] - 0.35) < 1e-9, str(sheet[0]))
+    rows = [{"wound": "w", "lever": "FEAR", "op": "x", "magnitude": 3.4, "source": "s"}]
+    scaled = scale_to_wounds(rows, sheet)[0]["magnitude"]
+    check("the-ratio-actually-bit", 1.0 < scaled < 3.4, "%.4f" % scaled)
+
+    # ORDER-INDEPENDENT: summed then clamped once. arc.apply and bonds.replay clamp per step, which
+    # diverges the moment a running total leaves [0,1] — so this is a deliberate difference, pinned.
+    a = replay_wound_deltas([dict(id="w", wound="x", intensity=0.5)],
+                            [("w", 0.8, "event"), ("w", -0.7, "event")])[0]["intensity"]
+    b = replay_wound_deltas([dict(id="w", wound="x", intensity=0.5)],
+                            [("w", -0.7, "event"), ("w", 0.8, "event")])[0]["intensity"]
+    check("fold-is-order-independent", abs(a - b) < 1e-12, "%.6f vs %.6f" % (a, b))
+
+    # a re-fold must not re-stamp from the moved value
+    replay_wound_deltas(sheet, [("w", -0.1, "erosion")])
+    check("refold-keeps-the-original-authored", abs(sheet[0]["_authored_intensity"] - 0.95) < 1e-9,
+          str(sheet[0]))
+
+
+def test_a_deepened_wound_does_not_kill_the_beat():
+    """THE CRASH. A wound can DEEPEN past what its author wrote, so the ratio is not bounded by 1 —
+    and for a SUPPRESSING multiplier the scaled value goes negative, at which point `_check_row`
+    raises from inside `effective`, the one function every decision depends on, blaming the author
+    for a number they never wrote.
+
+    Found by review, not by this suite: every prior test here used ratio <= 1. Reachable by ordinary
+    authoring — any suppressing row on a wound authored at or below `1 - magnitude`, i.e. a mild
+    dread the book then deepens, which is the arc the tier exists to produce."""
+    print('\n[15] a deepened wound must not crash the decision')
+    from src.engine.levers import scale_to_wounds
+    # ren-traveler's REAL suppressing row, on a wound authored mild and deepened by the book
+    deepened = [{"id": "w", "wound": "x", "intensity": 0.90, "_authored_intensity": 0.40}]
+    rows = [{"wound": "w", "lever": "SEEKING", "op": "x", "magnitude": 0.5, "source": "s"}]
+    out = scale_to_wounds(rows, deepened)
+    check("ratio-above-one-is-reachable", 0.90 / 0.40 > 1.0)
+    check("suppressor-floors-at-zero-not-negative", out[0]["magnitude"] == 0.0,
+          str(out[0]["magnitude"]))
+    try:
+        effective({p: 0.3 for p in PRIMARIES}, out)
+        check("effective-does-not-raise", True)
+    except ValueError as e:
+        check("effective-does-not-raise", False, str(e))
+    # a BOOSTING row deepens past its authored value, which is the point of deepening
+    boost = scale_to_wounds([{"wound": "w", "lever": "FEAR", "op": "x", "magnitude": 3.4,
+                              "source": "s"}], deepened)[0]["magnitude"]
+    check("a-booster-grows-past-its-authored-value", boost > 3.4, "%.4f" % boost)
+    # and an unmoved wound is still exact
+    same = [{"id": "w", "wound": "x", "intensity": 0.95, "_authored_intensity": 0.95}]
+    check("unmoved-is-still-byte-exact",
+          scale_to_wounds([{"wound": "w", "lever": "FEAR", "op": "x", "magnitude": 3.4,
+                            "source": "s"}], same)[0]["magnitude"] == 3.4)
+
+
+def test_the_bookkeeping_key_never_reaches_the_actor():
+    """REGRESSION GUARD for a leak `tests/test_no_digits.py` cannot catch. Before the rename, a
+    wound carrying both keys rendered `authored_intensity: this above most things` beside
+    `how it takes you: it catches you sometimes` — two contradictory statements about one wound,
+    one of them the engine's own arithmetic. No digit appeared, because `_say_scalars` bands the
+    float into a phrase, so the digit guard passed it."""
+    print("\n[14] the bookkeeping key is stripped before the prompt")
+    from src.engine.identity_view import direct_identity
+    from src.engine.levers import replay_wound_deltas
+    from src.engine.scene import _strip_notes           # the identity-prefix filter itself
+    wounds = replay_wound_deltas([{"id": "w", "wound": "the spider", "intensity": 0.95}],
+                                 [("w", -0.55, "event")])
+    rendered = json.dumps(direct_identity({"drives": _strip_notes({"fears_wounds": wounds})}))
+    check("no-authored-key-in-the-prompt", "authored" not in rendered, rendered)
+    check("the-wound-itself-still-renders", "the spider" in rendered, rendered)
+    check("and-it-says-how-it-takes-you", "how it takes you" in rendered, rendered)
+    # prove the guard would FAIL without the underscore — or it proves nothing
+    leaky = json.dumps(direct_identity({"drives": _strip_notes(
+        {"fears_wounds": [{"wound": "the spider", "intensity": 0.4, "authored_intensity": 0.95}]})}))
+    check("the-control-leaks", "authored_intensity" in leaky, leaky)
+
+
 def main():
     print("test_effective.py — the effective-levers tier + the spider test")
-    for t in (test_identity, test_formula, test_fail_loud, test_conditions,
-              test_ceiling_is_broken, test_spider_A_vs_B, test_no_action_selection,
-              test_antagonistic_edges):
+    # DISCOVERED, NOT LISTED — the same hand-maintained tuple that let four new tests sit unrun in
+    # tests/test_arc.py while the suite printed PASS. Ordered by definition line so the [N]
+    # headings stay in reading order.
+    for t in sorted((v for k, v in globals().items() if k.startswith("test_") and callable(v)),
+                    key=lambda f: f.__code__.co_firstlineno):
         t()
     print("\nVERDICT: %s" % ("PASS" if not _FAILS else "FAIL -> %s" % _FAILS))
     return 1 if _FAILS else 0

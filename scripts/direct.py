@@ -24,19 +24,29 @@ import time
 import uuid
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_FIXTURE_SUFFIXES = ("", "-slice", "-healer")   # this repo's fixture stems — they live HERE, not in src/engine (hard rule 1)
 sys.path.insert(0, REPO)
 
 from src.engine.scene import assemble, resolve_subject, subject_groups   # noqa: E402
+from src.engine import books   # module scope: BOTH the --book and --fixture branches use it
+from src.engine import decay as _decay   # recall history fold — see run_turn's assemble call
+from src.engine import clock as _clock   # declared story-time elapsed, same call
+from src.engine.severity import normalise_dimensions           # noqa: E402
 from src.engine.prompt import build_turn_messages                  # noqa: E402
 from src.engine.consolidation import (validate_tags, CATALOG, TagError, tag_refusal,
                                        render_flag)        # noqa: E402
+from src.engine import integrity                              # noqa: E402
 from src.engine.state import build_profile, appraise, decay        # noqa: E402
 from src.engine.targets import retarget                            # noqa: E402  (per-primitive aboutness)
 from src.engine.direction import direct_affect, direct_condition   # noqa: E402
 from src.engine.ledger import Ledger                               # noqa: E402
-from src.engine.records import Event, TurnCommit, RelationshipDelta, PRIMARIES  # noqa: E402
+from src.engine.records import (Event, TurnCommit, RelationshipDelta, PRIMARIES,
+                                WoundDelta, TowardDelta)  # noqa: E402
 from src.engine import arc                                         # noqa: E402  (the arc engine)
 from src.engine import bonds                                       # noqa: E402  (the relationship tier)
+from src.engine import levers                                      # noqa: E402  (the wound refold on resume)
+from src.engine import wound                                       # noqa: E402  (the wound tier's mover)
+from src.engine import toward                                      # noqa: E402  (the MICRO tier)
 from src.engine import acquisition                                 # noqa: E402  (the vault-growth engine)
 from src.engine import faithfulness                                # noqa: E402  (name-leak detector)
 from src.engine import faults                                      # noqa: E402  (the engine-fault detector)
@@ -193,10 +203,24 @@ def _parse_reply(text):
 
 def llm_turn(packet, event_text, temperament, model, stub, think=True, seed=None, relationships=None, corrections=None, acts=()):
     if stub:
+        # THE STUB ADDRESSES SOMEONE. Measured 2026-09-01: without an addressee a two-hander lulls
+        # after ONE beat — urge 0.018 against a 0.060 floor — because `_ADDRESSED_BONUS` (0.15,
+        # scripts/scene.py) never applies and inhibition alone (0.066 on the reference sheet) exceeds
+        # the floor. The engine was right and the fixture was unrepresentative: a person spoken to in
+        # a room answers. `tests/test_pipeline_e2e.py` reported OK on that dead scene for months.
+        # `volatile["edges"]` is a LIST of {target, trust, ...}, not a dict (src/engine/scene.py).
+        present = [e.get("target") for e in ((packet.get("volatile") or {}).get("edges") or [])
+                   if e.get("target")]
+        dur = "durable" if "durable" in event_text.lower() else "transient"
+        subj = present[0] if present else (packet.get("stable", {}).get("persona", {}).get("id") or "")
+        tags = {"type": "mundane", "summary": event_text, "dimensions": {"mastery": "mild"},
+                "durability": dur}
+        if subj:
+            tags["subject"] = subj
         return {"action": "(stub) the character meets the moment — %s" % event_text.lower(),
                 "thought": "(stub) steady; do what it needs",
-                "tags": {"type": "mundane", "summary": event_text, "dimensions": {"mastery": 0.2},
-                         "durability": "transient"}}
+                "addressee": present[0] if present else "",
+                "tags": tags}
     messages = build_turn_messages(packet, event_text, temperament, relationships, acts=acts)
     if corrections:                                                  # faithful_turn appends corrective turns on a name-leak retry
         messages = list(messages) + list(corrections)
@@ -205,7 +229,7 @@ def llm_turn(packet, event_text, temperament, model, stub, think=True, seed=None
     return _parse_reply(_openrouter(messages, model))
 
 
-def faithful_turn(packet, event_text, temperament, model, stub, think=True, seed=None, relationships=None, max_retries=2, acts=()):
+def faithful_turn(packet, event_text, temperament, model, stub, think=True, seed=None, relationships=None, max_retries=2, acts=(), information=None, char_id=None):
     """llm_turn + the ACTIVE faithfulness guard. If the actor emits a name it does not hold (a latent
     weights-leak the masking wall can't prevent — faithfulness.check_name_leaks), re-call with an
     explicit correction, up to max_retries. An empty/unparseable draw (no action — a stochastic
@@ -227,13 +251,28 @@ def faithful_turn(packet, event_text, temperament, model, stub, think=True, seed
                                               # generation is non-reproducible, so a fresh draw of the SAME
                                               # prompt usually parses (measured 2026-06-14: in-scene empty,
                                               # standalone resample full). Nothing to correct — just redraw.
-        leaks = faithfulness.check_name_leaks("%s %s" % (turn.get("action", ""), turn.get("thought", "")), rels)
-        if not leaks:
+        emitted = "%s %s" % (turn.get("action", ""), turn.get("thought", ""))
+        leaks = faithfulness.check_name_leaks(emitted, rels)
+        # THE WALL USED TO BE NAME-SHAPED. Not every secret is a name — a relationship, an
+        # intention, a location, a debt, a parentage. `information` is the snapshot's
+        # fact -> knowers map, folded from `reveal`, and an actor stating a fact it is not a
+        # knower of is the same offence one level out. `information=None` (every pre-2026-09-01
+        # caller) makes this a no-op, so nothing already running changes.
+        fact_leaks = faithfulness.check_fact_leaks(emitted, char_id, information or {})
+        if not leaks and not fact_leaks:
             return turn, []
-        corrections.append({"role": "user", "content": (
-            "You used a name your character does not know: %s. They know this person only as %s. "
-            "Rewrite your ENTIRE reply (same JSON shape) using only that descriptor — never the name."
-            % (", ".join(n for n, k in leaks), "; ".join("%r" % k for n, k in leaks)))})
+        if leaks:
+            corrections.append({"role": "user", "content": (
+                "You used a name your character does not know: %s. They know this person only as %s. "
+                "Rewrite your ENTIRE reply (same JSON shape) using only that descriptor — never the name."
+                % (", ".join(n for n, k in leaks), "; ".join("%r" % k for n, k in leaks)))})
+        if fact_leaks:
+            corrections.append({"role": "user", "content": (
+                "Your character stated something they do not know: %s. Nobody told them. Rewrite "
+                "your ENTIRE reply (same JSON shape) without it — they may act on what they can "
+                "see and what they were told, and on nothing else."
+                % "; ".join("%r" % f for f, _k in fact_leaks))})
+        leaks = list(leaks) + [(f, "not a knower") for f, _k in fact_leaks]
     return turn, leaks
 
 
@@ -290,7 +329,20 @@ def run_turn(led, run_id, char, world, groups_index, profile, temperament, affec
     unchanged."""
     scene_slice = {"event": {"text": event_text, "kind": "mundane"}, "recent": recent[-2:],
                    "location": char["current"].get("location")}
-    packet = assemble(char, world, scene_slice, affect, char["current"]["condition"])
+    # SLOPE as an assemble ARGUMENT, so the manifest can name it (see scene.assemble).
+    _actor = char["fixed"]["name"].lower()
+    # Recall decay needs the RUN's turn, not the character's — the ledger owns it. Until
+    # 2026-09-04 none of these four reached the gate, so every recall ran at turn 0 with
+    # no history and no elapsed time, i.e. no decay at all. fold_recall_history derives
+    # {bid: {last_turn, count}} from the append-only decision_manifests table rather than
+    # reading it off the belief, keeping "cause is logged once; effect is derived at
+    # replay" (decay.py:30).
+    packet = assemble(char, world, scene_slice, affect, char["current"]["condition"],
+                      prev_affect=led.previous_affect(run_id, _actor, turn_no),
+                      current_turn=turn_no,
+                      relationships=char["current"].get("relationships", {}),
+                      recall_history=_decay.fold_recall_history(led.con, run_id, _actor),
+                      elapsed=_clock.elapsed_since(led.con, run_id, turn_no))
     record_faults(detect_world_faults(packet, scene_slice, event_text, world, turn_no), book_dir)
     actor = char["fixed"]["name"].lower()
     rels = char["current"].get("relationships", {})
@@ -324,12 +376,25 @@ def run_turn(led, run_id, char, world, groups_index, profile, temperament, affec
       try:
         # name hygiene rides in build_turn_messages: assemble saw RAW text (so pell->holloway resolves);
         # the PROMPT masks every name this actor never acquired (passed via relationships). faithful_turn
-        # then REGENERATES on any name-leak the masking wall couldn't stop (latent weights leak).
+        # then REGENERATES on any name-leak the masking wall couldn't stop (latent weights leak) —
+        # and, since 2026-09-01, on any tracked FACT the actor is not a knower of, because the wall
+        # was name-shaped and not every secret is a name.
         turn, leaks = faithful_turn(packet, event_text, temperament, model, stub, seed=turn_no,
-                                    relationships=rels)
+                                    relationships=rels,
+                                    information=(led.fold(run_id, max(turn_no - 1, 0)) or {}).get("information"),
+                                    char_id=actor)
       except Exception as exc:                       # degrade, never crash; no silent skips
         led.record_turn_skipped(run_id, turn_no, actor, str(exc))
         print("  [turn failed, recorded as turn-skipped: %s]" % str(exc)[:80])
+        return affect, False, char, profile
+
+    # THE EMPTY DRAW. `scene.py:485` refuses one and records turn-skipped; the chair did not, so an
+    # action that stayed empty through every resample committed as a real turn — a beat in the
+    # chronicle where nothing happened, indistinguishable later from one where nothing was meant to.
+    # Same rule in both drivers or it is not a rule.
+    if not str(turn.get("action", "")).strip():
+        led.record_turn_skipped(run_id, turn_no, actor, "empty turn (no action after retries)")
+        print("  [empty draw after retries — recorded as turn-skipped, not committed]")
         return affect, False, char, profile
 
     if leaks:                                      # name(s) the actor cannot hold survived retries -> reject; never commit a leak
@@ -337,7 +402,10 @@ def run_turn(led, run_id, char, world, groups_index, profile, temperament, affec
                                 "faithfulness: used name(s) not theirs after retries: %s" % ", ".join(n for n, k in leaks))
         print("  [faithfulness reject: %s used %s after retries — turn skipped]" % (actor, ", ".join(n for n, k in leaks)))
         return affect, False, char, profile
-    tags = turn["tags"]
+    # THE SEVERITY SEAM. Resolve event-strength WORDS to floats on the existing 0..1 scale
+    # before anything reads them, so validate_tags / appraise / wound / bonds / arc all see
+    # exactly the float they always have (src/engine/severity.py). Floats pass through.
+    tags = normalise_dimensions(turn["tags"])
     validation = validate_tags(tags, packet["volatile"]["percepts"], char["baseline"]["skills"])
     if not validation["ok"]:
         # FAIL-FAST (2026-08-30). This branch used to read `applied = {"dimensions": {}}`,
@@ -353,6 +421,9 @@ def run_turn(led, run_id, char, world, groups_index, profile, temperament, affec
     # the group from the registry (never the LLM — the regard number stays off the prompt).
     named = tags.get("subject") if isinstance(tags, dict) else None
     target, target_group = resolve_subject(packet["volatile"]["edges"], groups_index, named)
+    if target is None and by:
+        target = by
+        target_group = (groups_index.get(by) or [None])[0]
     if target is not None:
         applied = dict(applied, target=target)
         if target_group is not None:
@@ -413,11 +484,34 @@ def run_turn(led, run_id, char, world, groups_index, profile, temperament, affec
     if not stub and LAST_USAGE.get("model"):        # token accounting — see LAST_USAGE above
         led.log_llm_call(run_id, turn_no, "act", LAST_USAGE["model"],
                          LAST_USAGE.get("tokens_in"), LAST_USAGE.get("tokens_out"))
+    # THE TWO NEW TIERS, MIRRORING scene.py, and computed BEFORE the commit so the deltas ride
+    # append_turn's own transaction rather than a separate post-commit call a crash can lose.
+    # Both drivers are first-class (CLAUDE.md Modes), write to the same chronicle, and must not
+    # produce different durable consequences for the same beat.
+    _applied = tags if isinstance(tags, dict) else {}
+    _dims = _applied.get("dimensions") or {}
+    _res = arc.derive_resilience(char, char["current"].get("condition", {}))
+    _wounds = (char["baseline"].get("drives") or {}).get("fears_wounds") or []
+    wound_deltas = []
+    for _w in _wounds:
+        if not isinstance(_w, dict) or not str(_w.get("id", "")).strip():
+            continue
+        _d = wound.trial(_w, _dims, _res, packet["manifest"].get("surfaces") or [])
+        if _d:
+            wound_deltas.append(WoundDelta(char_id=actor, wound_id=str(_w["id"]),
+                                           delta=_d, kind="event", source=event_text[:200]))
+    toward_deltas = []
+    _subj = _applied.get("subject") or _applied.get("target")
+    if _subj:
+        for _prim, _td in toward.observe(_dims).items():
+            toward_deltas.append(TowardDelta(perceiver=actor, target=str(_subj),
+                                             primary=_prim, delta=_td, source=event_text[:200]))
     led.append_turn(TurnCommit(
         run_id=run_id, turn=turn_no, actor=char["fixed"]["name"].lower(),
         thought=str(turn["thought"]), action=str(turn["action"]),
         tags=tags if isinstance(tags, dict) else {}, affect=dict(new_affect),
         condition=dict(char["current"]["condition"]), validation=validation,
+        wound_deltas=wound_deltas, toward_deltas=toward_deltas,
         events=[Event(type=str(tags.get("type", "mundane")),
                       payload={"text": event_text, "dimensions": tags.get("dimensions", {}),
                                "durability": tags.get("durability", "transient"),
@@ -460,9 +554,10 @@ def run_turn(led, run_id, char, world, groups_index, profile, temperament, affec
     # provenance 'lived' marks it apart from an authored .md seed. Folds forward now so the next turn's
     # recall gate can surface it; persisted to the ledger for the record.
     # GATED — see scripts/scene.py: a refused self-report must not become a permanent memory.
-    acquired = acquisition.assess(applied, tags, char) if validation["ok"] else None
+    acquired = acquisition.assess(applied, tags, char, world) if validation["ok"] else None
     if acquired:
         char["current"].setdefault("vault", []).append(acquired)
+        acquisition.fold_vault(char["current"]["vault"])
         led.append_acquisition(run_id, actor, turn_no, acquired)
         print("  LEARNED: %s  (%s)" % (str(acquired["claim"])[:120], acquired["provenance"]))
     return new_affect, True, char, profile
@@ -511,16 +606,20 @@ def main():
         raise SystemExit("pass exactly one of --book (a real book: slug or path) or --fixture (an engine test fixture)")
     if book_spec:
         from src.engine.vault import load_book
-        from src.engine import books
+        from src.engine import vault
         try:
             book_dir = books.resolve(book_spec)
         except books.BookError as e:
             raise SystemExit(str(e))
         world, chars = load_book(book_dir)
+        # THE BOOK ANSWERS FOR ITS OWN CAST. This restated the dict `load_book` had just returned.
+        # The key is NORMALISED first and that is not cosmetic: `--char Mira` has to find `mira`,
+        # and a first draft of this delegation passed the raw argument and broke exactly that.
         key = args.char.lower().replace(" ", "_")
-        if key not in chars:
-            raise SystemExit("character %r not in book (have: %s)" % (args.char, ", ".join(sorted(chars))))
-        char = chars[key]
+        try:
+            char = vault.character_or_raise(chars, key)
+        except vault.VaultError as e:
+            raise SystemExit(str(e))
         book_name = books.slug(book_dir)
         try:                                          # the chronicle lives WITH the book — enforced,
             default_db = books.assert_db_for_book(book_dir, args.db)   # not merely defaulted
@@ -529,11 +628,10 @@ def main():
         args.db = None                                # already resolved above
     else:
         def find(folder, stem):
-            for cand in (stem, stem + "-slice", stem + "-healer"):
-                p = os.path.join(REPO, folder, cand + ".json")
-                if os.path.exists(p):
-                    return os.path.relpath(p, REPO)
-            raise SystemExit("no %s/%s*.json found" % (folder, stem))
+            try:                       # ONE copy of this search — lint_book.py carried the other
+                return books.fixture_path(REPO, folder, stem, _FIXTURE_SUFFIXES, relative=True)
+            except books.BookError as e:
+                raise SystemExit(str(e))
         world = _load(find("world", args.fixture))
         char = _load(find("characters", args.char))
         book_name = args.fixture
@@ -570,14 +668,37 @@ def main():
         acquired = led.acquisitions_for(run_id, char_id)       # rehydrate the grown vault (lived memory)
         if acquired:
             char["current"].setdefault("vault", []).extend(acquired)
+        from src.engine.acquisition import fold_vault
+        char["current"]["vault"] = fold_vault(char["current"].get("vault", []))
         # EDGES — the chair writes none of its own (its TurnCommit is built before the tags are
         # read for bonds), but the SAME run may have played scenes, and those movements are this
         # character's. Reading is free correctness even while writing stays open.
         _moves = led.edge_deltas_for(run_id, char_id)
-        bonds.replay(char["current"].setdefault("relationships", {}), _moves)
+        # ORDERED REHYDRATE. This driver declares no elapsed of its own, but the SAME run
+        # may have played scenes that did, and losing those was the defect.
+        bonds.rehydrate(char["current"].setdefault("relationships", {}),
+                        char["baseline"].get("relationship_priors", {}),
+                        led.timeline_for(run_id, char_id))
         if _moves:                           # OPERATOR output, not the prompt — rule 5 is the prompt
             print("refolded %d edge movement(s) toward %s"
                   % (len(_moves), ", ".join(sorted({m[0] for m in _moves}))))
+        # THE WOUND TIER — the same refold, on the single-character driver. Wiring only one of the
+        # two drivers is indistinguishable from working until someone runs the other path.
+        # THE MICRO TIER refolds here too. A test asserting both drivers refold caught this
+        # missing, after a gate of mine had CLAIMED it was already wired — the claim was written
+        # from intent rather than from the file.
+        _tmoves = led.toward_deltas_for(run_id, char_id)
+        toward.replay(char, _tmoves)
+        if _tmoves:
+            print("refolded %d micro movement(s) toward %d person(s)"
+                  % (len(_tmoves), len({m[0] for m in _tmoves})))
+        _wmoves = led.wound_deltas_for(run_id, char_id)
+        levers.replay_wound_deltas(
+            (char["baseline"].get("drives") or {}).get("fears_wounds") or [], _wmoves)
+        if _wmoves:
+            print("refolded %d wound movement(s) on %s"
+                  % (len(_wmoves), ", ".join(sorted({m[0] for m in _wmoves}))))
+
         latest = led.latest_affect(run_id, char_id)
         affect = latest["affect"] if latest else dict(char["current"]["affect"])
         turn_no = state["turn"] + 1
@@ -596,6 +717,16 @@ def main():
             cfg[bible.CONFIG_KEY] = bible.build(led.con, world, chars)
         led.create_run(run_id, cfg)
         led.register_character(run_id, char_id, char["fixed"], char["baseline"])
+        # THE DIRECTOR SEEDS AS EVENTS, NEVER AS A DECREE (`world-state-ledger.md` write-path #3:
+        # the director "may seed ledger state ... but always as an event"). That is what makes
+        # creating a tension and minting one mid-run the SAME mechanism at different turns.
+        from src.engine import tensions as _tn
+        from src.engine.records import Event as _Ev
+        from src.engine import world_events as _we
+        _seeds = _tn.seed_events(world)
+        if _seeds:
+            _we.append(led, run_id, 0, [_Ev(type=s["type"], payload=s["payload"]) for s in _seeds])
+            print("seeded %d authored tension(s)" % len(_seeds))
         affect = dict(char["current"]["affect"])
         turn_no = 0
         print("new chronicle: %s" % run_id)
@@ -605,6 +736,27 @@ def main():
     groups_index = subject_groups(world)            # entity -> class, built once (the subject's regard key)
     recent = []
     record_faults(startup_faults(char, world), args.vault)
+    # REGISTER THE CAST ON EVERY PATH, not only on create. `characters` IS the engine's definition
+    # of who is real — `Ledger._seed` reads it to seed the fold's agents — and registration used to
+    # run only inside the create-run branch. CLAUDE.md makes both drivers first-class writers to the
+    # SAME chronicle, so a run started by one and continued by the other committed turns for people
+    # the chronicle never recorded as existing: `_project` setdefaults any string an event names, so
+    # the phantom folds identically both ways and `resume` returns OK. Their life_status and
+    # location then come from a default rather than a sheet.
+    #
+    # An append, not a rewrite: schema v20's triggers refuse UPDATE and DELETE on `characters` and
+    # leave INSERT alone, which is exactly the shape a late-joining cast member needs.
+    _known = {r["char_id"] for r in led.con.execute(
+        "SELECT char_id FROM characters WHERE run_id=?", (run_id,))}
+    if char_id not in _known:
+        led.register_character(run_id, char_id, char["fixed"], char["baseline"])
+        print("registered late-joining cast member: %s" % char_id)
+
+    # THE SWEEP IS PRINTED, NOT RAISED, AND NOT RESUME-GATED. Unlike `bible.drifted`, which
+    # has nothing pinned to compare on a new run, the DANGEROUS case here IS the new run: a
+    # fresh run_id written into a database that lost 50 of its 68 walls on migration and
+    # never said so.
+    print(integrity.startup_line(led.con))
     show_status(led, run_id, char, affect, temperament)
     # THE ACT SEAM: one turn, non-interactive, in or out. Placed before the REPL so a harness
     # never has to speak the REPL's language — argv in, stdout out, exit code.
@@ -647,7 +799,7 @@ def main():
             if len(parts) < 3:
                 print("  usage: reveal <entity_id> <name>")
                 continue
-            belief = acquisition.reveal_name(char, parts[1], parts[2])
+            belief = acquisition.reveal_name(char, parts[1], parts[2], world)
             if belief:
                 led.append_acquisition(run_id, char_id, turn_no, belief)
                 print("  REVEAL : %s now known to %s as %r — %s" % (parts[1], char_id, parts[2], belief["claim"]))

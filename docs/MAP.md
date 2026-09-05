@@ -1,7 +1,7 @@
 # MAP — what is in this project and what owns what
 
-**Why this file exists.** `docs/` holds 68 design docs, `src/engine/` 29 modules,
-`tests/` 51 suites. Nobody — human or agent — can hold that in their head, and reading it all every
+**Why this file exists.** `docs/` holds 87 design docs, `src/engine/` 50 modules,
+`tests/` 76 suites. Nobody — human or agent — can hold that in their head, and reading it all every
 session is not practical. **The failure this prevents is real and happened:** a session spent hours
 reasoning about the decision layer from four docs and inference, invented a parallel vocabulary
 ("vectors"), and rebuilt a worse version of the buff/debuff registry that `decision-engine.md`
@@ -98,7 +98,7 @@ the system already names, stop and search this table.**
 that lets narrated prose write state (`design.md` three boundaries).
 
 ---
-## docs/ — 67 design docs (normative for what SHOULD BE)
+## docs/ — 86 design docs (normative for what SHOULD BE)
 
 | docs | lines | owns |
 |---|---|---|
@@ -108,6 +108,10 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `agent-toolboxes` | the standard every agent's skill follows |
 | `arc-engine` | durable change (trauma, growth, the through-line) (WORKING) |
 | `audit-2026-06-10` | 2026-06-10 |
+| `BLUEPRINT-character` | The Character Blueprint |
+| `BLUEPRINT-scene` | THE SCENE BLUEPRINT |
+| `BLUEPRINT-world` | The World Blueprint |
+| `START-HERE` | Building a Book, by Hand |
 | `baseline-generation` | where every per-character number is born (WORKING) |
 | `basis-verification` | the blind-judge confusion matrix |
 | `bounds-experiment-design` | what a director can and cannot make the engine do (DESIGN / pre-registered, not yet run) |
@@ -117,6 +121,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `character-model` | the levers that make a person real |
 | `character-schema` | the consolidated stat block (WORKING) |
 | `composition-pass` | how a backstory becomes a baseline |
+| `connection-model` | what a character is invested in, and how much it multiplies |
 | `consolidation-loop` | turning a turn into accurate events (THE KEYSTONE) (WORKING) |
 | `cutting-room` | what we do with the data (WORKING) |
 | `decision-engine` | how the variable weights map and resolve into a choice |
@@ -124,10 +129,14 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `drives-schema` | goals, fears, and orientation as opposable fields (Layer 3) |
 | `driving-the-engine` | an authoring guide (LIVING / experiment-driven) |
 | `emotion-basis` | the primitives, their targets, and where tense lives |
+| `emotion-list` | every name, staged by degree |
 | `emotion-recipes` | every compound, its variations, and how much of the person survives it |
+| `emotion-scales` | what the numbers mean |
+| `emotion-vocabulary` | exhaustive |
 | `generative-model` | how a character produces behavior (first principles) |
 | `goal-alignment-review` | the spider test against the shipped engine |
 | `grounding` | how the orchestrator is kept speaking from facts |
+| `guide-building-a-world` | the procedure |
 | `guide-content` | authoring a book's inputs |
 | `guide-continuing-the-story` | what to author for each generation step (LLM guide) |
 | `guide-emotional-authoring` | authoring a character's emotional makeup |
@@ -135,6 +144,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `guide-operating` | running books on the engine |
 | `guide-user-path` | everything you need, in the order you need it |
 | `history` | the justification layer (the rules that govern its process) |
+| `keeper-of-truth` | how a world grows facts it was never authored with |
 | `knowledge-model` | the core problem) |
 | `measurement` | detectors, the critic, and judge protocols (WORKING) |
 | `multi-character` | Multi-Character Conversation & Debate (3+) (WORKING) |
@@ -142,6 +152,14 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `new-book-manifest` | what the user copies, creates, and references |
 | `orchestration` | the showrunner (the process-brain that runs the whole book) |
 | `orchestrator-design` | design notes for the build |
+| `phrases-care` | the band sets |
+| `phrases-disgust` | the band sets |
+| `phrases-fear` | the band set |
+| `phrases-lust` | the band sets |
+| `phrases-panic-grief` | the band sets |
+| `phrases-play` | the band set |
+| `phrases-rage` | the band set |
+| `phrases-seeking` | the outward band set (reference specimen) |
 | `planet` | the physical stage (sized to what's required) |
 | `present-systems` | step 4 (the operating present) |
 | `prior-art` | what's paved, what isn't (researched 2026-06-10) |
@@ -151,6 +169,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `reference-species-prior` | the species prior, and the formative diffs that move it |
 | `relationships` | growth, diminishment, and how they gate everything |
 | `relevancy-gate` | what to inject from the vault |
+| `roadmap-character-memory` | the four advanced character memory tracks |
 | `run-lifecycle` | save, resume, recover, govern (WORKING) |
 | `scene-assembly` | how a character lives the scene (WORKING) |
 | `scene-authoring-rules` | Normative Rules for Authoring SWE Scenes & Characters |
@@ -170,39 +189,60 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `world-model` | the other half of the loop (SEED — to co-design) |
 | `world-state-ledger` | the live now (design the machinery; the line items are runtime) |
 
-## src/engine/ — 29 modules (normative for what IS)
+## src/engine/ — 50 modules (normative for what IS)
 
 | src | lines | owns |
 |---|---|---|
 | `acquisition` | the vault grows: a durable, subject-bearing turn becomes a recallable belief. |
 | `arc` | the Arc Engine: durable baseline change over the story (docs/arc-engine.md). |
+| `associative` | Track 2 & 3: Multi-Hop Associative Graph Traversal with Temporal Decay. |
 | `bible` | pin the authored bible into the run DB, and make entities exact. |
 | `bonds` | the relationship tier: how one person's read of another MOVES. |
 | `books` | resolve a book by slug, so several can be active at once. |
 | `citation` | the grounding contract's enforcement core. |
-| `code_families` | the DATA half of the error registry. |
+| `claims` | what an actor asserted about the world, and when two assertions cannot both be true. |
+| `clock` | the DECLARED clock. One cause, four consumers. |
+| `code_families` | the code DATA. One dict per module family; `codes.py` holds the contract. |
 | `codes` | the frozen registry of engine error codes. |
 | `compounds` | the named emotions, as coordinates over the primitives. |
+| `connection` | how much of the character is INVESTED in the person a moment is about. |
 | `consolidation` | Gate 4: Consolidation Validation. |
 | `db` | SQLite connection + schema migration for the engine spine. |
+| `decay` | Track 3: Memory Decay & Temporal Forgetting Curves. |
 | `decay_law` | the one equation every decay in this engine already was. |
 | `direction` | numbers to qualitative DIRECTION (gate 5, the backstage guardrail). |
+| `edl` | the edit decision list: what the room decided, recorded so the prose can be traced. |
 | `errors` | the single typed refusal channel for the whole engine. |
+| `facets` | what a belief is ABOUT, stamped when the belief is written. |
 | `faithfulness` | the deterministic half of the faithfulness guard: catch NAME leaks in a turn. |
 | `faults` | the engine-fault detector: the machine-side twin of the chair's world-fault inbox. |
+| `floor` | who wants the floor next. |
+| `fold` | the pure function from LOG to SNAPSHOT. The reading half of the spine. |
 | `gate` | Relevancy Gate: perception-mode wall + recall-mode trigger-matching. |
-| `heritable` | one parser for the allele vocabulary, which three readers had spelled apart. |
+| `heritable` | the genotype: how it is READ, and what each allele does. |
 | `identity_view` | the STABLE identity prefix, said in words. |
+| `integrity` | what is WRONG with a database that a fresh one could not be wrong about. |
+| `law` | what the world PERMITS. The ruling half of the bible. |
 | `ledger` | the event-sourced spine: append-only log + atomic turn-commit + pure fold + resume. |
 | `levers` | the effective-levers tier (the buff/debuff catalog). |
+| `narration_modes` | the two axes a narrator is set on, and only one touches the wall. |
 | `profiles` | profiles.py ? the formative profiles library and composition gate. |
 | `prompt` | the reasoning-contract layer as MACHINERY (gate 6, machine/content separation). |
 | `read_api` | the orchestrator's typed read surface over the run DB. |
 | `records` | typed record contracts for everything the engine writes (record-contract.md). |
 | `scene` | Scene Assembly: deterministic 7-step pipeline producing the decision packet. |
+| `scene_cfg` | the scene cfg a scene ran against, pinned so a replay can name its inputs. |
+| `severity` | the event-strength vocabulary: seven engine-owned words on the existing 0..1 scale. |
+| `snapshots` | the folded world, cached. NOT the source of truth, and the file says so. |
 | `state` | State Engine, Gate 2. |
 | `targets` | what each feeling is ABOUT. |
+| `tensions` | the first register on the world-appraisal chassis. |
+| `toward` | the MICRO tier: what one specific person makes you feel. |
 | `vault` | the Obsidian book-vault loader (machine/content seam at the repository level). |
+| `world_appraisal` | the world-side mirror of `state-engine.md`. ONE mechanism, three registers. |
+| `world_events` | what makes an event worth recording to the WORLD, and what each type means. |
+| `wound` | the wound tier's MOVER: what decides that a scar deepens or eases. |
+| `writeonce` | the identities the spine writes ONCE, and the refusal when something writes twice. |
 
 ## scripts/ — the entry points
 
@@ -216,13 +256,16 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `narrate` | 232 | the narrator (design.md layer 7, narration.md): a canonized scene -> POV-bound prose. |
 | `scene` | 393 | the multi-agent scene runner (the director sets the scene; the agents push it). |
 
-## tests/ — 51 suites (each is a PROOF of the gate it names)
+## tests/ — 76 suites (each is a PROOF of the gate it names)
 
 | tests | lines | owns |
 |---|---|---|
 | `test_acquisition` |  |
 | `test_arc` |  |
 | `test_basis_parser` | the basis probe's answer parser, under a harness that actually runs it. |
+| `test_belief_facets` | a belief must carry what it is ABOUT, stamped when it is written. |
+| `test_belief_identity` | a recorded belief reference must still name that belief tomorrow. |
+| `test_belief_revision` |  |
 | `test_bible` |  |
 | `test_bonds` | the relationship tier (src/engine/bonds.py). |
 | `test_books` |  |
@@ -230,47 +273,69 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `test_capability_claims` | a mechanism a doc NAMES as available must have a code path. |
 | `test_citation` |  |
 | `test_citations` | the docs' `file.py:NN` references must point at what they claim. |
+| `test_claims` | the structural collapse detector, exercised on the Clifford case. |
+| `test_coded_refusals` |  |
+| `test_compose_event` |  |
 | `test_composition_pass` |  |
+| `test_composition_phase_a` |  |
 | `test_compounds` | the named emotions as coordinates over the primitives. |
+| `test_connection` |  |
 | `test_consolidation` |  |
 | `test_critic` |  |
 | `test_cut` |  |
-| `test_decay_law` | the two identities every caller relies on, and the three refusals. |
+| `test_decay_law` |  |
 | `test_declared_is_read` | the guard for this repo's named dominant defect class. |
 | `test_direction` |  |
 | `test_disgust` | the eighth primitive, and what it unlocked. |
+| `test_driver_main` |  |
+| `test_edl` |  |
 | `test_effective` | the effective-levers tier (src/engine/levers.py). |
 | `test_errors` | the coded refusal channel, and the registry's two-way rule. |
 | `test_faithful_turn` |  |
 | `test_faults` |  |
+| `test_floor` |  |
 | `test_formative_profiles` |  |
 | `test_gate` |  |
+| `test_gate_multihop` |  |
 | `test_genotype` | the combinatorial preset draw (scripts/make_genotype.py). |
+| `test_integrity` |  |
+| `test_keeper` |  |
 | `test_laws` |  |
 | `test_laws_preflight` | the world refuses something. |
 | `test_ledger` |  |
 | `test_lint_book` |  |
 | `test_lint_scene` | each scene-cfg check must fire on exactly what it claims to catch. |
+| `test_live_belief_revision` |  |
 | `test_map` | the routing table must describe the tree it routes into. |
+| `test_memory_decay` |  |
 | `test_narrate` |  |
 | `test_no_digits` | THE LAW: no number describing a character reaches them. |
 | `test_no_private_content` |  |
 | `test_numeric_slots` | a book that lints clean must be a book that runs. |
 | `test_orc_hooks` |  |
 | `test_pipeline_e2e` |  |
+| `test_place` |  |
 | `test_portability` |  |
+| `test_profiles` |  |
 | `test_prompt_sections` | every labelled section of the actor prompt holds ITS OWN content. |
 | `test_reachable` |  |
 | `test_read_api` |  |
+| `test_recall_decay_is_wired` | through assemble(), not through decay's own unit tests. |
 | `test_scene` |  |
 | `test_scene_config` |  |
 | `test_scene_persistence` |  |
 | `test_scenes` |  |
 | `test_self_contained` | the engine STANDS ALONE. |
+| `test_severity` | the event-strength vocabulary resolves onto the EXISTING 0..1 scale. |
 | `test_state` |  |
 | `test_subject` |  |
 | `test_targets` | per-primitive targets: what each feeling is ABOUT. |
+| `test_theory_of_mind` |  |
+| `test_toward` |  |
 | `test_vault` |  |
+| `test_world_appraisal` |  |
+| `test_world_events` | the world types, checked against the fold that actually consumes them. |
+| `test_wound` |  |
 
 ## .claude/ — the optional agent overlay
 

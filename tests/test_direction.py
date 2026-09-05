@@ -3,6 +3,7 @@
 
 Script-style, stdlib only, exit 0 = all pass.
 """
+import io
 import json
 import os
 import re
@@ -139,11 +140,17 @@ def test_monotone_presence():
 def test_separator_not_in_phrases():
     """No phrase may contain the clause separator "; " -- it would break any consumer that splits."""
     print("\n[5] SEPARATOR HYGIENE")
-    from src.engine.direction import _PHRASES, _COND, _EDGE_PHRASES, _SURENESS
+    from src.engine.direction import (_PHRASES, _COND, _EDGE_PHRASES, _SURENESS,
+                                      _REFLEXIVE_PHRASES, _UNBOUND_PHRASES)
     bad = []
-    for table in (_PHRASES, _EDGE_PHRASES):
+    # ALL FOUR phrase tables, not two. Until 2026-08-31 this swept `_PHRASES` and `_EDGE_PHRASES`
+    # only, so the reflexive and unbound tables were unguarded — a guard reports on what it READS,
+    # and those two are exactly where the next phrase sets are headed. `_UNBOUND_PHRASES` holds
+    # None entries (bands with no unbound reading) and one bare string, so the walk tolerates both.
+    for table in (_PHRASES, _EDGE_PHRASES, _REFLEXIVE_PHRASES, _UNBOUND_PHRASES):
         for k, tup in table.items():
-            bad += ["%s:%s" % (k, ph) for ph in tup if ";" in ph]
+            tup = (tup,) if isinstance(tup, str) else tup
+            bad += ["%s:%s" % (k, ph) for ph in tup if ph and ";" in ph]
     bad += [ph for _, ph in _COND if ";" in ph]
     bad += [ph for _, ph in _SURENESS if ";" in ph]
     check("separator-not-in-phrases", not bad, "contain ';': %s" % bad[:3])
@@ -325,15 +332,171 @@ def test_binding_a_primitive_is_unchanged_by_the_cover():
     check("lusts-single-string-form-still-resolves",
           _phrase_for("LUST", 2, {}, "me") == _UNBOUND_PHRASES["LUST"])
 
+def test_the_reflexive_phrase_table_matches_the_REGISTRY_not_a_hand_kept_list():
+    """The phrase table's KEYS must equal the direction_changes-True set.
+
+    `_REFLEXIVE_PHRASES` is hand-written — the phrase TEXT cannot be derived from anything. Its key
+    set can, and until 2026-09-01 nothing checked the two agreed. That mattered: `_phrase_for`
+    gated on `admits_role(p, "self")`, which PANIC_GRIEF passes (reflexive True), and PANIC_GRIEF
+    was kept out of the reflexive branch purely by having no row in the table. Adding one would
+    have handed the despair phase directions the law at `records.py` says it must not get, with no
+    test going red — the eighth row of CLAUDE.md's duplicates table, one file later.
+
+    So both halves are asserted: the branch reads the column (below), and the table cannot drift
+    away from it (here).
+    """
+    from src.engine.direction import _REFLEXIVE_PHRASES
+    from src.engine.records import DIRECTEDNESS, PRIMARIES
+
+    declared = {p for p in PRIMARIES if DIRECTEDNESS[p]["direction_changes"]}
+    tabled   = set(_REFLEXIVE_PHRASES)
+    check("reflexive-phrases-match-the-registry", declared == tabled,
+          "registry says %s, table holds %s" % (sorted(declared), sorted(tabled)))
+
+
+def test_PANIC_GRIEF_is_kept_out_by_the_LAW_and_not_by_an_absent_row():
+    """CONTROL for the fix. PANIC_GRIEF is reflexive AND direction_changes False — the pair that
+    separates the two columns. Ask the two questions and they must disagree; then ask `_phrase_for`
+    for a self-bound PANIC_GRIEF and it must return the ORDINARY phrase even with a phrase planted
+    in the table, which is what gating on `admits_role` could not promise."""
+    from src.engine import direction as d
+    from src.engine.records import admits_role, direction_changes, DIRECTEDNESS
+
+    check("the-two-columns-disagree-for-PANIC_GRIEF",
+          admits_role("PANIC_GRIEF", "self") and not direction_changes("PANIC_GRIEF"),
+          "reflexive=%r direction_changes=%r" % (DIRECTEDNESS["PANIC_GRIEF"]["reflexive"],
+                                                 DIRECTEDNESS["PANIC_GRIEF"]["direction_changes"]))
+
+    planted = ("x", "PLANTED-REFLEXIVE-PHRASE", "y", "z")
+    d._REFLEXIVE_PHRASES["PANIC_GRIEF"] = planted
+    try:
+        got = d._phrase_for("PANIC_GRIEF", 1, {"PANIC_GRIEF": "me"}, "me")
+    finally:
+        del d._REFLEXIVE_PHRASES["PANIC_GRIEF"]
+    check("a-planted-PANIC_GRIEF-variant-is-NOT-reachable", got != planted[1],
+          "got %r" % (got,))
+    check("and-SEEKING-with-the-same-bind-IS-reflexive",
+          d._phrase_for("SEEKING", 1, {"SEEKING": "me"}, "me")
+          == d._REFLEXIVE_PHRASES["SEEKING"][1])
+
+
+
+def test_the_SLOPE_separates_a_leap_from_a_climb():
+    """Two characters at the SAME value, one who leapt there and one who climbed, must not
+    receive the same line. Before 2026-09-01 they did: `_band` maps a value to a tier and knows
+    nothing about how it got there, and the only movement marker in this module compares against
+    the temperament MEAN, which is "elevated versus your resting state" — a different fact."""
+    from src.engine.direction import direct_affect
+    from src.engine.records import PRIMARIES
+
+    temp = {p: {"mean": 0.30, "variability": 0.1} for p in PRIMARIES}
+    now  = dict({p: 0.30 for p in PRIMARIES}, RAGE=0.75)
+
+    def rage_clause(prev_rage):
+        prev = None if prev_rage is None else dict({p: 0.30 for p in PRIMARIES}, RAGE=prev_rage)
+        line = direct_affect(now, temp, prev=prev)
+        return next(c for c in line.split("; ") if "offence" in c or "square up" in c)
+
+    leapt   = rage_clause(0.20)
+    climbed = rage_clause(0.70)
+    fell    = rage_clause(0.99)
+    none    = rage_clause(None)
+
+    check("a-LEAP-is-marked", "came on you fast" in leapt, leapt)
+    check("a-CLIMB-is-not", "came on you fast" not in climbed, climbed)
+    check("a-DROP-is-marked-the-other-way", "dropped away" in fell, fell)
+    check("and-a-leap-and-a-climb-DIFFER", leapt != climbed)
+    check("no-previous-turn-renders-exactly-as-before", none == climbed,
+          "%r vs %r" % (none, climbed))
+
+
+def test_the_slope_clause_never_breaks_the_SEPARATOR_contract():
+    """This module joins clauses with "; " and a consumer splits on it, so no phrase may
+    contain one. The slope clause is appended to an existing phrase, which is exactly where that
+    contract is easiest to break by accident."""
+    from src.engine.direction import _slope_marker
+    from src.engine.records import PRIMARIES
+    for p in PRIMARIES:
+        for prev in (0.0, 0.5, 1.0):
+            m = _slope_marker(p, 0.5, {p: prev})
+            check("no-separator-in-slope:%s@%.1f" % (p, prev), "; " not in m, repr(m))
+
+
+def test_a_missing_or_malformed_previous_is_SILENT_not_loud():
+    """A first turn has no previous state and that is normal, not an error. Every driver
+    written before this existed passes nothing, and every one of those runs must be unchanged."""
+    from src.engine.direction import _slope_marker
+    check("no-prev-is-silent", _slope_marker("RAGE", 0.9, None) == "")
+    check("empty-prev-is-silent", _slope_marker("RAGE", 0.9, {}) == "")
+    check("a-prev-missing-THIS-primary-is-silent", _slope_marker("RAGE", 0.9, {"FEAR": 0.1}) == "")
+    check("a-non-numeric-prev-is-silent", _slope_marker("RAGE", 0.9, {"RAGE": "loud"}) == "")
+
+
+def test_EVERY_refusal_in_this_module_carries_a_REGISTERED_code():
+    """One module answered an operator two ways: a coded DirectionError for a value out of range and
+    a bare ValueError for a packet of the wrong shape — both reached the same person by the same
+    path. EngineError subclasses ValueError, so coding these costs no caller anything.
+
+    The scan PARSES the module rather than trusting a list of line numbers, because a hand-kept list
+    of raise sites is the seventh duplicate CLAUDE.md tabulates and would rot on the next refusal."""
+    import ast
+    from src.engine import codes
+    src = io.open(os.path.join(REPO, "src", "engine", "direction.py"), encoding="utf-8").read()
+    tree = ast.parse(src)
+    uncoded, raised = [], set()
+    for n in ast.walk(tree):
+        if not isinstance(n, ast.Raise) or not isinstance(n.exc, ast.Call) or not n.exc.args:
+            if isinstance(getattr(n, "exc", None), ast.Call):
+                uncoded.append(n.lineno)
+            continue
+        a0 = n.exc.args[0]
+        if isinstance(a0, ast.Constant) and isinstance(a0.value, str)                 and re.fullmatch(r"[A-Z][A-Z0-9]*_[A-Z0-9_]+", a0.value):
+            raised.add(a0.value)
+        else:
+            uncoded.append(n.lineno)
+    check("every-refusal-in-direction.py-carries-a-CODE", not uncoded,
+          "raises without a code at line(s) %s" % uncoded)
+    check("...and-the-scan-actually-READ-the-module", bool(raised),
+          "no coded raise found at all")
+    unregistered = sorted(c for c in raised if not codes.is_registered(c))
+    check("...and-every-code-it-raises-is-REGISTERED", not unregistered, str(unregistered))
+
+
+def test_the_three_shape_refusals_fire_with_their_own_codes():
+    """The registry's other half: a code listed and never raised is the same lie as one raised and
+    never listed."""
+    from src.engine.direction import DirectionError
+    cases = [
+        ("DIRECTION_PACKET_NOT_AN_OBJECT", lambda: direct_affect("not a dict", {})),
+        ("DIRECTION_PACKET_NOT_AN_OBJECT", lambda: direct_condition(["energy"])),
+        ("DIRECTION_PACKET_NOT_AN_OBJECT", lambda: direct_edge(None)),
+        ("DIRECTION_AFFECT_MISSING_PRIMARY",
+         lambda: direct_affect({p: 0.5 for p in list(PRIMARIES)[:-1]},
+                               {p: {"mean": 0.5} for p in PRIMARIES})),
+    ]
+    for want, call in cases:
+        try:
+            call()
+            check("refuses-with-%s" % want, False, "the malformed packet was ACCEPTED")
+        except DirectionError as e:
+            check("refuses-with-%s" % want, e.code == want, "got %r" % e.code)
+
+
 def main():
     print("test_direction.py — gate 5 backstage guardrail\n")
-    for t in (test_no_digits_ever, test_monotone_bands, test_deviation_markers,
-              test_monotone_presence, test_separator_not_in_phrases, test_condition_bands, test_edges_and_sureness,
-              test_no_floating_intensifiers, test_every_phrase_is_a_direction,
-              test_no_unbound_phrase_hands_over_a_deictic,
-              test_binding_a_primitive_is_unchanged_by_the_cover,
-              test_fail_loud):
-        t()
+    # DISCOVERED, NOT LISTED — a twelve-name tuple here is the same duplicate CLAUDE.md tabulates,
+    # and it is the one that hid a determinism guard in test_scene.py on 2026-09-01. Ordered by
+    # definition line so the printed run reads in file order.
+    # PER-TEST ISOLATION. Discovery fixed WHICH tests run; it did not stop the FIRST raiser from
+    # killing every test after it — a bare `t()` propagates, and on 2026-09-02 three other suites
+    # lost their whole tail to one missing import that way. A harness reports; it never raises.
+    for t in sorted((v for k, v in globals().items()
+                     if k.startswith("test_") and callable(v)),
+                    key=lambda f: f.__code__.co_firstlineno):
+        try:
+            t()
+        except Exception as e:                       # noqa: BLE001
+            check("%s RAISED %s" % (t.__name__, type(e).__name__), False, str(e)[:140])
     print("\n%d / %d passed" % (len(PASS), len(PASS) + len(FAIL)))
     if FAIL:
         print("FAILED: %s" % FAIL)

@@ -11,9 +11,8 @@ state, and `_regard` becomes a per-primitive evaluation." The per-primitive `_re
 
 Pure, deterministic, stdlib. The registry it consults (`records.DIRECTEDNESS`) is upstream of both.
 """
-from .records import admits_role
+from .records import admits_role, RecordError
 from .state import _AT_REST, _DIM_TO_PRIMARY
-from .errors import EngineError
 
 
 def retarget(targets, tags, temperament=None, affect=None, me=None):
@@ -44,12 +43,12 @@ def retarget(targets, tags, temperament=None, affect=None, me=None):
     renders show targets ping-ponging or stale aboutness — this is deliberately not arbitrated.
     """
     if not isinstance(tags, dict):
-        raise EngineError("TARGETS_RETARGET_TAGS_NOT_A_DICT", "retarget: tags must be a dict, got %r" % type(tags).__name__)
+        raise RecordError("TAG_TAGS_NOT_AN_OBJECT", "retarget: tags must be a dict, got %r" % type(tags).__name__)
     out = dict(targets) if isinstance(targets, dict) else {}
 
     dimensions = tags.get("dimensions") or {}
     if not isinstance(dimensions, dict):
-        raise EngineError("TARGETS_RETARGET_TAGS_DIMENSIONS_NOT_A_DICT", "retarget: tags['dimensions'] must be a dict")
+        raise RecordError("TAG_DIMENSIONS_TYPE", "retarget: tags['dimensions'] must be a dict")
     subject = tags.get("target")
 
     if subject:

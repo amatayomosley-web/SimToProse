@@ -23,6 +23,7 @@ that, if they broke, would break silently:
 
 Run: python tests/test_errors.py      (run_all.py invokes it as a subprocess and reads the exit code)
 """
+import io
 import ast
 import os
 import re
@@ -95,30 +96,67 @@ def test_the_detail_survives_verbatim():
     check("detail-is-suffix", str(e).endswith(msg), str(e))
 
 
+def test_an_engine_error_SURVIVES_copy_and_pickle():
+    """INVARIANT 3. An exception must be reconstructible FROM ITS OWN ARGS.
+
+    Python rebuilds an exception as `cls(*self.args)` — that is how `copy.copy`, `copy.deepcopy`,
+    `pickle`, `multiprocessing` and `concurrent.futures` all do it. `__init__` used to pass the
+    RENDERED message to `super().__init__`, so `args` held one element, and once the uncoded branch
+    was retired every one of those became a refused one-argument construction. Measured 2026-09-03:
+    all three mechanisms raised UnknownErrorCode on a coded VaultError.
+
+    The caller here is the INTERPRETER, which is why no sweep of raise sites could find it and why
+    it is pinned by a round trip rather than by a scan. It was latent — nothing in the tree copies
+    or pickles an engine error — and a latent contract break is still a break."""
+    import copy as _copy
+    import pickle as _pickle
+    e = BibleError("BIBLE_LAW_ID_MISSING", "laws[0] has no id")
+    check("args-are-the-CONSTRUCTOR-arguments", e.args == ("BIBLE_LAW_ID_MISSING",
+                                                           "laws[0] has no id"), str(e.args))
+    for label, rebuilt in (("copy", _copy.copy(e)),
+                           ("deepcopy", _copy.deepcopy(e)),
+                           ("pickle", _pickle.loads(_pickle.dumps(e)))):
+        check("survives-%s" % label,
+              type(rebuilt) is type(e) and rebuilt.code == e.code
+              and rebuilt.detail == e.detail and str(rebuilt) == str(e),
+              "%r vs %r" % (str(rebuilt), str(e)))
+
+    # ...and the rendering the args change could have silently broken: invariant 2 says the detail
+    # is the VERBATIM suffix, which 13 tests assert with `in str(e)`. `__str__` is explicit now
+    # precisely because `args` no longer carries the rendered string.
+    check("str-still-renders-[CODE]-detail", str(e) == "[BIBLE_LAW_ID_MISSING] laws[0] has no id",
+          str(e))
+    check("...and-the-detail-is-still-the-verbatim-suffix", str(e).endswith("laws[0] has no id"))
+
+
 def test_the_legacy_UNCODED_form_is_REFUSED():
-    """INVARIANT 3, INVERTED 2026-09-04 when the migration finished.
+    """INVARIANT 3, INVERTED ON 2026-09-02 — and the inversion is this goal's finish line.
 
-    This test used to assert the opposite — that `BibleError("prose")` still rendered
-    byte-identically to the pre-errors.py form, so modules could migrate one gate at a time
-    without a flag day. That was the right contract while migration was in progress and the
-    wrong one the moment it completed: the accepting branch is why 190 of 202 refusal sites
-    stayed uncoded for five weeks after the channel shipped. An escape hatch left open is
-    the path everything takes.
+    This used to assert that an uncoded refusal still CONSTRUCTED, so a module could migrate on its
+    own gate without a flag day. That reason expired when the last module converted: measured the
+    same day, zero one-arg constructions of any of the 21 engine error classes remained in `src/`,
+    `scripts/` or `.claude/`.
 
-    Now an uncoded refusal cannot be CONSTRUCTED, which is stronger than not being FOUND —
-    the sibling instance learned that when its AST audit certified the engine converted
-    while 44 prose refusals sat behind a `_require(cond, msg)` doorway the scan read as
-    already-coded. A constructor cannot be missed by anything that runs."""
-    try:
-        BibleError("world has not answered step 1")
-        check("uncoded-form-refused", False, "an uncoded refusal was constructed")
-    except UnknownErrorCode as e:
-        check("uncoded-form-refused", True)
-        check("refusal-names-the-fix", "codes.py" in str(e), str(e)[:90])
-    # and the coded form still renders and is still catchable as ValueError
-    e = BibleError("BIBLE_CHARACTERS_NOT_A_DICT", "world has not answered step 1")
-    check("coded-str", str(e) == "[BIBLE_CHARACTERS_NOT_A_DICT] world has not answered step 1", str(e))
-    check("coded-still-catchable", isinstance(e, ValueError))
+    While the branch stood, `codes.py`'s first rule was enforced by a SCAN. The scan is not enough,
+    and that is measured rather than argued: the AST audit certified the engine fully converted
+    while 44 prose refusals sat in `records.py` — the surface every committed turn passes through —
+    because it read `_require(cond, msg)` as an already-coded doorway. A constructor cannot be
+    missed by anything that runs."""
+    for label, ctor in (("a module error", lambda: BibleError("world has not answered step 1")),
+                        ("the base class", lambda: EngineError("plain prose")),
+                        ("no arguments at all", lambda: EngineError())):
+        try:
+            ctor()
+            check("an-uncoded-refusal-is-refused:%s" % label, False, "it CONSTRUCTED")
+        except UnknownErrorCode as e:
+            check("an-uncoded-refusal-is-refused:%s" % label, "Pass the code FIRST" in str(e),
+                  str(e)[:80])
+
+    # THE ONE EXEMPTION, asserted by name: `UnknownErrorCode` is deliberately a plain ValueError
+    # (errors.py:52) and NOT an EngineError, because it is raised from inside the constructor that
+    # validates codes — a coded form would recurse. If someone re-roots it, this fails.
+    check("UnknownErrorCode-is-NOT-an-EngineError", not issubclass(UnknownErrorCode, EngineError))
+    check("...and-still-takes-one-argument", str(UnknownErrorCode("a bare message")))
 
 
 def test_an_unregistered_code_refuses_at_construction():
@@ -136,53 +174,223 @@ def test_an_unregistered_code_refuses_at_construction():
           "would recurse: constructing an EngineError needs a registered code")
 
 
+def _is_env_lookup(call):
+    """`os.environ.get(...)` or `os.getenv(...)` — an environment variable, not an error code.
+
+    They share a spelling convention and nothing else. Excluded by NAME rather than by a list of
+    the three that exist today, so a fourth needs no edit here.
+    """
+    f = call.func
+    if isinstance(f, ast.Attribute) and f.attr in ("get", "getenv"):
+        v = f.value
+        if isinstance(v, ast.Attribute) and v.attr == "environ":
+            return True
+        if isinstance(v, ast.Name) and v.id == "os":
+            return True
+    return False
+
+
 def _used_codes():
-    """Every code literal that enters the system, across src/ and scripts/.
+    """Every code literal that ENTERS the system, across src/ and scripts/.
 
-    THREE doorways, not one — and the guard has now been caught short TWICE, which is the
-    whole argument for counting doorways rather than raise statements:
-      * `raise SomeError("CODE", ...)`  — a refusal
-      * `_flag("CODE", ...)`            — a validation finding, which a driver may then raise on
-      * `_require(cond, "CODE", msg)`   — the record/read contracts' helper (added 2026-09-04)
+    PARSED, NOT MATCHED — and that is the repair, not a preference. This walked the raw TEXT with a
+    regex per doorway, and had to learn a new pattern every time a module invented one: `raise
+    X("CODE", …)`, then `_flag("CODE", …)`, then `_require(cond, "CODE", …)` (which needed a
+    paren-balancer, because the condition contains commas), then `raise err("CODE", …)` where the
+    type is a parameter. Four patterns, three of them added AFTER the guard went red on codes that
+    were being raised through a doorway it had not been taught.
 
-    The third arrived when 33 refusals migrated behind `records._require` and
-    `read_api._require`, and this function reported every one of their codes as
-    "registered but used nowhere" — a false alarm that reads exactly like the real defect
-    it is meant to find. The sibling instance hit the mirror image: its AST audit read the
-    same helper as an already-coded doorway and certified an engine converted while 44
-    prose refusals sat behind it.
+    Reading CALL ARGUMENTS instead needs no doorway list at all: every one of those spellings is a
+    call with the code as an argument, and a fifth invented tomorrow will be too.
 
-    `_require` is matched by AST, not regex, because its first argument is a CONDITION that
-    routinely contains commas, nested calls and line breaks — the sibling's regex balancer
-    could not span multi-line calls and had to be documented as a known gap. An AST walk has
-    no such limit.
+    IT ALSO CLOSES THE ONE WEAKNESS HERE THAT FAILED **GREEN**. The regex read comments and
+    docstrings, so a commented-out raise could keep a dead code "used" — the registry's
+    listed-but-never-raised rule would report clean on a code nothing raises. A docstring is never a
+    call argument, so the parse cannot see one. Every other weakness in this file fails red; this
+    was the exception, deferred across four gates, and it is closed rather than accepted.
+
+    Measured on the swap (2026-09-02): the parse finds every code the four patterns found, plus 34
+    more they missed — multi-line `_require` calls the balancer still could not span. Strict
+    superset, so the guard cannot have got weaker.
+
+    ENVIRONMENT LOOKUPS ARE EXCLUDED, and finding out why is the whole reason this note exists. A
+    first draft said the extras were harmless because "the only consumer is a subset test" — that
+    was WRONG. `test_every_used_code_is_registered` runs the check in the other direction too, and
+    `os.environ.get("SWE_BOOKS")` reads as a used-but-unregistered code. Three of them,
+    immediately. So `os.environ.get` and `os.getenv` arguments are skipped by name: an environment
+    variable and an error code share a spelling convention and nothing else.
     """
     found = set()
-    pats = (re.compile(r'raise\s+\w*Error\(\s*"([A-Z][A-Z0-9_]+)"'),
-            re.compile(r'_flag\(\s*"([A-Z][A-Z0-9_]+)"'))
     for sub in ("src", "scripts"):
         for root, _dirs, files in os.walk(os.path.join(REPO, sub)):
             if "__pycache__" in root:
                 continue
             for fn in files:
-                if fn.endswith(".py"):
-                    with open(os.path.join(root, fn), encoding="utf-8") as fh:
-                        text = fh.read()
-                    for pat in pats:
-                        found.update(pat.findall(text))
-                    try:
-                        tree = ast.parse(text)
-                    except SyntaxError:
+                if not fn.endswith(".py"):
+                    continue
+                with open(os.path.join(root, fn), encoding="utf-8") as fh:
+                    text = fh.read()
+                try:
+                    tree = ast.parse(text)
+                except SyntaxError:                    # a file that cannot parse is a louder failure
+                    continue                           # elsewhere; this guard is not the place
+                for n in ast.walk(tree):
+                    if not isinstance(n, ast.Call):
                         continue
-                    for n in ast.walk(tree):
-                        if (isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
-                                and n.func.id == "_require" and len(n.args) >= 2):
-                            a = n.args[1]
-                            if (isinstance(a, ast.Constant) and isinstance(a.value, str)
-                                    and a.value.isupper() and "_" in a.value):
-                                found.add(a.value)
+                    if _is_env_lookup(n):              # SCREAMING_SNAKE, and not a code
+                        continue
+                    for a in n.args:
+                        if (isinstance(a, ast.Constant) and isinstance(a.value, str)
+                                and re.fullmatch(r"[A-Z][A-Z0-9]*_[A-Z0-9_]+", a.value or "")):
+                            found.add(a.value)
     return found
 
+
+def test_the_code_scan_CANNOT_SEE_a_comment_or_a_docstring():
+    """THE WEAKNESS THAT FAILED GREEN, closed and pinned.
+
+    A commented-out raise used to keep a dead code alive in `_used_codes`, so the registry's
+    "a listed code must be raised somewhere" rule would report clean on a code nothing raises.
+    Proven against a file that mentions a code three ways the old regex would have counted."""
+    import tempfile
+    bait = (
+        '"""A docstring mentioning raise X("BAIT_IN_DOCSTRING", "x").' + chr(10) + '"""' + chr(10) +
+        '# raise X("BAIT_IN_COMMENT", "x")' + chr(10) +
+        'MENTIONED = "BAIT_AS_A_BARE_STRING"' + chr(10) +
+        'def f():' + chr(10) +
+        '    raise ValueError("BAIT_REALLY_RAISED", "x")' + chr(10))
+    tmp = tempfile.mkdtemp()
+    sub = os.path.join(tmp, "src")
+    os.makedirs(sub)
+    with open(os.path.join(sub, "bait.py"), "w", encoding="utf-8") as fh:
+        fh.write(bait)
+    global REPO
+    real, REPO = REPO, tmp
+    try:
+        seen = _used_codes()
+    finally:
+        REPO = real
+    check("a-code-in-a-DOCSTRING-is-not-used", "BAIT_IN_DOCSTRING" not in seen, str(sorted(seen)))
+    check("a-code-in-a-COMMENT-is-not-used", "BAIT_IN_COMMENT" not in seen, str(sorted(seen)))
+    check("a-code-as-a-BARE-assignment-is-not-used", "BAIT_AS_A_BARE_STRING" not in seen,
+          str(sorted(seen)))
+    check("...but-a-code-REALLY-raised-IS-used", "BAIT_REALLY_RAISED" in seen, str(sorted(seen)))
+
+
+def _embedded_code_sites(text):
+    """Raises carrying a code INSIDE the message: `raise X("CODE: prose…")`.
+
+    THE SHAPE THAT HID A BUG FROM ITS OWN MEASUREMENT. Every doorway pattern here requires a closing
+    quote immediately after the code token, so an embedded code is invisible to all of them — and on
+    2026-09-02 a gate certified "0 bare-prose raises remaining" using exactly those patterns, while
+    `clock.py` still raised `"LEDGER_TIME_DECL_REWRITE: run %r …"` through the legacy one-arg path
+    with the code unregistered. The instrument could not see the thing it was asked to measure, and
+    reported clean.
+
+    So this looks for the shape ON PURPOSE and the suite FAILS on it. A code embedded in prose is
+    not a coded raise: it carries no `.code`, skips the registry check, and cannot be grepped by an
+    operator who has only the code.
+
+    THE UNDERSCORE IS REQUIRED. Every registered code has one; `raise SystemExit("USAGE: …")` and
+    `raise RuntimeError("ERROR: …")` never will, and both would otherwise fail this suite with the
+    misleading diagnosis "a code buried in a message".
+
+    AND THIS IS THE CHEAPER LAYER, NOT THE ONLY ONE. An f-string, a %-built message or a variable
+    detail is invisible to any textual scan — those are caught at the runtime choke point in
+    `errors.EngineError.__init__`, where every finished string must pass.
+    """
+    return re.findall(r'raise\s+\w+\(\s*"([A-Z][A-Z0-9]*_[A-Z0-9_]{2,}):', text)
+
+
+def _require_codes(text):
+    """Codes passed to a module's own `_require(cond, CODE, msg)` helper.
+
+    Scanned by BALANCING PARENS rather than by regex, because the condition is an expression and
+    routinely contains commas and nested calls — `_require(isinstance(t, (int, float)) and ...,`
+    defeats any `[^,]+` pattern, and a regex that half-works here reports a raised code as unraised,
+    which is the guard lying in the direction that costs a real conversion.
+    """
+    # ONLY the three-arg helper. `read_api._require(cond, msg)` shares the NAME and takes two args,
+    # so a scanner keyed on the name alone half-matches across a boundary the moment anyone
+    # harmonises the two helpers or pastes a call between them. Guarded by requiring the code to be
+    # the SECOND argument — a two-arg helper whose message happens to start SCREAMING would still
+    # be caught, and that is the safe direction (it fails red, not green).
+    out = set()
+    for m in re.finditer(r'_require\(', text):
+        i, depth = m.end(), 1
+        while i < len(text) and depth:
+            if text[i] == "(":
+                depth += 1
+            elif text[i] == ")":
+                depth -= 1
+            i += 1
+        # FIRST match only: the code is the argument after the condition, so it precedes anything
+        # quoted in the message. Taking all of them collected a `fromlist=["WORDS"]` out of a
+        # message string and reported it as an unregistered code.
+        found_here = re.findall(r'"([A-Z][A-Z0-9_]{4,})"', text[m.end():i])
+        if found_here:
+            out.add(found_here[0])
+    return out
+
+
+def test_no_raise_hides_its_code_INSIDE_the_message():
+    """The counter-instrument. Every other check here reads codes as a first string argument, so
+    none of them can see `raise X("CODE: prose")` — and one existed while a gate said none did."""
+    hits = []
+    for sub in ("src", "scripts"):
+        for root, _dirs, files in os.walk(os.path.join(REPO, sub)):
+            if "__pycache__" in root:
+                continue
+            for fn in files:
+                if not fn.endswith(".py"):
+                    continue
+                path = os.path.join(root, fn)
+                with open(path, encoding="utf-8") as fh:
+                    for code in _embedded_code_sites(fh.read()):
+                        hits.append("%s: %s" % (os.path.relpath(path, REPO), code))
+    check("no-code-is-buried-in-a-message", not hits,
+          "a code inside the message carries no .code, skips the registry check, and cannot be "
+          "grepped by an operator who has only the code: %s" % hits)
+
+
+
+def test_the_RUNTIME_choke_point_catches_what_no_scan_can():
+    """The layer under the static check, and the reason it exists.
+
+    Every textual scan here needs the code as a literal opening a string. An f-string, a %-built
+    message or a variable detail defeats all of them — and each one arrives at
+    `EngineError.__init__` as a finished string, so that is where they are caught.
+
+    Built 2026-09-02 after a static scan certified "0 bare-prose raises" while one existed, and
+    then found unguarded by its own control run: the choke point could be deleted and every test
+    still passed. This is that control, kept."""
+    code = "TENSION_ID_MISSING"
+    dynamic = [
+        ("f-string", "%s: built at runtime" % code),          # what an f-string produces
+        ("percent-built", "%s: %s" % (code, "detail")),
+        ("variable detail", code + ": assembled from parts"),
+    ]
+    for label, msg in dynamic:
+        try:
+            EngineError(msg)
+            check("the-choke-point-refuses-a-%s" % label.replace(" ", "-"), False,
+                  "a code-shaped one-arg message was accepted: %r" % msg)
+        except UnknownErrorCode as e:
+            check("the-choke-point-refuses-a-%s" % label.replace(" ", "-"),
+                  "Pass the code FIRST" in str(e), str(e)[:80])
+
+    # CONVENTIONAL PROSE IS NOW REFUSED TOO, and that is the point rather than collateral. The
+    # narrow check above existed to catch a code HIDING inside a message while leaving ordinary
+    # prose alone; retiring the uncoded branch makes that case a SUBSET of a general refusal, so
+    # the special case no longer has to be right about which shouts are codes.
+    for label, msg in (("usage", "USAGE: pass --book <slug>"),
+                       ("error-shout", "ERROR: could not open the db"),
+                       ("plain prose", "a tension carries no id")):
+        try:
+            EngineError(msg)
+            check("uncoded-prose-is-refused:%s" % label, False, "it CONSTRUCTED: %r" % msg)
+        except UnknownErrorCode:
+            check("uncoded-prose-is-refused:%s" % label, True)
 
 def test_the_registry_is_two_way():
     """THE RULE. Registered-but-never-raised is the failure this repo keeps shipping; it gets the
@@ -242,17 +450,151 @@ def test_the_real_suite_runner_is_the_baseline():
           "python tests/run_all.py is the only invocation that observes all 44 suites")
 
 
+def _raise_audit(path):
+    """One module -> (codes it names, line numbers of prose refusals). PARSED, never grepped.
+
+    TWO THINGS A REGEX GETS WRONG HERE, both measured on 2026-09-02:
+
+      1. IT CANNOT SEE THE DOORWAY. `_require(cond, code, msg)` in tensions.py, edl.py and
+         read_api.py ends in `raise X(code, msg)` where the code is a VARIABLE. A grep counts that
+         as prose: it reported 188 uncoded sites where the parse reports 180, and called edl.py
+         half-converted when edl.py is clean. So a bare first argument that is a PARAMETER of the
+         enclosing function is recognised as the doorway.
+      2. IT CANNOT SEE THROUGH THE DOORWAY EITHER. The codes those modules raise are literals at
+         the `_require(...)` CALL, not at the raise — so a first draft of this audit reported
+         twenty-three TENSION_/EDL_/TAG_ codes as registered-and-never-raised when every one of
+         them fires. Codes are therefore collected from every CALL ARGUMENT, which reaches both
+         spellings and reaches no docstring (a docstring is never a call argument, so a code cannot
+         hide behind a mention of itself).
+    """
+    import ast
+    src = io.open(path, encoding="utf-8").read()
+    tree = ast.parse(src)
+    spans = [(n.lineno, getattr(n, "end_lineno", n.lineno),
+              {a.arg for a in n.args.args + n.args.kwonlyargs})
+             for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)]
+
+    def params_at(line):
+        best, width = set(), None
+        for a, b, names in spans:
+            if a <= line <= b and (width is None or b - a < width):
+                width, best = b - a, names
+        return best
+
+    def is_code(node):
+        return (isinstance(node, ast.Constant) and isinstance(node.value, str)
+                and re.fullmatch(r"[A-Z][A-Z0-9]*_[A-Z0-9_]+", node.value))
+
+    codes_named = {a.value for n in ast.walk(tree) if isinstance(n, ast.Call)
+                   for a in n.args if is_code(a)}
+    uncoded = []
+    for n in ast.walk(tree):
+        if not isinstance(n, ast.Raise) or not isinstance(n.exc, ast.Call):
+            continue
+        a0 = n.exc.args[0] if n.exc.args else None
+        if is_code(a0):
+            continue
+        # A DOORWAY NEEDS A CODE **AND** A MESSAGE. The first version of this rule said "a bare
+        # first argument that is a parameter of the enclosing function is the coded doorway", and
+        # `records.py:172` is `_require(cond, msg)` raising `RecordError(msg)` — one argument, a
+        # parameter, and pure prose. The rule read it as coded, so the module carrying the record
+        # contract's 44 refusals landed in the raises-nothing bucket and the whole tree reported
+        # converted. Measured 2026-09-02: records.py:174 is the only parameter-first raise in the
+        # engine, so this is one module — but it is the one that validates every commit.
+        if (isinstance(a0, ast.Name) and a0.id in params_at(n.lineno)
+                and len(n.exc.args) >= 2):
+            continue                                  # the coded doorway, not a prose refusal
+        uncoded.append(n.lineno)
+    return codes_named, uncoded
+
+
+def test_NO_ENGINE_MODULE_IS_HALF_CONVERTED():
+    """THE STATE THAT MISLEADS, and the one I keep producing.
+
+    An all-prose module is honest: an operator greps the sentence and finds it. A module with SOME
+    coded refusals is not — the first code someone finds tells them the module is coded, so they
+    grep for a handle that is not there. Measured 2026-09-02: `claims.record` gained three codes in
+    the morning and left five neighbours in prose; `direction.py` coded its range refusal and left
+    four shape refusals; and `ledger.py` — the spine — coded one raise out of eleven, leaving the
+    resume-divergence message an operator reads when a book will not reopen with no handle at all.
+
+    This asserts only that no module is HALF converted. An all-prose module is NOT a violation:
+    24 of them remain, and a permanently-red test is a test everyone learns to ignore."""
+    eng = os.path.join(REPO, "src", "engine")
+    modules = [f for f in sorted(os.listdir(eng)) if f.endswith(".py")]
+    half, converted, prose, silent = [], [], [], []
+    for f in modules:
+        named, uncoded = _raise_audit(os.path.join(eng, f))
+        if named and uncoded:
+            half.append("%s (codes %d, prose at %s)" % (f, len(named), uncoded))
+        elif named:
+            converted.append(f)
+        elif uncoded:
+            prose.append((f, len(uncoded)))
+        else:
+            silent.append(f)                          # raises nothing at all — legitimate
+    check("no-engine-module-is-HALF-converted", not half, "; ".join(half))
+    # THE CONVERSION IS DONE, AND ONE MODULE IS EXEMPT BY NAME. Asserting the exemption rather
+    # than tolerating a gap: `errors.py` raises `UnknownErrorCode` from inside
+    # `EngineError.__init__`, the constructor that VALIDATES codes, so a coded raise there
+    # re-enters the check it is performing. If a future edit codes them anyway, or if some other
+    # module quietly joins the prose list, this fails — an all-prose module was legal while the
+    # conversion was in flight and is not legal now that it has landed.
+    EXEMPT_PROSE = {"errors.py": "raises from inside the constructor that validates codes"}
+    unexpected = sorted(f for f, _n in prose if f not in EXEMPT_PROSE)
+    check("no-UNEXPECTED-module-is-still-all-prose", not unexpected, str(unexpected))
+    check("the-exemption-names-a-module-that-EXISTS",
+          all(os.path.exists(os.path.join(eng, f)) for f in EXEMPT_PROSE), str(sorted(EXEMPT_PROSE)))
+    check("...and-still-raises-something-uncoded",
+          all(f in {x for x, _ in prose} for f in EXEMPT_PROSE),
+          "an exemption outlived the raises it excuses: %s" % sorted(EXEMPT_PROSE))
+    # COVERAGE BEFORE CONTENT. Every module must land in exactly one bucket, so a parse failure or
+    # a widened doorway rule cannot quietly shrink what this test READS while it still reports PASS.
+    check("the-audit-classified-EVERY-engine-module",
+          len(half) + len(converted) + len(prose) + len(silent) == len(modules),
+          "%d modules, %d classified" % (len(modules),
+                                         len(half) + len(converted) + len(prose) + len(silent)))
+    # THE CENSUS IS PRINTED, NOT ASSERTED. It is the number I have twice stated wrong from memory;
+    # printing it every run means the next claim about how much is left is read, not recalled.
+    print("        converted: %d | all-prose: %d modules, %d sites | raises nothing: %d"
+          % (len(converted), len(prose), sum(n for _, n in prose), len(silent)))
+
+
+def test_every_registered_code_is_RAISED_somewhere_in_the_engine():
+    """The registry's other half, over the whole tree rather than one module. A code listed and
+    never raised is the same lie with a citation as a code raised and never listed."""
+    raised = set()
+    for d in ("src/engine", "scripts"):               # NOT tests/ — asserting a code is not raising it
+        base = os.path.join(REPO, *d.split("/"))
+        for f in sorted(os.listdir(base)):
+            if f.endswith(".py"):
+                raised |= _raise_audit(os.path.join(base, f))[0]
+    orphan = sorted(c for c in codes.CODES if c not in raised)
+    check("every-REGISTERED-code-is-raised-somewhere", not orphan,
+          "registered and never raised: %s" % orphan)
+
+
 def main():
     print("test_errors.py - the coded refusal channel and the two-way registry")
-    for t in (test_every_class_is_one_family,
-              test_the_base_is_a_valueerror,
-              test_the_coded_form_renders_and_exposes_its_code,
-              test_the_detail_survives_verbatim,
-              test_the_legacy_UNCODED_form_is_REFUSED,
-              test_an_unregistered_code_refuses_at_construction,
-              test_the_registry_is_two_way,
-              test_the_vault_codes_reach_a_real_book):
-        t()
+    # DISCOVERED, NOT LISTED. This eight-name tuple is the sixth instance of that shape found in
+    # two days, and it swallowed the counter-instrument added on 2026-09-02 — a test written
+    # SPECIFICALLY to catch a measurement blind spot, itself never run, in the file about
+    # measurement blind spots. Ordered by definition line so the printed run reads in file order.
+    for t in sorted((v for k, v in globals().items()
+                     if k.startswith("test_") and callable(v)
+                     # THE ONLY LEGAL EXCLUSION: the baseline runner is invoked below under an env
+                     # guard because it shells out to the whole suite. Any other name added here is
+                     # the hand-written list growing back, which is what swallowed the
+                     # counter-instrument on 2026-09-02.
+                     and k != "test_the_real_suite_runner_is_the_baseline"),
+                    key=lambda f: f.__code__.co_firstlineno):
+        # PER-TEST ISOLATION. A bare `t()` let the FIRST raiser kill every test after it — which is
+        # how this very file reported NOTHING AT ALL when the legacy branch was retired and three of
+        # its own tests started raising. Fifth suite given this on 2026-09-02.
+        try:
+            t()
+        except Exception as e:                                # noqa: BLE001 — a harness reports
+            check("%s RAISED %s" % (t.__name__, type(e).__name__), False, str(e)[:130])
     if not os.environ.get("SWE_ERRORS_SELFTEST"):
         test_the_real_suite_runner_is_the_baseline()
     print("\nVERDICT: %s" % ("PASS" if not _FAILS else "FAIL -> %s" % _FAILS))

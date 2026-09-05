@@ -78,6 +78,25 @@ def _resolve_book():
         return None
 
 
+def _open_readonly(db):
+    """The chronicle, opened so it CANNOT be written.
+
+    A bare `sqlite3.connect` here carried none of `db.connect`'s protections — most sharply
+    `PRAGMA recursive_triggers=ON`, which exists because INSERT OR REPLACE performs its delete
+    WITHOUT firing the delete trigger unless it is set. So an accidental write from this reader
+    would bypass hard rule 2's append-only triggers, and `wound_deltas`/`toward_deltas`/
+    `relationship_deltas` carry no timestamp or version column — nothing in the row afterward
+    would say it had been rewritten.
+
+    Routing through `db.connect` is NOT the fix: it MIGRATES on open, so a read would silently
+    move a v12 chronicle to v22. `mode=ro` reads a live WAL database correctly and refuses writes,
+    which is the same trade `scripts/doctor.py` makes for the same reason.
+    """
+    import os as _os
+    return sqlite3.connect("file:%s?mode=ro" % _os.path.abspath(db).replace(chr(92), "/"),
+                           uri=True)
+
+
 def _laws_and_position(book, terms):
     """The two things the orchestrator must never assert without: what the world
     forbids, and where the story is."""
@@ -97,7 +116,7 @@ def _laws_and_position(book, terms):
 
     con = None
     try:
-        con = sqlite3.connect(db)
+        con = _open_readonly(db)
         con.row_factory = sqlite3.Row
         row = con.execute("SELECT run_id, config FROM runs ORDER BY rowid DESC LIMIT 1").fetchone()
         if row is None:

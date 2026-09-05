@@ -4,34 +4,36 @@ Normative contract: docs/scene-assembly.md (two streams, one wall; stable-prefix
 split; excluded-by-construction; the 7-step pipeline — all deterministic, no LLM, no prose).
 
 Public API:
-    assemble(char, world, scene_slice, affect, condition) -> packet dict
+    assemble(char, world, scene_slice, affect, condition, prev_affect=None) -> packet dict
 
 Packet structure (scene-assembly.md §"The packet"):
     stable  : {persona, values, drives, model, voice}   -- byte-stable across turns
     volatile: {state, goals, percepts, recall, edges}   -- recomputed this turn
     manifest: {state_fields_read, beliefs_injected, percepts, edges}
-    recall_refs: [str]  -- belief refs for the ledger (record-contract.md)
+    recall_refs: [str]  -- POSITIONAL belief refs, vault[N] (record-contract.md)
+    recall_ids:  [str]  -- the same beliefs by CONTENT-derived id, parallel to recall_refs
 
 Raises ValueError on malformed input (fail loud — no coercion).
 Stdlib only. Pure functions only.
 """
 import json
+from .records import RecordError   # rule 6's bad-input type
 import os
 import sys
 
 # Make sure gate.py is importable as a sibling module
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from src.engine.levers import active_rows, effective   # noqa: E402
+from src.engine.levers import active_rows, effective, scale_to_wounds   # noqa: E402
+from src.engine.toward import rows as toward_rows                      # noqa: E402  (the MICRO tier)
 from src.engine.records import RELATIONSHIP_AXES      # noqa: E402  (the four axes, DERIVED not re-listed)
 from src.engine.gate import (  # noqa: E402
     perception_scope,
     extract_triggers,
+    perceived_surfaces,
     run_gate,
     _display_name,
 )
-from .errors import EngineError
-from . import heritable
 
 # ---------------------------------------------------------------------------
 # Public entry point
@@ -55,7 +57,8 @@ class _Reads(dict):
         return super(_Reads, self).get(key, default)
 
 
-def assemble(char, world, scene_slice, affect, condition):
+def assemble(char, world, scene_slice, affect, condition, prev_affect=None,
+             current_turn=0, relationships=None, recall_history=None, elapsed=None):
     """Run the 7-step assembly pipeline for one character, one turn.
 
     scene-assembly.md §"The assembly pipeline (per acting character, per turn)"
@@ -72,27 +75,28 @@ def assemble(char, world, scene_slice, affect, condition):
     affect      : dict  {primary: float} current affect (7 primaries)
     condition   : dict  {energy, allostatic_load, ...}
 
-    Returns dict with keys: stable, volatile, manifest, recall_refs.
+    Returns dict with keys: stable, volatile, manifest, recall_refs, recall_ids.
     Raises ValueError on any malformed input.
     """
     # ---- input validation (fail loud) ----
     if not isinstance(char, dict):
-        raise EngineError("SCENE_ASSEMBLE_CHAR_NOT_A_DICT", "assemble: char must be a dict")
+        raise RecordError("SCENE_CHAR_NOT_AN_OBJECT", "assemble: char must be a dict")
     for section in ("fixed", "baseline", "current"):
         if section not in char:
-            raise EngineError("SCENE_ASSEMBLE_CHAR_MISSING_SECTION", "assemble: char missing section %r" % section)
+            raise RecordError("SCENE_CHAR_SECTION_MISSING",
+                              "assemble: char missing section %r" % section)
     if not isinstance(world, dict):
-        raise EngineError("SCENE_ASSEMBLE_WORLD_NOT_A_DICT", "assemble: world must be a dict")
+        raise RecordError("SCENE_WORLD_NOT_AN_OBJECT", "assemble: world must be a dict")
     if not isinstance(scene_slice, dict):
-        raise EngineError("SCENE_ASSEMBLE_SCENE_SLICE_NOT_A_DICT", "assemble: scene_slice must be a dict")
+        raise RecordError("SCENE_SLICE_NOT_AN_OBJECT", "assemble: scene_slice must be a dict")
     if "event" not in scene_slice or not isinstance(scene_slice["event"], dict):
-        raise EngineError("SCENE_ASSEMBLE_SCENE_SLICE_NO_EVENT", "assemble: scene_slice must have 'event' dict")
+        raise RecordError("SCENE_SLICE_EVENT_MISSING", "assemble: scene_slice must have 'event' dict")
     if "text" not in scene_slice["event"]:
-        raise EngineError("SCENE_ASSEMBLE_EVENT_NO_TEXT", "assemble: scene_slice.event must have 'text'")
+        raise RecordError("SCENE_SLICE_EVENT_TEXT_MISSING", "assemble: scene_slice.event must have 'text'")
     if not isinstance(affect, dict):
-        raise EngineError("SCENE_ASSEMBLE_AFFECT_NOT_A_DICT", "assemble: affect must be a dict")
+        raise RecordError("SCENE_AFFECT_NOT_AN_OBJECT", "assemble: affect must be a dict")
     if not isinstance(condition, dict):
-        raise EngineError("SCENE_ASSEMBLE_CONDITION_NOT_A_DICT", "assemble: condition must be a dict")
+        raise RecordError("SCENE_CONDITION_NOT_AN_OBJECT", "assemble: condition must be a dict")
 
     fixed    = char["fixed"]
     # RECORDED, not hand-listed. `state_fields_read` below used to be a literal list of six field
@@ -122,7 +126,10 @@ def assemble(char, world, scene_slice, affect, condition):
 
     # ---- Step 4: Recall pass ----
     # Run the gate: trigger-match -> vault -> goal-salience -> energy budget.
-    recall_entries = run_gate(triggers, vault, skills, goals, condition)
+    # All four decay args, or decay is inert: this passed five of nine until 2026-09-04.
+    recall_entries = run_gate(triggers, vault, skills, goals, condition, elapsed=elapsed,
+                              current_turn=current_turn, recall_history=recall_history,
+                              relationships=relationships or current.get("relationships", {}))
 
     # ---- Step 5: Assemble the packet ----
     # scene-assembly.md §"The packet": stable prefix + volatile body + manifest.
@@ -165,7 +172,23 @@ def assemble(char, world, scene_slice, affect, condition):
         "target":    scene_slice["event"].get("target") or scene_slice.get("target"),
     }
     _fired = active_rows(baseline.get("catalog"), _ctx)
+    # A ROW THAT NAMES A WOUND IS SCALED BY WHAT REMAINS OF IT. Until this call the two authored
+    # numbers -- the wound's `intensity` and the row's `magnitude` -- were unconnected, so a
+    # character's phobia could fade in the prose the actor reads while hitting the arithmetic
+    # exactly as hard as the day it was authored. Rows that name no wound pass through untouched,
+    # which is every row in every book authored before this line existed.
+    _fired = scale_to_wounds(_fired, (baseline.get("drives") or {}).get("fears_wounds") or [])
+    # THE MICRO TIER. What this specific person makes this character feel, added to the levers the
+    # decision sees, for whoever is present or is what the moment is ABOUT. A macro change moves who
+    # they are everywhere; this moves only what happens in one person's company — a man can be
+    # hostile to the world and soften when his daughter walks in. docs/character-model.md,
+    # "THE THREE LAYERS". Rows are additive, so a spent disposition leaves the vector as it found it.
+    _fired = _fired + toward_rows(current.get("toward") or {}, _ctx)
     volatile["state"]["effective"] = effective(affect, _fired)
+    # SLOPE — last turn's affect, so the direction can say how fast this came on. An ARGUMENT like
+    # affect/condition: injecting it post-assembly put an input the manifest could not name.
+    if prev_affect:
+        volatile["state"]["previous"] = dict(prev_affect)
     # Auditable like every other decision input: the ROWS are the trace, so the effective vector
     # stays re-derivable from the committed current tier without ever being committed itself.
     volatile["levers"] = [dict(r) for r in _fired]
@@ -173,6 +196,16 @@ def assemble(char, world, scene_slice, affect, condition):
     # -- 5c: Manifest (record-contract.md: decision-input manifest with REAL refs)
     percept_refs = [p.get("ref", "") for p in percepts]
     recall_refs  = [r.get("ref", "") for r in recall_entries]
+    # A SECOND, PARALLEL list — never folded into recall_refs, whose contract is that it matches the
+    # volatile recall entries' refs exactly (tests/test_scene.py "recall-refs-key-matches-volatile";
+    # a first attempt at this change overloaded that field and the guard caught it).
+    #
+    # `vault[N]` is POSITIONAL: it names a belief only within the note revision that produced it.
+    # `recall_events` is append-only and trigger-protected, so a row written with the positional
+    # form alone can never be corrected once an author adds a bullet above the entry — and the Beck
+    # Hollow chronicle already spans two bible fingerprints, so its stored vault[N] strings are
+    # ALREADY ambiguous. The content-derived id stops that accruing from here. See gate.belief_id.
+    recall_ids   = [r.get("bid", "") for r in recall_entries]
     edge_refs    = [e.get("target", "") for e in volatile["edges"]]
 
     manifest = {
@@ -180,9 +213,21 @@ def assemble(char, world, scene_slice, affect, condition):
         # else is whatever the code actually asked `current`/`baseline` for.
         "state_fields_read":  sorted(
             {"current.affect", "current.condition"}
+            | ({"current.previous_affect"} if prev_affect else set())
             | {"current.%s" % k for k in current.reads}
             | {"baseline.%s" % k for k in baseline.reads}),
         "beliefs_injected": len(recall_entries),
+        # THE PERCEIVED TRIGGER SET, published because a consumer outside this module now needs it.
+        # `wound.trial` matches against THIS, never the ground-truth event text: the gate's own rule
+        # is "you cannot be triggered by what you didn't perceive", and a wound that moved on
+        # something withheld from its owner would be the sharpest version of that failure.
+        # It was already computed here for the recall gate and thrown away.
+        "triggers":          list(triggers),
+        # THE UNSHREDDED VIEW, for matching AUTHORED phrases. `triggers` above is the word bag the
+        # recall gate wants; a wound's trigger is a phrase an author wrote, and the two need
+        # different readings of the same percepts. Both walk the identical PerceptSet, so the
+        # perception wall holds for each.
+        "surfaces":          list(perceived_surfaces(percepts)),
         "levers_fired":      [r.get("source", "") for r in volatile["levers"]],
         "percepts":          percept_refs,
         "edges":             edge_refs,
@@ -197,6 +242,7 @@ def assemble(char, world, scene_slice, affect, condition):
         "volatile":    volatile,
         "manifest":    manifest,
         "recall_refs": recall_refs,
+        "recall_ids":  recall_ids,
     }
 
 
@@ -250,32 +296,20 @@ def _strip_notes(obj):
     return obj
 
 
-def _allele_word(value):
-    """Keep the allele token, drop the authored parenthetical rationale:
-    'high (the innate empathy ...)' -> 'high'. The gain math reads the token; the rationale is
-    authoring commentary that must not reach the prompt."""
-    # Was `.split(" (", 1)[0].strip()` — the one reader of three that never lowercased, so a
-    # capitalised allele reached the prompt as "High" while the gain math read "high".
-    return heritable.word(value)
+# The allele token without its authored parenthetical; the rationale must not reach the prompt.
+# `heritable.word` is THE reading — this file held the fourth independent copy of that parse.
+from .heritable import word as _allele_word                             # noqa: E402
 
 
 def _sort_nested(obj):
     """Recursively sort dict keys for byte-stable json.dumps.
     scene-assembly.md §"stable-prefix stability": same char dict -> identical bytes.
+
+    There were TWO definitions of this, the first with a broken comprehension referencing an
+    undefined name and unreachable code after it, the second silently shadowing it — with a comment
+    saying "Fix: replace the double-comprehension bug above" left in place beside both. Only the
+    second ever ran. The dead one is gone; found 2026-09-01 while looking for something to split.
     """
-    if isinstance(obj, dict):
-        return {k: _sort_nested(v) for k in sorted(obj.keys()) for _ in [True] if k == k}
-        # equivalent but cleaner:
-    if isinstance(obj, dict):
-        return {k: _sort_nested(obj[k]) for k in sorted(obj)}
-    if isinstance(obj, list):
-        return [_sort_nested(x) for x in obj]
-    return obj
-
-
-# Fix: replace the double-comprehension bug above with the clean version
-def _sort_nested(obj):
-    """Recursively sort dict keys for byte-stable json.dumps."""
     if isinstance(obj, dict):
         return {k: _sort_nested(obj[k]) for k in sorted(obj)}
     if isinstance(obj, list):
@@ -305,15 +339,16 @@ def _percept_for_packet(p):
 
 
 def _recall_for_packet(r):
-    """Format a recall entry for the volatile.recall list.
-    Carries claim/confidence/provenance/ref — NOT the full vault entry.
-    """
-    return {
+    """Format a recall entry for volatile.recall, preserving epistemic stance."""
+    out = {
         "ref":        r.get("ref"),
         "claim":      r.get("claim"),
-        "confidence": r.get("confidence"),
+        "confidence": r.get("confidence_eff", r.get("confidence")),
         "provenance": r.get("provenance"),
     }
+    if r.get("target_actor"): out["target_actor"] = r["target_actor"]
+    if r.get("epistemic_stance"): out["epistemic_stance"] = r["epistemic_stance"]
+    return out
 
 
 def _build_edges(current, percepts, world):
@@ -343,7 +378,9 @@ def _build_edges(current, percepts, world):
                 if rel_id.startswith(rec.lower()):
                     present_entity_ids.add(rel_id)
 
-    for entity_id in present_entity_ids:
+    # SORTED = hard rule 4. Walking the SET gave hash order, which varies per PROCESS: the e2e
+    # exited 0 then 1 on identical --stub runs (2026-09-01, tests/test_scene.py holds the guard).
+    for entity_id in sorted(present_entity_ids):
         if entity_id in seen:
             continue
         rel = relationships.get(entity_id)
@@ -401,7 +438,7 @@ def subject_groups(world):
     world["people"]. This index is how an event's SUBJECT acquires a class an appraiser can
     (dis)regard. Pure; rebuilt once per run (world is static). Raises on a non-dict world."""
     if not isinstance(world, dict):
-        raise EngineError("SCENE_SUBJECT_GROUPS_WORLD_NOT_A_DICT", "subject_groups: world must be a dict")
+        raise RecordError("SCENE_WORLD_NOT_AN_OBJECT", "subject_groups: world must be a dict")
     index = {}
     for p in world.get("people", []):
         if isinstance(p, dict) and p.get("id"):
@@ -445,7 +482,7 @@ def resolve_subject(edges, groups_index, named=None):
     The group is resolved from the registry, never from `named`. Multi-group entities use the
     PRIMARY (first) group (v1 — no lowest-regard arbitration yet). Raises on malformed structure."""
     if not isinstance(edges, list) or not isinstance(groups_index, dict):
-        raise EngineError("SCENE_RESOLVE_SUBJECT_EDGES_NOT_A_LIST", "resolve_subject: edges must be a list and groups_index a dict")
+        raise RecordError("SCENE_SUBJECT_INPUTS_INVALID", "resolve_subject: edges must be a list and groups_index a dict")
     present = [e.get("target") for e in edges if isinstance(e, dict) and e.get("target")]
     present_set = set(present)
     target = None

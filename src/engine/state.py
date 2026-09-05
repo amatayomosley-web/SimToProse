@@ -12,10 +12,9 @@ Relevance weighting: docs/values-and-stakes.md.
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
-from src.engine.records import PRIMARIES, admits_role
-from .errors import EngineError
-from .decay_law import relax
-from . import heritable
+from src.engine import connection                    # the investment multiplier (docs/character-model.md)
+from src.engine import heritable as _her             # THE one reading of the genotype
+from src.engine.records import PRIMARIES, admits_role, RecordError  # rule 6's bad-input type
 
 # ---------------------------------------------------------------------------
 # Class-B constants — theory-anchored, probe-calibrated.
@@ -26,9 +25,7 @@ from . import heritable
 # Source: coherence_probe.py ALLELE dict (same vocabulary; we inherit, don't invent).
 # Theory: docs/baseline-generation.md §Genetics, HEXACO threat-reactivity → FEAR gain.
 # Probe-calibrated start.
-# ONE OWNER. `arc.py` imports this name from here, so the binding stays; the table itself
-# lives in heritable.py alongside the parser that reads it.
-_ALLELE = heritable.GAIN
+_ALLELE = _her.GAIN                # re-exported: arc.py and lint_book.py import it from here
 
 # DIM_TO_PRIMARY: appraisal dimension -> [(primary, base_push)].
 # Theory: docs/state-engine.md §Appraisal module step 2; OCC/Scherer compression.
@@ -95,7 +92,7 @@ _DIM_TO_PRIMARY["threat"].append(("DISGUST", 0.08))
 for _dim, _pushes in _DIM_TO_PRIMARY.items():
     for _p, _w in _pushes:
         if _p not in PRIMARIES:
-            raise EngineError("STATE_DIM_TO_PRIMARY_PUSHES_INVALID", "_DIM_TO_PRIMARY[%r] pushes %r, which is not a primitive. Add it to "
+            raise RecordError("STATE_DIM_TO_PRIMARY_UNKNOWN_PRIMITIVE", "_DIM_TO_PRIMARY[%r] pushes %r, which is not a primitive. Add it to "
                              "PRIMARIES or remove the push - it cannot be silently skipped."
                              % (_dim, _p))
 
@@ -149,6 +146,11 @@ _AT_REST = 0.15
 # Probe-calibrated start — keeps affect within the OSC bound under a high-EC allele (1.3).
 # Clipped at effective_rate >= 0.50 to prevent over-rapid collapse to baseline.
 _REG_FLOOR = 0.50   # minimum effective retention rate regardless of regulation allele
+
+# PERSISTENCE and the allele vocabulary now live in `heritable.py` — one reading of the genotype
+# for every consumer. Four places parsed it independently and a fifth was added that did not,
+# which made persistence a silent no-op on any annotated sheet. See that file for the why.
+
 
 # Value/drive dimension weights used for relevance computation.
 # docs/values-and-stakes.md: relevance = how much the event dimension touches this character's
@@ -234,9 +236,13 @@ def _clamp(x):
 
 
 def _allele(axis, genotype):
-    """Return numeric allele gain for one heritable axis.
-    docs/baseline-generation.md §Genetics; allele vocabulary = coherence_probe.py ALLELE."""
-    return heritable.gain(axis, genotype)
+    """Numeric allele GAIN for one heritable axis. One reading, in `heritable.py`."""
+    return _her.gain(axis, genotype)
+
+
+def _persist(primary, genotype):
+    """How long this character holds this primitive — the same allele, its other effect."""
+    return _her.persist(primary, genotype)
 
 
 def _regard(profile, target, target_group):
@@ -338,10 +344,16 @@ def build_profile(char):
     # effective_rate = 1 - (1 - base_rate) * regulation_gain
     # High regulation -> smaller residual deviation each beat -> faster return to temperament.
     # Clipped at _REG_FLOOR to prevent over-rapid decay.
+    #
+    # PER-PRIMITIVE PERSISTENCE divides the regulation term: an allele that makes a primitive
+    # linger shrinks how much regulation sheds each beat, so the two compose rather than compete.
+    # A regulated person returns faster overall, and WITHIN that, their heritable axes decide which
+    # feelings they hold longest. An all-typical genotype leaves persist at 1.0 and reproduces the
+    # pre-2026-09-01 rates exactly, so nothing already authored moves.
     decay_rates = {}
     for p in PRIMARIES:
         base_r = _DECAY_RATE[p]
-        eff_r  = 1.0 - (1.0 - base_r) * regulation
+        eff_r  = 1.0 - (1.0 - base_r) * regulation / _persist(p, genotype)
         decay_rates[p] = max(_REG_FLOOR, min(0.98, eff_r))
 
     # ---- Class-A: per-dimension relevance for this character ----
@@ -393,35 +405,35 @@ def appraise(affect, tags, profile, targets=None):
     """
     # --- input validation (docs/state-engine.md: fail loud, never coerce) ---
     if not isinstance(affect, dict):
-        raise EngineError("STATE_APPRAISE_AFFECT_NOT_A_DICT", "appraise: affect must be a dict, got %r" % type(affect).__name__)
+        raise RecordError("STATE_AFFECT_NOT_A_DICT", "appraise: affect must be a dict, got %r" % type(affect).__name__)
     missing = [p for p in PRIMARIES if p not in affect]
     if missing:
-        raise EngineError("STATE_APPRAISE_AFFECT_MISSING_PRIMARIES", "appraise: affect missing primaries: %s" % missing)
+        raise RecordError("STATE_AFFECT_MISSING_PRIMARIES", "appraise: affect missing primaries: %s" % missing)
     # `_`-prefixed keys are author comments (`_note`), same tolerance
     # baseline.temperament already extends — before this, a comment key legal
     # in one block was fatal in its sibling while lint_book.py passed clean.
     unknown = [k for k in affect if k not in PRIMARIES and not k.startswith("_")]
     if unknown:
-        raise EngineError("STATE_APPRAISE_AFFECT_UNKNOWN_KEYS", "appraise: affect has unknown keys: %s" % unknown)
+        raise RecordError("STATE_AFFECT_UNKNOWN_KEYS", "appraise: affect has unknown keys: %s" % unknown)
     for p, v in affect.items():
         if p.startswith("_"):
             continue
         if not isinstance(v, (int, float)):
-            raise EngineError("STATE_APPRAISE_AFFECT_NUMERIC_NOT_NUMERIC", "appraise: affect[%s] must be numeric, got %r" % (p, v))
+            raise RecordError("STATE_AFFECT_VALUE_NOT_NUMERIC", "appraise: affect[%s] must be numeric, got %r" % (p, v))
         if not (0.0 <= float(v) <= 1.0):
-            raise EngineError("STATE_APPRAISE_AFFECT_OUT_OF_RANGE", "appraise: affect[%s]=%r out of [0,1]" % (p, v))
+            raise RecordError("STATE_AFFECT_VALUE_RANGE", "appraise: affect[%s]=%r out of [0,1]" % (p, v))
 
     if not isinstance(tags, dict):
-        raise EngineError("STATE_APPRAISE_TAGS_NOT_A_DICT", "appraise: tags must be a dict, got %r" % type(tags).__name__)
+        raise RecordError("STATE_TAGS_NOT_A_DICT", "appraise: tags must be a dict, got %r" % type(tags).__name__)
 
     required_profile_keys = ("gains", "decay_rates", "relevance_weights", "sensitivity")
     for k in required_profile_keys:
         if k not in profile:
-            raise EngineError("STATE_APPRAISE_PROFILE_MISSING_KEY", "appraise: profile missing key %r" % k)
+            raise RecordError("STATE_PROFILE_MISSING_KEY", "appraise: profile missing key %r" % k)
 
     dimensions = tags.get("dimensions", {})
     if not isinstance(dimensions, dict):
-        raise EngineError("STATE_APPRAISE_TAGS_DIMENSIONS_NOT_A_DICT", "appraise: tags['dimensions'] must be a dict")
+        raise RecordError("STATE_TAGS_DIMENSIONS_TYPE", "appraise: tags['dimensions'] must be a dict")
 
     gains             = profile["gains"]
     relevance_weights = profile["relevance_weights"]
@@ -437,6 +449,23 @@ def appraise(affect, tags, profile, targets=None):
     regard_factor = _CARE_FLOOR + (1.0 - _CARE_FLOOR) * event_regard
     groups        = tags.get("_target_groups") if isinstance(tags.get("_target_groups"), dict) else {}
 
+    def _conn_for(primary):
+        """How INVESTED this character is in the party THIS primitive is pointed at.
+
+        The twin of `_factor_for`, resolving the same bound target from the same map, and it needs
+        no new inputs: `build_profile` already carries `relationships`. An unbound primitive gets
+        1.0 — there is nobody to be invested in. Negative pushes never bind a party, so a
+        suppression (PLAY collapsing under threat) is never amplified.
+        """
+        if not targets:
+            return connection.magnitude_scale(
+                connection.for_target(profile.get("relationships", {}), tags.get("target")))
+        bound = targets.get(primary)
+        if bound is None:
+            return 1.0
+        return connection.magnitude_scale(
+            connection.for_target(profile.get("relationships", {}), bound))
+
     def _factor_for(primary):
         """The empathy scale for THIS primitive, from the party THIS primitive is pointed at."""
         if not targets:
@@ -450,22 +479,69 @@ def appraise(affect, tags, profile, targets=None):
     # comment keys ride through verbatim; numerics are floated
     out = {p: (v if p.startswith("_") else float(v)) for p, v in affect.items()}
 
-    for dim, mag in dimensions.items():
+    for primary, delta in _price(dimensions, gains, relevance_weights, sensitivity,
+                                 _factor_for, _conn_for).items():
+        out[primary] = _clamp(out[primary] + delta)
+
+    return out
+
+
+def price_for(dimensions, profile, tags=None):
+    """PUBLIC. One event's dimensions -> {primary: raw delta}, priced by the character's own
+    genotype gains, worth-menu relevance, sensitivity, regard and connection.
+
+    The durable tier calls THIS rather than carrying its own branches. Two things it deliberately
+    does NOT take: `affect`, because a durable write is about who someone is and not where their
+    mood happens to sit; and `impact`, because impact is the SUM of |delta-affect| that appraise
+    already produced — pricing from it would apply the genotype gains a second time (quadratic in
+    gain for the dominant primary) and inherit appraise's per-primary clamp shadow, where a
+    saturated primary silently shrinks the measured impact.
+    """
+    tags = tags or {}
+    gains = profile["gains"]
+    rels = profile.get("relationships", {})
+    groups = tags.get("_target_groups") if isinstance(tags.get("_target_groups"), dict) else {}
+    ev_regard = _regard(profile, tags.get("target"), tags.get("target_group"))
+    reg = _CARE_FLOOR + (1.0 - _CARE_FLOOR) * ev_regard
+    cs = connection.magnitude_scale(connection.for_target(rels, tags.get("target")))
+    return _price(dimensions, gains, profile["relevance_weights"], profile["sensitivity"],
+                  lambda _p: reg, lambda _p: cs)
+
+
+def _price(dimensions, gains, relevance_weights, sensitivity, factor_for, conn_for):
+    """One event's dimensions -> {primary: raw delta}. THE ONE PRICING CHAIN.
+
+    Extracted so the DURABLE tier can price with the identical arithmetic instead of carrying a
+    second, thinner table of its own — `docs/character-model.md` law 4, "one pricing table, applied
+    at every timescale", and the eighth entry in CLAUDE.md's duplicates table if it were copied.
+
+    Returns RAW deltas and clamps nothing: `appraise` clamps into [0,1] against current affect, and
+    the arc scales by its own step before clamping against a baseline. Two callers, two clamps, one
+    chain.
+    """
+    out = {}
+    for dim, mag in (dimensions or {}).items():
         if not isinstance(mag, (int, float)):
-            raise EngineError("STATE_APPRAISE_DIMENSION_MAGNITUDE_NOT_NUMERIC", "appraise: dimension %r magnitude must be numeric, got %r" % (dim, mag))
+            raise RecordError("STATE_DIMENSION_MAGNITUDE_NOT_NUMERIC", "appraise: dimension %r magnitude must be numeric, got %r" % (dim, mag))
         mag = float(mag)
         # Unknown dimensions are silently ignored (future-proof; new consolidation dims won't crash).
         for primary, base_push in _DIM_TO_PRIMARY.get(dim, []):
             # empathy dims only, and scoped by the party THIS primitive is pointed at
-            rscale = _factor_for(primary) if dim in _REGARD_SCALED_DIMS else 1.0
+            rscale = factor_for(primary) if dim in _REGARD_SCALED_DIMS else 1.0
+            # CONNECTION: the greater the bond, the larger the impact. Separate from `rscale` and
+            # deliberately not folded into it — regard asks "do they count to me at all" and is
+            # clamped [0,1] with an innate-empathy floor; connection asks "how much of me is
+            # invested" and is >= 1.0 with a ceiling. One factor holding both would make the floor
+            # and the ceiling fight. A stranger composes to exactly 1.0, so every target-less event
+            # and every existing fixture is byte-identical.
+            cscale = conn_for(primary) if dim in connection.SCALED_DIMS else 1.0
             # relevance: Class-A per-character weighting over the worth menu.
             rel = float(relevance_weights.get(dim, _RELEVANCE_FALLBACK))
             # trait_sensitivity: Class-A genotype gain for this primary.
             g = float(gains.get(primary, 1.0))
             # delta = severity x relevance x trait_sensitivity x base_push x subject-regard
-            delta = mag * rel * g * sensitivity * base_push * rscale
-            out[primary] = _clamp(out[primary] + delta)
-
+            out[primary] = out.get(primary, 0.0) + (
+                mag * rel * g * sensitivity * base_push * rscale * cscale)
     return out
 
 
@@ -489,34 +565,34 @@ def decay(affect, temperament, profile):
     Raises ValueError on malformed input.
     """
     if not isinstance(affect, dict):
-        raise EngineError("STATE_DECAY_AFFECT_NOT_A_DICT", "decay: affect must be a dict, got %r" % type(affect).__name__)
+        raise RecordError("STATE_AFFECT_NOT_A_DICT", "decay: affect must be a dict, got %r" % type(affect).__name__)
     missing = [p for p in PRIMARIES if p not in affect]
     if missing:
-        raise EngineError("STATE_DECAY_AFFECT_MISSING_PRIMARIES", "decay: affect missing primaries: %s" % missing)
+        raise RecordError("STATE_AFFECT_MISSING_PRIMARIES", "decay: affect missing primaries: %s" % missing)
     # `_`-prefixed keys: author comments, tolerated and passed through — see
     # the twin exemption in appraise.
     unknown = [k for k in affect if k not in PRIMARIES and not k.startswith("_")]
     if unknown:
-        raise EngineError("STATE_DECAY_AFFECT_UNKNOWN_KEYS", "decay: affect has unknown keys: %s" % unknown)
+        raise RecordError("STATE_AFFECT_UNKNOWN_KEYS", "decay: affect has unknown keys: %s" % unknown)
     for p, v in affect.items():
         if p.startswith("_"):
             continue
         if not isinstance(v, (int, float)):
-            raise EngineError("STATE_DECAY_AFFECT_NUMERIC_NOT_NUMERIC", "decay: affect[%s] must be numeric" % p)
+            raise RecordError("STATE_AFFECT_VALUE_NOT_NUMERIC", "decay: affect[%s] must be numeric" % p)
         if not (0.0 <= float(v) <= 1.0):
-            raise EngineError("STATE_DECAY_AFFECT_OUT_OF_RANGE", "decay: affect[%s]=%r out of [0,1]" % (p, v))
+            raise RecordError("STATE_AFFECT_VALUE_RANGE", "decay: affect[%s]=%r out of [0,1]" % (p, v))
 
     if not isinstance(temperament, dict):
-        raise EngineError("STATE_DECAY_TEMPERAMENT_NOT_A_DICT", "decay: temperament must be a dict")
+        raise RecordError("STATE_TEMPERAMENT_NOT_A_DICT", "decay: temperament must be a dict")
     for p in PRIMARIES:
         if p not in temperament:
-            raise EngineError("STATE_DECAY_TEMPERAMENT_MISSING_PRIMARY", "decay: temperament missing primary %r" % p)
+            raise RecordError("STATE_TEMPERAMENT_MISSING_PRIMARY", "decay: temperament missing primary %r" % p)
         t = temperament[p]
         if not isinstance(t, dict) or "mean" not in t:
-            raise EngineError("STATE_DECAY_TEMPERAMENT_ENTRY_NOT_A_DICT", "decay: temperament[%r] must be a dict with 'mean'" % p)
+            raise RecordError("STATE_TEMPERAMENT_ENTRY_INVALID", "decay: temperament[%r] must be a dict with 'mean'" % p)
 
     if not isinstance(profile, dict) or "decay_rates" not in profile:
-        raise EngineError("STATE_DECAY_PROFILE_NOT_A_DICT", "decay: profile must be a dict with 'decay_rates'")
+        raise RecordError("STATE_PROFILE_MISSING_DECAY_RATES", "decay: profile must be a dict with 'decay_rates'")
 
     decay_rates = profile["decay_rates"]
 
@@ -524,7 +600,7 @@ def decay(affect, temperament, profile):
     for p in PRIMARIES:
         mean = float(temperament[p]["mean"])
         r    = float(decay_rates.get(p, _DECAY_RATE[p]))
-        # Ai <- mean + (Ai - mean) * r, the elapsed=1 case of the one law (decay_law.relax)
-        out[p] = _clamp(relax(float(affect[p]), mean, r, 1.0))
+        # Ai <- mean + (Ai - mean) * r
+        out[p] = _clamp(mean + (float(affect[p]) - mean) * r)
 
     return out

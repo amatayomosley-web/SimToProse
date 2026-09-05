@@ -55,6 +55,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO)
 
 from src.engine.identity_view import direct_goals, direct_identity, direct_percepts  # noqa: E402
+import io                                                                       # noqa: E402
 from src.engine.prompt import build_turn_messages                                # noqa: E402
 from src.engine.records import PRIMARIES                                         # noqa: E402
 from src.engine.scene import assemble                                            # noqa: E402
@@ -123,6 +124,67 @@ def _prompt():
                                char["baseline"]["temperament"], char["current"]["relationships"])
     return packet, "\n".join(m["content"] for m in msgs)
 
+
+
+# Every prompt builder in the tree, classified. THE ACTOR surface is the one hard rule 5 binds; a
+# builder that renders to anyone else is exempt, and the exemption is written down HERE rather than
+# assumed — an adversarial review reported the gray zone twice and the honest objection was that
+# neither answer had been given. Silence is what makes an exemption rot into a leak.
+_ACTOR_SURFACES = {
+    "src/engine/prompt.py": "build_turn_messages — what the CHARACTER is told. THE LAW binds here.",
+}
+_NON_ACTOR_SURFACES = {
+    "scripts/keeper.py": (
+        "build_keeper_prompt — the KEEPER reads the committed stream and reports what changed "
+        "about the world. It is not a character and has no vault; the numbers it sees (turn "
+        "indices, tension temperatures) describe the WORLD, not a person, and hard rule 5 is "
+        "about what a character is told concerning themselves."),
+    "scripts/composition_pass.py": (
+        "build_classify_prompt — the CLASSIFIER reads a backstory against the profile library and "
+        "must SEE each profile's diffs, because docs/composition-pass.md says a classifier that "
+        "cannot see what a profile does is guessing at labels. It renders to nobody in the story."),
+    "scripts/narrate.py": (
+        "build_narration_prompt — the NARRATOR renders committed prose to the READER. Its numbers "
+        "are turn indices in a transcript, not stats about a character it is playing."),
+    "scripts/critic.py": (
+        "build_critic_prompt — the CRITIC audits committed turns for continuity. It is an auditor, "
+        "not a participant."),
+}
+
+
+def test_every_prompt_builder_is_CLASSIFIED_actor_or_not():
+    """A new prompt surface must be declared, not discovered.
+
+    Hard rule 5 binds "what the actor is TOLD", and four of the five prompt builders in this repo
+    render to somebody else. That is a real exemption and it was never written down — so a fifth
+    builder could appear tomorrow, carry a character's trait means, and no guard would notice,
+    because this suite only ever imported `build_turn_messages`.
+
+    This does not extend the ban. It makes the SCOPE checkable: every builder is named, the actor
+    ones are bound by the tests above, and each exempt one carries the reason it is exempt."""
+    import glob
+    import os
+    import re
+    repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    found = {}
+    for sub in ("src", "scripts"):
+        for path in glob.glob(os.path.join(repo, sub, "**", "*.py"), recursive=True):
+            rel = os.path.relpath(path, repo).replace(os.sep, "/")
+            names = re.findall(r"^def (build_\w*(?:prompt|messages))",
+                               io.open(path, encoding="utf-8").read(), re.M)
+            if names:
+                found[rel] = names
+
+    classified = set(_ACTOR_SURFACES) | set(_NON_ACTOR_SURFACES)
+    unclassified = sorted(set(found) - classified)
+    assert not unclassified, (
+        "a prompt builder exists that is neither declared an ACTOR surface (bound by hard rule 5) "
+        "nor exempted with a reason: %s. Classify it — an unclassified surface is how a stat "
+        "reaches a character with every test green." % unclassified)
+    stale = sorted(classified - set(found))
+    assert not stale, "declared surfaces that no longer exist: %s" % stale
+    for where, why in _NON_ACTOR_SURFACES.items():
+        assert len(why) > 80, "%s is exempt with a label, not a reason" % where
 
 def test_the_law():
     print("\n[1] THE LAW — no decimal describing the character reaches the actor")
@@ -257,8 +319,12 @@ def test_no_new_leak_creeps_back():
 
 def main():
     print("test_no_digits.py — THE LAW: no number describing a character reaches them")
-    for t in (test_the_law, test_the_information_survives, test_the_surfaces_are_pure,
-              test_no_new_leak_creeps_back):
+    # DISCOVERED, NOT LISTED. This four-name tuple is the duplicate CLAUDE.md tabulates, and it hid
+    # a test added to this very file on 2026-09-02 — the fifth instance of that shape found in one
+    # session, after test_scene, test_direction, test_state and test_faithful_turn.
+    for t in sorted((v for k, v in globals().items()
+                     if k.startswith("test_") and callable(v)),
+                    key=lambda f: f.__code__.co_firstlineno):
         t()
     print("\nVERDICT: %s" % ("PASS" if not _FAILS else "FAIL -> %s" % _FAILS))
     return 1 if _FAILS else 0

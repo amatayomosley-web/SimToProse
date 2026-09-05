@@ -63,7 +63,7 @@ def resolve(spec):
     Literal wins on a tie so nothing that resolves today changes meaning.
     """
     if not spec or not str(spec).strip():
-        raise BookError("BOOKS_BOOK_GIVEN_INVALID", "no book given")
+        raise BookError("BOOK_SPEC_EMPTY", "no book given")
     spec = str(spec).strip()
 
     if os.path.isdir(spec):
@@ -79,17 +79,17 @@ def resolve(spec):
         if len(hits) == 1:
             return os.path.abspath(hits[0])
         if len(hits) > 1:
-            raise BookError(
-                "BOOKS_FOLDERS_UNDER_INVALID", "ambiguous book %r: %d folders under %s=%s share that slug (%s). "
+            raise BookError("BOOK_SLUG_AMBIGUOUS",
+                "ambiguous book %r: %d folders under %s=%s share that slug (%s). "
                 "Rename one, or pass the full path."
                 % (spec, len(hits), ROOT_ENV, r,
                    ", ".join(os.path.basename(h) for h in hits)))
 
-        raise BookError(
-            "BOOKS_DIRECTORY_UNDER_NOT_FOUND", "no book %r: not a directory, and not found under %s=%s (available: %s)"
+        raise BookError("BOOK_NOT_FOUND",
+            "no book %r: not a directory, and not found under %s=%s (available: %s)"
             % (spec, ROOT_ENV, r, ", ".join(available()) or "none"))
-    raise BookError(
-        "BOOKS_DIRECTORY_ON_INVALID", "no book %r: not a directory on disk, and %s is unset so a slug cannot be "
+    raise BookError("BOOK_ROOT_UNSET",
+        "no book %r: not a directory on disk, and %s is unset so a slug cannot be "
         "resolved. Pass a path, or set %s to the folder holding your books."
         % (spec, ROOT_ENV, ROOT_ENV))
 
@@ -149,9 +149,44 @@ def assert_db_for_book(book_dir, db):
     book_real = os.path.realpath(book_dir)
     db_real = os.path.realpath(db)
     if os.path.commonpath([book_real, db_real]) != book_real:
-        raise CrossBookDbError(
-            "BOOKS_DB_DOES_INVALID", "db does not belong to this book — refusing to write across books.\n"
+        raise CrossBookDbError("BOOK_DB_CROSS_BOOK",
+            "db does not belong to this book — refusing to write across books.\n"
             "  book: %s\n  db:   %s\n"
             "A book's chronicle lives at <book>/runs/<slug>.db. Drop --db to use it, "
             "or run the book that owns that db." % (book_real, db_real))
     return db_real
+
+
+def fixture_path(repo, folder, stem, suffixes, relative=False):
+    """An engine TEST FIXTURE by stem -> its path, or raise. `<repo>/<folder>/<stem><suffix>.json`
+
+    ONE COPY of the search. `scripts/direct.py` and `scripts/lint_book.py` each carried the same
+    three-candidate lookup and the same refusal, differing only in absolute vs relative return.
+
+    THE SUFFIXES ARE THE CALLER'S, and that is hard rule 1 rather than taste: they are fixture
+    STEMS, and `tests/test_portability.py` refuses fixture tokens inside `src/engine/`. It caught
+    this on the first run of this helper. The engine owns the search; the scripts own the names of
+    the things they are searching for.
+    """
+    import os as _os
+    for cand in [stem + sfx for sfx in suffixes]:
+        p = _os.path.join(repo, folder, cand + ".json")
+        if _os.path.exists(p):
+            return _os.path.relpath(p, repo) if relative else p
+    raise BookError("BOOK_FIXTURE_NOT_FOUND",
+                    "no %s/%s*.json in this repo (tried %s). Fixtures are reached with --fixture; "
+                    "a real book is --book."
+                    % (folder, stem, ", ".join(stem + sfx + ".json" for sfx in suffixes)))
+
+
+def db_or_raise(db):
+    """A chronicle path that must already exist -> it, or raise.
+
+    A reader that needs a chronicle and finds none is refusing a resolved path, which is this
+    module's job — `scripts/canon_digest.py` phrased it itself.
+    """
+    import os as _os
+    if not _os.path.isfile(db):
+        raise BookError("BOOK_DB_MISSING",
+                        "no chronicle at %s — run the book once before reading from it" % db)
+    return db

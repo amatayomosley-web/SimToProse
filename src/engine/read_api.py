@@ -61,23 +61,53 @@ class ReadResult:
 
 
 def _require(cond, code, msg):
-    """Refuse with a registered CODE, not just prose.
+    """Refuse a malformed REQUEST with a registered code.
 
-    The code parameter is not decoration. This helper is a refusal DOORWAY, and a
-    doorway is what an AST raise-scan cannot see through: the sibling instance's audit
-    certified its engine fully converted while 44 prose refusals sat behind a helper of
-    exactly this shape. Every caller names its own code so the scan in
-    tests/test_errors.py sees one refusal per CALL SITE, not one per doorway.
-    """
+    RENAMED BACK from `_require_arg` on 2026-09-02, and the reason is the whole point: the trap was
+    never the shared NAME, it was two helpers with two CONTRACTS answering to one. `tensions.py`
+    and `edl.py` take (cond, code, msg); this took (cond, msg); and `tests/test_errors.py` scans
+    for the name. Now that this tier is coded, all three have the same signature and the same
+    meaning, so the shared name is accurate rather than a half-match waiting to happen — and the
+    scanner sees this tier without being taught anything.
+
+    WHAT THIS TIER DOES NOT REFUSE: a miss. `snapshot_at` on a turn with no persisted snapshot
+    reports it in the trace and returns no rows, because "nothing is recorded there" is a true
+    answer to a well-formed question. Only the QUESTION can be malformed."""
     if not cond:
         raise ReadError(code, msg)
 
 
 def _int_as_of(as_of):
     _require(isinstance(as_of, int) and not isinstance(as_of, bool),
-             "READ_API_AS_OF_NOT_AN_INT", "as_of must be an int turn index, got %r" % (as_of,))
-    _require(as_of >= 0, "READ_API_AS_OF_INVALID", "as_of must be >= 0, got %d" % as_of)
+             "READ_AS_OF_NOT_AN_INT",
+             "as_of must be an int turn index, got %r" % (as_of,))
+    _require(as_of >= 0, "READ_AS_OF_NEGATIVE", "as_of must be >= 0, got %d" % as_of)
     return as_of
+
+
+def _known_run(con, run_id):
+    """THE ONE ABSENCE THAT IS A MALFORMED QUESTION, and the exception that proves the rule above.
+
+    Every other miss on this surface is a true answer: a turn that recorded nothing, a character
+    who learned nothing, a place nobody has spoken about. The RUN is different, because it is the
+    aggregate every read is scoped BY — an unknown one has no world for a fact to be absent from,
+    so a typo returned rows [] and a trace that read exactly like a real, empty history. That is
+    the failure `read_api`'s own header calls the worst a grounding system can have: an
+    unattributable "I don't know".
+
+    `Ledger.load_run` already draws this line on the write side. This is the same line, read-side.
+    """
+    _require(isinstance(run_id, str) and run_id.strip(), "READ_RUN_UNKNOWN",
+             "run_id must be a non-empty string, got %r" % (run_id,))
+    if con.execute("SELECT 1 FROM runs WHERE run_id=?", (run_id,)).fetchone() is None:
+        known = [r[0] for r in con.execute("SELECT run_id FROM runs ORDER BY run_id LIMIT 8")]
+        _require(False, "READ_RUN_UNKNOWN",
+                 "no run %r in this database. This is the one absence this tier refuses rather "
+                 "than reports: every other miss is a true answer about a world that exists, and "
+                 "an unknown run has no world to be absent from — an empty result here would read "
+                 "as a real, empty history. Known runs: %s"
+                 % (run_id, ", ".join(known) or "none"))
+    return run_id
 
 
 def _rows(cur):
@@ -95,8 +125,10 @@ def _loads(val, default=None):
 
 def said(con, run_id, turn):
     """The recorded turn: thought, action, tags, validation. Exact lookup."""
+    _known_run(con, run_id)
     _require(isinstance(turn, int) and not isinstance(turn, bool),
-             "READ_API_SAID_TURN_NOT_AN_INT", "turn must be an int, got %r" % (turn,))
+             "READ_TURN_NOT_AN_INT",
+             "turn must be an int, got %r" % (turn,))
     res = ReadResult([], ["said: turns WHERE run_id=%s AND turn=%d" % (run_id, turn)], as_of=turn)
     rows = _rows(con.execute(
         "SELECT turn, actor, thought, action, tags, validation, committed_at "
@@ -115,6 +147,7 @@ def said(con, run_id, turn):
 def state(con, run_id, char_id, as_of):
     """Affect + condition for a character AS OF a turn — the latest row at or
     before `as_of`, never the newest row overall."""
+    _known_run(con, run_id)
     as_of = _int_as_of(as_of)
     res = ReadResult([], ["state: current_state WHERE char=%s AND turn<=%d" % (char_id, as_of)],
                      as_of=as_of, perspective="char:%s" % char_id)
@@ -141,6 +174,7 @@ def state(con, run_id, char_id, as_of):
 def knows(con, run_id, char_id, as_of, contains=None):
     """What this character BELIEVES as of a turn — their vault slice, never
     world-truth. The perspective wall: a false belief here is correct data."""
+    _known_run(con, run_id)
     as_of = _int_as_of(as_of)
     res = ReadResult([], ["knows: acquisitions WHERE char=%s AND turn<=%d" % (char_id, as_of)],
                      as_of=as_of, perspective="char:%s" % char_id)
@@ -183,6 +217,7 @@ def edges(con, run_id, perceiver, target, as_of):
     so the old docstring's "every delta with the event that caused it" was already half a promise.
     Stated rather than repeated.
     """
+    _known_run(con, run_id)
     as_of = _int_as_of(as_of)
     res = ReadResult([], ["edges: relationship_deltas %s->%s WHERE turn<=%d"
                           % (perceiver, target, as_of)],
@@ -208,6 +243,7 @@ def edges(con, run_id, perceiver, target, as_of):
 def snapshot_at(con, run_id, as_of, kind=None):
     """The folded world snapshot at a turn. `kind` narrows to one projection
     family (agents/holdings/information/relationships/tensions/clock)."""
+    _known_run(con, run_id)
     as_of = _int_as_of(as_of)
     where = "run_id=? AND as_of_turn=?"
     params = [run_id, as_of]
@@ -232,8 +268,10 @@ def snapshot_at(con, run_id, as_of, kind=None):
 
 def scene_of(con, run_id, turn):
     """Which scene a turn belongs to — the unit the cut and narration iterate."""
+    _known_run(con, run_id)
     _require(isinstance(turn, int) and not isinstance(turn, bool),
-             "READ_API_SCENE_OF_TURN_NOT_AN_INT", "turn must be an int, got %r" % (turn,))
+             "READ_TURN_NOT_AN_INT",
+             "turn must be an int, got %r" % (turn,))
     res = ReadResult([], ["scene_of: scenes WHERE start_turn<=%d<=end_turn" % turn], as_of=turn)
     rows = _rows(con.execute(
         "SELECT scene_no, label, pov, start_turn, end_turn FROM scenes "
@@ -242,4 +280,72 @@ def scene_of(con, run_id, turn):
     res.rows = rows
     if not rows:
         res.step("MISS: turn %d falls outside every recorded scene boundary" % turn)
+    return res
+
+
+def place(con, run_id, place_id, as_of):
+    """What is KNOWN about a location as of a turn — the first read here that is not person-shaped.
+
+    This surface had six functions and five of them asked about people: `said`, `state`, `knows`,
+    `edges`, `scene_of`. You could ask what someone knew at turn 40 and you could not ask what was
+    known about a town, which is what "the engine models people through time and models places as a
+    static authored string" looked like from the read side.
+
+    Three sources, in the order a reader needs them:
+
+      1. THE AUTHORED LINE — `bible_entities.what` for this location, pinned with the run's bible.
+         One sentence, written once. It is the floor, not the answer.
+      2. WHO IS THERE — from the folded snapshot's `agents`, so it moves when the keeper emits a
+         `move`. Before the emitting seat existed this was permanently the seed.
+      3. WHAT HAS BEEN SAID — every LIVE utterance whose subject is this place, as of this turn,
+         with its FOLDED tier. Uncapped and unranked, because `claims.about` is: a keeper that
+         misses one contradicting claim adopts a false fact, so completeness beats brevity.
+
+    Rows are tagged by `source` so a caller can tell an authored fact from a thing a character said
+    once and nobody has ruled on. The trace names every step, including the misses — a place with no
+    lore must read as "nobody has said anything", never as an empty result that looks like an error.
+    """
+    _known_run(con, run_id)
+    _require(isinstance(place_id, str) and place_id.strip(),
+             "READ_PLACE_ID_EMPTY",
+             "place_id must be a non-empty string, got %r" % (place_id,))
+    as_of = _int_as_of(as_of)
+    res = ReadResult([], ["place: %r as of turn %d" % (place_id, as_of)], as_of=as_of)
+
+    row = con.execute(
+        "SELECT be.what AS what FROM bible_entities be JOIN runs r ON 1=1 "
+        "WHERE be.kind='location' AND be.entity_id=? AND be.fingerprint = "
+        "json_extract(r.config, '$.bible_fingerprint') AND r.run_id=?",
+        (place_id, run_id)).fetchone()
+    if row and row["what"]:
+        res.rows.append({"source": "authored", "what": row["what"]})
+        res.step("authored: bible_entities.what")
+    else:
+        res.step("MISS: no authored line for %r — either the bible names no such location, or "
+                 "the run predates bible pinning" % place_id)
+
+    agents = _rows(con.execute(
+        "SELECT key, value FROM snapshots WHERE run_id=? AND as_of_turn=? AND kind='agents'",
+        (run_id, as_of)))
+    here = []
+    for a in agents:
+        val = _loads(a.get("value"), {}) or {}
+        if isinstance(val, dict) and val.get("location") == place_id:
+            here.append(a["key"])
+    if here:
+        res.rows.append({"source": "present", "who": sorted(here)})
+        res.step("present: %d from the folded snapshot" % len(here))
+    else:
+        res.step("MISS: nobody is recorded at %r in the snapshot at turn %d — note that "
+                 "agents.location only moves when the keeper emits a `move`" % (place_id, as_of))
+
+    from . import claims
+    said = claims.about(claims.for_run(con, run_id, as_of), place_id,
+                        claims.resolutions_for(con, run_id, as_of))
+    for u in said:
+        res.rows.append({"source": "said", "turn": u["turn"], "speaker": u["speaker"],
+                         "tier": claims.tier_of(u, claims.resolutions_for(con, run_id, as_of)),
+                         "text": u["text"], "extracts": u["extracts"]})
+    res.step("said: %d live utterance(s) about %r" % (len(said), place_id)
+             if said else "MISS: nobody has said anything about %r by turn %d" % (place_id, as_of))
     return res

@@ -57,7 +57,7 @@ The packet is assembled by `src/engine/scene.py:assemble()`; the prompt by
 | R6 | recall | user msg ("What it brings to mind") | `gate.py:257 run_gate` — trigger-match → goal-salience sort → spend budget `energy×(1−load/2)` at cost `1−confidence` |
 | R7 | percepts | user msg, raw JSON incl. fidelity floats | perception wall `gate.py:120–210`; identity behind insight DC 0.55, subtle-attr extraction behind perception DC 0.60 |
 | R8 | urge scheduling | never in any prompt | `scripts/scene.py:44–52` — floor 0.06, addressed 0.15, recency 0.20, inhibition 0.10; salience = Σ\|Δaffect\| of the last tags appraised into the listener |
-| R9 | world laws | **nothing at turn time** | `bible.verdict_for` / `laws_bearing_on` (`bible.py:400–433`) are called by NO runner — only `lint_book.py` (a warning string) and the Mode-B chat hook `.claude/hooks/ground_from_book.py`. 27 authored laws bind nothing while a scene runs |
+| R9 | world laws | **nothing at turn time** | `bible.verdict_for` / `laws_bearing_on` (`law.py:340–391`, re-exported by `bible`) are called by NO runner — only `lint_book.py` (a warning string) and the Mode-B chat hook `.claude/hooks/ground_from_book.py`. 27 authored laws bind nothing while a scene runs |
 | R10 | formative block | **nothing, ever** | `_build_stable` reads fixed+baseline only; `lint_book.py:108` states it: "read by no engine code and no prompt" |
 
 **Load-bearing fact 1 — the number leak (THE CONFOUND).** Hard rule 5 ("numbers never reach the
