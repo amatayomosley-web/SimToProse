@@ -45,6 +45,7 @@ prompt (rule 5 — `direction.direct_edge` renders these).
 from .gate import PERCEPTION_DC_IDENTITY, PERCEPTION_DC_SUBTLE, _passes_check
 from .records import RELATIONSHIP_AXES
 from .state import _relevance
+from .errors import EngineError
 
 # --- Class-B calibration. Directions are prescribed by relationships.md; magnitudes are chosen
 # starts, falsifiable by a run that reads as either glacial or hysterical. ---
@@ -202,9 +203,9 @@ def witnessed(act, skills, edge=None):
     if skills is None:
         return True
     if not isinstance(act, dict):
-        raise ValueError("witnessed: act must be a dict, got %r" % type(act).__name__)
+        raise EngineError("BONDS_WITNESSED_ACT_NOT_A_DICT", "witnessed: act must be a dict, got %r" % type(act).__name__)
     if not isinstance(skills, dict):
-        raise ValueError("witnessed: skills must be a dict or None, got %r" % type(skills).__name__)
+        raise EngineError("BONDS_WITNESSED_SKILLS_NOT_A_DICT", "witnessed: skills must be a dict or None, got %r" % type(skills).__name__)
     if float(act.get("severity", 0.0)) < _OVERT_SEVERITY:
         if not _passes_check(skills.get("perception", 0.5), PERCEPTION_DC_SUBTLE):
             return False
@@ -226,9 +227,9 @@ def observe(edge, act, model, attribution=None, expect=None, cliffs=True):
               stance you take toward a person, not a reading of how they feel.
     """
     if not isinstance(act, dict):
-        raise ValueError("observe: act must be a dict, got %r" % type(act).__name__)
+        raise EngineError("BONDS_OBSERVE_ACT_NOT_A_DICT", "observe: act must be a dict, got %r" % type(act).__name__)
     if not isinstance(model, dict):
-        raise ValueError("observe: model must be a dict, got %r" % type(model).__name__)
+        raise EngineError("BONDS_OBSERVE_MODEL_NOT_A_DICT", "observe: model must be a dict, got %r" % type(model).__name__)
     edge = edge if isinstance(edge, dict) else {}
     exp = expect if isinstance(expect, dict) else edge
     obs = act.get("observations") or {}
@@ -280,11 +281,11 @@ def observe(edge, act, model, attribution=None, expect=None, cliffs=True):
 def apply_deltas(edge, deltas):
     """Edge + deltas -> a NEW edge dict, every axis clamped [0,1]. Never mutates its input."""
     if not isinstance(deltas, dict):
-        raise ValueError("apply_deltas: deltas must be a dict, got %r" % type(deltas).__name__)
+        raise EngineError("BONDS_APPLY_DELTAS_NOT_A_DICT", "apply_deltas: deltas must be a dict, got %r" % type(deltas).__name__)
     new = dict(edge) if isinstance(edge, dict) else {}
     for axis, d in deltas.items():
         if axis not in RELATIONSHIP_AXES:
-            raise ValueError("apply_deltas: %r not in %s" % (axis, list(RELATIONSHIP_AXES)))
+            raise EngineError("BONDS_APPLY_DELTAS_NOT_IN_SET", "apply_deltas: %r not in %s" % (axis, list(RELATIONSHIP_AXES)))
         new[axis] = _clamp01(float(new.get(axis, _NEUTRAL.get(axis, 0.5))) + float(d))
     return new
 
@@ -337,7 +338,7 @@ def reflect(edge, act, model, attribution=None):
     Returns {axis: delta} for the second-order block, or {} — including {} for a bystander.
     """
     if not isinstance(act, dict):
-        raise ValueError("reflect: act must be a dict, got %r" % type(act).__name__)
+        raise EngineError("BONDS_REFLECT_ACT_NOT_A_DICT", "reflect: act must be a dict, got %r" % type(act).__name__)
     if not act.get("received"):
         return {}
     edge = edge if isinstance(edge, dict) else {}
@@ -349,7 +350,7 @@ def reflect(edge, act, model, attribution=None):
 def apply_reflection(edge, deltas):
     """Edge + second-order deltas -> a NEW edge whose `their_view` has moved. Never mutates."""
     if not isinstance(deltas, dict):
-        raise ValueError("apply_reflection: deltas must be a dict, got %r" % type(deltas).__name__)
+        raise EngineError("BONDS_APPLY_REFLECTION_DELTAS_NOT_A_DICT", "apply_reflection: deltas must be a dict, got %r" % type(deltas).__name__)
     new = dict(edge) if isinstance(edge, dict) else {}
     view = new.get("their_view")
     new["their_view"] = apply_deltas(view if isinstance(view, dict) else {}, deltas)
@@ -370,7 +371,7 @@ def drift(edge, priors=None, elapsed=1.0):
     try:
         elapsed = max(0.0, float(elapsed))
     except (TypeError, ValueError):
-        raise ValueError("drift: elapsed must be a number, got %r" % (elapsed,))
+        raise EngineError("BONDS_DRIFT_ELAPSED_NOT_NUMERIC", "drift: elapsed must be a number, got %r" % (elapsed,))
     rest = dict(_NEUTRAL)
     if "default_trust" in priors:
         try:
@@ -401,10 +402,10 @@ def replay(relationships, deltas):
     movement, and dropping it would silently lose the only record of it.
     """
     if not isinstance(relationships, dict):
-        raise ValueError("replay: relationships must be a dict, got %r" % type(relationships).__name__)
+        raise EngineError("BONDS_REPLAY_RELATIONSHIPS_NOT_A_DICT", "replay: relationships must be a dict, got %r" % type(relationships).__name__)
     for target, axis, delta, order in deltas or ():
         if axis not in RELATIONSHIP_AXES:
-            raise ValueError("replay: unknown axis %r (log disagrees with RELATIONSHIP_AXES)" % (axis,))
+            raise EngineError("BONDS_REPLAY_UNKNOWN_AXIS_UNKNOWN", "replay: unknown axis %r (log disagrees with RELATIONSHIP_AXES)" % (axis,))
         edge = relationships.setdefault(target, {})
         slot = edge.setdefault("their_view", {}) if order == "second" else edge
         slot[axis] = _clamp01(float(slot.get(axis, _NEUTRAL[axis])) + float(delta))

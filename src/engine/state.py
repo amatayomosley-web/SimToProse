@@ -13,6 +13,7 @@ import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from src.engine.records import PRIMARIES, admits_role
+from .errors import EngineError
 
 # ---------------------------------------------------------------------------
 # Class-B constants — theory-anchored, probe-calibrated.
@@ -95,7 +96,7 @@ _DIM_TO_PRIMARY["threat"].append(("DISGUST", 0.08))
 for _dim, _pushes in _DIM_TO_PRIMARY.items():
     for _p, _w in _pushes:
         if _p not in PRIMARIES:
-            raise ValueError("_DIM_TO_PRIMARY[%r] pushes %r, which is not a primitive. Add it to "
+            raise EngineError("STATE_DIM_TO_PRIMARY_PUSHES_INVALID", "_DIM_TO_PRIMARY[%r] pushes %r, which is not a primitive. Add it to "
                              "PRIMARIES or remove the push - it cannot be silently skipped."
                              % (_dim, _p))
 
@@ -394,35 +395,35 @@ def appraise(affect, tags, profile, targets=None):
     """
     # --- input validation (docs/state-engine.md: fail loud, never coerce) ---
     if not isinstance(affect, dict):
-        raise ValueError("appraise: affect must be a dict, got %r" % type(affect).__name__)
+        raise EngineError("STATE_APPRAISE_AFFECT_NOT_A_DICT", "appraise: affect must be a dict, got %r" % type(affect).__name__)
     missing = [p for p in PRIMARIES if p not in affect]
     if missing:
-        raise ValueError("appraise: affect missing primaries: %s" % missing)
+        raise EngineError("STATE_APPRAISE_AFFECT_MISSING_PRIMARIES", "appraise: affect missing primaries: %s" % missing)
     # `_`-prefixed keys are author comments (`_note`), same tolerance
     # baseline.temperament already extends — before this, a comment key legal
     # in one block was fatal in its sibling while lint_book.py passed clean.
     unknown = [k for k in affect if k not in PRIMARIES and not k.startswith("_")]
     if unknown:
-        raise ValueError("appraise: affect has unknown keys: %s" % unknown)
+        raise EngineError("STATE_APPRAISE_AFFECT_UNKNOWN_KEYS", "appraise: affect has unknown keys: %s" % unknown)
     for p, v in affect.items():
         if p.startswith("_"):
             continue
         if not isinstance(v, (int, float)):
-            raise ValueError("appraise: affect[%s] must be numeric, got %r" % (p, v))
+            raise EngineError("STATE_APPRAISE_AFFECT_NUMERIC_NOT_NUMERIC", "appraise: affect[%s] must be numeric, got %r" % (p, v))
         if not (0.0 <= float(v) <= 1.0):
-            raise ValueError("appraise: affect[%s]=%r out of [0,1]" % (p, v))
+            raise EngineError("STATE_APPRAISE_AFFECT_OUT_OF_RANGE", "appraise: affect[%s]=%r out of [0,1]" % (p, v))
 
     if not isinstance(tags, dict):
-        raise ValueError("appraise: tags must be a dict, got %r" % type(tags).__name__)
+        raise EngineError("STATE_APPRAISE_TAGS_NOT_A_DICT", "appraise: tags must be a dict, got %r" % type(tags).__name__)
 
     required_profile_keys = ("gains", "decay_rates", "relevance_weights", "sensitivity")
     for k in required_profile_keys:
         if k not in profile:
-            raise ValueError("appraise: profile missing key %r" % k)
+            raise EngineError("STATE_APPRAISE_PROFILE_MISSING_KEY", "appraise: profile missing key %r" % k)
 
     dimensions = tags.get("dimensions", {})
     if not isinstance(dimensions, dict):
-        raise ValueError("appraise: tags['dimensions'] must be a dict")
+        raise EngineError("STATE_APPRAISE_TAGS_DIMENSIONS_NOT_A_DICT", "appraise: tags['dimensions'] must be a dict")
 
     gains             = profile["gains"]
     relevance_weights = profile["relevance_weights"]
@@ -453,7 +454,7 @@ def appraise(affect, tags, profile, targets=None):
 
     for dim, mag in dimensions.items():
         if not isinstance(mag, (int, float)):
-            raise ValueError("appraise: dimension %r magnitude must be numeric, got %r" % (dim, mag))
+            raise EngineError("STATE_APPRAISE_DIMENSION_MAGNITUDE_NOT_NUMERIC", "appraise: dimension %r magnitude must be numeric, got %r" % (dim, mag))
         mag = float(mag)
         # Unknown dimensions are silently ignored (future-proof; new consolidation dims won't crash).
         for primary, base_push in _DIM_TO_PRIMARY.get(dim, []):
@@ -490,34 +491,34 @@ def decay(affect, temperament, profile):
     Raises ValueError on malformed input.
     """
     if not isinstance(affect, dict):
-        raise ValueError("decay: affect must be a dict, got %r" % type(affect).__name__)
+        raise EngineError("STATE_DECAY_AFFECT_NOT_A_DICT", "decay: affect must be a dict, got %r" % type(affect).__name__)
     missing = [p for p in PRIMARIES if p not in affect]
     if missing:
-        raise ValueError("decay: affect missing primaries: %s" % missing)
+        raise EngineError("STATE_DECAY_AFFECT_MISSING_PRIMARIES", "decay: affect missing primaries: %s" % missing)
     # `_`-prefixed keys: author comments, tolerated and passed through — see
     # the twin exemption in appraise.
     unknown = [k for k in affect if k not in PRIMARIES and not k.startswith("_")]
     if unknown:
-        raise ValueError("decay: affect has unknown keys: %s" % unknown)
+        raise EngineError("STATE_DECAY_AFFECT_UNKNOWN_KEYS", "decay: affect has unknown keys: %s" % unknown)
     for p, v in affect.items():
         if p.startswith("_"):
             continue
         if not isinstance(v, (int, float)):
-            raise ValueError("decay: affect[%s] must be numeric" % p)
+            raise EngineError("STATE_DECAY_AFFECT_NUMERIC_NOT_NUMERIC", "decay: affect[%s] must be numeric" % p)
         if not (0.0 <= float(v) <= 1.0):
-            raise ValueError("decay: affect[%s]=%r out of [0,1]" % (p, v))
+            raise EngineError("STATE_DECAY_AFFECT_OUT_OF_RANGE", "decay: affect[%s]=%r out of [0,1]" % (p, v))
 
     if not isinstance(temperament, dict):
-        raise ValueError("decay: temperament must be a dict")
+        raise EngineError("STATE_DECAY_TEMPERAMENT_NOT_A_DICT", "decay: temperament must be a dict")
     for p in PRIMARIES:
         if p not in temperament:
-            raise ValueError("decay: temperament missing primary %r" % p)
+            raise EngineError("STATE_DECAY_TEMPERAMENT_MISSING_PRIMARY", "decay: temperament missing primary %r" % p)
         t = temperament[p]
         if not isinstance(t, dict) or "mean" not in t:
-            raise ValueError("decay: temperament[%r] must be a dict with 'mean'" % p)
+            raise EngineError("STATE_DECAY_TEMPERAMENT_ENTRY_NOT_A_DICT", "decay: temperament[%r] must be a dict with 'mean'" % p)
 
     if not isinstance(profile, dict) or "decay_rates" not in profile:
-        raise ValueError("decay: profile must be a dict with 'decay_rates'")
+        raise EngineError("STATE_DECAY_PROFILE_NOT_A_DICT", "decay: profile must be a dict with 'decay_rates'")
 
     decay_rates = profile["decay_rates"]
 

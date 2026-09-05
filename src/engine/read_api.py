@@ -60,15 +60,23 @@ class ReadResult:
         }
 
 
-def _require(cond, msg):
+def _require(cond, code, msg):
+    """Refuse with a registered CODE, not just prose.
+
+    The code parameter is not decoration. This helper is a refusal DOORWAY, and a
+    doorway is what an AST raise-scan cannot see through: the sibling instance's audit
+    certified its engine fully converted while 44 prose refusals sat behind a helper of
+    exactly this shape. Every caller names its own code so the scan in
+    tests/test_errors.py sees one refusal per CALL SITE, not one per doorway.
+    """
     if not cond:
-        raise ReadError(msg)
+        raise ReadError(code, msg)
 
 
 def _int_as_of(as_of):
     _require(isinstance(as_of, int) and not isinstance(as_of, bool),
-             "as_of must be an int turn index, got %r" % (as_of,))
-    _require(as_of >= 0, "as_of must be >= 0, got %d" % as_of)
+             "READ_API_AS_OF_NOT_AN_INT", "as_of must be an int turn index, got %r" % (as_of,))
+    _require(as_of >= 0, "READ_API_AS_OF_INVALID", "as_of must be >= 0, got %d" % as_of)
     return as_of
 
 
@@ -88,7 +96,7 @@ def _loads(val, default=None):
 def said(con, run_id, turn):
     """The recorded turn: thought, action, tags, validation. Exact lookup."""
     _require(isinstance(turn, int) and not isinstance(turn, bool),
-             "turn must be an int, got %r" % (turn,))
+             "READ_API_SAID_TURN_NOT_AN_INT", "turn must be an int, got %r" % (turn,))
     res = ReadResult([], ["said: turns WHERE run_id=%s AND turn=%d" % (run_id, turn)], as_of=turn)
     rows = _rows(con.execute(
         "SELECT turn, actor, thought, action, tags, validation, committed_at "
@@ -225,7 +233,7 @@ def snapshot_at(con, run_id, as_of, kind=None):
 def scene_of(con, run_id, turn):
     """Which scene a turn belongs to — the unit the cut and narration iterate."""
     _require(isinstance(turn, int) and not isinstance(turn, bool),
-             "turn must be an int, got %r" % (turn,))
+             "READ_API_SCENE_OF_TURN_NOT_AN_INT", "turn must be an int, got %r" % (turn,))
     res = ReadResult([], ["scene_of: scenes WHERE start_turn<=%d<=end_turn" % turn], as_of=turn)
     rows = _rows(con.execute(
         "SELECT scene_no, label, pov, start_turn, end_turn FROM scenes "

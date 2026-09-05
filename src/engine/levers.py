@@ -14,6 +14,7 @@ state.py is at its 500-line ceiling (CLAUDE.md hard rule 6).
 import re
 
 from .records import PRIMARIES
+from .errors import EngineError
 
 
 def _clamp(x):
@@ -51,20 +52,20 @@ _OPS = ("x", "+")          # multiply, or add (magnitude may be negative to debu
 def _check_row(row, i):
     """One registry row -> (lever, op, magnitude). Fails loud; never coerces."""
     if not isinstance(row, dict):
-        raise ValueError("effective: row %d must be a dict, got %r" % (i, type(row).__name__))
+        raise EngineError("LEVERS_EFFECTIVE_ROW_NOT_A_DICT", "effective: row %d must be a dict, got %r" % (i, type(row).__name__))
     lever = row.get("lever")
     if lever not in PRIMARIES:
-        raise ValueError("effective: row %d lever %r is not one of the bounded levers %s "
+        raise EngineError("LEVERS_EFFECTIVE_ROW_LEVER_INVALID", "effective: row %d lever %r is not one of the bounded levers %s "
                          "(the catalog is a BOUNDED set, authored once — decision-engine.md)"
                          % (i, lever, list(PRIMARIES)))
     op = row.get("op")
     if op not in _OPS:
-        raise ValueError("effective: row %d op %r must be one of %s" % (i, op, list(_OPS)))
+        raise EngineError("LEVERS_EFFECTIVE_ROW_OP_INVALID", "effective: row %d op %r must be one of %s" % (i, op, list(_OPS)))
     mag = row.get("magnitude")
     if not isinstance(mag, (int, float)):
-        raise ValueError("effective: row %d magnitude must be numeric, got %r" % (i, mag))
+        raise EngineError("LEVERS_EFFECTIVE_ROW_MAGNITUDE_NOT_NUMERIC", "effective: row %d magnitude must be numeric, got %r" % (i, mag))
     if op == "x" and float(mag) < 0.0:
-        raise ValueError("effective: row %d multiplier %r is negative; use op '+' to subtract"
+        raise EngineError("LEVERS_EFFECTIVE_ROW_MULTIPLIER_NEGATIVE", "effective: row %d multiplier %r is negative; use op '+' to subtract"
                          % (i, mag))
     return lever, op, float(mag)
 
@@ -86,10 +87,10 @@ def effective(current, rows=()):
     Raises ValueError on a malformed row (unknown lever, bad op, non-numeric magnitude).
     """
     if not isinstance(current, dict):
-        raise ValueError("effective: current must be a dict, got %r" % type(current).__name__)
+        raise EngineError("LEVERS_EFFECTIVE_CURRENT_NOT_A_DICT", "effective: current must be a dict, got %r" % type(current).__name__)
     missing = [p for p in PRIMARIES if p not in current]
     if missing:
-        raise ValueError("effective: current missing primaries: %s" % missing)
+        raise EngineError("LEVERS_EFFECTIVE_CURRENT_MISSING_PRIMARIES", "effective: current missing primaries: %s" % missing)
 
     mult = {p: 1.0 for p in PRIMARIES}
     add  = {p: 0.0 for p in PRIMARIES}
@@ -155,7 +156,7 @@ def _edge_matches(edges, who, req):
                     ok = False
                     break
             elif ax != "id":
-                raise ValueError("levers: unknown edge clause %r (axes: %s, or <axis>_at_most)"
+                raise EngineError("LEVERS_UNKNOWN_EDGE_UNKNOWN", "levers: unknown edge clause %r (axes: %s, or <axis>_at_most)"
                                  % (ax, list(_AXES)))
         if ok:
             return True
@@ -167,12 +168,12 @@ def _row_active(when, ctx):
     if not when:
         return True
     if not isinstance(when, dict):
-        raise ValueError("levers: `when` must be a dict, got %r" % type(when).__name__)
+        raise EngineError("LEVERS_WHEN_NOT_A_DICT", "levers: `when` must be a dict, got %r" % type(when).__name__)
 
     words = when.get("percept")
     if words is not None:
         if not isinstance(words, (list, tuple)):
-            raise ValueError("levers: when.percept must be a list of words")
+            raise EngineError("LEVERS_WHEN_PERCEPT_NOT_A_LIST", "levers: when.percept must be a list of words")
         # WORD BOUNDARIES, not substring containment. Raw `in` fired a row keyed on a short word
         # against two unrelated words that merely contained it — measured twice in one sentence of
         # a live book, both false, and both masked because a legitimate word in the same sentence
@@ -201,7 +202,7 @@ def _row_active(when, ctx):
         if edge_req is None:
             continue
         if not isinstance(edge_req, dict):
-            raise ValueError("levers: when.%s must be a dict" % key)
+            raise EngineError("LEVERS_WHEN_ENTRY_NOT_A_DICT", "levers: when.%s must be a dict" % key)
         edges = ctx.get("edges") or {}
         if key == "target_edge":
             subject = ctx.get("target")
@@ -240,7 +241,7 @@ def active_rows(catalog, ctx):
         # `_note`, so the catalog may too. A bare list is equally valid.
         catalog = catalog.get("rows") or []
     if not isinstance(catalog, (list, tuple)):
-        raise ValueError("levers: catalog must be a list of rows or {'rows': [...]}, got %r"
+        raise EngineError("LEVERS_CATALOG_NOT_A_LIST", "levers: catalog must be a list of rows or {'rows': [...]}, got %r"
                          % type(catalog).__name__)
     out = []
     for i, row in enumerate(catalog):

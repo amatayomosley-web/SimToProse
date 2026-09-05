@@ -1,6 +1,6 @@
 # MAP — what is in this project and what owns what
 
-**Why this file exists.** `docs/` holds 68 design docs, `src/engine/` 26 modules,
+**Why this file exists.** `docs/` holds 68 design docs, `src/engine/` 27 modules,
 `tests/` 48 suites. Nobody — human or agent — can hold that in their head, and reading it all every
 session is not practical. **The failure this prevents is real and happened:** a session spent hours
 reasoning about the decision layer from four docs and inference, invented a parallel vocabulary
@@ -170,7 +170,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `world-model` | the other half of the loop (SEED — to co-design) |
 | `world-state-ledger` | the live now (design the machinery; the line items are runtime) |
 
-## src/engine/ — 26 modules (normative for what IS)
+## src/engine/ — 27 modules (normative for what IS)
 
 | src | lines | owns |
 |---|---|---|
@@ -180,6 +180,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `bonds` | the relationship tier: how one person's read of another MOVES. |
 | `books` | resolve a book by slug, so several can be active at once. |
 | `citation` | the grounding contract's enforcement core. |
+| `code_families` | the DATA half of the error registry. |
 | `codes` | the frozen registry of engine error codes. |
 | `compounds` | the named emotions, as coordinates over the primitives. |
 | `consolidation` | Gate 4: Consolidation Validation. |

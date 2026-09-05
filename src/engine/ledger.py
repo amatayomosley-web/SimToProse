@@ -35,9 +35,9 @@ class Ledger:
     # ---- run lifecycle -------------------------------------------------------------------------
     def create_run(self, run_id, config):
         if not isinstance(run_id, str) or not run_id.strip():
-            raise RecordError("run_id must be a non-empty string")
+            raise RecordError("LEDGER_RUN_ID_EMPTY_NOT_A_STRING", "run_id must be a non-empty string")
         if not isinstance(config, dict) or "catalog_version" not in config:
-            raise RecordError("run config must be a dict carrying at least catalog_version (run-lifecycle.md)")
+            raise RecordError("LEDGER_RUN_CONFIG_NOT_A_DICT", "run config must be a dict carrying at least catalog_version (run-lifecycle.md)")
         with self.con:
             self.con.execute("INSERT INTO runs (run_id, created_at, config) VALUES (?, ?, ?)",
                              (run_id, _now(), json.dumps(config)))
@@ -46,7 +46,7 @@ class Ledger:
     def load_run(self, run_id):
         row = self.con.execute("SELECT * FROM runs WHERE run_id = ?", (run_id,)).fetchone()
         if row is None:
-            raise LedgerError("unknown run %r" % run_id)
+            raise LedgerError("LEDGER_UNKNOWN_RUN_UNKNOWN", "unknown run %r" % run_id)
         return {"run_id": row["run_id"], "created_at": row["created_at"],
                 "status": row["status"], "config": json.loads(row["config"])}
 
@@ -69,7 +69,7 @@ class Ledger:
     def register_character(self, run_id, char_id, fixed, baseline):
         self.load_run(run_id)
         if not isinstance(fixed, dict) or not isinstance(baseline, dict):
-            raise RecordError("fixed and baseline must be dicts")
+            raise RecordError("LEDGER_FIXED_BASELINE_INVALID", "fixed and baseline must be dicts")
         with self.con:
             self.con.execute("INSERT INTO characters (run_id, char_id, fixed, baseline) VALUES (?, ?, ?, ?)",
                              (run_id, char_id, json.dumps(fixed), json.dumps(baseline)))
@@ -77,11 +77,11 @@ class Ledger:
     # ---- the atomic turn-commit (run-lifecycle.md: together or not at all) ----------------------
     def append_turn(self, commit):
         if not isinstance(commit, TurnCommit):
-            raise RecordError("append_turn takes a TurnCommit, got %r" % type(commit).__name__)
+            raise RecordError("LEDGER_APPEND_TURN_TAKES_INVALID", "append_turn takes a TurnCommit, got %r" % type(commit).__name__)
         commit.validate()
         run = self.load_run(commit.run_id)
         if run["status"] != "active":
-            raise LedgerError("run %r is %s — appending to a non-active run" % (commit.run_id, run["status"]))
+            raise LedgerError("LEDGER_RUN_APPENDING_RUN_NOT_ACTIVE", "run %r is %s — appending to a non-active run" % (commit.run_id, run["status"]))
         try:
             with self.con:  # one transaction: every row below lands, or none do
                 for ev in commit.events:
@@ -115,7 +115,7 @@ class Ledger:
         except Exception as exc:
             if isinstance(exc, (LedgerError, RecordError)):
                 raise
-            raise LedgerError("turn-commit (run=%s turn=%s actor=%s) rolled back: %s"
+            raise LedgerError("LEDGER_TURN_COMMIT_ROLLED_BACK", "turn-commit (run=%s turn=%s actor=%s) rolled back: %s"
                               % (commit.run_id, commit.turn, commit.actor, exc)) from exc
 
     def record_turn_skipped(self, run_id, turn, actor, reason):
@@ -133,7 +133,7 @@ class Ledger:
         """Persist a durable baseline diff (arc-engine.md) to the arc_diffs table — the arc's
         write-record. One diff per (run, char, turn); resume replays them onto the baseline."""
         if not isinstance(diff, dict):
-            raise RecordError("arc diff must be a dict")
+            raise RecordError("LEDGER_ARC_DIFF_NOT_A_DICT", "arc diff must be a dict")
         self.load_run(run_id)
         payload = json.dumps(diff)
         # IDEMPOTENT REPLAY, REFUSED REWRITE. This was `INSERT OR REPLACE`, and as the table's only
@@ -169,7 +169,7 @@ class Ledger:
         simulated twin of an authored .md seed, provenance distinguishing them. One row per acquired
         belief. run_turn folds it forward in-session; resume-replay shares the arc_diffs gap."""
         if not isinstance(belief, dict) or "claim" not in belief:
-            raise RecordError("acquisition belief must be a dict carrying a claim")
+            raise RecordError("LEDGER_ACQUISITION_BELIEF_NOT_A_DICT", "acquisition belief must be a dict carrying a claim")
         self.load_run(run_id)
         with self.con:
             self.con.execute(
@@ -348,7 +348,7 @@ class Ledger:
         full = self.fold(run_id, t)
         if incremental != full:
             raise LedgerError(
-                "RESUME DIVERGENCE on run %r at turn %d: snapshot+tail replay != from-zero fold. "
+                "LEDGER_SNAPSHOT_TAIL_RESUME_DIVERGENCE", "RESUME DIVERGENCE on run %r at turn %d: snapshot+tail replay != from-zero fold. "
                 "The cached snapshot or the projection is corrupt — refusing to resume." % (run_id, t))
         self.persist_snapshot(run_id, t, full)
         return {"turn": t, "snapshot": full}

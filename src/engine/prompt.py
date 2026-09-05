@@ -18,6 +18,7 @@ from .gate import scope_names
 # Types the ACTOR may self-tag: pure-appraisal catalog rows (no world fold) that are not
 # system-emitted. System types are the engine's own records, never an actor's claim.
 from .consolidation import ACTOR_TAG_TYPES, SYSTEM_TYPES        # noqa: E402,F401  (derived once, beside CATALOG)
+from .errors import EngineError
 
 _DIMS = tuple(sorted(_DIM_TO_PRIMARY))
 
@@ -29,9 +30,9 @@ def build_turn_messages(packet, event_text, temperament, relationships=None, act
     The never-invent line is scoped to WORLD facts; the actor's interior is licensed (the
     blind-judge finding: clamping invention must not clamp legitimate interiority)."""
     if not isinstance(packet, dict) or "stable" not in packet or "volatile" not in packet:
-        raise ValueError("build_turn_messages: packet must carry stable and volatile halves")
+        raise EngineError("PROMPT_BUILD_TURN_MESSAGES_PACKET_CARRY_INVALID", "build_turn_messages: packet must carry stable and volatile halves")
     if not isinstance(event_text, str) or not event_text.strip():
-        raise ValueError("build_turn_messages: event_text must be a non-empty string")
+        raise EngineError("PROMPT_BUILD_TURN_MESSAGES_EVENT_TEXT_EMPTY_NOT_A_STRING", "build_turn_messages: event_text must be a non-empty string")
     # THE ACT: the actor names what it did in the WORLD's vocabulary, so a law can be keyed to it
     # after the fact. Closed list, drawn from the authored laws; empty is always allowed and is
     # the right answer for most beats. Injected ONLY when the world declares laws.

@@ -12,6 +12,7 @@ import re
 
 from .gate import _normalize
 from .consolidation import is_durable
+from .errors import EngineError
 
 # The durability predicate is imported, never re-spelled. This module used to carry
 # `_DURABLE = ("durable", "marking", "reshaping")` — a THIRD vocabulary, accepting two values
@@ -142,7 +143,7 @@ def witness_belief(actor_name, tags, actor_id, trust=None):
         try:
             t = max(0.0, min(1.0, float(trust)))
         except (TypeError, ValueError):
-            raise ValueError("witness_belief: trust must be a number in [0,1], got %r" % (trust,))
+            raise EngineError("ACQUISITION_WITNESS_BELIEF_TRUST_NOT_NUMERIC", "witness_belief: trust must be a number in [0,1], got %r" % (trust,))
         conf = round(_WITNESS_BASE * (0.4 + 1.2 * t), 4)   # neutral trust reproduces the base value
         conf = max(0.05, min(_WITNESS_CEILING, conf))
         if t <= _REPORTED_AT:                              # a discounted rumour, kept but attributed

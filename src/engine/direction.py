@@ -261,10 +261,10 @@ def direct_affect(affect, temperament, targets=None, me=None):
     CARE 0.30 and 0.45 both surfaced while 0.54 fell silent, telling the actor LESS was happening
     at higher care. Anything that has surfaced must keep surfacing as the value rises."""
     if not isinstance(affect, dict) or not isinstance(temperament, dict):
-        raise ValueError("direction: affect and temperament must be dicts")
+        raise EngineError("DIRECTION_AFFECT_TEMPERAMENT_INVALID", "direction: affect and temperament must be dicts")
     missing = [p for p in PRIMARIES if p not in affect]
     if missing:
-        raise ValueError("direction: affect missing primaries: %s" % missing)
+        raise EngineError("DIRECTION_AFFECT_MISSING_PRIMARIES", "direction: affect missing primaries: %s" % missing)
     parts = []
     for p in PRIMARIES:
         v = _check_num("affect[%s]" % p, affect[p])
@@ -296,7 +296,7 @@ def direct_affect(affect, temperament, targets=None, me=None):
 def direct_condition(condition):
     """Condition -> a digit-free line, via the same energy/load read the gate's budget uses."""
     if not isinstance(condition, dict):
-        raise ValueError("direction: condition must be a dict")
+        raise EngineError("DIRECTION_CONDITION_NOT_A_DICT", "direction: condition must be a dict")
     energy = _check_num("condition.energy", condition.get("energy", 1.0))
     load = _check_num("condition.allostatic_load", condition.get("allostatic_load", 0.0))
     effective = energy * (1.0 - load * 0.5)   # mirrors gate._energy_budget (one read, two surfaces)
@@ -338,7 +338,7 @@ def direct_edge(edge):
     indifferent has to be stageable differently from someone who believes it is returned.
     """
     if not isinstance(edge, dict):
-        raise ValueError("direction: edge must be a dict")
+        raise EngineError("DIRECTION_EDGE_NOT_A_DICT", "direction: edge must be a dict")
     parts = []
     for axis in ("trust", "affinity", "respect", "debt"):
         if axis in edge:

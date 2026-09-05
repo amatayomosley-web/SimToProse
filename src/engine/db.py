@@ -6,6 +6,7 @@ version than this engine refuses to open — fail loud, never silently downgrade
 """
 import os
 import sqlite3
+from .errors import EngineError
 
 SCHEMA_VERSION = 9   # v9: + append-only TRIGGERS on the log tables (events, turns, recall_events, acquisitions, arc_diffs, relationship_deltas). Hard rule 2 was enforced only by ledger.py's habit of never issuing UPDATE/DELETE; anything else with a connection could rewrite a committed turn. Triggers are idempotent (CREATE TRIGGER IF NOT EXISTS) so a v8 db gains them on re-run, same mechanism v3 used for the scenes table. v8: + relationship_deltas.ord (first- vs second-order edge movement; the second order rendered and evaporated because the row had nowhere to hold it). v7: + bible_laws.excepts (scoped PERMITS — a permit that names law ids disarms only those). v6: law domains/epistemic realigned to the authoring blueprint. v5: + bible_laws (computable denial: IMPOSSIBLE vs FORBIDS). v4: + bibles/bible_entities (the run pins the bible it ran against). v3: + scenes table (scene boundaries for book-assembly). v2: + acquisitions. schema.sql is idempotent (IF NOT EXISTS), so older DBs re-run it and gain the new tables; COLUMN additions to existing tables are applied explicitly in _migrate, because a re-run CREATE IF NOT EXISTS skips an existing table.
 _SCHEMA_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "schema.sql")
@@ -13,7 +14,7 @@ _SCHEMA_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "schema.
 
 def connect(db_path):
     if not isinstance(db_path, (str, bytes, os.PathLike)):
-        raise TypeError("db_path must be a filesystem path, got %r" % type(db_path).__name__)
+        raise EngineError("DB_PATH_NOT_A_PATH", "db_path must be a filesystem path, got %r" % type(db_path).__name__)
     parent = os.path.dirname(os.path.abspath(os.fspath(db_path)))
     if parent and not os.path.isdir(parent):
         os.makedirs(parent, exist_ok=True)
@@ -37,7 +38,7 @@ def connect(db_path):
 def _migrate(con):
     v = con.execute("PRAGMA user_version").fetchone()[0]
     if v > SCHEMA_VERSION:
-        raise RuntimeError("db schema is v%d but this engine knows v%d — refusing to open" % (v, SCHEMA_VERSION))
+        raise EngineError("DB_SCHEMA_VERSION_MISMATCH", "db schema is v%d but this engine knows v%d — refusing to open" % (v, SCHEMA_VERSION))
     if v < SCHEMA_VERSION:
         with open(_SCHEMA_PATH, encoding="utf-8") as fh:
             con.executescript(fh.read())

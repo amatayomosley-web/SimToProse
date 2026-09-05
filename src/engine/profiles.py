@@ -14,6 +14,7 @@ import json
 import math
 import os
 from .records import PRIMARIES
+from .errors import EngineError
 
 # Active engine baseline fields that formative diffs are permitted to touch.
 # Prevents authored-but-inert dead fields (docs/composition-pass.md:59-61).
@@ -65,7 +66,7 @@ def get(profile_id, library=None):
     """Retrieve a profile by ID. Fails loud if unknown."""
     lib = library if library is not None else LIBRARY
     if profile_id not in lib:
-        raise KeyError("Unknown profile ID: %r (available: %s)" % (profile_id, sorted(lib.keys())))
+        raise EngineError("PROFILES_AVAILABLE_UNKNOWN", "Unknown profile ID: %r (available: %s)" % (profile_id, sorted(lib.keys())))
     return dict(lib[profile_id])
 
 
@@ -82,37 +83,37 @@ def categories(library=None):
 def validate_profile(profile):
     """Assert that a profile meets all normative structural and bounding contracts."""
     if not isinstance(profile, dict):
-        raise ValueError("Profile must be a dict, got %r" % type(profile).__name__)
+        raise EngineError("PROFILES_PROFILE_NOT_A_DICT", "Profile must be a dict, got %r" % type(profile).__name__)
     for key in ("id", "name", "category", "baseline_diffs"):
         if key not in profile:
-            raise ValueError("Profile missing required key: %r" % key)
+            raise EngineError("PROFILES_MISSING", "Profile missing required key: %r" % key)
 
     diffs = profile.get("baseline_diffs", {})
     if not isinstance(diffs, dict):
-        raise ValueError("baseline_diffs must be a dict")
+        raise EngineError("PROFILES_BASELINE_DIFFS_NOT_A_DICT", "baseline_diffs must be a dict")
     for field, delta in diffs.items():
         if field not in VALID_BASELINE_FIELDS:
-            raise ValueError("baseline_diffs contains unconsumed/invalid field: %r" % field)
+            raise EngineError("PROFILES_BASELINE_DIFFS_CONTAINS_INVALID", "baseline_diffs contains unconsumed/invalid field: %r" % field)
         if not isinstance(delta, (int, float)):
-            raise ValueError("diff for %r must be numeric, got %r" % (field, delta))
+            raise EngineError("PROFILES_DIFF_NUMERIC_NOT_NUMERIC", "diff for %r must be numeric, got %r" % (field, delta))
         if abs(delta) > MAX_DIFF_MAGNITUDE + 1e-6:
-            raise ValueError("diff for %r (%f) exceeds max magnitude +-0.35" % (field, delta))
+            raise EngineError("PROFILES_DIFF_F_INVALID", "diff for %r (%f) exceeds max magnitude +-0.35" % (field, delta))
 
     for r in profile.get("catalog_rows", []):
         if not isinstance(r, dict):
-            raise ValueError("catalog_row must be a dict")
+            raise EngineError("PROFILES_CATALOG_ROW_NOT_A_DICT", "catalog_row must be a dict")
         if "lever" not in r or r["lever"] not in PRIMARIES:
-            raise ValueError("catalog_row lever must be one of %s, got %r" % (PRIMARIES, r.get("lever")))
+            raise EngineError("PROFILES_CATALOG_ROW_LEVER_INVALID", "catalog_row lever must be one of %s, got %r" % (PRIMARIES, r.get("lever")))
         op = r.get("op", "x")
         if op not in ("x", "+"):
-            raise ValueError("catalog_row op must be 'x' or '+', got %r" % op)
+            raise EngineError("PROFILES_CATALOG_ROW_OP_INVALID", "catalog_row op must be 'x' or '+', got %r" % op)
         mag = r.get("magnitude")
         if not isinstance(mag, (int, float)):
-            raise ValueError("catalog_row magnitude must be numeric")
+            raise EngineError("PROFILES_CATALOG_ROW_MAGNITUDE_NOT_NUMERIC", "catalog_row magnitude must be numeric")
         if op == "x" and mag > MAX_LEVER_MULTIPLIER:
-            raise ValueError("catalog_row multiplier (%f) exceeds max 2.5" % mag)
+            raise EngineError("PROFILES_CATALOG_ROW_MULTIPLIER_INVALID", "catalog_row multiplier (%f) exceeds max 2.5" % mag)
         if op == "+" and mag > MAX_LEVER_ADDITIVE:
-            raise ValueError("catalog_row additive (%f) exceeds max 0.35" % mag)
+            raise EngineError("PROFILES_CATALOG_ROW_ADDITIVE_INVALID", "catalog_row additive (%f) exceeds max 0.35" % mag)
 
     return True
 
@@ -171,19 +172,19 @@ def compose(prior, picks, library=None):
     """
     lib = library if library is not None else LIBRARY
     if not isinstance(prior, dict):
-        raise ValueError("prior must be a dict")
+        raise EngineError("PROFILES_PRIOR_NOT_A_DICT", "prior must be a dict")
     if not isinstance(picks, (list, tuple)):
-        raise ValueError("picks must be a list or tuple")
+        raise EngineError("PROFILES_PICKS_NOT_A_LIST", "picks must be a list or tuple")
 
     # Accumulate raw weighted diffs per field
     deltas = {}
     for pick in picks:
         if not isinstance(pick, dict) or "profile" not in pick:
-            raise ValueError("Malformed pick: %r" % pick)
+            raise EngineError("PROFILES_INVALID", "Malformed pick: %r" % pick)
         pid = pick["profile"]
         weight = float(pick.get("weight", 1.0))
         if weight < 0.0 or weight > 1.0:
-            raise ValueError("Pick weight must be in [0.0, 1.0], got %f" % weight)
+            raise EngineError("PROFILES_PICK_WEIGHT_INVALID", "Pick weight must be in [0.0, 1.0], got %f" % weight)
         p = get(pid, lib)
         for f, d in p.get("baseline_diffs", {}).items():
             deltas[f] = deltas.get(f, 0.0) + weight * float(d)
@@ -243,7 +244,7 @@ def path_for(field):
         return ("baseline", "skills", field)
     if field == "default_trust":
         return ("baseline", "relationship_priors", "default_trust")
-    raise ValueError("profiles.path_for: no engine path for %r - a composed value with nowhere to "
+    raise EngineError("PROFILES_PROFILESPATH_FOR_ENGINE_PATH_INVALID", "profiles.path_for: no engine path for %r - a composed value with nowhere to "
                      "go must fail loud, never be written where nothing reads it" % (field,))
 
 
@@ -283,7 +284,7 @@ def prior_from(char):
 def place(char, composed):
     """Write a composed FLAT result onto the character at the paths the engine reads. Mutates."""
     if not isinstance(char, dict) or not isinstance(composed, dict):
-        raise ValueError("place: char and composed must both be dicts")
+        raise EngineError("PROFILES_PLACE_CHAR_COMPOSED_INVALID", "place: char and composed must both be dicts")
     for field, value in sorted(composed.items()):
         _write(char, path_for(field), round(float(value), 4))
     return char

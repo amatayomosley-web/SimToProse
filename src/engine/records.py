@@ -142,9 +142,17 @@ class RecordError(EngineError):
     """A record failed boundary validation. The write that carried it must not happen."""
 
 
-def _require(cond, msg):
+def _require(cond, code, msg):
+    """Refuse with a registered CODE, not just prose.
+
+    The code parameter is not decoration. This helper is a refusal DOORWAY, and a
+    doorway is what an AST raise-scan cannot see through: the sibling instance's audit
+    certified its engine fully converted while 44 prose refusals sat behind a helper of
+    exactly this shape. Every caller names its own code so the scan in
+    tests/test_errors.py sees one refusal per CALL SITE, not one per doorway.
+    """
     if not cond:
-        raise RecordError(msg)
+        raise RecordError(code, msg)
 
 
 @dataclass
@@ -161,15 +169,15 @@ class Event:
     effective_at: Optional[int] = None   # default: caused_at
 
     def validate(self):
-        _require(isinstance(self.type, str) and self.type.strip(), "Event.type must be a non-empty string")
-        _require(isinstance(self.payload, dict), "Event.payload must be a dict")
-        _require(self.visibility in VISIBILITIES, "Event.visibility %r not in %s" % (self.visibility, list(VISIBILITIES)))
+        _require(isinstance(self.type, str) and self.type.strip(), "RECORDS_EVENT_TYPE_NOT_A_STRING", "Event.type must be a non-empty string")
+        _require(isinstance(self.payload, dict), "RECORDS_EVENT_PAYLOAD_NOT_A_DICT", "Event.payload must be a dict")
+        _require(self.visibility in VISIBILITIES, "RECORDS_EVENT_VISIBILITY_NOT_IN_SET", "Event.visibility %r not in %s" % (self.visibility, list(VISIBILITIES)))
         if self.caused_at is not None:
-            _require(isinstance(self.caused_at, int) and self.caused_at >= 0, "Event.caused_at must be int >= 0")
+            _require(isinstance(self.caused_at, int) and self.caused_at >= 0, "RECORDS_EVENT_CAUSED_AT_INVALID", "Event.caused_at must be int >= 0")
         if self.effective_at is not None:
-            _require(isinstance(self.effective_at, int), "Event.effective_at must be int")
-            _require(self.caused_at is not None, "Event.effective_at set without caused_at")
-            _require(self.effective_at >= self.caused_at, "Event.effective_at %s < caused_at %s" % (self.effective_at, self.caused_at))
+            _require(isinstance(self.effective_at, int), "RECORDS_EVENT_EFFECTIVE_AT_NOT_AN_INT", "Event.effective_at must be int")
+            _require(self.caused_at is not None, "RECORDS_EVENT_EFFECTIVE_AT_WITHOUT_CAUSED_AT", "Event.effective_at set without caused_at")
+            _require(self.effective_at >= self.caused_at, "RECORDS_EVENT_EFFECTIVE_AT_BEFORE_CAUSED_AT", "Event.effective_at %s < caused_at %s" % (self.effective_at, self.caused_at))
 
 
 @dataclass
@@ -186,13 +194,13 @@ class RelationshipDelta:
     cause_event: Optional[int] = None    # events.event_id once the cause row exists
 
     def validate(self):
-        _require(isinstance(self.perceiver, str) and self.perceiver.strip(), "RelationshipDelta.perceiver must be non-empty")
-        _require(isinstance(self.target, str) and self.target.strip(), "RelationshipDelta.target must be non-empty")
-        _require(self.axis in RELATIONSHIP_AXES, "RelationshipDelta.axis %r not in %s" % (self.axis, list(RELATIONSHIP_AXES)))
+        _require(isinstance(self.perceiver, str) and self.perceiver.strip(), "RECORDS_RELATIONSHIPDELTA_PERCEIVER_EMPTY", "RelationshipDelta.perceiver must be non-empty")
+        _require(isinstance(self.target, str) and self.target.strip(), "RECORDS_RELATIONSHIPDELTA_TARGET_EMPTY", "RelationshipDelta.target must be non-empty")
+        _require(self.axis in RELATIONSHIP_AXES, "RECORDS_RELATIONSHIPDELTA_AXIS_NOT_IN_SET", "RelationshipDelta.axis %r not in %s" % (self.axis, list(RELATIONSHIP_AXES)))
         _require(isinstance(self.delta, (int, float)) and -1.0 <= float(self.delta) <= 1.0,
-                 "RelationshipDelta.delta must be a number in [-1, 1], got %r" % (self.delta,))
+                 "RECORDS_RELATIONSHIPDELTA_DELTA_NOT_NUMERIC", "RelationshipDelta.delta must be a number in [-1, 1], got %r" % (self.delta,))
         _require(self.order in ("first", "second"),
-                 "RelationshipDelta.order must be 'first' or 'second', got %r" % (self.order,))
+                 "RECORDS_RELATIONSHIPDELTA_ORDER_INVALID", "RelationshipDelta.order must be 'first' or 'second', got %r" % (self.order,))
 
 
 @dataclass
@@ -213,31 +221,31 @@ class TurnCommit:
     rel_deltas: list = field(default_factory=list)        # [RelationshipDelta]
 
     def validate(self):
-        _require(isinstance(self.run_id, str) and self.run_id.strip(), "TurnCommit.run_id must be non-empty")
-        _require(isinstance(self.turn, int) and self.turn >= 0, "TurnCommit.turn must be int >= 0")
-        _require(isinstance(self.actor, str) and self.actor.strip(), "TurnCommit.actor must be non-empty")
-        _require(isinstance(self.thought, str), "TurnCommit.thought must be str")
-        _require(isinstance(self.action, str), "TurnCommit.action must be str")
-        _require(isinstance(self.tags, dict), "TurnCommit.tags must be dict")
-        _require(isinstance(self.affect, dict), "TurnCommit.affect must be dict")
+        _require(isinstance(self.run_id, str) and self.run_id.strip(), "RECORDS_TURNCOMMIT_RUN_ID_EMPTY", "TurnCommit.run_id must be non-empty")
+        _require(isinstance(self.turn, int) and self.turn >= 0, "RECORDS_TURNCOMMIT_TURN_INVALID", "TurnCommit.turn must be int >= 0")
+        _require(isinstance(self.actor, str) and self.actor.strip(), "RECORDS_TURNCOMMIT_ACTOR_EMPTY", "TurnCommit.actor must be non-empty")
+        _require(isinstance(self.thought, str), "RECORDS_TURNCOMMIT_THOUGHT_INVALID", "TurnCommit.thought must be str")
+        _require(isinstance(self.action, str), "RECORDS_TURNCOMMIT_ACTION_INVALID", "TurnCommit.action must be str")
+        _require(isinstance(self.tags, dict), "RECORDS_TURNCOMMIT_TAGS_INVALID", "TurnCommit.tags must be dict")
+        _require(isinstance(self.affect, dict), "RECORDS_TURNCOMMIT_AFFECT_NOT_A_DICT", "TurnCommit.affect must be dict")
         missing = [p for p in PRIMARIES if p not in self.affect]
-        _require(not missing, "TurnCommit.affect missing primaries: %s" % missing)
+        _require(not missing, "RECORDS_MISSING_PRIMARIES", "TurnCommit.affect missing primaries: %s" % missing)
         extra = [k for k in self.affect if k not in PRIMARIES]
-        _require(not extra, "TurnCommit.affect has unknown keys: %s" % extra)
+        _require(not extra, "RECORDS_UNKNOWN_KEYS", "TurnCommit.affect has unknown keys: %s" % extra)
         for p, v in self.affect.items():
             _require(isinstance(v, (int, float)) and 0.0 <= float(v) <= 1.0,
-                     "TurnCommit.affect[%s] must be in [0, 1], got %r" % (p, v))
-        _require(isinstance(self.condition, dict), "TurnCommit.condition must be dict")
-        _require(isinstance(self.events, list), "TurnCommit.events must be a list")
+                     "RECORDS_TURNCOMMIT_AFFECT_VALUE_OUT_OF_RANGE", "TurnCommit.affect[%s] must be in [0, 1], got %r" % (p, v))
+        _require(isinstance(self.condition, dict), "RECORDS_TURNCOMMIT_CONDITION_INVALID", "TurnCommit.condition must be dict")
+        _require(isinstance(self.events, list), "RECORDS_TURNCOMMIT_EVENTS_NOT_A_LIST", "TurnCommit.events must be a list")
         for ev in self.events:
-            _require(isinstance(ev, Event), "TurnCommit.events items must be Event, got %r" % type(ev).__name__)
+            _require(isinstance(ev, Event), "RECORDS_TURNCOMMIT_EVENTS_INVALID", "TurnCommit.events items must be Event, got %r" % type(ev).__name__)
             ev.validate()
         if self.recall is not None:
-            _require(isinstance(self.recall, list), "TurnCommit.recall must be a list of belief refs")
+            _require(isinstance(self.recall, list), "RECORDS_TURNCOMMIT_RECALL_NOT_A_LIST", "TurnCommit.recall must be a list of belief refs")
         if self.manifest is not None:
-            _require(isinstance(self.manifest, dict), "TurnCommit.manifest must be dict")
-        _require(isinstance(self.rel_deltas, list), "TurnCommit.rel_deltas must be a list")
+            _require(isinstance(self.manifest, dict), "RECORDS_TURNCOMMIT_MANIFEST_INVALID", "TurnCommit.manifest must be dict")
+        _require(isinstance(self.rel_deltas, list), "RECORDS_TURNCOMMIT_REL_DELTAS_NOT_A_LIST", "TurnCommit.rel_deltas must be a list")
         for rd in self.rel_deltas:
-            _require(isinstance(rd, RelationshipDelta), "TurnCommit.rel_deltas items must be RelationshipDelta")
+            _require(isinstance(rd, RelationshipDelta), "RECORDS_TURNCOMMIT_REL_DELTAS_INVALID", "TurnCommit.rel_deltas items must be RelationshipDelta")
             rd.validate()
         return self

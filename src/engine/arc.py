@@ -26,6 +26,7 @@ import copy
 
 from .records import PRIMARIES
 from .state import _ALLELE
+from .errors import EngineError
 
 # Class-B, probe-calibrated starts (arc-engine.md: threshold + magnitudes are calibration, not derived).
 _ARC_THRESHOLD = 0.18      # durable-magnitude below this -> no baseline diff (most events stay transient)
@@ -49,7 +50,7 @@ def derive_resilience(char, condition):
     (The 4th design field — meaning-frame availability — is a documented TODO; defaulted out here.)
     Returns [0.05, 0.95]."""
     if not isinstance(char, dict) or not isinstance(condition, dict):
-        raise ValueError("derive_resilience: char and condition must be dicts")
+        raise EngineError("ARC_DERIVE_RESILIENCE_CHAR_CONDITION_INVALID", "derive_resilience: char and condition must be dicts")
     geno = char.get("fixed", {}).get("genotype", {})
     ec = _allele(geno.get("effortful_control", "typical"))
     ec_norm = (ec - _ALLELE_MIN) / (_ALLELE_MAX - _ALLELE_MIN)          # effortful control, [0,1]
@@ -70,7 +71,7 @@ def assess(tags, impact, char, condition):
     NOT written here — see the module docstring; `bonds.observe` computes them per WITNESS.
     """
     if not isinstance(tags, dict):
-        raise ValueError("assess: tags must be a dict")
+        raise EngineError("ARC_ASSESS_TAGS_NOT_A_DICT", "assess: tags must be a dict")
     dims = tags.get("dimensions", {})
     if not isinstance(dims, dict) or not dims:
         return None
@@ -120,7 +121,7 @@ def apply(char, diff):
     The `relationships` branch below is REPLAY-ONLY: `assess` has not emitted one since bonds.py took
     the edges, but a diff persisted before that must still rehydrate to the state its run had."""
     if not isinstance(char, dict) or not isinstance(diff, dict):
-        raise ValueError("apply: char and diff must be dicts")
+        raise EngineError("ARC_APPLY_CHAR_DIFF_INVALID", "apply: char and diff must be dicts")
     new = copy.deepcopy(char)
     temp = new.setdefault("baseline", {}).setdefault("temperament", {})
     for p, d in diff.get("temperament", {}).items():

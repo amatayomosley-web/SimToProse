@@ -125,15 +125,15 @@ def _canonical(world, characters):
     guard that cries wolf is a guard that gets switched off.
     """
     if not isinstance(world, dict):
-        raise BibleError("world must be a dict, got %s" % type(world).__name__)
+        raise BibleError("BIBLE_WORLD_NOT_A_DICT", "world must be a dict, got %s" % type(world).__name__)
     if not isinstance(characters, dict):
-        raise BibleError("characters must be a dict, got %s" % type(characters).__name__)
+        raise BibleError("BIBLE_CHARACTERS_NOT_A_DICT", "characters must be a dict, got %s" % type(characters).__name__)
     try:
         return json.dumps({"world": world, "characters": characters},
                           sort_keys=True, separators=(",", ":"),
                           ensure_ascii=False).encode("utf-8")
     except (TypeError, ValueError) as e:
-        raise BibleError("bible is not JSON-serialisable: %s" % e)
+        raise BibleError("BIBLE_INVALID", "bible is not JSON-serialisable: %s" % e)
 
 
 def fingerprint(world, characters):
@@ -170,35 +170,35 @@ def _normalise_law(law, where):
     silently-repaired law is a denial nobody can explain.
     """
     if not isinstance(law, dict):
-        raise BibleError("%s must be a dict" % where)
+        raise BibleError("BIBLE_NOT_A_DICT", "%s must be a dict" % where)
     lid = str(law.get("id") or "").strip()
     if not lid:
-        raise BibleError("%s has no id — a law must be citable" % where)
+        raise BibleError("BIBLE_ID_LAW_INVALID", "%s has no id — a law must be citable" % where)
     statement = str(law.get("statement") or "").strip()
     if not statement:
-        raise BibleError("law %r has no statement — a denial must be able to quote the rule" % lid)
+        raise BibleError("BIBLE_LAW_STATEMENT_INVALID", "law %r has no statement — a denial must be able to quote the rule" % lid)
     domain = str(law.get("domain") or "").strip()
     if domain not in _DOMAINS:
-        raise BibleError("law %r domain %r not in %s" % (lid, domain, ", ".join(_DOMAINS)))
+        raise BibleError("BIBLE_LAW_DOMAIN_NOT_IN_SET", "law %r domain %r not in %s" % (lid, domain, ", ".join(_DOMAINS)))
     modality = str(law.get("modality") or "").strip().upper()
     if modality not in _MODALITIES:
-        raise BibleError("law %r modality %r not in %s" % (lid, modality, ", ".join(_MODALITIES)))
+        raise BibleError("BIBLE_LAW_MODALITY_NOT_IN_SET", "law %r modality %r not in %s" % (lid, modality, ", ".join(_MODALITIES)))
     epistemic = str(law.get("epistemic") or "known-true").strip().lower()
     epistemic = _EPISTEMIC_ALIASES.get(epistemic, epistemic)
     if epistemic not in _EPISTEMIC:
-        raise BibleError("law %r epistemic %r not in %s" % (lid, epistemic, ", ".join(_EPISTEMIC)))
+        raise BibleError("BIBLE_LAW_EPISTEMIC_NOT_IN_SET", "law %r epistemic %r not in %s" % (lid, epistemic, ", ".join(_EPISTEMIC)))
     # excepts: the NARROW form of PERMITS — disarm only the named law ids.
     # Absent = the documented general allowance (orchestrator-design.md
     # modality table). PERMITS-only; anywhere else it fails loud.
     excepts = law.get("excepts")
     if excepts is not None and modality != "PERMITS":
-        raise BibleError("law %r: excepts is only meaningful on a PERMITS row" % lid)
+        raise BibleError("BIBLE_EXCEPTS_ONLY_INVALID", "law %r: excepts is only meaningful on a PERMITS row" % lid)
     if isinstance(excepts, str):
         excepts = excepts.replace(",", " ").split()
     if excepts is not None:
         if (not isinstance(excepts, list) or not excepts
                 or not all(isinstance(e, str) and e.strip() for e in excepts)):
-            raise BibleError("law %r: excepts must name at least one law id" % lid)
+            raise BibleError("BIBLE_EXCEPTS_NAME_INVALID", "law %r: excepts must name at least one law id" % lid)
         excepts = [e.strip() for e in excepts]
     return {
         "law_id": lid, "domain": domain, "modality": modality, "statement": statement,
@@ -216,12 +216,12 @@ def _authored_laws(world):
     """-> [row] for what the author actually wrote. No defaults."""
     raw = world.get("laws") or []
     if not isinstance(raw, list):
-        raise BibleError("world 'laws' must be a list, got %s" % type(raw).__name__)
+        raise BibleError("BIBLE_WORLD_LAWS_NOT_A_LIST", "world 'laws' must be a list, got %s" % type(raw).__name__)
     out, seen = [], set()
     for i, law in enumerate(raw):
         row = _normalise_law(law, "laws[%d]" % i)
         if row["law_id"] in seen:
-            raise BibleError("duplicate law id %r" % row["law_id"])
+            raise BibleError("BIBLE_DUPLICATE_LAW_DUPLICATE", "duplicate law id %r" % row["law_id"])
         seen.add(row["law_id"])
         out.append(row)
     return out
@@ -267,7 +267,7 @@ def _project_laws(world):
     for r in rows:
         missing = [e for e in r["excepts"].split() if e not in ids]
         if missing:
-            raise BibleError("law %r: excepts cite unknown law ids %s"
+            raise BibleError("BIBLE_EXCEPTS_CITE_UNKNOWN", "law %r: excepts cite unknown law ids %s"
                              % (r["law_id"], ", ".join(missing)))
     return rows
 
@@ -350,7 +350,7 @@ def build(con, world, characters, now=None, strict=False):
     if strict:
         report = completeness(world)
         if not report["complete"]:
-            raise BibleError("world has not answered step 1 (universal-law.md): %s"
+            raise BibleError("BIBLE_WORLD_ANSWERED_INVALID", "world has not answered step 1 (universal-law.md): %s"
                              % "; ".join("[%s] %s" % (p["code"], p["detail"])
                                          for p in report["problems"]))
     fp = fingerprint(world, characters)
@@ -503,7 +503,7 @@ def entity_exists(con, fp, entity_id, kind=None):
     params = [fp, str(entity_id)]
     if kind is not None:
         if kind not in _KINDS:
-            raise BibleError("unknown entity kind %r (known: %s)" % (kind, ", ".join(_KINDS)))
+            raise BibleError("BIBLE_UNKNOWN", "unknown entity kind %r (known: %s)" % (kind, ", ".join(_KINDS)))
         sql += " AND kind=?"
         params.append(kind)
     row = con.execute(sql + " LIMIT 1", tuple(params)).fetchone()

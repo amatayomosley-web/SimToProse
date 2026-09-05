@@ -89,12 +89,43 @@ class EngineError(ValueError):
                     "uses it — the registry must never list a code nothing raises, and must never "
                     "omit a code something does.%s" % (code, _near(code)))
             self.code, self.detail = code, detail
-            super().__init__("[%s] %s" % (code, detail))
+            # `args` HOLDS THE CONSTRUCTOR ARGUMENTS, not the rendered message, because Python
+            # reconstructs an exception as `cls(*self.args)` — that is how copy.copy,
+            # copy.deepcopy, pickle, multiprocessing and concurrent.futures all rebuild one, and
+            # none of them appears at a call site anyone would grep. Storing the rendered string
+            # made `args` a ONE-element tuple, so every such reconstruction became a one-argument
+            # construction that fell into the legacy branch below and silently returned an error
+            # whose `.code` was None. `__str__` keeps the rendering, so the detail is still the
+            # verbatim suffix that the message-substring tests assert on.
+            super().__init__(code, detail)
         else:
-            # LEGACY, pre-migration: a bare prose message. Renders byte-identically to how this
-            # class rendered before errors.py existed, so an unmigrated module keeps its tests.
-            self.code, self.detail = None, str(args[0]) if args else ""
-            super().__init__(*args)
+            # THE CHANNEL REFUSES AN UNCODED REFUSAL (2026-09-04).
+            #
+            # This branch used to ACCEPT a bare prose message, so codes.py's first rule — a raised
+            # code must be registered — was enforced by a SCAN rather than by the constructor. The
+            # branch existed so a module could migrate on its own gate without a flag day. That
+            # reason expired the moment the migration finished, and while it stood, 190 of 202
+            # refusal sites stayed uncoded for five weeks after the channel shipped: an escape
+            # hatch left open is the path everything takes.
+            #
+            # WHY A SCAN IS NOT ENOUGH, measured rather than argued: the sibling instance's AST
+            # audit read `_require(cond, msg)` as an already-coded doorway and certified the
+            # engine converted while 44 prose refusals sat behind it. A constructor cannot be
+            # missed by anything that runs.
+            raise UnknownErrorCode(
+                "an engine refusal was constructed with no code: %r. Pass the code FIRST — "
+                "EngineError(CODE, detail) — so it is registered, exposed as .code, and greppable "
+                "by an operator who has only the code. Add the code to src/engine/codes.py beside "
+                "the raise that uses it." % (str(args[0])[:70] if args else "(no arguments)",))
+
+    def __str__(self):
+        """`[CODE] detail`.
+
+        EXPLICIT because `args` no longer holds the rendered string — see `__init__`.
+        Without this, `str(e)` would render the tuple and every test asserting a message
+        substring with `in str(e)` would break.
+        """
+        return "[%s] %s" % (self.code, self.detail)
 
     def __repr__(self):
         return "%s(code=%r, detail=%r)" % (type(self).__name__, self.code, self.detail)

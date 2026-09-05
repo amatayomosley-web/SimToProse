@@ -10,6 +10,7 @@ Public API consumed by scene.py:
 
 All functions are PURE + deterministic. No I/O, no LLM, no randomness.
 """
+from .errors import EngineError
 
 # ---- Percept type (scene-assembly.md §"The packet") ----
 
@@ -110,17 +111,17 @@ def perception_scope(scene_slice, world, skills, condition, relationships=None):
     Raises ValueError on malformed input.
     """
     if not isinstance(scene_slice, dict):
-        raise ValueError("perception_scope: scene_slice must be a dict")
+        raise EngineError("GATE_PERCEPTION_SCOPE_SCENE_SLICE_NOT_A_DICT", "perception_scope: scene_slice must be a dict")
     if not isinstance(world, dict):
-        raise ValueError("perception_scope: world must be a dict")
+        raise EngineError("GATE_PERCEPTION_SCOPE_WORLD_NOT_A_DICT", "perception_scope: world must be a dict")
     if not isinstance(skills, dict):
-        raise ValueError("perception_scope: skills must be a dict")
+        raise EngineError("GATE_PERCEPTION_SCOPE_SKILLS_NOT_A_DICT", "perception_scope: skills must be a dict")
     if not isinstance(condition, dict):
-        raise ValueError("perception_scope: condition must be a dict")
+        raise EngineError("GATE_PERCEPTION_SCOPE_CONDITION_NOT_A_DICT", "perception_scope: condition must be a dict")
 
     event = scene_slice.get("event")
     if not isinstance(event, dict) or "text" not in event:
-        raise ValueError("perception_scope: scene_slice.event must be a dict with 'text'")
+        raise EngineError("GATE_PERCEPTION_SCOPE_SCENE_SLICE_EVENT_NOT_A_DICT", "perception_scope: scene_slice.event must be a dict with 'text'")
 
     event_text = str(event.get("text", ""))
     event_kind = str(event.get("kind", "mundane"))
@@ -244,7 +245,7 @@ def extract_triggers(percepts):
     Returns list of lowercase normalised trigger strings.
     """
     if not isinstance(percepts, list):
-        raise ValueError("extract_triggers: percepts must be a list")
+        raise EngineError("GATE_EXTRACT_TRIGGERS_PERCEPTS_NOT_A_LIST", "extract_triggers: percepts must be a list")
 
     triggers = []
     for p in percepts:
@@ -299,15 +300,15 @@ def run_gate(triggers, vault, skills, goals, condition):
         triggered -- the trigger word(s) that matched
     """
     if not isinstance(triggers, list):
-        raise ValueError("run_gate: triggers must be a list")
+        raise EngineError("GATE_RUN_GATE_TRIGGERS_NOT_A_LIST", "run_gate: triggers must be a list")
     if not isinstance(vault, list):
-        raise ValueError("run_gate: vault must be a list")
+        raise EngineError("GATE_RUN_GATE_VAULT_NOT_A_LIST", "run_gate: vault must be a list")
     if not isinstance(skills, dict):
-        raise ValueError("run_gate: skills must be a dict")
+        raise EngineError("GATE_RUN_GATE_SKILLS_NOT_A_DICT", "run_gate: skills must be a dict")
     if not isinstance(goals, list):
-        raise ValueError("run_gate: goals must be a list")
+        raise EngineError("GATE_RUN_GATE_GOALS_NOT_A_LIST", "run_gate: goals must be a list")
     if not isinstance(condition, dict):
-        raise ValueError("run_gate: condition must be a dict")
+        raise EngineError("GATE_RUN_GATE_CONDITION_NOT_A_DICT", "run_gate: condition must be a dict")
 
     budget = _energy_budget(condition)
     goal_texts = [_normalize(g.get("goal", "")) for g in goals]

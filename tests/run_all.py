@@ -30,7 +30,12 @@ REPO = os.path.dirname(HERE)
 # Not plain pass/fail suites — each has its own contract, run separately by the verify block.
 _PROBES = {"coherence_probe.py", "basis_probe.py"}
 # Make live model calls; opt in with --slow.
-_SLOW = {"test_pipeline_e2e.py"}
+# EMPTY since 2026-09-04, and that is a measurement. test_pipeline_e2e.py was inherited
+# here from the sibling by copy, where it is genuinely slower; timed in THIS repo it runs
+# in 360ms, exits 0, and makes no model calls. Excluding it meant every documented verify
+# run skipped the one suite that exercises the whole pipeline, and the summary line said
+# "1 slow skipped" in a way that read as deliberate. Time a suite before adding one.
+_SLOW = set()
 
 
 def main():

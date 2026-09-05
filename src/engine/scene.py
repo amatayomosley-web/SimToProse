@@ -30,6 +30,7 @@ from src.engine.gate import (  # noqa: E402
     run_gate,
     _display_name,
 )
+from .errors import EngineError
 
 # ---------------------------------------------------------------------------
 # Public entry point
@@ -75,22 +76,22 @@ def assemble(char, world, scene_slice, affect, condition):
     """
     # ---- input validation (fail loud) ----
     if not isinstance(char, dict):
-        raise ValueError("assemble: char must be a dict")
+        raise EngineError("SCENE_ASSEMBLE_CHAR_NOT_A_DICT", "assemble: char must be a dict")
     for section in ("fixed", "baseline", "current"):
         if section not in char:
-            raise ValueError("assemble: char missing section %r" % section)
+            raise EngineError("SCENE_ASSEMBLE_CHAR_MISSING_SECTION", "assemble: char missing section %r" % section)
     if not isinstance(world, dict):
-        raise ValueError("assemble: world must be a dict")
+        raise EngineError("SCENE_ASSEMBLE_WORLD_NOT_A_DICT", "assemble: world must be a dict")
     if not isinstance(scene_slice, dict):
-        raise ValueError("assemble: scene_slice must be a dict")
+        raise EngineError("SCENE_ASSEMBLE_SCENE_SLICE_NOT_A_DICT", "assemble: scene_slice must be a dict")
     if "event" not in scene_slice or not isinstance(scene_slice["event"], dict):
-        raise ValueError("assemble: scene_slice must have 'event' dict")
+        raise EngineError("SCENE_ASSEMBLE_SCENE_SLICE_NO_EVENT", "assemble: scene_slice must have 'event' dict")
     if "text" not in scene_slice["event"]:
-        raise ValueError("assemble: scene_slice.event must have 'text'")
+        raise EngineError("SCENE_ASSEMBLE_EVENT_NO_TEXT", "assemble: scene_slice.event must have 'text'")
     if not isinstance(affect, dict):
-        raise ValueError("assemble: affect must be a dict")
+        raise EngineError("SCENE_ASSEMBLE_AFFECT_NOT_A_DICT", "assemble: affect must be a dict")
     if not isinstance(condition, dict):
-        raise ValueError("assemble: condition must be a dict")
+        raise EngineError("SCENE_ASSEMBLE_CONDITION_NOT_A_DICT", "assemble: condition must be a dict")
 
     fixed    = char["fixed"]
     # RECORDED, not hand-listed. `state_fields_read` below used to be a literal list of six field
@@ -397,7 +398,7 @@ def subject_groups(world):
     world["people"]. This index is how an event's SUBJECT acquires a class an appraiser can
     (dis)regard. Pure; rebuilt once per run (world is static). Raises on a non-dict world."""
     if not isinstance(world, dict):
-        raise ValueError("subject_groups: world must be a dict")
+        raise EngineError("SCENE_SUBJECT_GROUPS_WORLD_NOT_A_DICT", "subject_groups: world must be a dict")
     index = {}
     for p in world.get("people", []):
         if isinstance(p, dict) and p.get("id"):
@@ -441,7 +442,7 @@ def resolve_subject(edges, groups_index, named=None):
     The group is resolved from the registry, never from `named`. Multi-group entities use the
     PRIMARY (first) group (v1 — no lowest-regard arbitration yet). Raises on malformed structure."""
     if not isinstance(edges, list) or not isinstance(groups_index, dict):
-        raise ValueError("resolve_subject: edges must be a list and groups_index a dict")
+        raise EngineError("SCENE_RESOLVE_SUBJECT_EDGES_NOT_A_LIST", "resolve_subject: edges must be a list and groups_index a dict")
     present = [e.get("target") for e in edges if isinstance(e, dict) and e.get("target")]
     present_set = set(present)
     target = None

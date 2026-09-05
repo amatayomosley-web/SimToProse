@@ -63,7 +63,7 @@ def resolve(spec):
     Literal wins on a tie so nothing that resolves today changes meaning.
     """
     if not spec or not str(spec).strip():
-        raise BookError("no book given")
+        raise BookError("BOOKS_BOOK_GIVEN_INVALID", "no book given")
     spec = str(spec).strip()
 
     if os.path.isdir(spec):
@@ -80,16 +80,16 @@ def resolve(spec):
             return os.path.abspath(hits[0])
         if len(hits) > 1:
             raise BookError(
-                "ambiguous book %r: %d folders under %s=%s share that slug (%s). "
+                "BOOKS_FOLDERS_UNDER_INVALID", "ambiguous book %r: %d folders under %s=%s share that slug (%s). "
                 "Rename one, or pass the full path."
                 % (spec, len(hits), ROOT_ENV, r,
                    ", ".join(os.path.basename(h) for h in hits)))
 
         raise BookError(
-            "no book %r: not a directory, and not found under %s=%s (available: %s)"
+            "BOOKS_DIRECTORY_UNDER_NOT_FOUND", "no book %r: not a directory, and not found under %s=%s (available: %s)"
             % (spec, ROOT_ENV, r, ", ".join(available()) or "none"))
     raise BookError(
-        "no book %r: not a directory on disk, and %s is unset so a slug cannot be "
+        "BOOKS_DIRECTORY_ON_INVALID", "no book %r: not a directory on disk, and %s is unset so a slug cannot be "
         "resolved. Pass a path, or set %s to the folder holding your books."
         % (spec, ROOT_ENV, ROOT_ENV))
 
@@ -150,7 +150,7 @@ def assert_db_for_book(book_dir, db):
     db_real = os.path.realpath(db)
     if os.path.commonpath([book_real, db_real]) != book_real:
         raise CrossBookDbError(
-            "db does not belong to this book — refusing to write across books.\n"
+            "BOOKS_DB_DOES_INVALID", "db does not belong to this book — refusing to write across books.\n"
             "  book: %s\n  db:   %s\n"
             "A book's chronicle lives at <book>/runs/<slug>.db. Drop --db to use it, "
             "or run the book that owns that db." % (book_real, db_real))

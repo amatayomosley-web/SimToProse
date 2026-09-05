@@ -13,6 +13,7 @@ Pure, deterministic, stdlib. The registry it consults (`records.DIRECTEDNESS`) i
 """
 from .records import admits_role
 from .state import _AT_REST, _DIM_TO_PRIMARY
+from .errors import EngineError
 
 
 def retarget(targets, tags, temperament=None, affect=None, me=None):
@@ -43,12 +44,12 @@ def retarget(targets, tags, temperament=None, affect=None, me=None):
     renders show targets ping-ponging or stale aboutness — this is deliberately not arbitrated.
     """
     if not isinstance(tags, dict):
-        raise ValueError("retarget: tags must be a dict, got %r" % type(tags).__name__)
+        raise EngineError("TARGETS_RETARGET_TAGS_NOT_A_DICT", "retarget: tags must be a dict, got %r" % type(tags).__name__)
     out = dict(targets) if isinstance(targets, dict) else {}
 
     dimensions = tags.get("dimensions") or {}
     if not isinstance(dimensions, dict):
-        raise ValueError("retarget: tags['dimensions'] must be a dict")
+        raise EngineError("TARGETS_RETARGET_TAGS_DIMENSIONS_NOT_A_DICT", "retarget: tags['dimensions'] must be a dict")
     subject = tags.get("target")
 
     if subject:

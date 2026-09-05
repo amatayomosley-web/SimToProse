@@ -11,6 +11,7 @@ Everything here obeys the same law: `design.md` — "The LLM never sees raw stat
 that has to anticipate every field.
 """
 from .direction import _EDGE_BANDS, _band, _check_num
+from .errors import EngineError
 
 # ---------------------------------------------------------------------------
 # THE IDENTITY SURFACES — the other half of the law
@@ -184,8 +185,8 @@ def _say_scalars(obj, key="", path=""):
         return [_say_scalars(v, key, "%s[%d]" % (path, i)) for i, v in enumerate(obj)]
     if _is_scalar(obj):
         if not (0.0 <= obj <= 1.0):
-            raise ValueError(
-                "direction: %s is %r — outside [0,1], so it is not a weight this layer can band. "
+            raise EngineError(
+                "IDENTITY_VIEW_DIRECTION_OUTSIDE_WEIGHT_INVALID", "direction: %s is %r — outside [0,1], so it is not a weight this layer can band. "
                 "It would reach the actor as a raw stat (design.md: 'The LLM never sees raw "
                 "stats'). Give it a renderer, or keep it out of the identity prefix." % (path, obj))
         return _phrase(_SCALARS.get(key), obj, _SCALAR_FALLBACK)
@@ -207,7 +208,7 @@ def direct_identity(stable):
     names the path. A new numeric field is a five-minute phrase table, not a silent loss.
     """
     if not isinstance(stable, dict):
-        raise ValueError("direction: stable must be a dict")
+        raise EngineError("IDENTITY_VIEW_DIRECTION_STABLE_NOT_A_DICT", "direction: stable must be a dict")
     out = dict(stable)
 
     traits = stable.get("traits")
@@ -269,7 +270,7 @@ def _said(item, num_key, said_key, table):
 def direct_goals(goals):
     """volatile.goals -> the same list with `urgency` said as a phrase."""
     if not isinstance(goals, list):
-        raise ValueError("direction: goals must be a list")
+        raise EngineError("IDENTITY_VIEW_DIRECTION_GOALS_NOT_A_LIST", "direction: goals must be a list")
     return [{"goal": g.get("goal"), "how much": _phrase(_URGENCY, g.get("urgency", 0.5))}
             if isinstance(g, dict) else g for g in goals]
 
@@ -280,7 +281,7 @@ def direct_percepts(percepts):
     How WELL you caught a thing is exactly the sort of state an actor should feel rather than read.
     """
     if not isinstance(percepts, list):
-        raise ValueError("direction: percepts must be a list")
+        raise EngineError("IDENTITY_VIEW_DIRECTION_PERCEPTS_NOT_A_LIST", "direction: percepts must be a list")
     out = []
     for p in percepts:
         if not isinstance(p, dict):

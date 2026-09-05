@@ -23,6 +23,7 @@ that, if they broke, would break silently:
 
 Run: python tests/test_errors.py      (run_all.py invokes it as a subprocess and reads the exit code)
 """
+import ast
 import os
 import re
 import subprocess
@@ -94,13 +95,30 @@ def test_the_detail_survives_verbatim():
     check("detail-is-suffix", str(e).endswith(msg), str(e))
 
 
-def test_the_legacy_form_is_unchanged():
-    """INVARIANT 3. An unmigrated module keeps its exact pre-errors.py rendering, so migration is
-    per-module and not a flag day."""
-    e = BibleError("world has not answered step 1")
-    check("legacy-str", str(e) == "world has not answered step 1", str(e))
-    check("legacy-code-is-none", e.code is None)
-    check("legacy-still-catchable", isinstance(e, ValueError))
+def test_the_legacy_UNCODED_form_is_REFUSED():
+    """INVARIANT 3, INVERTED 2026-09-04 when the migration finished.
+
+    This test used to assert the opposite — that `BibleError("prose")` still rendered
+    byte-identically to the pre-errors.py form, so modules could migrate one gate at a time
+    without a flag day. That was the right contract while migration was in progress and the
+    wrong one the moment it completed: the accepting branch is why 190 of 202 refusal sites
+    stayed uncoded for five weeks after the channel shipped. An escape hatch left open is
+    the path everything takes.
+
+    Now an uncoded refusal cannot be CONSTRUCTED, which is stronger than not being FOUND —
+    the sibling instance learned that when its AST audit certified the engine converted
+    while 44 prose refusals sat behind a `_require(cond, msg)` doorway the scan read as
+    already-coded. A constructor cannot be missed by anything that runs."""
+    try:
+        BibleError("world has not answered step 1")
+        check("uncoded-form-refused", False, "an uncoded refusal was constructed")
+    except UnknownErrorCode as e:
+        check("uncoded-form-refused", True)
+        check("refusal-names-the-fix", "codes.py" in str(e), str(e)[:90])
+    # and the coded form still renders and is still catchable as ValueError
+    e = BibleError("BIBLE_CHARACTERS_NOT_A_DICT", "world has not answered step 1")
+    check("coded-str", str(e) == "[BIBLE_CHARACTERS_NOT_A_DICT] world has not answered step 1", str(e))
+    check("coded-still-catchable", isinstance(e, ValueError))
 
 
 def test_an_unregistered_code_refuses_at_construction():
@@ -121,11 +139,23 @@ def test_an_unregistered_code_refuses_at_construction():
 def _used_codes():
     """Every code literal that enters the system, across src/ and scripts/.
 
-    TWO doorways, not one — and the guard originally knew only about the first, which is exactly
-    the coverage gap it exists to catch:
+    THREE doorways, not one — and the guard has now been caught short TWICE, which is the
+    whole argument for counting doorways rather than raise statements:
       * `raise SomeError("CODE", ...)`  — a refusal
       * `_flag("CODE", ...)`            — a validation finding, which a driver may then raise on
-    A code reaching the system through either doorway counts as used.
+      * `_require(cond, "CODE", msg)`   — the record/read contracts' helper (added 2026-09-04)
+
+    The third arrived when 33 refusals migrated behind `records._require` and
+    `read_api._require`, and this function reported every one of their codes as
+    "registered but used nowhere" — a false alarm that reads exactly like the real defect
+    it is meant to find. The sibling instance hit the mirror image: its AST audit read the
+    same helper as an already-coded doorway and certified an engine converted while 44
+    prose refusals sat behind it.
+
+    `_require` is matched by AST, not regex, because its first argument is a CONDITION that
+    routinely contains commas, nested calls and line breaks — the sibling's regex balancer
+    could not span multi-line calls and had to be documented as a known gap. An AST walk has
+    no such limit.
     """
     found = set()
     pats = (re.compile(r'raise\s+\w*Error\(\s*"([A-Z][A-Z0-9_]+)"'),
@@ -140,6 +170,17 @@ def _used_codes():
                         text = fh.read()
                     for pat in pats:
                         found.update(pat.findall(text))
+                    try:
+                        tree = ast.parse(text)
+                    except SyntaxError:
+                        continue
+                    for n in ast.walk(tree):
+                        if (isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+                                and n.func.id == "_require" and len(n.args) >= 2):
+                            a = n.args[1]
+                            if (isinstance(a, ast.Constant) and isinstance(a.value, str)
+                                    and a.value.isupper() and "_" in a.value):
+                                found.add(a.value)
     return found
 
 
@@ -207,7 +248,7 @@ def main():
               test_the_base_is_a_valueerror,
               test_the_coded_form_renders_and_exposes_its_code,
               test_the_detail_survives_verbatim,
-              test_the_legacy_form_is_unchanged,
+              test_the_legacy_UNCODED_form_is_REFUSED,
               test_an_unregistered_code_refuses_at_construction,
               test_the_registry_is_two_way,
               test_the_vault_codes_reach_a_real_book):
