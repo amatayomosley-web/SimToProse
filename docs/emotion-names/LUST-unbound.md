@@ -1,0 +1,92 @@
+# LUST-unbound — names
+
+**Names only.** Vectors and definitions are a later pass.
+
+- anaphrodisia
+- post-nut clarity
+- satiety
+- slaked
+- quenched
+- repletion
+- postcoital languor
+- dormancy
+- unstirred
+- wanting to want
+- receptivity
+- in the mood
+- stirring
+- spring fever
+- sap rising
+- feeling one's oats
+- friskiness
+- randiness
+- horniness
+- toey
+- hot to trot
+- arousal
+- aphrodisia
+- titillation
+- tumescence
+- erotic charge
+- sensuality
+- voluptuousness
+- carnality
+- prurience
+- lickerishness
+- wantonness
+- lasciviousness
+- salaciousness
+- lubricity
+- goatishness
+- lecherousness
+- amativeness
+- concupiscence
+- lustfulness
+- libido
+- spontaneous desire
+- ruttishness
+- heat
+- estrus
+- desirousness
+- appetence
+- the itch
+- seven-year itch
+- the urge
+- craving
+- hunger
+- thirst
+- unwelcome arousal
+- persistent genital arousal
+- hot and bothered
+- worked up
+- pent-up desire
+- sexual frustration
+- blue balls
+- gagging for it
+- sex on the brain
+- greensickness
+- aching
+- burning
+- fire in the blood
+- ravenousness
+- voraciousness
+- nymphomania
+- satyriasis
+- hypersexuality
+- musth
+- erotic frenzy
+- asexuality
+- frigidity
+- detumescence
+- refractory period
+- spent
+- responsive desire
+- venery
+- lechery
+- libidinousness
+- the horn
+- skin hunger
+- sex starvation
+- love-melancholy
+- priapism
+- furor uterinus

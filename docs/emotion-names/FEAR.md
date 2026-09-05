@@ -1,0 +1,240 @@
+# FEAR — names
+
+**Names only.** Vectors and definitions are a later pass.
+
+- invulnerability (felt)
+- feeling untouchable
+- blissful ignorance
+- false sense of security
+- devil-may-care abandon
+- Dutch courage
+- bravado
+- fearlessness
+- emboldened (feeling)
+- insouciance
+- blitheness
+- carefreeness
+- nonchalance
+- unconcern
+- unguarded
+- snugness
+- safety (felt)
+- security (felt)
+- peace of mind
+- at ease
+- reassurance
+- sangfroid
+- alertness
+- watchfulness
+- heedfulness
+- caution
+- circumspection
+- chariness
+- guardedness
+- leeriness
+- wariness
+- suspicion
+- misdoubt
+- misgiving
+- qualm
+- hesitancy
+- shyness
+- timidity
+- timorousness
+- skittishness
+- jumpiness
+- edginess
+- nervousness
+- the jitters
+- shpilkes
+- butterflies in the stomach
+- cold feet
+- stage fright
+- buck fever
+- performance anxiety
+- social anxiety
+- stranger anxiety
+- separation anxiety
+- fear of abandonment
+- unease
+- disquiet
+- inquietude
+- malaise
+- flusteredness
+- apprehension
+- trepidation
+- worry
+- fretfulness
+- anxiety
+- anticipatory anxiety
+- free-floating anxiety
+- signal anxiety
+- angst
+- existential angst
+- eco-anxiety
+- fear of missing out (FOMO)
+- Torschlusspanik
+- scrupulosity
+- health anxiety
+- on tenterhooks
+- on pins and needles
+- waiting for the other shoe to drop
+- walking on eggshells
+- the collywobbles
+- the heebie-jeebies
+- the jim-jams
+- the screaming abdabs
+- the creeps
+- the shivers
+- the chills
+- eeriness (felt)
+- uncanny unease
+- spooked (feeling)
+- delusional mood
+- trema
+- foreboding
+- presentiment
+- sinking feeling
+- hypervigilance
+- paranoia
+- insecurity
+- vulnerability (felt)
+- exposure (feeling exposed)
+- defenselessness (felt)
+- precariousness (felt)
+- feeling threatened
+- sense of menace
+- intimidation (felt)
+- daunted (feeling)
+- cowed (feeling)
+- perturbation
+- agitation
+- alarm
+- consternation
+- dismay
+- fright
+- affright
+- startlement
+- having the wind up
+- fear
+- fight-or-flight arousal
+- rattled (feeling)
+- unnerved (feeling)
+- shaken (feeling)
+- cold sweat
+- heart in one's mouth
+- blood running cold
+- white-knuckle fear
+- funk
+- blue funk
+- the horrors
+- frisson
+- thrill
+- Angstlust
+- delicious terror
+- morbid fascination
+- dread
+- creeping dread
+- superstitious dread
+- holy dread
+- numinous dread
+- mysterium tremendum
+- existential dread
+- death anxiety
+- thanatophobia
+- fear of the unknown
+- annihilation anxiety
+- castration anxiety
+- sense of impending doom
+- mortal fear
+- the fear of God
+- fear and trembling
+- cosmic horror
+- phobic terror
+- night terrors (pavor nocturnus)
+- terror
+- petrified (feeling)
+- frozen with fear
+- tonic immobility
+- denial (of danger)
+- whistling past the graveyard
+- temerity
+- rashness
+- recklessness
+- foolhardiness
+- audacity
+- derring-do
+- daredevilry
+- hardihood
+- doughtiness
+- stoutheartedness
+- lionheartedness
+- dauntlessness
+- intrepidity
+- valor
+- gallantry
+- boldness
+- pluck
+- gameness
+- mettle
+- nerve
+- nerves of steel
+- fortitude
+- courage
+- bravery
+- basic trust
+- fatalistic calm
+- unflappability
+- aplomb
+- composure
+- cool-headedness
+- vigilance
+- prudence
+- mistrust
+- gun-shyness
+- afraid of one's own shadow
+- pusillanimity
+- faintheartedness
+- cowardice
+- cravenness
+- poltroonery
+- tremulousness
+- the willies
+- the fantods
+- the whim-whams
+- agita
+- nervous tension
+- stress
+- nervous excitement
+- suspense
+- the Sunday scaries
+- the yips
+- flop sweat
+- sweating bullets
+- worried sick
+- test anxiety
+- fear of failure
+- fear of rejection
+- impostor anxiety
+- claustrophobia
+- agoraphobia
+- acrophobia
+- fear of the dark
+- vertigo
+- l'appel du vide (call of the void)
+- susto
+- jumping at shadows
+- knot in the stomach
+- premonition
+- gooseflesh
+- horripilation
+- hair standing on end
+- quailing
+- quaking
+- shaking like a leaf
+- nameless dread
+- awe
+- panic
+- blind panic
+- panic attack
+- abject terror

@@ -1,6 +1,6 @@
 # MAP — what is in this project and what owns what
 
-**Why this file exists.** `docs/` holds 87 design docs, `src/engine/` 50 modules,
+**Why this file exists.** `docs/` holds 104 design docs, `src/engine/` 50 modules,
 `tests/` 76 suites. Nobody — human or agent — can hold that in their head, and reading it all every
 session is not practical. **The failure this prevents is real and happened:** a session spent hours
 reasoning about the decision layer from four docs and inference, invented a parallel vocabulary
@@ -98,7 +98,7 @@ the system already names, stop and search this table.**
 that lets narrated prose write state (`design.md` three boundaries).
 
 ---
-## docs/ — 86 design docs (normative for what SHOULD BE)
+## docs/ — 103 design docs (normative for what SHOULD BE)
 
 | docs | lines | owns |
 |---|---|---|
@@ -130,6 +130,23 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `driving-the-engine` | an authoring guide (LIVING / experiment-driven) |
 | `emotion-basis` | the primitives, their targets, and where tense lives |
 | `emotion-list` | every name, staged by degree |
+| `CARE-outward` | names |
+| `CARE-reflexive` | names |
+| `CARE-unbound` | names |
+| `DISGUST-outward` | names |
+| `DISGUST-reflexive` | names |
+| `DISGUST-unbound` | names |
+| `FEAR` | names |
+| `LUST-bound` | names |
+| `LUST-unbound` | names |
+| `PANIC_GRIEF-bound` | names |
+| `PANIC_GRIEF-reflexive` | names |
+| `PLAY` | names |
+| `RAGE` | names |
+| `SEEKING-outward` | names |
+| `SEEKING-reflexive` | names |
+| `_COLLISIONS` | how each was placed |
+| `_ROUTING` | Rule-routed placements |
 | `emotion-recipes` | every compound, its variations, and how much of the person survives it |
 | `emotion-scales` | what the numbers mean |
 | `emotion-vocabulary` | exhaustive |

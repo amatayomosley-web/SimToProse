@@ -1,0 +1,159 @@
+# PANIC_GRIEF-bound — names
+
+**Names only.** Vectors and definitions are a later pass.
+
+- Good riddance (felt)
+- Relief at their absence
+- Lightness after they have gone
+- Single blessedness
+- Fancy-free
+- Heart-whole
+- Self-sufficiency
+- Self-containment
+- At home in oneself
+- Content in one's own company
+- Contented solitude
+- Solitude
+- Waldeinsamkeit
+- Otium
+- Quietude
+- Content alone
+- Aloneness
+- Solitariness
+- Wistfulness
+- Missing
+- Sense of absence
+- Awumbuk
+- Homesickness
+- Heimweh
+- Empty-nest syndrome
+- Fago
+- Pining
+- Repining
+- Languishment
+- Saudade
+- Hiraeth
+- Desiderium
+- Viraha
+- Tristesse
+- Lovesickness
+- Touch starvation
+- The wrench of parting
+- Sweet sorrow
+- Bittersweetness
+- Lonesomeness
+- Loneliness
+- Social loneliness
+- Emotional loneliness
+- Loneliness in a crowd
+- Existential loneliness
+- Friendlessness
+- Feeling isolated
+- Feeling left behind
+- Forlornness
+- Melancholy
+- Heavy-heartedness
+- Heartsoreness
+- Heartache
+- Ache of loss
+- Pang of loss
+- Dolefulness
+- Elegiac mood
+- Sadness
+- Sorrow
+- Dolor
+- Dole
+- Woe
+- Separation distress
+- Attachment panic
+- Feeling abandoned
+- Abandonment depression
+- Anaclitic depression
+- Feeling orphaned
+- Feeling deserted
+- Disbelief at the loss
+- Grief numbness
+- Grief fog
+- Half-expecting them still
+- Waiting for someone who is not coming back
+- The urge to search for the lost
+- Sense of the dead's presence
+- Acute grief
+- Grief
+- Grief-stricken
+- Heartbreak
+- Brokenheartedness
+- Gutted
+- Crushed
+- Torn up
+- Shattered
+- Bereavement
+- Feeling bereft
+- Orbity
+- Anniversary grief
+- Disenfranchised grief
+- Ambiguous loss
+- Frozen grief
+- Shadow grief
+- Chronic sorrow
+- Collective grief
+- Mourning
+- Mournfulness
+- Grief-weariness
+- Bereavement overload
+- Complicated grief
+- Prolonged grief
+- Reactive depression
+- Misery
+- Wretchedness
+- Agony
+- Despondency
+- Despair
+- Wanhope
+- Inconsolability
+- Disconsolateness
+- Comfortlessness
+- Bleakness
+- The world gone grey
+- Feeling lost without them
+- Unmoored
+- Cut adrift
+- Marooned
+- Forsakenness
+- Dereliction
+- Godforsakenness
+- Devastation
+- The bottom dropping out of the world
+- Desolation
+- Apanthropy
+- Nonattachment
+- Splendid isolation
+- Voluntary solitude
+- Seclusion
+- Retiredness
+- Peace and quiet
+- Having the house to oneself
+- Guilty relief
+- Longing
+- Nostalgia
+- Toska
+- Solastalgia
+- Mono no aware
+- Ubi sunt
+- The blues
+- Hüzün
+- Heartsickness
+- Teen
+- Bale
+- Emptiness
+- Anguish
+- Waves of grief
+- Aninut
+- Undone
+- Empty arms
+- Delayed grief
+- Ambivalent grief
+- Viduity
+- Han
+- Lamentation
+- Keening

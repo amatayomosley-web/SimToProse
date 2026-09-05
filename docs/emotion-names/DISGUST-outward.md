@@ -1,0 +1,89 @@
+# DISGUST-outward — names
+
+**Names only.** Vectors and definitions are a later pass.
+
+- Squick
+- Distaste
+- Condescension
+- Superiority (felt)
+- Queasiness
+- Superciliousness
+- Disdain
+- Aversion
+- Squeamishness
+- Snobbery / snobbishness
+- Contempt
+- Prudishness / priggishness
+- Out-group revulsion
+- Sneering / scoffing
+- Mockery / ridicule
+- Contumely
+- Scorn
+- Gross-out ("the ick," "the willies")
+- Derision
+- Disgust (core)
+- Nausea (as emotion)
+- Moral disgust
+- Purity disgust (sacrilege-disgust)
+- Repugnance
+- Body-horror
+- Repulsion
+- Loathing
+- Revulsion
+- Detestation
+- Abhorrence
+- Execration
+- Abomination (the felt judgment)
+- Feeling refreshed
+- Tricksiness
+- Rollicking mood
+- Untroubled
+- Imperviousness
+- Unfazedness
+- Comfort
+- Acceptance
+- Tolerance
+- Blaséness
+- Habituation
+- Desensitization
+- Inurement
+- Grudging tolerance
+- Benign masochism
+- Ghoulish fascination
+- Disinclination
+- Reluctance
+- Loathness
+- Mislike
+- Dislike
+- Disfavor
+- Feeling put off
+- Missishness
+- Priggishness
+- Overniceness
+- The vapours
+- Wambles
+- Turned stomach
+- The shudders
+- Skin-crawl
+- Formication
+- Grue
+- Ug
+- The boak
+- Rising gorge
+- Taste aversion
+- Food aversion
+- Disesteem
+- Snobbery
+- Despisal
+- Despite
+- Misprision
+- Pharisaism
+- Contamination dread
+- Trypophobia
+- Pathogen disgust
+- Sexual disgust
+- Moral contamination
+- Antipathy
+- Moral revulsion
+- Moral horror
+- Uncanniness

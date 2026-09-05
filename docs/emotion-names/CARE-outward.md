@@ -1,0 +1,179 @@
+# CARE-outward — names
+
+**Names only.** Vectors and definitions are a later pass.
+
+- Liking
+- Fondness
+- Warmth
+- Bonhomie
+- Storge
+- Affection
+- Friendship / philia
+- Sibling love
+- Tenderness
+- Filial love / filial piety
+- Comradeship
+- Loyalty
+- Companionate love
+- Protectiveness
+- Doting
+- Adoration
+- Devotion
+- Paternal love
+- Codependency / enmeshment
+- Maternal love
+- Worship / idolisation
+- Concern
+- Sympathy
+- Pity
+- Empathy (affective)
+- Solicitude
+- Compassion
+- Mercy
+- Magnanimity
+- Chastened (feeling)
+- Guilt
+- Confession-pressure
+- Contrition
+- Self-abasement
+- Obligation
+- Hospitality-obligation / guest-right
+- Solidarity (felt)
+- Fealty / troth
+- Caregiver ambivalence
+- Compassion fatigue
+- Callousness / hardness of heart
+- Kama muta / being moved
+- Moral elevation
+- Dutifulness
+- Detachment
+- Clinical detachment
+- Callousness
+- Unkindness
+- Uncharitableness
+- Insensitivity
+- Inconsiderateness
+- Thoughtlessness
+- Egoism
+- Caregiver burden
+- Secondary traumatic stress
+- Vicarious trauma
+- Bystander apathy
+- Disregard
+- Aloofness
+- Coolness
+- Emotional distance
+- Estrangement
+- Disaffection
+- Lukewarmness
+- Unclaimed
+- Regard
+- Respect
+- Esteem
+- Appreciation
+- Consideration
+- Well-wishing
+- Amity
+- Friendliness
+- Affability
+- Amiability
+- Cordiality
+- Geniality
+- Congeniality
+- Fellowship
+- Solidarity
+- Esprit de corps
+- Brotherliness
+- Sisterliness
+- Kinship
+- Soft spot
+- Partiality
+- Kind-heartedness
+- Good-heartedness
+- Large-heartedness
+- Tender-heartedness
+- Benevolence
+- Charity
+- Philanthropy
+- Leniency
+- Forbearance
+- Long-suffering
+- Forgiveness
+- Commiseration
+- Condolence
+- Sympathy pains
+- Empathic concern
+- Bleeding heart
+- Heart going out to someone
+- Being moved
+- Warm fuzzies
+- Warm glow
+- Tend-and-befriend impulse
+- Supportiveness
+- Rooting for someone
+- Sympathetic joy
+- Vicarious joy
+- Vicarious pride
+- Vicarious relief
+- Confelicity
+- Compersion
+- Freudenfreude
+- Firgun
+- Mudita
+- Kvelling
+- Naches
+- Caring
+- Lovingness
+- Cherishing
+- Cherishment
+- Endearment
+- Attachment
+- Bondedness
+- Attunement
+- Cathexis
+- Fatherliness
+- Parental love
+- Grandparental love
+- Avuncular affection
+- Philoprogenitiveness
+- Maternal instinct
+- Cute aggression
+- Gigil
+- Indulgence
+- Tough love
+- Paternalism
+- Noblesse oblige
+- Responsibility for another
+- Mama-bear protectiveness
+- Overconcern
+- Overinvolvement
+- Enmeshment
+- Rescue fantasy
+- White-knight syndrome
+- Love
+- Compassionate love
+- Gift-love
+- Steadfast love
+- Selfless love
+- Unconditional love
+- Hesed
+- Pietas
+- Filial piety
+- Bhakti
+- Devotedness
+- Dedication
+- Commitment
+- Faithfulness
+- Fidelity
+- Constancy
+- Allegiance
+- Fealty
+- Veneration
+- Reverence
+- Idolization
+- Hero-worship
+- Living for someone
+- Unselfishness
+- Oblative love
+- Sacrifice
+- Martyrdom
