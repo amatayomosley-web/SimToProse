@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """composer.py — what a character CAN be played at, read off the engine.
 
-WHAT THIS IS, AND WHAT IT IS NOT YET. The composer sits between the deterministic assembler and the
-actor: it reads the packet, never edits it, and emits a second file that reaches the actor alongside
-the assembler's. Its job is SELECTION — which two or three of a character's live emotions this beat
-is played on — and the selecting half needs an LLM and a brief, and is not built.
+WHAT THIS IS. The composer sits between the deterministic assembler and the actor: it reads the packet, never
+edits it, and emits a second file that reaches the actor alongside the assembler's. Its job is SELECTION — which
+two or three live emotions this beat is played on — and both halves are built: the selecting one (`compose_prompt`
++ `verify`, dispatched by scripts/direct.py `_compose_selection` when a beat has a brief and a model) and this one.
 
 THIS IS THE DETERMINISTIC HALF, and it is the half whose contract is settled:
 
@@ -22,9 +22,9 @@ was fixed before it was written:
     logs can speak about it. `block` is what reaches an actor, and it carries no name — measured
     2026-09-07: the label is inert, and identical text under a WRONG label scored higher than under
     its own.
-  * A DESIGNED-BUT-UNBUILT PATH IS ABSENT, NOT EMPTY. `rungs.paths()` reports what has blocks. Eight
-    of the nine in docs/emotion-paths.md do not, and they do not appear here at all rather than
-    appearing as a character with nothing to feel.
+  * A DESIGNED-BUT-UNBUILT PATH IS ABSENT, NOT EMPTY. `rungs.paths()` reports what has blocks - all nine
+    in docs/emotion-paths.md have them now - and a path without them would not appear here at all rather
+    than appearing as a character with nothing to feel.
 
 Run it against a book in $SWE_BOOKS to see a character's selectable set:
     python scripts/composer.py --book <book> --char <character>
@@ -199,10 +199,10 @@ def _refuse_leaks(selection):
 def select_deterministic(rows, cap=3):
     """(selectable rows) -> a selection of the same shape the LLM half returns, without an LLM.
 
-    THIS IS A FLOOR, NOT A REPLACEMENT FOR `compose_prompt`. The selecting half is supposed to read
-    a brief and decide which two or three of a character's live emotions THIS BEAT is played on;
-    that needs an LLM and is not built. Until it is, the chain cannot run end to end at all, so this
-    picks by the only thing the rows carry and says plainly what it is not doing.
+    THIS IS A FLOOR, NOT A REPLACEMENT FOR `compose_prompt`. The selecting half reads a brief and
+    decides which two or three of a character's live emotions THIS BEAT is played on; it needs a model,
+    so with no brief, no model, `--stub`, or a refused reply (scripts/direct.py `_compose_selection`)
+    the beat falls here, which picks by the only thing the rows carry and says what it is not doing.
 
     RANKED BY RELATIVE POSITION ON ITS OWN LADDER, not by rung index. The index is not comparable
     across paths -- rung 8 of a twelve-rung ladder and rung 8 of a ten-rung one are different
