@@ -519,9 +519,9 @@ MEASURED:
   investment is read off a wound. The recorded divergence is exactly those two bugs.
 
 NOT COVERED: chair turns (outside every scene row) stop the replay; a cliff rest row on a scene's
-first beat replays before that scene's opening drift (the timeline's slot order); `connection.held_map`
-says the profile is recomputed per beat, but the drivers build it at scene start, after a wound refold
-and after an arc change, so a scene's first beats read pre-fade investment (mirrored, flagged). Suites:
+first beat replays before that scene's opening drift (the timeline's slot order). (`connection.held_map`
+said the profile is recomputed per beat while the scene driver built it before the opening's fade, so a
+scene's first beats read pre-fade investment - fixed 2026-09-23, gate `opening-before-profile`.) Suites:
 `tests/test_mood_fold.py`, `tests/test_passage.py` [12].
 
 **2026-09-22 — a book says which systems it runs (gate `systems-registry`):** the owner: *"not every
@@ -702,6 +702,17 @@ beside the chronicle (`<db>.directions/<run>.<actor>.json`, gitignored), and `--
 `via: prompt-only` when run, actor and circumstance match, else `by: none` with the reason. Suite:
 `tests/test_driver_main.py` (seven checks; the brief through an in-process spy, since `--stub` never reads it).
 NOT COVERED: a prompt step run in another checkout hands nothing over.
+
+**2026-09-23 — a scene's first beat feels the opening's fade (gate `opening-before-profile`):** `scripts/scene.py`
+built each actor's profile when it assembled the cast, before `passage.open_scene` faded wounds, arcs and attitude
+across the gap, and `mood_fold.replay` mirrored the order - so the resume check agreed with the defect, and for a
+scene's first beats a scar that had faded over a month was still felt at its old depth (`connection.held_map`'s
+investment). Both now build the profile after the opening (and the director's stated condition); the chair already
+did. `connection.held_map`'s docstring said "recomputed per beat"; it now says when. Suite:
+`tests/test_opening_profile.py` (a spy proves the rebuild lands between the opening and the first beat with the faded
+scar; the replay re-derives every cached mood). NOT COVERED: runs recorded before this gate replay with the new
+order, so their resume check reports a divergence at the first beats of scenes whose opening faded something the
+profile reads - attributable to this gate.
 
 **2026-09-19 — attitude decays per RUNG, in minutes (gate `attitude-staircase`):** `toward.erode` was the pre-redesign mechanism — one flat `toward._RETENTION[path]` per DAY for every rung, so a hatred and a flicker of annoyance faded alike — and now steps the ladder exactly as `state.decay_over` does, on the minute clock, at a per-path scale whose bottom rung is that same day rate converted (`toward._attitude_half_life`, anchored to 1e-9 in `tests/test_toward.py` block 16) and whose rung-to-rung ratio is the MOOD staircase's own, so the two tiers cannot disagree about the shape of forgetting; `src/engine/passage.py` hands it MINUTES while `bond_rest.drift` / `wound.erode` / `arc.erode` keep the day conversion. Spec: the redesign's "Decay — per path AND per rung" ("Two tables, one shape"), `docs/emotion-arithmetic.md` §4.
 

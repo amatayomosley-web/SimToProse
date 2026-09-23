@@ -129,7 +129,6 @@ def replay(con, run_id, sheets, notes=None, conditions=None):
         flow, body_on, inj_on = "condition_flow" in enabled, "body" in enabled, "injuries" in enabled
         for c in cast:
             chs[c] = _resumed(con, run_id, c, sheets[c], start, mood.get(c), enabled, cond.get(c))
-            prof[c], temp[c] = build_profile(chs[c]), chs[c]["baseline"]["temperament"]
             binds[c] = dict(chs[c]["current"].get("targets") or {})
         rests = {c: [r for r in bond_rest.rows_for(con, run_id, c) if r[0] < start or (r[0] == start and r[4] == "authored")]
                  for c in cast}
@@ -141,6 +140,8 @@ def replay(con, run_id, sheets, notes=None, conditions=None):
                                         if (inj_on and body_on) else None))
         _condition.apply_declared({c: chs[c] for c in cast}, body.get("condition"))     # the director's words, as run
         for c in cast:
+            # the profile AFTER the opening's fade, as scripts/scene.py builds it (gate opening-before-profile)
+            prof[c], temp[c] = build_profile(chs[c]), chs[c]["baseline"]["temperament"]
             mood[c] = dict(chs[c]["current"]["affect"])
             cond[c] = dict(chs[c]["current"].get("condition") or {})
         for t in range(start, end + 1):

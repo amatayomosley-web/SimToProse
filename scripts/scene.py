@@ -482,8 +482,13 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
     # `actors[i]["affect"]` is THIS driver's own cache beside the sheet (built once at actor
     # construction, above) — `open_scene` mutates `char["current"]["affect"]` and knows nothing of
     # the cache, so it is refreshed here or every beat after this one reads the pre-decay value.
+    # THE PROFILE IS BUILT AFTER THE OPENING (gate opening-before-profile, 2026-09-23). It was built only at actor
+    # construction, above, before `open_scene` faded wounds, arcs and attitude across the gap, so a scene's first
+    # beats ran on the pre-fade profile until a wound or an arc next changed. `mood_fold.replay` builds it here too.
     for i in ids:
         actors[i]["affect"] = dict(actors[i]["char"]["current"]["affect"])
+        actors[i]["profile"] = build_profile(actors[i]["char"])
+        actors[i]["temperament"] = actors[i]["char"]["baseline"]["temperament"]
     per_beat = _clock_result["per_beat"]
     if _clock_result["elapsed"]:
         print("\n  %s minutes since the last scene ended%s — edges relaxed toward each character's"

@@ -129,8 +129,8 @@ def held_map(char):
     People are NOT here — a person's investment is read live off the relationship edge by
     `for_about`, because `bonds.observe` moves edges every beat and a copy would go stale. What is
     here is the slow half: wounds (engine state at `baseline.wounds`), goals, and worth-menu
-    values. Recomputed per beat by the drivers, so a wound that deepened this scene is felt next
-    beat.
+    values. Rebuilt by the drivers when a scene opens (after the opening's fade), after a wound moves
+    and after an arc moves the baseline - so a wound that deepened this scene is felt from the next beat.
     """
     out = {}
     if not isinstance(char, dict):
