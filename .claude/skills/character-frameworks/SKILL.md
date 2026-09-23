@@ -1,0 +1,93 @@
+---
+name: character-frameworks
+description: The character-builder's toolbox — the well of personality-science and depth frameworks for designing a whole, grounded person. Trait models (HEXACO / Big Five, Dark & Light Triads, interpersonal circumplex, Whole Trait Theory, temperament biology), type typologies (four temperaments, Jungian functions, MBTI, Keirsey, Socionics, DISC, Enneagram, the empirically-derived types), motivation/needs/values (Maslow, ERG, SDT, McClelland, Murray, Reiss, Schwartz's value circumplex, Rokeach, Moral Foundations), moral character and virtue (Aristotle's mean, VIA strengths, Kohlberg/Gilligan/Turiel/Rest, social intuitionism, moral disengagement, shame vs guilt), developmental & psychodynamic depth (Freud & the defenses, Vaillant, Erikson, Jung, Adler, Horney, attachment, object relations, Kohut, Berne, Loevinger), the shadow/clinical/wounded registers (DSM-5 & PID-5, narcissism & psychopathy, trauma responses, PTSD/C-PTSD, self-deception), archetypes (Jungian Self/Shadow/Anima, the twelve-archetype systems, Campbell/Vogler/Propp/Dramatica narrative roles), and voice/cognition/surface (register & idiolect, nonverbal channels, cognitive & explanatory style, thin-slicing). Open it when building, creating, or designing a character, persona, personality, backstory, cast, ensemble, or NPC — to conjure a coherent soul, give a villain a mechanism, source a wound, ground a value conflict, or triangulate depth across frameworks. Framework-neutral — a well of peers, not one prescribed truth.
+triggers:
+  keywords:
+    - hexaco
+    - enneagram
+    - temperament
+    - archetype
+    - persona
+  concepts:
+    - build a character
+    - design a character
+    - create a character
+    - character sheet
+    - give them a wound
+    - the cast
+    - new character
+    - who is this person
+    - backstory
+---
+
+# Character Frameworks — the character-builder's depth well
+
+This is the toolbox the **`character-generator`** agent draws on while it works — and the reference any agent reaches into when a person must be *designed* rather than merely acted. The generator is the *will* (build one grounded person from the world down; ground every number in a life; never type in an arbitrary slider); this skill is the *well* — the personality-science and depth-psychology frameworks it reaches into to compose that person with real depth.
+
+**It holds craft, never facts.** How to structure a disposition, weight a worth-menu, source a wound, or cast an archetype lives here. *Which* world this character is born into, *what* position they occupy, and *what* their formative history was reach the builder through the world bible and the generation stack (`docs/design.md` Phase B, `docs/baseline-generation.md`) — never through this toolbox. Reading these files is reading *how a person is put together*; the specific person comes from the world.
+
+**Framework-neutral and open.** Personality has no one true taxonomy. Every framework below is a peer in a well, not a rung on a ladder; where this project names a default it is a **reference point, marked swappable**, not a rule. The repo's dimensional spine — **HEXACO** traits, **Schwartz** values + **Moral Foundations**, the **seven Panksepp primaries**, the drives schema — is the backbone the whole toolbox translates *into* (`docs/trait-theory.md`, `docs/values-and-stakes.md`, `docs/generative-model.md`, `docs/drives-schema.md`); the many rival frameworks are the palette laid over it. A fork may swap any default and inherit the rest. The canon these files digest lives in `docs/` (once); if a reference and its doc disagree, the doc wins.
+
+## How this toolbox is organized
+Eight reference files, one per framework-cluster, each fully authored — a deep, example-rich survey of its region with lineage, structure, exemplars, cross-links to the repo spine, and honest cautions about where the science thins. **This `SKILL.md` is the router and the method**: it indexes what each file holds, then gives the keystone — how to *compose* the layers into one person. Read the index to find the file the moment needs; read that file; then use the keystone to triangulate.
+
+---
+
+## The index — the 8 reference files
+
+- **`references/trait-models.md`** — the dispositional layer (the stable behavioral through-line): HEXACO (repo spine) & Big Five, the 30 facets / 10 aspects / 2 metatraits, Eysenck's PEN, Cattell's 16PF, the Dark Triad/Tetrad & the D-core, the Light Triad, the interpersonal circumplex, Whole Trait Theory (the trait as a `mean + variability` distribution — repo storage default), and the biological temperaments (Gray's RST, Cloninger, Rothbart). *What a person is reliably like; the villain as a region, not a species.*
+- **`references/type-typologies.md`** — the categorical well: the four classical temperaments, Jungian cognitive functions & Beebe, MBTI's sixteen, Keirsey, Socionics (intertype relations), DISC, the Enneagram (types · wings · instincts · arrows · Levels), and the empirically-derived types (RUO, Gerlach's four). *Conjure a gestalt in one word, then dissolve the label into the dimensional store.*
+- **`references/motivation-and-values.md`** — what *pulls* a person: the needs hierarchies (Maslow, Alderfer's ERG, SDT — repo needs substrate), the acquired motives (McClelland, Murray, Reiss's 16), and the value/ethics menus (Schwartz's value circumplex — repo spine; Rokeach; Moral Foundations — repo ethics lens). *A worth-menu with built-in oppositions; two good people who weight it differently collide.*
+- **`references/moral-character.md`** — the ethical layer, where a person breaks under forced choice: Aristotle's golden mean, the VIA strengths, moral development (Kohlberg, Gilligan's ethic of care, Turiel's domains, Rest's Four-Component), social intuitionism, moral disengagement, and the self-conscious emotions (shame vs guilt). *Virtue on the page is the vice next door held in check.*
+- **`references/developmental-and-psychodynamic.md`** — where a character comes *from* and the machinery under the traits: Freud's structural model & the full defense catalog, Vaillant's maturity ladder, Erikson's eight crises, Jungian depth (shadow, persona, anima/animus, individuation), Adler, Horney's three moves & the tyranny of the shoulds, attachment, object relations, Kohut, Berne's scripts, Loevinger's ego stages. *The source of interiority, provenance, and self-deception.*
+- **`references/shadow-and-clinical.md`** — the dark, clinical, and wounded registers: DSM-5 personality-disorder patterns & the dimensional PID-5 alternative, the deep structure of narcissism and psychopathy, the body's trauma responses (fight/flight/freeze/fawn), PTSD/C-PTSD wound-signatures, and the machinery that lets every villain be the hero of his own story. *Behavior with provenance, never a clinical costume on "the crazy one."*
+- **`references/archetypes.md`** — the oldest shorthand, sorted into two kinds constantly conflated: **depth-psychological** archetypes (Jung's Self/Shadow/Anima/Persona, the twelve-archetype commercial systems) that describe a character's *interior*, and **narrative-functional** roles (Campbell's mythic roles, Vogler's eight, Propp's seven, Dramatica's eight) that describe a character's *job in the plot*. *A bias-pack over the interior; a mask over the role — and one psyche can wear a different mask each scene.*
+- **`references/voice-cognition-and-surface.md`** — the thin skin the reader actually touches: register & idiolect, the pragmatics of a line, the nonverbal channels & the honest limits of tell-reading, cognitive styles, locus of control & explanatory style, biases-as-quirks, and how an observer thin-slices a two-second slice into a whole person. *The surface is a sample of the interior, never an authored costume; what makes a character recognizable in a single line.*
+
+---
+
+## The keystone — Building depth: triangulate, do not pick one
+
+**The failure that makes a character cardboard is picking one framework and calling it depth.** An Enneagram 6, or a "high-N introvert," or "the Shadow," is a *label*, not a person — and a person built from a single lens is predictable from that lens, which is exactly the cardboard the realism test rejects (`docs/character-model.md`). Depth is not more detail inside one frame; it is *several incommensurable lenses laid over one life and resolved into one coherent soul*. Each framework in this toolbox names a texture the others miss (a trait names the style, a value names the pull, a wound names the flinch, an archetype names the shape). Triangulation is the method that fuses them.
+
+### 0. Start from the world, not the sliders
+A character is not authored in a vacuum and it is not a bag of dials set to taste. **Begin where `docs/design.md` Phase B and `docs/baseline-generation.md` begin: position → formative environment → baseline → individuation.** The world's present systems define the *space* of positions; the character occupies one (no guild-mage if history made no guilds); the formative environment that position implies *authors the baseline*. Every layer below is a **sparse bias from a grounded zero-point** (the species prior), traced to the life that set it — never a number typed in. If a value can't be traced to their world and history, it is the **arbitrary insert the design rejects**. So the frameworks are not menus you fill freely; they are the *vocabulary you use to read off what this position and this history would produce*.
+
+### 1. Layer the lenses — each answers a different question
+Compose, in roughly this order, pulling only the files the character reaches for (depth-by-role: every layer deep for a principal, a few for a bystander — `docs/character-schema.md`):
+
+| Layer | The question it answers | File | Lands in the schema as |
+|---|---|---|---|
+| **Trait** | What are they reliably *like*? (the observable through-line) | `trait-models` | `traits` (HEXACO `mean+variability`) |
+| **Type** *(optional)* | A fast gestalt to *conjure* the whole — then dissolve it | `type-typologies` | *(dissolved into traits · temperament · model · drives)* |
+| **Motivation / values** | What do they *want* and hold *worth*? (the pulls that collide) | `motivation-and-values` | `model` (value-weighting) + `drives` (goals) |
+| **Moral** | Where do they *break* when a scene forces the choice? | `moral-character` | `model` (Moral-Foundations weights) + `drives` |
+| **Psychodynamic / shadow** | Where did this come *from*, and what do they hide from themselves? | `developmental-and-psychodynamic`, `shadow-and-clinical` | `drives` (wound→fear→defense) + `provenance` |
+| **Archetype** | What *shape* is this soul, and what *job* does it do in the story? | `archetypes` | `model` overlay (interior) + the cast/role layer (function) |
+| **Voice / surface** | How do they *read* in a single line? (what an observer meets first) | `voice-cognition-and-surface` | the surface/voice fields — traits' readout |
+
+A type or an archetype is scaffolding: reach for "a counterphobic Enneagram 6 with an avoidant attachment and a Trickster mask" to *summon* a coherent person fast — then immediately translate the gestalt into HEXACO leanings, Schwartz/MFT weights, Panksepp baselines, and drives, because that is what the engine resolves and a stored label re-imports every validity problem the files catalogue.
+
+### 2. Resolve the tensions into ONE person — the actual work
+Layered naively, the lenses will *contradict*: the type says loyal, the trait sample says low-Agreeableness; the archetype says Hero, the wound says he flinches from the call. **These collisions are not a bug to smooth over — they are where the person is.** Triangulation means:
+- **Let the formative history arbitrate.** Where two lenses disagree, keep the reading the life *earns* and bend the others to it. The betrayal at age nine (`baseline-generation.md`'s provenance) decides whether "guarded" is a cold trait, an anxious wound, or a chosen value — one cause, three surfaces, made consistent.
+- **Prefer conflict to consistency.** A real person is not one utility function; they hold **competing, opposable drives** — a want against a value, a fear against a desire (`docs/character-model.md`, `docs/drives-schema.md`). Two lenses that pull opposite ways, held in tension, *is* the depth. Build the collision in on purpose (the high-H idealist in a low-H world; the loving parent who lies to control).
+- **Collapse labels, keep textures.** The output is not eight framework tags stapled together; it is one person every layer of whom traces to the same life. Dissolve every categorical label into the dimensional store; keep only the *texture* it named.
+- **Test it.** A character has real depth iff, faced with a genuine dilemma, their choice is **non-obvious but in-retrospect-inevitable** — it traces to their layered levers without being predictable from any single one (`docs/character-model.md`, the falsifiable realism test). *Predictable from one trait* → too few / non-conflicting lenses (you picked one). *Arbitrary* → the layers weren't resolved into a coherent whole.
+
+### 3. Map onto the character schema
+The resolved person is written into the repo's stat block (`docs/character-schema.md`), organized by the timescale that changes each field:
+- **FIXED** — `people` (species prior), `position`, `genotype` (the temperament biology of `trait-models` → the per-primary gains).
+- **BASELINE** — `traits` (HEXACO), `temperament` (the 7 primaries' resting levels), `model` (the Schwartz + Moral-Foundations + needs weighting *plus* what-wins-when-drives-collide), `drives` (goals / fears-wounds / orientation), `relationship_priors`, and **`provenance` on every value** — the formative source that makes it non-arbitrary.
+- **CURRENT / DERIVED** — the volatile state the sim moves; not authored here, but the baseline is exactly what it decays toward and appraises from.
+
+The archetype-**model** overlay (`docs/character-model.md`) rides on top of the baseline Model as a sparse, named weight-diff (bias, not set — "trust ×0.6 toward strangers," never "trust = 0.3"); the narrative-**role** archetype is a per-scene function, not a stored field. Fill the schema to the character's tier (`role_tier`), leaving the long tail at class-default per the depth rule.
+
+### The repo defaults, and that they are swappable
+The house spine is a set of **reference points, not the only truth**: **HEXACO** for traits, **Schwartz** for the value spine, **Moral Foundations** for the ethics lens, the **seven Panksepp primaries** for the affective basis, Whole Trait Theory for storage. They are chosen (HEXACO because Honesty-Humility makes moral drama a first-class dimension; Schwartz because its circumplex encodes the trade-offs; MFT because it explains principled collision between good people) — but a fork may swap any of them (Big Five for HEXACO, Reiss for Schwartz) and inherit the rest, because every framework in the well *translates* into the others. Triangulate onto whichever spine the fork commits to.
+
+## Portability
+This toolbox is **plain markdown, liftable to any harness.** Nothing here depends on this repo's engine, schema field-names, or agent runtime — the eight files are a framework-neutral reference library, and the keystone method (ground in world → layer the lenses → resolve tensions into one person → map onto whatever schema you carry) works against any character representation. The `docs/` cross-links point at *this* project's specific choices; ignore them in a fork and the frameworks, exemplars, cautions, and the triangulation discipline still stand on their own.
+
+## Status
+Router + method complete; all eight `references/` files are **fully authored** — deep, example-rich, cited. Reach for the one the moment needs, then triangulate. Nothing here is prescriptive: it is a well to draw from, holding rival models side by side so the *character* — not the toolbox — decides.

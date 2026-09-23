@@ -1,0 +1,73 @@
+# DISGUST-unbound — names
+
+**Names only.** Vectors and definitions are a later pass.
+
+- Cynicism
+- Misanthropy
+- Existential nausea
+- Open
+- At-homeness in the world
+- Unsqueamishness
+- Unfastidiousness
+- Unfussiness
+- Earthiness
+- Relish
+- Morbid relish
+- Feeling clean
+- Fastidious
+- Daintiness
+- Delicacy
+- Primness
+- Prissiness
+- Fussiness
+- Finickiness
+- Pickiness
+- Persnicketiness
+- Prudishness
+- Disrelish
+- A bad taste in the mouth
+- Being put off
+- Yuckiness
+- Not wanting to touch anything
+- Germophobia
+- Mysophobia
+- Contamination anxiety
+- Qualmishness
+- Soured on the world
+- Fed up with everything
+- Sick of everything
+- Sick to the back teeth
+- Cloyment
+- Blaseness
+- Disenchantment
+- Disillusionment
+- Weltschmerz
+- Taedium vitae
+- Degout
+- Recoiling
+- Disgust
+- Feeling grossed out
+- One's skin crawling
+- The grue
+- Scunner
+- Nausea
+- Feeling sickened
+- One's stomach turning
+- One's gorge rising
+- Visceral disgust
+- Core disgust
+- Moral nausea
+- Odium
+- Horrified fascination
+- Fouled
+- Feeling unclean
+- Besmirchment
+- Feeling like you need a shower
+- A sense of miasma
+- Sordidness
+- Squalidness
+- Weltekel
+- Defiled
+- Defilement
+- Horror of touch
+- Feeling desecrated

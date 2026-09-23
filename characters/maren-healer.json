@@ -1,0 +1,360 @@
+{
+  "_meta": {
+    "purpose": "Coherence-probe fixture (docs/probe-plan.md). Hand-authored so the identity check has an answer key.",
+    "conforms_to": "docs/character-schema.md (FIXED/BASELINE/CURRENT/DERIVED) + docs/baseline-generation.md (species-prior + genetics + formative stack, provenance per value)",
+    "calibration": "UNCALIBRATED — numeric values are plausible placeholders on a 0..1 scale. character-schema/baseline-generation class numbers as calibration (open), not structure. The probe tests COUPLING, not whether these numbers are right.",
+    "central_tension": "CARE vs CONTROL — a defining care/duty drive, warped by guilt-driven over-control after she failed to save her own child. Opposable drives so coherence is non-trivial; she should read as the same person across varied events while the surface differs.",
+    "scale": "0..1 unless noted; temperament/traits are {mean, variability}"
+  },
+  "fixed": {
+    "id": "maren",
+    "name": "Maren",
+    "role_tier": "principal",
+    "people": "human",
+    "position": {
+      "place": "Ashford (a small upland village)",
+      "class": "commoner / craft (healer)",
+      "era": "pre-industrial",
+      "niche": "the village healer — births, fevers, wounds, the dying"
+    },
+    "genotype": {
+      "_note": "one {hit, hold} cell per path (2026-09-10). hit = how hard a reading lands; hold = how long they keep it. Where they REST moved to baseline.temperament[path].rest the same day — that is character design, not genotype. ",
+      "STIRRING": {
+        "hit": "low",
+        "hold": "typical"
+      },
+      "WARINESS": {
+        "hit": "elevated",
+        "hold": "long"
+      },
+      "DISPLEASURE": {
+        "hit": "low",
+        "hold": "typical"
+      },
+      "GOODWILL": {
+        "hit": "high (anxious-leaning bond style)",
+        "hold": "long"
+      },
+      "DEFLATION": {
+        "hit": "elevated (loss goes deep, but it was the affiliation axis that made it read high; grief pinned the probe at high under the minute clock)",
+        "hold": "lasting"
+      },
+      "DISTASTE": {
+        "hit": "typical",
+        "hold": "typical"
+      },
+      "RECEPTIVITY": {
+        "hit": "typical",
+        "hold": "typical"
+      },
+      "SELF-REGARD": {
+        "hit": "typical",
+        "hold": "typical"
+      },
+      "LEVITY": {
+        "hit": "typical",
+        "hold": "typical"
+      }
+    }
+  },
+  "baseline": {
+    "temperament": {
+      "_note": "Where they REST, per path — a character-design choice beside the voice (owner, 2026-09-10). `rest` is the authored word (quiet|low|raised|high = rung 1..4, capped per path) or a number; `mean` is DERIVED from it once (heritable.ensure_temperament) and then moved only by the arc engine's durable diffs. lint_book warns when the mean's rung and the rest word's rung disagree.",
+      "STIRRING": {
+        "rest": "low",
+        "mean": 0.13
+      },
+      "WARINESS": {
+        "rest": "raised",
+        "mean": 0.175
+      },
+      "DISPLEASURE": {
+        "rest": "quiet",
+        "mean": 0.035
+      },
+      "GOODWILL": {
+        "rest": "high",
+        "mean": 0.315
+      },
+      "DEFLATION": {
+        "rest": "raised",
+        "mean": 0.24
+      },
+      "DISTASTE": {
+        "rest": "quiet",
+        "mean": 0.075
+      },
+      "RECEPTIVITY": {
+        "rest": "low",
+        "mean": 0.125
+      },
+      "SELF-REGARD": {
+        "rest": "low",
+        "mean": 0.16
+      },
+      "LEVITY": {
+        "rest": "quiet",
+        "mean": 0.05
+      }
+    },
+    "traits": {
+      "_note": "HEXACO facets {mean, variability}",
+      "honesty_humility": {
+        "mean": 0.78,
+        "variability": 0.08
+      },
+      "emotionality": {
+        "mean": 0.7,
+        "variability": 0.12
+      },
+      "extraversion": {
+        "mean": 0.34,
+        "variability": 0.1
+      },
+      "agreeableness": {
+        "mean": 0.66,
+        "variability": 0.12,
+        "note": "high care, but the control distorts it toward over-responsibility, not warmth-for-its-own-sake"
+      },
+      "conscientiousness": {
+        "mean": 0.86,
+        "variability": 0.08,
+        "note": "the over-control: meticulous, cannot delegate, cannot let go"
+      },
+      "openness": {
+        "mean": 0.48,
+        "variability": 0.1
+      }
+    },
+    "model": {
+      "_note": "Layer-10 weighting over the worth menu + resolution priority. Value-weights live here, not in Layer 2.",
+      "schwartz": {
+        "benevolence": 0.9,
+        "security": 0.8,
+        "universalism": 0.55,
+        "tradition": 0.5,
+        "self_direction": 0.4,
+        "achievement": 0.35,
+        "power": 0.1,
+        "hedonism": 0.1,
+        "stimulation": 0.1
+      },
+      "moral_foundations": {
+        "care_harm": 0.95,
+        "fairness": 0.55,
+        "loyalty": 0.6,
+        "authority": 0.45,
+        "sanctity": 0.5,
+        "liberty": 0.4
+      },
+      "needs": {
+        "competence": 0.85,
+        "relatedness": 0.7,
+        "autonomy": 0.4
+      },
+      "resolution_priority": [
+        "protect-the-vulnerable > everything (care_harm dominates)",
+        "do-it-myself > delegate (guilt → control: trusting another with a life feels like the failure that killed her child)",
+        "duty > her own rest/comfort/grief",
+        "honesty > comfort, EXCEPT she will not speak her own wound"
+      ]
+    },
+    "drives": {
+      "goals": [
+        {
+          "goal": "keep Ashford's people alive and whole",
+          "priority": 0.9,
+          "satisfaction": 0.55
+        },
+        {
+          "goal": "never again fail someone I could have saved",
+          "priority": 0.95,
+          "satisfaction": 0.3,
+          "note": "the wound as a goal — unattainable, drives the over-control"
+        },
+        {
+          "goal": "pass the craft on before I'm gone",
+          "priority": 0.5,
+          "satisfaction": 0.4,
+          "note": "conflicts with do-it-myself — she resists letting an apprentice carry real weight"
+        }
+      ],
+      "orientation": {
+        "locus": "internal (over-responsible — reads others' outcomes as her duty)",
+        "coping": "problem-focused + control; suppresses the emotion-focused channel until it breaks through"
+      },
+      "_avoidances_note": "the old fears_wounds avoidance lists (over-control / cannot delegate; will not name the grief aloud; works past exhaustion; hoards responsibility; over-prepares) are conduct the rung owns and were never read by the engine; folded into voice.register where they belong (2026-09-11)"
+    },
+    "skills": {
+      "healing_lore": 0.85,
+      "insight": 0.75,
+      "perception": 0.78,
+      "persuasion": 0.55,
+      "streetwise": 0.4,
+      "combat": 0.15
+    },
+    "relationship_priors": {
+      "out_group": "outsiders/travelers — default trust 0.35, wary but not hostile"
+    },
+    "voice": {
+      "register": "plain, warm with patients; clipped and terse under fear or fatigue",
+      "vocabulary_domains": [
+        "herbs and remedies",
+        "bodies and symptoms",
+        "weather and season",
+        "the dead, obliquely"
+      ],
+      "rhythm": "measured; sentences shorten when she's frightened for someone",
+      "assertiveness": "firm and unhedged on a care decision; deflecting and vague about herself",
+      "tics": [
+        "deflects praise",
+        "counts doses/steps aloud when anxious",
+        "refers to the dead by what they needed, never by grief"
+      ],
+      "code_switch": "gentle to the sick and the young; curt to anyone who endangers them; silent on her own loss",
+      "silence": "goes quiet rather than speak her guilt; the silence is a tell"
+    },
+    "provenance": {
+      "CARE.high": "raised by her mother, the previous village midwife — care as identity from childhood",
+      "FEAR.elevated / PANIC_GRIEF.elevated": "Súil's death, age 31 — the fever she could not break; vigilance and grief fused",
+      "effortful_control.high / conscientiousness.high": "the guilt forged the over-control — if she had done more, watched closer... so now she watches everything",
+      "goal:never-fail-again": "directly from Súil — an unmeetable vow",
+      "drive-conflict:do-it-myself-vs-pass-the-craft": "she knows the craft must outlive her, but handing a life to an apprentice re-stages the helplessness she felt at Súil's bedside",
+      "PLAY.low / hedonism.low": "joy went thin after the loss; she did not let it back"
+    },
+    "wounds": [
+      {
+        "_note": "ENGINE WOUNDS (gate three, 2026-09-11) — keyed concept@PATH, minted never hand-written; these three stand in for what scripts/composition_pass.py would mint from a formative profile. `source` profile:<id>; `text` is what the actor is told happened; `trigger` the words that set it off; the LINK to a later beat is the concept, by identity."
+      },
+      {
+        "id": "sickness@WARINESS",
+        "concept": "sickness",
+        "path": "WARINESS",
+        "intensity": 0.85,
+        "source": "profile:fixture-suil",
+        "text": "her daughter Súil died of a fever she could not break (Maren age 31)",
+        "trigger": [
+          "a child with fever",
+          "a patient she might lose"
+        ]
+      },
+      {
+        "id": "loss_of_a_child@DEFLATION",
+        "concept": "loss_of_a_child",
+        "path": "DEFLATION",
+        "intensity": 0.85,
+        "source": "profile:fixture-suil",
+        "text": "her daughter Súil died of a fever she could not break (Maren age 31)",
+        "trigger": [
+          "a child with fever",
+          "being asked to trust someone else with a life"
+        ]
+      },
+      {
+        "id": "helplessness@WARINESS",
+        "concept": "helplessness",
+        "path": "WARINESS",
+        "intensity": 0.5,
+        "source": "profile:fixture-too-late",
+        "text": "being too late / not enough",
+        "trigger": [
+          "delay",
+          "a case beyond her skill"
+        ]
+      }
+    ]
+  },
+  "current": {
+    "_note": "initial state row for turn 0 — starts at/near resting temperament; the run moves this via consolidation→appraisal/decay",
+    "affect": {
+      "STIRRING": 0.13,
+      "WARINESS": 0.175,
+      "DISPLEASURE": 0.035,
+      "GOODWILL": 0.315,
+      "DEFLATION": 0.24,
+      "DISTASTE": 0.075,
+      "RECEPTIVITY": 0.125,
+      "SELF-REGARD": 0.16,
+      "LEVITY": 0.05
+    },
+    "condition": {
+      "energy": 0.65,
+      "allostatic_load": 0.55,
+      "health": 0.8,
+      "fatigue": 0.3,
+      "injuries": []
+    },
+    "active_goals": [
+      {
+        "goal": "tend the season's fevers",
+        "urgency": 0.6
+      }
+    ],
+    "relationships": {
+      "edda_elder": {
+        "trust": 0.75,
+        "affinity": 0.6,
+        "respect": 0.7,
+        "debt": 0.0,
+        "history": "village elder; long mutual reliance"
+      },
+      "joss_apprentice": {
+        "trust": 0.55,
+        "affinity": 0.7,
+        "respect": 0.45,
+        "debt": 0.0,
+        "history": "her apprentice of two years; she keeps the real weight from him"
+      },
+      "ren_traveler": {
+        "trust": 0.35,
+        "affinity": 0.4,
+        "respect": 0.4,
+        "debt": 0.0,
+        "history": "an outsider lately in Ashford"
+      }
+    },
+    "attachments": {
+      "loc.cottage": {
+        "hold": 0.85,
+        "sign": "+",
+        "note": "life: her stores, her workbench, where she sleeps little — eleven years"
+      },
+      "loc.sickhouse": {
+        "hold": 0.6,
+        "sign": "+",
+        "note": "post: the healer's; hers while she keeps it"
+      },
+      "grp.ashford_villagers": {
+        "hold": 0.4,
+        "sign": "+",
+        "note": "member: from in_group — the villagers she serves"
+      }
+    },
+    "vault": [
+      {
+        "claim": "Súil died of the winter fever I could not break",
+        "believed_value": "my failure",
+        "provenance": "lived, age 31",
+        "timestamp": "t-14y",
+        "confidence": 1.0
+      },
+      {
+        "claim": "fevers that climb past the third night rarely turn",
+        "believed_value": true,
+        "provenance": "craft experience",
+        "timestamp": "long",
+        "confidence": 0.8
+      },
+      {
+        "claim": "Joss is gifted but not ready to carry a life alone",
+        "believed_value": true,
+        "provenance": "observation + her own fear",
+        "timestamp": "recent",
+        "confidence": 0.6,
+        "note": "may be more fear than fact — a belief the sim can test"
+      }
+    ],
+    "zone": "optimal",
+    "location": "her cottage at the edge of Ashford"
+  }
+}

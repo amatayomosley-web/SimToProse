@@ -1,0 +1,164 @@
+# DISGUST-reflexive — names
+
+**Names only.** Vectors and definitions are a later pass.
+
+- Cringe (retro-cringe)
+- Vicarious embarrassment (Fremdscham)
+- Self-contempt
+- Pity-shame
+- Self-disgust
+- Indignity
+- Shame
+- Loss of face
+- Ignominy
+- Humiliation
+- Mortification
+- Abjection
+- Self-loathing
+- self-complacency
+- self-approval
+- self-contentment
+- clear conscience
+- blamelessness
+- guiltlessness
+- innocence
+- wholesomeness
+- purity
+- immaculateness
+- freshness
+- clean
+- feeling presentable
+- feeling decent
+- feeling fit for company
+- at home in one's own skin
+- self-ease
+- shamelessness
+- brazenness
+- grudging self-acceptance
+- self-ambivalence
+- self-awareness
+- pudency
+- pudeur
+- shamefastness
+- mauvaise honte
+- bashfulness
+- awkwardness
+- feeling gauche
+- discomfiture
+- abashment
+- embarrassment
+- self-conscious
+- cringe
+- hangdog feeling
+- chagrin
+- feeling exposed
+- self-displeasure
+- self-dissatisfaction
+- self-disappointment
+- self-distaste
+- squeamishness at oneself
+- ickiness
+- feeling grubby
+- feeling scruffy
+- feeling unwashed
+- feeling grotty
+- feeling manky
+- feeling grimy
+- feeling gross
+- reserve
+- reticence
+- withholding
+- impostor feeling
+- feeling unpresentable
+- feeling unfit to be seen
+- feeling unfit for company
+- feeling like a burden
+- self-blame
+- self-recrimination
+- self-condemnation
+- compunction
+- remorse
+- penitence
+- shamefacedness
+- feeling disgraced
+- opprobrium
+- feeling dishonored
+- unworthiness
+- undeservingness
+- worthlessness
+- abasement
+- feeling degraded
+- feeling debased
+- feeling squalid
+- feeling sordid
+- seediness
+- feeling sleazy
+- feeling scummy
+- feeling skeevy
+- feeling slimy
+- feeling dirty
+- uncleanness
+- impurity
+- feeling soiled
+- feeling stained
+- feeling tainted
+- feeling sullied
+- feeling besmirched
+- feeling defiled
+- feeling polluted
+- feeling contaminated
+- body shame
+- self-stigma
+- internalized stigma
+- moral injury
+- self-weariness
+- sick of oneself
+- self-nausea
+- self-revulsion
+- self-repugnance
+- self-repulsion
+- self-hatred
+- self-abhorrence
+- self-detestation
+- self-execration
+- self-odium
+- self-scorn
+- self-horror
+- self-shielding
+- feeling toxic
+- feeling contagious
+- feeling infectious
+- feeling radioactive
+- feeling like a liability
+- feeling corrupt
+- feeling rotten to the core
+- feeling putrid
+- feeling foul
+- filthiness
+- feeling like filth
+- feeling like scum
+- feeling like damaged goods
+- vileness
+- odiousness
+- loathsomeness
+- feeling repulsive
+- feeling hideous
+- feeling grotesque
+- feeling monstrous
+- feeling like vermin
+- feeling subhuman
+- feeling obscene
+- feeling profane
+- feeling accursed
+- feeling damned
+- feeling unforgivable
+- feeling irredeemable
+- feeling beyond the pale
+- feeling like a pariah
+- feeling like a leper
+- feeling anathema
+- feeling abominable
+- feeling like poison
+- feeling like a plague
+- feeling too dirty to touch
+- untouchable

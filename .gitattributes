@@ -1,0 +1,2 @@
+# Hooks run under sh: keep them LF on every checkout (core.autocrlf would otherwise hand sh a CRLF).
+.githooks/* text eol=lf

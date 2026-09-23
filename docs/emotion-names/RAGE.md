@@ -1,0 +1,249 @@
+# RAGE — names
+
+**Names only.** Vectors and definitions are a later pass.
+
+- serenity
+- tranquility
+- mellowness
+- calm
+- placidity
+- equanimity
+- imperturbability
+- peaceableness
+- mildness
+- meekness
+- lenity
+- longanimity
+- patience
+- being mollified
+- being placated
+- being appeased
+- spent anger
+- the cooling-off
+- being over it
+- being unbothered
+- being unruffled
+- unmoved
+- disapproval
+- disapprobation
+- displeasure
+- discontentment
+- disgruntlement
+- being put out
+- being miffed
+- pique
+- being nettled
+- being rankled
+- chafing
+- restiveness
+- annoyance
+- irritation
+- irritability
+- being hangry
+- vexation
+- aggravation
+- botheration
+- exasperation
+- fond exasperation
+- frustration
+- peevishness
+- petulance
+- pettishness
+- testiness
+- tetchiness
+- touchiness
+- prickliness
+- snappishness
+- waspishness
+- crankiness
+- orneriness
+- cantankerousness
+- crabbiness
+- grumpiness
+- grouchiness
+- crossness
+- shirtiness
+- rattiness
+- stroppiness
+- huffiness
+- in a snit
+- in a pet
+- in a paddy
+- in a bate
+- having the hump
+- sulkiness
+- sullenness
+- being fed up
+- being sick and tired
+- last-straw feeling
+- being ticked off
+- being cheesed off
+- being hacked off
+- being narked
+- being pissed off
+- hot under the collar
+- being wound up
+- being worked up
+- het up
+- riled up
+- steamed
+- bristling
+- feeling provoked
+- feeling goaded
+- umbrage
+- feeling offended
+- affront (felt)
+- feeling slighted
+- feeling insulted
+- feeling aggrieved
+- grievance
+- feeling wronged
+- sense of injustice
+- feeling hard done by
+- feeling betrayed
+- reproachfulness
+- resentment
+- ressentiment
+- simmering
+- slow burn
+- smoldering
+- rancor
+- bitterness
+- sourness
+- gall
+- spleen
+- grudge
+- ill will
+- animus
+- animosity
+- hostility
+- antagonism
+- malice
+- malevolence
+- spite
+- vindictiveness
+- vengefulness
+- thirst for vengeance
+- the urge to retaliate
+- bolshiness
+- bloody-mindedness
+- mutinousness
+- defiance
+- reactance
+- belligerence
+- pugnacity
+- combativeness
+- spoiling for a fight
+- thumos
+- anger
+- ire
+- choler
+- dudgeon
+- indignation
+- righteous indignation
+- scandalization
+- moral outrage
+- outrage
+- being incensed
+- being inflamed
+- fuming
+- seething
+- swallowed anger
+- pent-up anger
+- cold anger
+- cold fury
+- hatred
+- fury
+- wrath
+- furor
+- ferocity
+- being livid
+- apoplexy
+- towering rage
+- incandescent rage
+- white-hot rage
+- blind rage
+- seeing red
+- the red mist
+- at boiling point
+- the urge to break something
+- the urge to lash out
+- road rage
+- conniption
+- paroxysm of rage
+- helpless rage
+- rage
+- murderous rage
+- bloodlust
+- battle fury
+- frenzy
+- berserk fury
+- amok
+- ataraxia
+- phlegm
+- stolidity
+- even-temperedness
+- sweet-temperedness
+- placability
+- irenicism
+- sufferance
+- being reconciled
+- burying the hatchet
+- water under the bridge
+- being propitiated
+- being disarmed
+- irascibility
+- iracundity
+- bad temper
+- hot-headedness
+- a short fuse
+- being mad
+- being sore
+- saltiness
+- surliness
+- gruffness
+- fractiousness
+- querulousness
+- curmudgeonliness
+- mardiness
+- liverishness
+- biliousness
+- dyspepsia
+- foul temper
+- contrariness
+- cussedness
+- obstreperousness
+- recalcitrance
+- passive-aggressiveness
+- frostiness
+- a chip on one's shoulder
+- acrimony
+- asperity
+- acerbity
+- bile
+- venom
+- vitriol
+- malignity
+- bad blood
+- vendetta
+- at daggers drawn
+- implacability
+- revanchism
+- bellicosity
+- contentiousness
+- quarrelsomeness
+- feistiness
+- aggression
+- on the warpath
+- up in arms
+- hackles up
+- having one's dander up
+- at the end of one's tether
+- hopping mad
+- fit to be tied
+- spitting nails
+- foaming at the mouth
+- tempestuousness
+- tantrum
+- hissy fit
+- meltdown

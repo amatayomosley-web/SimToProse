@@ -1,0 +1,125 @@
+# CARE-unbound — names
+
+**Names only.** Vectors and definitions are a later pass.
+
+- General benevolence
+- Piety
+- Agape
+- Ruthlessness
+- Pitilessness
+- Mercilessness
+- Heartlessness
+- Stony-heartedness
+- Hard-heartedness
+- Cold-heartedness
+- Coldness
+- Psychic numbing
+- Compassion collapse
+- Caregiver burnout
+- Empathy fatigue
+- Donor fatigue
+- Carewornness
+- Feeling wrung dry
+- Dispassion
+- Purposelessness
+- Uselessness
+- Obsolescence
+- Superfluousness
+- Feeling surplus to requirements
+- Feeling put out to pasture
+- Feeling shelved
+- At loose ends
+- Unneeded
+- Respite
+- Off-duty ease
+- Readiness
+- Gentleness
+- Thoughtfulness
+- Considerateness
+- Neighborliness
+- Public-spiritedness
+- Goodwill
+- Benignity
+- Kindliness
+- Kindness
+- Warmheartedness
+- Fellow-feeling
+- Humaneness
+- Ruth
+- Mercifulness
+- Clemency
+- Charitableness
+- Beneficence
+- Graciousness
+- Milk of human kindness
+- Bowels of compassion
+- Openheartedness
+- Softheartedness
+- Big-heartedness
+- Lovingkindness
+- Chesed
+- Metta
+- Karuna
+- Caritas
+- Omoiyari
+- Philoxenia
+- Ubuntu
+- Bodhicitta
+- Altruism
+- Humanitarian impulse
+- Charitable impulse
+- Generosity of spirit
+- Open-handedness
+- Largesse
+- Munificence
+- Bounteousness
+- Helpfulness
+- Hospitableness
+- Mother-hen feeling
+- Motherliness
+- Parental feeling
+- Nurturance
+- Tend-and-befriend urge
+- Alloparental urge
+- Generativity
+- Broodiness
+- Cluckiness
+- Baby fever
+- Mothering urge
+- Feeling touched
+- Feeling moved
+- Kama muta
+- Tending
+- Helper's high
+- Yearning to nurture
+- Longing to be needed
+- Ache to tend
+- Empty-arms ache
+- Love with nowhere to go
+- Overspending
+- Oversolicitousness
+- Overprotectiveness
+- Overinvestment
+- Smother love
+- Rescue compulsion
+- Savior complex
+- Compulsive caregiving
+- Pathological altruism
+- Codependency
+- Hyperempathy
+- Empathic distress
+- Unspendable
+- Frustrated nurturance
+- Thwarted tenderness
+- Pent-up tenderness
+- Bottled-up care
+- Dammed-up love
+- Unspent tenderness
+- Surfeit of care
+- Overfullness of heart
+- Heart too full
+- Cup running over
+- Universal love
+- Boundless compassion
+- Inhumanity
+- Humanity

@@ -1,0 +1,162 @@
+# SEEKING-outward — names
+
+**Names only.** Vectors and definitions are a later pass.
+
+- Avolition
+- Abulia
+- Acedia
+- Apathy
+- Hebetude
+- Torpor
+- Lethargy
+- Languor
+- Lassitude
+- Listlessness
+- Inertia
+- Sluggishness
+- The doldrums
+- Stagnation
+- Burnout
+- Demoralization
+- Quiescence
+- Satedness
+- Surfeit
+- Contentment
+- Indolence
+- Incurious
+- Incuriosity
+- Disinterest
+- Indifference
+- Feeling blasé
+- Meh
+- Boredom
+- Tedium
+- Velleity
+- Whim
+- Passing fancy
+- Caprice
+- Idle curiosity
+- Interest
+- Inquisitiveness
+- Nosiness
+- Intrigue
+- Epistemic curiosity
+- Morbid curiosity
+- Neophilia
+- Stimulus hunger
+- Engagement
+- Absorption
+- Engrossment
+- Captivation
+- Fascination
+- Enthrallment
+- Anticipation
+- Expectancy
+- Anticipatory pleasure
+- Vorfreude
+- Hope
+- Optimism
+- Temptation
+- Eagerness
+- Keenness
+- Alacrity
+- Élan
+- Verve
+- Brio
+- Excitement
+- Impatience
+- Restlessness
+- Antsiness
+- Cabin fever
+- Itchy feet
+- Wanderlust
+- Fernweh
+- Sehnsucht
+- Hankering
+- Yen
+- Champing at the bit
+- Raring to go
+- Drive
+- Motivation
+- Drivenness
+- Determination
+- Purposefulness
+- Zeal
+- Ardor
+- Fervor
+- Avidity
+- Appetite
+- Appetency
+- Wanting
+- The thrill of the chase
+- Gold fever
+- Aspiration
+- Ambition
+- Emulation
+- Power-hunger
+- Acquisitiveness
+- Covetousness
+- Cupidity
+- Greed
+- Avarice
+- Gluttony
+- Rapacity
+- Voracity
+- Pleonexia
+- FOMO
+- Urge
+- Preoccupation
+- Fixation
+- Monomania
+- Hypomania
+- Mania
+- Jonesing
+- Fiending
+- Cacoethes
+- Compulsion
+- Learned helplessness
+- Resignation
+- Hopelessness
+- Discouragement
+- Enervation
+- Apatheia
+- Sloth
+- Accidie
+- Faineance
+- Dolce far niente
+- Complacency
+- Inappetence
+- Pococurantism
+- Jadedness
+- World-weariness
+- Ennui
+- The blahs
+- Going through the motions
+- Halfheartedness
+- Sensation-seeking
+- Iktsuarpok
+- Yearning
+- Gusto
+- Vim
+- Get-up-and-go
+- Empressement
+- Appetition
+- Conatus
+- Nisus
+- Horme
+- Grit
+- Esurience
+- Edacity
+- Gulosity
+- Insatiability
+- Tantalization
+- Nympholepsy
+- Fanaticism
+- Obsession
+- Idée fixe
+- Hyperfocus
+- Limerence
+- Workaholism
+- Oniomania
+- Dipsomania
+- Perseveration

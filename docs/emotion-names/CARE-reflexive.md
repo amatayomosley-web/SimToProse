@@ -1,0 +1,118 @@
+# CARE-reflexive — names
+
+**Names only.** Vectors and definitions are a later pass.
+
+- Sheepishness
+- Indebtedness
+- Self-compassion
+- Suicidality
+- Death wish
+- Self-destructiveness
+- Masochism
+- Self-abandonment
+- Self-forsakenness
+- Self-erasure
+- Self-abnegation
+- Self-denial
+- Self-sacrifice
+- Feeling martyred
+- Self-neglect
+- Self-disregard
+- Self-carelessness
+- Self-recklessness
+- Reckless abandon
+- Feeling bulletproof
+- Heedlessness
+- Feeling expendable
+- Feeling disposable
+- Caregiver fatigue
+- Running on empty
+- Running on fumes
+- Depletion
+- Feeling spent
+- Feeling frayed
+- Feeling threadbare
+- Feeling hollowed out
+- Overextension
+- Numbness to one's own needs
+- Untendedness
+- Unattended
+- Self-concern
+- Self-attentiveness
+- Self-consideration
+- Self-mindfulness
+- Self-attunement
+- Self-acceptance
+- Self-tolerance
+- Self-patience
+- Self-leniency
+- Cutting oneself slack
+- Giving oneself grace
+- Self-permission
+- Self-forgiveness
+- Self-mercy
+- Self-pity
+- Wallowing
+- Self-sympathy
+- Self-validation
+- Self-reassurance
+- Self-kindness
+- Self-gentleness
+- Self-tenderness
+- Self-warmth
+- Self-friendliness
+- Self-cherishing
+- Self-appreciation
+- Self-solicitude
+- Self-nurturance
+- Self-mothering
+- Self-parenting
+- Reparenting
+- Self-holding
+- Self-soothing
+- Self-comforting
+- Self-consolation
+- Feeling comforted
+- Feeling soothed
+- Coziness
+- Hygge
+- Gemütlichkeit
+- Feeling pampered
+- Feeling cosseted
+- Feeling coddled
+- Feeling mollycoddled
+- Self-indulgence
+- Guilty pleasure
+- Self-pampering
+- Feeling nourished
+- Feeling replenished
+- Feeling restored
+- Feeling recharged
+- Restedness
+- Rejuvenation
+- Convalescence
+- Recuperation
+- On the mend
+- Self-tending
+- Self-ministration
+- Self-stewardship
+- Husbanding one's strength
+- Well-being
+- Ease
+- Self-interest
+- Selfishness
+- Self-prioritization
+- Putting oneself first
+- Feeling worth protecting
+- Feeling worth saving
+- Self-protectiveness
+- Self-guardianship
+- Feeling boundaried
+- Self-defensiveness
+- Hypochondria
+- Self-conservation
+- Survival instinct
+- Will to live
+- Clinging to life
+- Self-preservation
+- Self-sacrificing urge

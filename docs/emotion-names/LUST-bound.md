@@ -1,0 +1,97 @@
+# LUST-bound — names
+
+**Names only.** Vectors and definitions are a later pass.
+
+- indifferent
+- erotic boredom
+- sated
+- post-coital tristesse
+- attraction
+- aesthetic attraction
+- the spark
+- chemistry
+- the pull
+- kilig
+- butterflies
+- fancying someone
+- sweet on someone
+- crush
+- calf love
+- puppy love
+- twitterpated
+- smitten
+- taken with someone
+- charmed
+- beguiled
+- captivated
+- enchanted
+- bewitched
+- spellbound
+- mesmerized
+- intrigued by someone
+- desire
+- having the hots
+- turned on
+- amorousness
+- passion
+- eros
+- sexual tension
+- smouldering
+- lust
+- in heat
+- guilty attraction
+- unwilling attraction
+- the thrill of the forbidden
+- tantalized
+- under someone's skin
+- rekindled desire
+- aching for someone
+- languishing
+- lovelorn
+- carrying a torch
+- mooning over someone
+- unrequited longing
+- hunger for someone
+- coveting
+- infatuation
+- coup de foudre
+- lovestruck
+- head over heels
+- besotted
+- enamoured
+- lovesick
+- swooning
+- weak in the knees
+- intoxicated with someone
+- amour fou
+- addicted to someone
+- fevered longing
+- ravenous for someone
+- possessed by desire
+- consumed
+- left cold
+- turned off
+- the ick
+- gone off someone
+- cooled on someone
+- afterglow
+- taking a shine to someone
+- koi no yokan
+- forelsket
+- mamihlapinatapai
+- falling for someone
+- new relationship energy
+- wandering eye
+- love-hate
+- horny
+- randy
+- grand passion
+- burning for someone
+- pining for someone
+- yearning for someone
+- love-longing
+- got someone on the brain
+- down bad
+- simping
+- moth to a flame
+- in thrall to someone

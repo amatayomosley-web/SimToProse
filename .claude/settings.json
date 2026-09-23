@@ -1,0 +1,44 @@
+{
+  "$comment": [
+    "Project-scoped harness config for simulated-world-evolve.",
+    "",
+    "WHY THIS FILE EXISTS AT ALL. Until 2026-07-25 this repo had no settings.json.",
+    "Its three hooks (ground_from_book, citation_gate, beat_blind_guard) are all",
+    "declared in .claude/skills/showrunner/SKILL.md frontmatter, which means they",
+    "are LIFECYCLE-SCOPED to that skill -- they exist only while it is loaded. That",
+    "is correct for those three: they guard book work, and book work means the",
+    "showrunner is loaded.",
+    "",
+    "It cannot work for a wake. A SessionStart hook has to fire before any skill",
+    "could be loaded, so it cannot ride a skill's frontmatter. Project settings is",
+    "the only place it can live.",
+    "",
+    "SCOPE DISCIPLINE. This file registers ONE hook and declares no permissions,",
+    "no env, and no other events. The skill-scoped hooks stay where they are;",
+    "nothing here duplicates or overrides them."
+  ],
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/swe_wake.py\"",
+            "timeout": 5000
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/swe_router.py\"",
+            "timeout": 5000
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,2 @@
+# Character sheets live here — one file per character (see docs/character-schema.md).
+# Materialized by the showrunner from the character-generator's returned sheet; state fields mirror the run DB as the sim runs.

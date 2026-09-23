@@ -1,0 +1,192 @@
+# SEEKING-reflexive — names
+
+**Names only.** Vectors and definitions are a later pass.
+
+- self-forgetfulness
+- unselfconsciousness
+- egolessness
+- selflessness
+- the feeling of being nobody in particular
+- self-effacement
+- lowliness
+- humility
+- modesty
+- unassumingness
+- diffidence
+- unremarked
+- self-doubt
+- being comfortable in one's own skin
+- quiet confidence
+- self-satisfaction
+- smugness
+- dignity
+- sense of honor
+- philotimo
+- izzat
+- amour-propre
+- self-regard
+- self-possession
+- poise
+- assurance
+- self-assurance
+- self-confidence
+- self-belief
+- self-trust
+- self-reliance
+- self-efficacy
+- sense of agency
+- felt autonomy
+- felt sovereignty
+- empowerment
+- self-assertion
+- assertiveness
+- claiming
+- felt ownership
+- entitlement
+- vanity
+- conceit
+- self-conceit
+- big-headedness
+- feeling full of oneself
+- self-importance
+- pomposity
+- ego trip
+- main-character energy
+- cockiness
+- cocksureness
+- brashness
+- swagger
+- bumptiousness
+- uppityness
+- presumption
+- presumptuousness
+- brass
+- cheek
+- effrontery
+- chutzpah
+- imperiousness
+- hauteur
+- vindication
+- the feeling of being in the right
+- self-righteousness
+- being on one's high horse
+- the courage of one's convictions
+- conviction
+- certitude
+- self-certainty
+- resolve
+- resoluteness
+- sisu
+- firmness
+- steadfastness
+- adamance
+- insistence
+- standing on it
+- defensiveness
+- the urge to double down when contradicted
+- entrenchment
+- wounded pride
+- tenacity
+- doggedness
+- pertinacity
+- opinionatedness
+- perversity
+- thrawnness
+- frowardness
+- wilfulness
+- self-will
+- stubbornness
+- obstinacy
+- mulishness
+- pigheadedness
+- bullheadedness
+- hardheadedness
+- intransigence
+- inflexibility
+- rigidity
+- immovability
+- obduracy
+- contumacy
+- stiff-neckedness
+- felt integrity
+- felt authenticity
+- ego-involvement
+- identification
+- identity fusion
+- identified
+- identity threat
+- martyr complex
+- sense of calling
+- self-seriousness
+- egotism
+- ego inflation
+- holding a position you privately know is lost
+- the refusal to back down after being proven wrong
+- dogmatism
+- zealotry
+- overvalued idea
+- incorrigible
+- overweening
+- vainglory
+- grandiosity
+- delusions of grandeur
+- folie de grandeur
+- sense of destiny
+- chosenness
+- messiah complex
+- god complex
+- megalomania
+- egomania
+- sense of invincibility
+- felt infallibility
+- felt omnipotence
+- anatta
+- demureness
+- self-deprecation
+- unpretentiousness
+- deference
+- docility
+- tractability
+- pliability
+- suggestibility
+- persuadability
+- acquiescence
+- irresolution
+- vacillation
+- false modesty
+- self-respect
+- self-love
+- philautia
+- amour de soi
+- pride
+- mana
+- gumption
+- moxie
+- pushiness
+- immodesty
+- impudence
+- impertinence
+- machismo
+- overconfidence
+- arrogance
+- haughtiness
+- hubris
+- self-centeredness
+- self-aggrandizement
+- braggadocio
+- peremptoriness
+- standing one's ground
+- sticking to one's guns
+- digging in one's heels
+- having something to prove
+- refractoriness
+- waywardness
+- headstrongness
+- balkiness
+- intractability
+- being set in one's ways
+- mumpsimus
+- overcompensation
+- superiority complex
+- believing one's own hype
+- narcissism

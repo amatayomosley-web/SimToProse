@@ -1,0 +1,168 @@
+{"judge": "qwen2.5:32b", "arm": "A", "id": "one:RAGE", "kind": "primitive", "intended": "just rage and nothing else", "answered": "just care and nothing else", "raw": "just care and nothing else", "secs": 25.4}
+{"judge": "qwen2.5:32b", "arm": "A", "id": "cmp:pride", "kind": "compound", "intended": "pride", "answered": "cold", "raw": "cold", "secs": 3.8}
+{"judge": "qwen2.5:32b", "arm": "A", "id": "one:PLAY", "kind": "primitive", "intended": "just play and nothing else", "answered": "just care and nothing else", "raw": "just care and nothing else", "secs": 4.8}
+{"judge": "qwen2.5:32b", "arm": "A", "id": "cmp:scorn", "kind": "compound", "intended": "scorn", "answered": "just panic_grief and nothing else", "raw": "just panic_grief and nothing else", "secs": 5.6}
+{"judge": "qwen2.5:32b", "arm": "A", "id": "cmp:condescending", "kind": "compound", "intended": "condescending", "answered": "cold", "raw": "cold", "secs": 3.6}
+{"judge": "qwen2.5:32b", "arm": "A", "id": "cmp:cold", "kind": "compound", "intended": "cold", "answered": "cold", "raw": "cold", "secs": 3.8}
+{"judge": "qwen2.5:32b", "arm": "A", "id": "ctl:duplicate", "kind": "compound", "intended": "shame", "answered": "grief", "raw": "grief", "secs": 4.1}
+{"judge": "qwen2.5:32b", "arm": "A", "id": "cmp:smug", "kind": "compound", "intended": "smug", "answered": "cold", "raw": "cold", "secs": 3.8}
+{"judge": "qwen2.5:32b", "arm": "A", "id": "one:LUST", "kind": "primitive", "intended": "just lust and nothing else", "answered": "just seeking and nothing else", "raw": "just seeking and nothing else", "secs": 4.7}
+{"judge": "qwen2.5:32b", "arm": "A", "id": "cmp:mocking", "kind": "compound", "intended": "mocking", "answered": "just fear and nothing else", "raw": "just fear and nothing else", "secs": 4.8}
+{"judge": "qwen2.5:32b", "arm": "A", "id": "one:CARE", "kind": "primitive", "intended": "just care and nothing else", "answered": "just seeking and nothing else", "raw": "just seeking and nothing else", "secs": 4.8}
+{"judge": "qwen2.5:32b", "arm": "A", "id": "ctl:at_temperament", "kind": "control", "intended": "nothing in particular", "answered": "just care and nothing else", "raw": "just care and nothing else", "secs": 4.6}
+{"judge": "qwen2.5:32b", "arm": "A", "id": "cmp:spite", "kind": "compound", "intended": "spite", "answered": "grief", "raw": "grief", "secs": 4.1}
+{"judge": "qwen2.5:32b", "arm": "A", "id": "cmp:shame", "kind": "compound", "intended": "shame", "answered": "shame", "raw": "shame", "secs": 4.0}
+{"judge": "qwen2.5:32b", "arm": "A", "id": "cmp:excited", "kind": "compound", "intended": "excited", "answered": "cold", "raw": "cold", "secs": 3.7}
+{"judge": "qwen2.5:32b", "arm": "A", "id": "ctl:flat", "kind": "control", "intended": "nothing in particular", "answered": "nothing in particular", "raw": "nothing in particular", "secs": 4.1}
+{"judge": "qwen2.5:32b", "arm": "A", "id": "cmp:disdain", "kind": "compound", "intended": "disdain", "answered": "cold", "raw": "cold", "secs": 3.7}
+{"judge": "qwen2.5:32b", "arm": "A", "id": "ctl:lust_unbound", "kind": "control", "intended": "just lust and nothing else", "answered": "just seeking and nothing else", "raw": "just seeking and nothing else", "secs": 4.8}
+{"judge": "qwen2.5:32b", "arm": "A", "id": "cmp:passive_aggressive", "kind": "compound", "intended": "passive_aggressive", "answered": "contempt", "raw": "contempt", "secs": 4.1}
+{"judge": "qwen2.5:32b", "arm": "A", "id": "cmp:embarrassment", "kind": "compound", "intended": "embarrassment", "answered": "cold", "raw": "cold", "secs": 3.7}
+{"judge": "qwen2.5:32b", "arm": "A", "id": "one:DISGUST", "kind": "primitive", "intended": "just disgust and nothing else", "answered": "just panic_grief and nothing else", "raw": "just panic_grief and nothing else", "secs": 5.3}
+{"judge": "qwen2.5:32b", "arm": "A", "id": "one:FEAR", "kind": "primitive", "intended": "just fear and nothing else", "answered": "just fear and nothing else", "raw": "just fear and nothing else", "secs": 4.8}
+{"judge": "qwen2.5:32b", "arm": "A", "id": "one:PANIC_GRIEF", "kind": "primitive", "intended": "just panic_grief and nothing else", "answered": "excited", "raw": "excited", "secs": 4.0}
+{"judge": "qwen2.5:32b", "arm": "A", "id": "cmp:self_loathing", "kind": "compound", "intended": "self_loathing", "answered": "shame", "raw": "shame", "secs": 4.1}
+{"judge": "qwen2.5:32b", "arm": "A", "id": "cmp:haughty", "kind": "compound", "intended": "haughty", "answered": "cold", "raw": "cold", "secs": 3.7}
+{"judge": "qwen2.5:32b", "arm": "A", "id": "cmp:grief", "kind": "compound", "intended": "grief", "answered": "grief", "raw": "grief", "secs": 4.1}
+{"judge": "qwen2.5:32b", "arm": "A", "id": "one:SEEKING", "kind": "primitive", "intended": "just seeking and nothing else", "answered": "just panic_grief and nothing else", "raw": "just panic_grief and nothing else", "secs": 5.4}
+{"judge": "qwen2.5:32b", "arm": "A", "id": "cmp:contempt", "kind": "compound", "intended": "contempt", "answered": "cold", "raw": "cold", "secs": 3.8}
+{"judge": "qwen2.5:32b", "arm": "B", "id": "one:LUST", "kind": "primitive", "intended": "just lust and nothing else", "answered": "just seeking and nothing else", "raw": "just seeking and nothing else", "secs": 4.8}
+{"judge": "qwen2.5:32b", "arm": "B", "id": "cmp:mocking", "kind": "compound", "intended": "mocking", "answered": "cold", "raw": "cold", "secs": 3.8}
+{"judge": "qwen2.5:32b", "arm": "B", "id": "cmp:pride", "kind": "compound", "intended": "pride", "answered": "shame", "raw": "shame", "secs": 4.1}
+{"judge": "qwen2.5:32b", "arm": "B", "id": "cmp:haughty", "kind": "compound", "intended": "haughty", "answered": "cold", "raw": "cold", "secs": 3.7}
+{"judge": "qwen2.5:32b", "arm": "B", "id": "ctl:flat", "kind": "control", "intended": "nothing in particular", "answered": "nothing in particular", "raw": "nothing in particular", "secs": 4.1}
+{"judge": "qwen2.5:32b", "arm": "B", "id": "cmp:passive_aggressive", "kind": "compound", "intended": "passive_aggressive", "answered": "cold", "raw": "cold", "secs": 3.7}
+{"judge": "qwen2.5:32b", "arm": "B", "id": "cmp:condescending", "kind": "compound", "intended": "condescending", "answered": "cold", "raw": "cold", "secs": 3.7}
+{"judge": "qwen2.5:32b", "arm": "B", "id": "one:PLAY", "kind": "primitive", "intended": "just play and nothing else", "answered": "just care and nothing else", "raw": "just care and nothing else", "secs": 4.7}
+{"judge": "qwen2.5:32b", "arm": "B", "id": "cmp:self_loathing", "kind": "compound", "intended": "self_loathing", "answered": "cold", "raw": "cold", "secs": 3.8}
+{"judge": "qwen2.5:32b", "arm": "B", "id": "cmp:excited", "kind": "compound", "intended": "excited", "answered": "cold", "raw": "cold", "secs": 3.8}
+{"judge": "qwen2.5:32b", "arm": "B", "id": "one:DISGUST", "kind": "primitive", "intended": "just disgust and nothing else", "answered": "just care and nothing else", "raw": "just care and nothing else", "secs": 4.7}
+{"judge": "qwen2.5:32b", "arm": "B", "id": "cmp:cold", "kind": "compound", "intended": "cold", "answered": "cold", "raw": "cold", "secs": 3.8}
+{"judge": "qwen2.5:32b", "arm": "B", "id": "cmp:scorn", "kind": "compound", "intended": "scorn", "answered": "contempt", "raw": "contempt", "secs": 4.1}
+{"judge": "qwen2.5:32b", "arm": "B", "id": "cmp:shame", "kind": "compound", "intended": "shame", "answered": "cold", "raw": "cold", "secs": 3.8}
+{"judge": "qwen2.5:32b", "arm": "B", "id": "one:FEAR", "kind": "primitive", "intended": "just fear and nothing else", "answered": "just care and nothing else", "raw": "just care and nothing else", "secs": 5.0}
+{"judge": "qwen2.5:32b", "arm": "B", "id": "cmp:disdain", "kind": "compound", "intended": "disdain", "answered": "cold", "raw": "cold", "secs": 3.9}
+{"judge": "qwen2.5:32b", "arm": "B", "id": "ctl:duplicate", "kind": "compound", "intended": "shame", "answered": "cold", "raw": "cold", "secs": 3.8}
+{"judge": "qwen2.5:32b", "arm": "B", "id": "cmp:spite", "kind": "compound", "intended": "spite", "answered": "cold", "raw": "cold", "secs": 3.8}
+{"judge": "qwen2.5:32b", "arm": "B", "id": "ctl:lust_unbound", "kind": "control", "intended": "just lust and nothing else", "answered": "just seeking and nothing else", "raw": "just seeking and nothing else", "secs": 4.7}
+{"judge": "qwen2.5:32b", "arm": "B", "id": "cmp:embarrassment", "kind": "compound", "intended": "embarrassment", "answered": "just fear and nothing else", "raw": "just fear and nothing else", "secs": 4.8}
+{"judge": "qwen2.5:32b", "arm": "B", "id": "one:SEEKING", "kind": "primitive", "intended": "just seeking and nothing else", "answered": "just care and nothing else", "raw": "just care and nothing else", "secs": 4.8}
+{"judge": "qwen2.5:32b", "arm": "B", "id": "cmp:contempt", "kind": "compound", "intended": "contempt", "answered": "cold", "raw": "cold", "secs": 3.8}
+{"judge": "qwen2.5:32b", "arm": "B", "id": "one:PANIC_GRIEF", "kind": "primitive", "intended": "just panic_grief and nothing else", "answered": null, "raw": "just seek and nothing else", "secs": 4.7}
+{"judge": "qwen2.5:32b", "arm": "B", "id": "one:CARE", "kind": "primitive", "intended": "just care and nothing else", "answered": "just panic_grief and nothing else", "raw": "just panic_grief and nothing else", "secs": 5.3}
+{"judge": "qwen2.5:32b", "arm": "B", "id": "ctl:at_temperament", "kind": "control", "intended": "nothing in particular", "answered": "just care and nothing else", "raw": "just care and nothing else", "secs": 4.6}
+{"judge": "qwen2.5:32b", "arm": "B", "id": "cmp:grief", "kind": "compound", "intended": "grief", "answered": "cold", "raw": "cold", "secs": 3.8}
+{"judge": "qwen2.5:32b", "arm": "B", "id": "cmp:smug", "kind": "compound", "intended": "smug", "answered": "cold", "raw": "cold", "secs": 3.8}
+{"judge": "qwen2.5:32b", "arm": "B", "id": "one:RAGE", "kind": "primitive", "intended": "just rage and nothing else", "answered": "contempt", "raw": "contempt", "secs": 4.1}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "A", "id": "one:LUST", "kind": "primitive", "intended": "just lust and nothing else", "answered": "just lust and nothing else", "raw": "just lust and nothing else", "secs": 27.2}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "A", "id": "ctl:flat", "kind": "control", "intended": "nothing in particular", "answered": "nothing in particular", "raw": "nothing in particular", "secs": 3.5}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "A", "id": "cmp:cold", "kind": "compound", "intended": "cold", "answered": "cold", "raw": "cold", "secs": 3.4}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "A", "id": "ctl:lust_unbound", "kind": "control", "intended": "just lust and nothing else", "answered": "just seeking and nothing else", "raw": "just seeking and nothing else", "secs": 3.9}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "A", "id": "ctl:duplicate", "kind": "compound", "intended": "shame", "answered": "cold", "raw": "cold", "secs": 3.5}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "A", "id": "cmp:haughty", "kind": "compound", "intended": "haughty", "answered": "cold", "raw": "cold", "secs": 3.4}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "A", "id": "cmp:grief", "kind": "compound", "intended": "grief", "answered": "cold", "raw": "cold", "secs": 3.5}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "A", "id": "cmp:mocking", "kind": "compound", "intended": "mocking", "answered": "cold", "raw": "cold", "secs": 3.3}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "A", "id": "cmp:condescending", "kind": "compound", "intended": "condescending", "answered": "cold", "raw": "cold", "secs": 3.2}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "A", "id": "one:CARE", "kind": "primitive", "intended": "just care and nothing else", "answered": "just care and nothing else", "raw": "just care and nothing else", "secs": 3.8}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "A", "id": "cmp:passive_aggressive", "kind": "compound", "intended": "passive_aggressive", "answered": "grief", "raw": "grief", "secs": 3.7}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "A", "id": "ctl:at_temperament", "kind": "control", "intended": "nothing in particular", "answered": "just care and nothing else", "raw": "just care and nothing else", "secs": 4.0}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "A", "id": "cmp:embarrassment", "kind": "compound", "intended": "embarrassment", "answered": "cold", "raw": "cold", "secs": 3.3}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "A", "id": "one:PANIC_GRIEF", "kind": "primitive", "intended": "just panic_grief and nothing else", "answered": "just seeking and nothing else", "raw": "just seeking and nothing else", "secs": 3.9}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "A", "id": "cmp:smug", "kind": "compound", "intended": "smug", "answered": "just seeking and nothing else", "raw": "just seeking and nothing else", "secs": 4.0}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "A", "id": "one:SEEKING", "kind": "primitive", "intended": "just seeking and nothing else", "answered": "just care and nothing else", "raw": "just care and nothing else", "secs": 4.0}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "A", "id": "one:FEAR", "kind": "primitive", "intended": "just fear and nothing else", "answered": "just care and nothing else", "raw": "just care and nothing else", "secs": 4.0}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "A", "id": "cmp:scorn", "kind": "compound", "intended": "scorn", "answered": "cold", "raw": "cold", "secs": 3.5}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "A", "id": "cmp:contempt", "kind": "compound", "intended": "contempt", "answered": "disdain", "raw": "disdain", "secs": 3.5}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "A", "id": "one:DISGUST", "kind": "primitive", "intended": "just disgust and nothing else", "answered": "passive_aggressive", "raw": "passive_aggressive", "secs": 3.6}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "A", "id": "cmp:excited", "kind": "compound", "intended": "excited", "answered": "cold", "raw": "cold", "secs": 3.4}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "A", "id": "cmp:self_loathing", "kind": "compound", "intended": "self_loathing", "answered": "cold", "raw": "cold", "secs": 3.4}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "A", "id": "cmp:pride", "kind": "compound", "intended": "pride", "answered": "disdain", "raw": "disdain", "secs": 3.6}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "A", "id": "one:RAGE", "kind": "primitive", "intended": "just rage and nothing else", "answered": "just care and nothing else", "raw": "just care and nothing else", "secs": 4.0}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "A", "id": "cmp:spite", "kind": "compound", "intended": "spite", "answered": "cold", "raw": "cold", "secs": 3.6}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "A", "id": "cmp:disdain", "kind": "compound", "intended": "disdain", "answered": "grief", "raw": "grief", "secs": 3.5}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "A", "id": "cmp:shame", "kind": "compound", "intended": "shame", "answered": "grief", "raw": "grief", "secs": 3.6}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "A", "id": "one:PLAY", "kind": "primitive", "intended": "just play and nothing else", "answered": "just care and nothing else", "raw": "just care and nothing else", "secs": 3.9}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "B", "id": "one:CARE", "kind": "primitive", "intended": "just care and nothing else", "answered": "just care and nothing else", "raw": "just care and nothing else", "secs": 3.8}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "B", "id": "one:PLAY", "kind": "primitive", "intended": "just play and nothing else", "answered": "just care and nothing else", "raw": "just care and nothing else", "secs": 3.8}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "B", "id": "cmp:scorn", "kind": "compound", "intended": "scorn", "answered": "cold", "raw": "cold", "secs": 3.5}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "B", "id": "one:LUST", "kind": "primitive", "intended": "just lust and nothing else", "answered": "just seeking and nothing else", "raw": "just seeking and nothing else", "secs": 3.9}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "B", "id": "cmp:shame", "kind": "compound", "intended": "shame", "answered": "cold", "raw": "cold", "secs": 3.5}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "B", "id": "cmp:cold", "kind": "compound", "intended": "cold", "answered": "passive_aggressive", "raw": "passive_aggressive", "secs": 3.7}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "B", "id": "cmp:mocking", "kind": "compound", "intended": "mocking", "answered": "nothing in particular", "raw": "nothing in particular", "secs": 3.6}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "B", "id": "cmp:haughty", "kind": "compound", "intended": "haughty", "answered": "shame", "raw": "shame", "secs": 3.4}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "B", "id": "ctl:lust_unbound", "kind": "control", "intended": "just lust and nothing else", "answered": "just seeking and nothing else", "raw": "just seeking and nothing else", "secs": 3.8}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "B", "id": "cmp:grief", "kind": "compound", "intended": "grief", "answered": "cold", "raw": "cold", "secs": 3.5}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "B", "id": "cmp:excited", "kind": "compound", "intended": "excited", "answered": "cold", "raw": "cold", "secs": 3.4}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "B", "id": "cmp:pride", "kind": "compound", "intended": "pride", "answered": "shame", "raw": "shame", "secs": 3.5}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "B", "id": "cmp:condescending", "kind": "compound", "intended": "condescending", "answered": "cold", "raw": "cold", "secs": 3.4}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "B", "id": "one:DISGUST", "kind": "primitive", "intended": "just disgust and nothing else", "answered": "cold", "raw": "cold", "secs": 3.4}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "B", "id": "cmp:passive_aggressive", "kind": "compound", "intended": "passive_aggressive", "answered": "cold", "raw": "cold", "secs": 3.5}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "B", "id": "ctl:at_temperament", "kind": "control", "intended": "nothing in particular", "answered": "just care and nothing else", "raw": "just care and nothing else", "secs": 3.8}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "B", "id": "one:SEEKING", "kind": "primitive", "intended": "just seeking and nothing else", "answered": "just care and nothing else", "raw": "just care and nothing else", "secs": 3.9}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "B", "id": "cmp:contempt", "kind": "compound", "intended": "contempt", "answered": "cold", "raw": "cold", "secs": 3.5}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "B", "id": "one:RAGE", "kind": "primitive", "intended": "just rage and nothing else", "answered": "just care and nothing else", "raw": "just care and nothing else", "secs": 3.9}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "B", "id": "ctl:duplicate", "kind": "compound", "intended": "shame", "answered": "grief", "raw": "grief", "secs": 3.7}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "B", "id": "one:FEAR", "kind": "primitive", "intended": "just fear and nothing else", "answered": "shame", "raw": "shame", "secs": 3.5}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "B", "id": "cmp:disdain", "kind": "compound", "intended": "disdain", "answered": "cold", "raw": "cold", "secs": 3.5}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "B", "id": "cmp:embarrassment", "kind": "compound", "intended": "embarrassment", "answered": "cold", "raw": "cold", "secs": 3.4}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "B", "id": "one:PANIC_GRIEF", "kind": "primitive", "intended": "just panic_grief and nothing else", "answered": "just care and nothing else", "raw": "just care and nothing else", "secs": 4.0}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "B", "id": "ctl:flat", "kind": "control", "intended": "nothing in particular", "answered": "nothing in particular", "raw": "nothing in particular", "secs": 3.5}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "B", "id": "cmp:self_loathing", "kind": "compound", "intended": "self_loathing", "answered": "cold", "raw": "cold", "secs": 3.5}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "B", "id": "cmp:smug", "kind": "compound", "intended": "smug", "answered": "shame", "raw": "shame", "secs": 3.5}
+{"judge": "gemma4:31b-it-q4_K_M", "arm": "B", "id": "cmp:spite", "kind": "compound", "intended": "spite", "answered": "cold", "raw": "cold", "secs": 3.5}
+{"judge": "mistral-small:latest", "arm": "A", "id": "cmp:embarrassment", "kind": "compound", "intended": "embarrassment", "answered": "just fear and nothing else", "raw": "just fear and nothing else", "secs": 16.6}
+{"judge": "mistral-small:latest", "arm": "A", "id": "one:SEEKING", "kind": "primitive", "intended": "just seeking and nothing else", "answered": "just fear and nothing else", "raw": "just fear and nothing else", "secs": 3.3}
+{"judge": "mistral-small:latest", "arm": "A", "id": "cmp:disdain", "kind": "compound", "intended": "disdain", "answered": "shame", "raw": "shame", "secs": 3.1}
+{"judge": "mistral-small:latest", "arm": "A", "id": "cmp:cold", "kind": "compound", "intended": "cold", "answered": "shame", "raw": "shame", "secs": 3.0}
+{"judge": "mistral-small:latest", "arm": "A", "id": "cmp:mocking", "kind": "compound", "intended": "mocking", "answered": "just fear and nothing else", "raw": "just fear and nothing else", "secs": 3.5}
+{"judge": "mistral-small:latest", "arm": "A", "id": "ctl:at_temperament", "kind": "control", "intended": "nothing in particular", "answered": "just fear and nothing else", "raw": "just fear and nothing else", "secs": 3.4}
+{"judge": "mistral-small:latest", "arm": "A", "id": "one:LUST", "kind": "primitive", "intended": "just lust and nothing else", "answered": "just care and nothing else", "raw": "just care and nothing else", "secs": 3.4}
+{"judge": "mistral-small:latest", "arm": "A", "id": "one:FEAR", "kind": "primitive", "intended": "just fear and nothing else", "answered": "just fear and nothing else", "raw": "just fear and nothing else", "secs": 3.3}
+{"judge": "mistral-small:latest", "arm": "A", "id": "cmp:smug", "kind": "compound", "intended": "smug", "answered": "just care and nothing else", "raw": "just care and nothing else", "secs": 3.4}
+{"judge": "mistral-small:latest", "arm": "A", "id": "cmp:spite", "kind": "compound", "intended": "spite", "answered": "just fear and nothing else", "raw": "just fear and nothing else", "secs": 3.4}
+{"judge": "mistral-small:latest", "arm": "A", "id": "ctl:flat", "kind": "control", "intended": "nothing in particular", "answered": "nothing in particular", "raw": "nothing in particular", "secs": 3.1}
+{"judge": "mistral-small:latest", "arm": "A", "id": "one:CARE", "kind": "primitive", "intended": "just care and nothing else", "answered": "just care and nothing else", "raw": "just care and nothing else", "secs": 3.3}
+{"judge": "mistral-small:latest", "arm": "A", "id": "cmp:scorn", "kind": "compound", "intended": "scorn", "answered": "just fear and nothing else", "raw": "just fear and nothing else", "secs": 3.4}
+{"judge": "mistral-small:latest", "arm": "A", "id": "cmp:passive_aggressive", "kind": "compound", "intended": "passive_aggressive", "answered": "just fear and nothing else", "raw": "just fear and nothing else", "secs": 3.4}
+{"judge": "mistral-small:latest", "arm": "A", "id": "cmp:self_loathing", "kind": "compound", "intended": "self_loathing", "answered": "shame", "raw": "shame", "secs": 3.1}
+{"judge": "mistral-small:latest", "arm": "A", "id": "cmp:condescending", "kind": "compound", "intended": "condescending", "answered": "just fear and nothing else", "raw": "just fear and nothing else", "secs": 3.3}
+{"judge": "mistral-small:latest", "arm": "A", "id": "cmp:pride", "kind": "compound", "intended": "pride", "answered": "cold", "raw": "cold", "secs": 3.1}
+{"judge": "mistral-small:latest", "arm": "A", "id": "one:DISGUST", "kind": "primitive", "intended": "just disgust and nothing else", "answered": "just fear and nothing else", "raw": "just fear and nothing else", "secs": 3.3}
+{"judge": "mistral-small:latest", "arm": "A", "id": "one:RAGE", "kind": "primitive", "intended": "just rage and nothing else", "answered": "just fear and nothing else", "raw": "just fear and nothing else", "secs": 3.4}
+{"judge": "mistral-small:latest", "arm": "A", "id": "ctl:duplicate", "kind": "compound", "intended": "shame", "answered": "shame", "raw": "shame", "secs": 3.2}
+{"judge": "mistral-small:latest", "arm": "A", "id": "cmp:haughty", "kind": "compound", "intended": "haughty", "answered": "cold", "raw": "cold", "secs": 3.0}
+{"judge": "mistral-small:latest", "arm": "A", "id": "cmp:shame", "kind": "compound", "intended": "shame", "answered": "just fear and nothing else", "raw": "just fear and nothing else", "secs": 3.5}
+{"judge": "mistral-small:latest", "arm": "A", "id": "one:PANIC_GRIEF", "kind": "primitive", "intended": "just panic_grief and nothing else", "answered": "just seeking and nothing else", "raw": "just seeking and nothing else", "secs": 3.4}
+{"judge": "mistral-small:latest", "arm": "A", "id": "one:PLAY", "kind": "primitive", "intended": "just play and nothing else", "answered": "passive_aggressive", "raw": "passive_aggressive", "secs": 3.2}
+{"judge": "mistral-small:latest", "arm": "A", "id": "cmp:grief", "kind": "compound", "intended": "grief", "answered": "grief", "raw": "just grief and nothing else", "secs": 3.4}
+{"judge": "mistral-small:latest", "arm": "A", "id": "cmp:excited", "kind": "compound", "intended": "excited", "answered": "cold", "raw": "cold", "secs": 3.1}
+{"judge": "mistral-small:latest", "arm": "A", "id": "cmp:contempt", "kind": "compound", "intended": "contempt", "answered": "contempt", "raw": "contempt", "secs": 3.1}
+{"judge": "mistral-small:latest", "arm": "A", "id": "ctl:lust_unbound", "kind": "control", "intended": "just lust and nothing else", "answered": "embarrassment", "raw": "embarrassment", "secs": 3.1}
+{"judge": "mistral-small:latest", "arm": "B", "id": "ctl:duplicate", "kind": "compound", "intended": "shame", "answered": "grief", "raw": "just grief and nothing else", "secs": 3.4}
+{"judge": "mistral-small:latest", "arm": "B", "id": "ctl:flat", "kind": "control", "intended": "nothing in particular", "answered": "nothing in particular", "raw": "nothing in particular", "secs": 3.1}
+{"judge": "mistral-small:latest", "arm": "B", "id": "cmp:mocking", "kind": "compound", "intended": "mocking", "answered": "just fear and nothing else", "raw": "just fear and nothing else", "secs": 3.4}
+{"judge": "mistral-small:latest", "arm": "B", "id": "cmp:smug", "kind": "compound", "intended": "smug", "answered": "contempt", "raw": "contempt", "secs": 3.2}
+{"judge": "mistral-small:latest", "arm": "B", "id": "cmp:embarrassment", "kind": "compound", "intended": "embarrassment", "answered": "just fear and nothing else", "raw": "just fear and nothing else", "secs": 3.5}
+{"judge": "mistral-small:latest", "arm": "B", "id": "cmp:shame", "kind": "compound", "intended": "shame", "answered": "shame", "raw": "shame", "secs": 3.1}
+{"judge": "mistral-small:latest", "arm": "B", "id": "cmp:excited", "kind": "compound", "intended": "excited", "answered": "just fear and nothing else", "raw": "just fear and nothing else", "secs": 3.5}
+{"judge": "mistral-small:latest", "arm": "B", "id": "cmp:scorn", "kind": "compound", "intended": "scorn", "answered": "just disgust and nothing else", "raw": "just disgust and nothing else", "secs": 3.5}
+{"judge": "mistral-small:latest", "arm": "B", "id": "cmp:cold", "kind": "compound", "intended": "cold", "answered": "just fear and nothing else", "raw": "just fear and nothing else", "secs": 3.4}
+{"judge": "mistral-small:latest", "arm": "B", "id": "ctl:lust_unbound", "kind": "control", "intended": "just lust and nothing else", "answered": "just seeking and nothing else", "raw": "just seeking and nothing else", "secs": 3.4}
+{"judge": "mistral-small:latest", "arm": "B", "id": "ctl:at_temperament", "kind": "control", "intended": "nothing in particular", "answered": "just fear and nothing else", "raw": "just fear and nothing else", "secs": 3.4}
+{"judge": "mistral-small:latest", "arm": "B", "id": "cmp:contempt", "kind": "compound", "intended": "contempt", "answered": "just fear and nothing else", "raw": "just fear and nothing else", "secs": 3.5}
+{"judge": "mistral-small:latest", "arm": "B", "id": "cmp:haughty", "kind": "compound", "intended": "haughty", "answered": "contempt", "raw": "contempt", "secs": 3.1}
+{"judge": "mistral-small:latest", "arm": "B", "id": "one:PANIC_GRIEF", "kind": "primitive", "intended": "just panic_grief and nothing else", "answered": "just seeking and nothing else", "raw": "just seeking and nothing else", "secs": 3.3}
+{"judge": "mistral-small:latest", "arm": "B", "id": "cmp:passive_aggressive", "kind": "compound", "intended": "passive_aggressive", "answered": "just fear and nothing else", "raw": "just fear and nothing else", "secs": 3.4}
+{"judge": "mistral-small:latest", "arm": "B", "id": "one:SEEKING", "kind": "primitive", "intended": "just seeking and nothing else", "answered": "just care and nothing else", "raw": "just care and nothing else", "secs": 3.4}
+{"judge": "mistral-small:latest", "arm": "B", "id": "cmp:condescending", "kind": "compound", "intended": "condescending", "answered": "just fear and nothing else", "raw": "just fear and nothing else", "secs": 3.4}
+{"judge": "mistral-small:latest", "arm": "B", "id": "one:CARE", "kind": "primitive", "intended": "just care and nothing else", "answered": "just care and nothing else", "raw": "just care and nothing else", "secs": 3.4}
+{"judge": "mistral-small:latest", "arm": "B", "id": "one:RAGE", "kind": "primitive", "intended": "just rage and nothing else", "answered": "just fear and nothing else", "raw": "just fear and nothing else", "secs": 3.3}
+{"judge": "mistral-small:latest", "arm": "B", "id": "one:DISGUST", "kind": "primitive", "intended": "just disgust and nothing else", "answered": "embarrassment", "raw": "embarrassment", "secs": 3.2}
+{"judge": "mistral-small:latest", "arm": "B", "id": "cmp:spite", "kind": "compound", "intended": "spite", "answered": "contempt", "raw": "contempt", "secs": 3.2}
+{"judge": "mistral-small:latest", "arm": "B", "id": "cmp:grief", "kind": "compound", "intended": "grief", "answered": "shame", "raw": "just shame and nothing else", "secs": 3.3}
+{"judge": "mistral-small:latest", "arm": "B", "id": "cmp:pride", "kind": "compound", "intended": "pride", "answered": "shame", "raw": "shame", "secs": 3.1}
+{"judge": "mistral-small:latest", "arm": "B", "id": "one:PLAY", "kind": "primitive", "intended": "just play and nothing else", "answered": "just care and nothing else", "raw": "just care and nothing else", "secs": 3.3}
+{"judge": "mistral-small:latest", "arm": "B", "id": "cmp:self_loathing", "kind": "compound", "intended": "self_loathing", "answered": "grief", "raw": "grief", "secs": 3.1}
+{"judge": "mistral-small:latest", "arm": "B", "id": "cmp:disdain", "kind": "compound", "intended": "disdain", "answered": "just fear and nothing else", "raw": "just fear and nothing else", "secs": 3.3}
+{"judge": "mistral-small:latest", "arm": "B", "id": "one:FEAR", "kind": "primitive", "intended": "just fear and nothing else", "answered": "just fear and nothing else", "raw": "just fear and nothing else", "secs": 3.4}
+{"judge": "mistral-small:latest", "arm": "B", "id": "one:LUST", "kind": "primitive", "intended": "just lust and nothing else", "answered": "just seeking and nothing else", "raw": "just seeking and nothing else", "secs": 3.4}

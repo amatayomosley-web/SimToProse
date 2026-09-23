@@ -1,0 +1,4 @@
+#!/bin/sh
+# The publish gate: refuses tags, private terms in outgoing commits, and unreviewed commits.
+# Enable per checkout: git config core.hooksPath .githooks   (scripts/push_guard.py says why)
+exec python "$(dirname "$0")/../scripts/push_guard.py" "$@"

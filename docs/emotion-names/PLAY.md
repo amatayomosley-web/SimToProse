@@ -1,0 +1,158 @@
+# PLAY — names
+
+**Names only.** Vectors and definitions are a later pass.
+
+- Levity
+- Whimsy
+- Camaraderie
+- Teasing
+- Playfulness
+- Amusement
+- Banter / repartee
+- Wit
+- Mischief
+- Gallows humour
+- The giggles / suppressed laughter
+- Absurdist delight
+- Agonistic relish (competitive joy)
+- Mirth
+- Glee
+- Merriment
+- Jollity
+- Ilinx (vertigo-play)
+- Hilarity
+- Grimness
+- Dourness
+- Severity
+- Sternness
+- Solemnity
+- Gravity
+- Gravitas
+- Humourlessness
+- Mirthlessness
+- Joylessness
+- Po-facedness
+- High seriousness
+- Deadly seriousness
+- Dead earnest
+- Grim earnest
+- Earnest
+- Earnestness
+- Sobriety
+- Sober-mindedness
+- Staidness
+- All business
+- No-nonsense mood
+- Telic state
+- Drudgery
+- Perfunctoriness
+- Forced gaiety
+- Hollow levity
+- Strained jollity
+- Wryness
+- Archness
+- Irreverence
+- Flippancy
+- Facetiousness
+- Frivolity
+- Devil-may-care mood
+- Breeziness
+- Jauntiness
+- Airiness
+- Buoyancy
+- Blithesomeness
+- Lightheartedness
+- Gaiety
+- Jocularity
+- Jocundity
+- Jocosity
+- Drollery
+- Drollness
+- Jokiness
+- Waggishness
+- Waggery
+- Raillery
+- Persiflage
+- Badinage
+- Cheekiness
+- Sauciness
+- Naughtiness
+- Impishness
+- Puckishness
+- Roguishness
+- Prankishness
+- Devilment
+- Devilry
+- Espièglerie
+- Antic disposition
+- Madcap mood
+- Zaniness
+- Goofiness
+- Silliness
+- Daftness
+- The sillies
+- Giddiness
+- Slap-happiness
+- Punchiness
+- Kittenishness
+- Coltishness
+- Frolicsomeness
+- Rompishness
+- Sportiveness
+- Sportfulness
+- Gamesomeness
+- Larkiness
+- Sprightliness
+- Full of beans
+- High spirits
+- Exuberance
+- Ebullience
+- Boisterousness
+- Rambunctiousness
+- Sense of the ridiculous
+- Festivity
+- Holiday mood
+- Carnival spirit
+- Carnivalesque abandon
+- Party spirit
+- Revelry
+- Conviviality
+- Gezelligheid
+- Craic
+- Fun
+- Sense of fun
+- Make-believe
+- Fancifulness
+- Ludic mood
+- Paidia
+- Ludus
+- Paratelic state
+- Play
+- Wholeheartedness
+- Involvement
+- Interest in the game
+- Immersion
+- Entrancement
+- Spellboundness
+- Beguilement
+- Enchantment
+- Transfixion
+- Raptness
+- Transportation
+- Presence
+- Deep play
+- Lost in the game
+- Timelessness
+- Effortless attention
+- In one's element
+- On a roll
+- In the groove
+- The zone
+- Autotelic absorption
+- Funktionslust
+- Microflow
+- Group flow
+- Deep flow
+- Peak experience
+- White moment
+- Flow

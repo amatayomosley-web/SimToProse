@@ -1,0 +1,72 @@
+{"judge": "qwen2.5:32b", "cell": "disgust", "fixture": "flat", "asked": "contempt", "answered": "ONE", "correct": true, "raw": "ONE"}
+{"judge": "qwen2.5:32b", "cell": "disgust", "fixture": "flat", "asked": "shame", "answered": "TWO", "correct": true, "raw": "TWO"}
+{"judge": "qwen2.5:32b", "cell": "disgust", "fixture": "flat", "asked": "shame", "answered": "TWO", "correct": false, "raw": "TWO"}
+{"judge": "qwen2.5:32b", "cell": "disgust", "fixture": "flat", "asked": "contempt", "answered": "TWO", "correct": true, "raw": "TWO"}
+{"judge": "qwen2.5:32b", "cell": "disgust", "fixture": "ordinary", "asked": "contempt", "answered": "ONE", "correct": true, "raw": "ONE"}
+{"judge": "qwen2.5:32b", "cell": "disgust", "fixture": "ordinary", "asked": "shame", "answered": "TWO", "correct": true, "raw": "TWO"}
+{"judge": "qwen2.5:32b", "cell": "disgust", "fixture": "ordinary", "asked": "shame", "answered": "ONE", "correct": true, "raw": "ONE"}
+{"judge": "qwen2.5:32b", "cell": "disgust", "fixture": "ordinary", "asked": "contempt", "answered": "TWO", "correct": true, "raw": "TWO"}
+{"judge": "qwen2.5:32b", "cell": "seeking", "fixture": "flat", "asked": "excited", "answered": "ONE", "correct": true, "raw": "ONE"}
+{"judge": "qwen2.5:32b", "cell": "seeking", "fixture": "flat", "asked": "pride", "answered": "TWO", "correct": true, "raw": "TWO"}
+{"judge": "qwen2.5:32b", "cell": "seeking", "fixture": "flat", "asked": "pride", "answered": "ONE", "correct": true, "raw": "ONE"}
+{"judge": "qwen2.5:32b", "cell": "seeking", "fixture": "flat", "asked": "excited", "answered": "TWO", "correct": true, "raw": "TWO"}
+{"judge": "qwen2.5:32b", "cell": "seeking", "fixture": "ordinary", "asked": "excited", "answered": "ONE", "correct": true, "raw": "ONE"}
+{"judge": "qwen2.5:32b", "cell": "seeking", "fixture": "ordinary", "asked": "pride", "answered": "TWO", "correct": true, "raw": "TWO"}
+{"judge": "qwen2.5:32b", "cell": "seeking", "fixture": "ordinary", "asked": "pride", "answered": "ONE", "correct": true, "raw": "ONE"}
+{"judge": "qwen2.5:32b", "cell": "seeking", "fixture": "ordinary", "asked": "excited", "answered": "TWO", "correct": true, "raw": "TWO"}
+{"judge": "qwen2.5:32b", "cell": "POSITIVE", "fixture": "ordinary", "asked": "shame", "answered": "ONE", "correct": true, "raw": "ONE"}
+{"judge": "qwen2.5:32b", "cell": "POSITIVE", "fixture": "ordinary", "asked": "contempt", "answered": "TWO", "correct": true, "raw": "TWO"}
+{"judge": "qwen2.5:32b", "cell": "POSITIVE", "fixture": "ordinary", "asked": "contempt", "answered": "ONE", "correct": true, "raw": "ONE"}
+{"judge": "qwen2.5:32b", "cell": "POSITIVE", "fixture": "ordinary", "asked": "shame", "answered": "TWO", "correct": true, "raw": "TWO"}
+{"judge": "qwen2.5:32b", "cell": "BIASFLOOR", "fixture": "ordinary", "asked": "contempt", "answered": "ONE", "correct": true, "raw": "ONE\n\nThe description provided for both actors is identical, but the question asks which actor was in a state of contempt. Since the context given at the beginning states that Actor One was in a state of contempt and Actor Two was in a state of shame, the answer is ONE. The instructions themselves do not differentiate between the two emotional states, so we rely on the initial setup to determine th"}
+{"judge": "qwen2.5:32b", "cell": "BIASFLOOR", "fixture": "ordinary", "asked": "shame", "answered": "TWO", "correct": true, "raw": "TWO\n\nThe instructions given to both actors are identical, which means the difference between contempt and shame must be inferred from the context provided by the emotional states mentioned at the beginning. Since the question asks for an identification based on the emotional state of shame, and there's no textual difference in their stage directions, the answer is derived from the initial conditio"}
+{"judge": "qwen2.5:32b", "cell": "BIASFLOOR", "fixture": "ordinary", "asked": "excited", "answered": "ONE", "correct": true, "raw": "ONE"}
+{"judge": "qwen2.5:32b", "cell": "BIASFLOOR", "fixture": "ordinary", "asked": "pride", "answered": "TWO", "correct": true, "raw": "TWO"}
+{"judge": "gemma4:31b-it-q4_K_M", "cell": "disgust", "fixture": "flat", "asked": "contempt", "answered": "ONE", "correct": true, "raw": "ONE"}
+{"judge": "gemma4:31b-it-q4_K_M", "cell": "disgust", "fixture": "flat", "asked": "shame", "answered": "TWO", "correct": true, "raw": "TWO"}
+{"judge": "gemma4:31b-it-q4_K_M", "cell": "disgust", "fixture": "flat", "asked": "shame", "answered": "ONE", "correct": true, "raw": "ONE"}
+{"judge": "gemma4:31b-it-q4_K_M", "cell": "disgust", "fixture": "flat", "asked": "contempt", "answered": "TWO", "correct": true, "raw": "TWO"}
+{"judge": "gemma4:31b-it-q4_K_M", "cell": "disgust", "fixture": "ordinary", "asked": "contempt", "answered": "ONE", "correct": true, "raw": "ONE"}
+{"judge": "gemma4:31b-it-q4_K_M", "cell": "disgust", "fixture": "ordinary", "asked": "shame", "answered": "TWO", "correct": true, "raw": "TWO"}
+{"judge": "gemma4:31b-it-q4_K_M", "cell": "disgust", "fixture": "ordinary", "asked": "shame", "answered": "ONE", "correct": true, "raw": "ONE"}
+{"judge": "gemma4:31b-it-q4_K_M", "cell": "disgust", "fixture": "ordinary", "asked": "contempt", "answered": "TWO", "correct": true, "raw": "TWO"}
+{"judge": "gemma4:31b-it-q4_K_M", "cell": "seeking", "fixture": "flat", "asked": "excited", "answered": "ONE", "correct": true, "raw": "ONE"}
+{"judge": "gemma4:31b-it-q4_K_M", "cell": "seeking", "fixture": "flat", "asked": "pride", "answered": "TWO", "correct": true, "raw": "TWO"}
+{"judge": "gemma4:31b-it-q4_K_M", "cell": "seeking", "fixture": "flat", "asked": "pride", "answered": "ONE", "correct": true, "raw": "ONE"}
+{"judge": "gemma4:31b-it-q4_K_M", "cell": "seeking", "fixture": "flat", "asked": "excited", "answered": "TWO", "correct": true, "raw": "TWO"}
+{"judge": "gemma4:31b-it-q4_K_M", "cell": "seeking", "fixture": "ordinary", "asked": "excited", "answered": "ONE", "correct": true, "raw": "ONE"}
+{"judge": "gemma4:31b-it-q4_K_M", "cell": "seeking", "fixture": "ordinary", "asked": "pride", "answered": "TWO", "correct": true, "raw": "TWO"}
+{"judge": "gemma4:31b-it-q4_K_M", "cell": "seeking", "fixture": "ordinary", "asked": "pride", "answered": "ONE", "correct": true, "raw": "ONE"}
+{"judge": "gemma4:31b-it-q4_K_M", "cell": "seeking", "fixture": "ordinary", "asked": "excited", "answered": "TWO", "correct": true, "raw": "TWO"}
+{"judge": "gemma4:31b-it-q4_K_M", "cell": "POSITIVE", "fixture": "ordinary", "asked": "shame", "answered": "ONE", "correct": true, "raw": "ONE"}
+{"judge": "gemma4:31b-it-q4_K_M", "cell": "POSITIVE", "fixture": "ordinary", "asked": "contempt", "answered": "TWO", "correct": true, "raw": "TWO"}
+{"judge": "gemma4:31b-it-q4_K_M", "cell": "POSITIVE", "fixture": "ordinary", "asked": "contempt", "answered": "ONE", "correct": true, "raw": "ONE"}
+{"judge": "gemma4:31b-it-q4_K_M", "cell": "POSITIVE", "fixture": "ordinary", "asked": "shame", "answered": "TWO", "correct": true, "raw": "TWO"}
+{"judge": "gemma4:31b-it-q4_K_M", "cell": "BIASFLOOR", "fixture": "ordinary", "asked": "contempt", "answered": null, "correct": null, "raw": "Impossible"}
+{"judge": "gemma4:31b-it-q4_K_M", "cell": "BIASFLOOR", "fixture": "ordinary", "asked": "shame", "answered": "TWO", "correct": true, "raw": "TWO"}
+{"judge": "gemma4:31b-it-q4_K_M", "cell": "BIASFLOOR", "fixture": "ordinary", "asked": "excited", "answered": "TWO", "correct": false, "raw": "TWO"}
+{"judge": "gemma4:31b-it-q4_K_M", "cell": "BIASFLOOR", "fixture": "ordinary", "asked": "pride", "answered": "TWO", "correct": true, "raw": "TWO"}
+{"judge": "mistral-small:latest", "cell": "disgust", "fixture": "flat", "asked": "contempt", "answered": "ONE", "correct": true, "raw": "ONE"}
+{"judge": "mistral-small:latest", "cell": "disgust", "fixture": "flat", "asked": "shame", "answered": "TWO", "correct": true, "raw": "TWO"}
+{"judge": "mistral-small:latest", "cell": "disgust", "fixture": "flat", "asked": "shame", "answered": "ONE", "correct": true, "raw": "ONE"}
+{"judge": "mistral-small:latest", "cell": "disgust", "fixture": "flat", "asked": "contempt", "answered": "TWO", "correct": true, "raw": "TWO"}
+{"judge": "mistral-small:latest", "cell": "disgust", "fixture": "ordinary", "asked": "contempt", "answered": "ONE", "correct": true, "raw": "ONE"}
+{"judge": "mistral-small:latest", "cell": "disgust", "fixture": "ordinary", "asked": "shame", "answered": "TWO", "correct": true, "raw": "TWO"}
+{"judge": "mistral-small:latest", "cell": "disgust", "fixture": "ordinary", "asked": "shame", "answered": "ONE", "correct": true, "raw": "ONE"}
+{"judge": "mistral-small:latest", "cell": "disgust", "fixture": "ordinary", "asked": "contempt", "answered": "TWO", "correct": true, "raw": "TWO"}
+{"judge": "mistral-small:latest", "cell": "seeking", "fixture": "flat", "asked": "excited", "answered": "ONE", "correct": true, "raw": "ONE"}
+{"judge": "mistral-small:latest", "cell": "seeking", "fixture": "flat", "asked": "pride", "answered": "TWO", "correct": true, "raw": "TWO"}
+{"judge": "mistral-small:latest", "cell": "seeking", "fixture": "flat", "asked": "pride", "answered": "ONE", "correct": true, "raw": "ONE"}
+{"judge": "mistral-small:latest", "cell": "seeking", "fixture": "flat", "asked": "excited", "answered": "TWO", "correct": true, "raw": "TWO"}
+{"judge": "mistral-small:latest", "cell": "seeking", "fixture": "ordinary", "asked": "excited", "answered": "ONE", "correct": true, "raw": "ONE"}
+{"judge": "mistral-small:latest", "cell": "seeking", "fixture": "ordinary", "asked": "pride", "answered": "TWO", "correct": true, "raw": "TWO"}
+{"judge": "mistral-small:latest", "cell": "seeking", "fixture": "ordinary", "asked": "pride", "answered": "ONE", "correct": true, "raw": "ONE"}
+{"judge": "mistral-small:latest", "cell": "seeking", "fixture": "ordinary", "asked": "excited", "answered": "TWO", "correct": true, "raw": "TWO"}
+{"judge": "mistral-small:latest", "cell": "POSITIVE", "fixture": "ordinary", "asked": "shame", "answered": "ONE", "correct": true, "raw": "ONE"}
+{"judge": "mistral-small:latest", "cell": "POSITIVE", "fixture": "ordinary", "asked": "contempt", "answered": "TWO", "correct": true, "raw": "TWO"}
+{"judge": "mistral-small:latest", "cell": "POSITIVE", "fixture": "ordinary", "asked": "contempt", "answered": "ONE", "correct": true, "raw": "ONE"}
+{"judge": "mistral-small:latest", "cell": "POSITIVE", "fixture": "ordinary", "asked": "shame", "answered": "TWO", "correct": true, "raw": "TWO"}
+{"judge": "mistral-small:latest", "cell": "BIASFLOOR", "fixture": "ordinary", "asked": "contempt", "answered": null, "correct": null, "raw": "I don't have enough information to determine which actor was in a state of contempt based on the provided stage directions. Both actors have identical instructions."}
+{"judge": "mistral-small:latest", "cell": "BIASFLOOR", "fixture": "ordinary", "asked": "shame", "answered": "ONE", "correct": false, "raw": "I don't have enough information to determine which actor was in a state of shame based on the provided stage directions alone. Both actors have identical instructions, so there's no clear distinction between their behaviors that would indicate one is in a state of contempt and the other in a state of shame."}
+{"judge": "mistral-small:latest", "cell": "BIASFLOOR", "fixture": "ordinary", "asked": "excited", "answered": null, "correct": null, "raw": "I don't have enough information to determine which actor was in a state of excited based on the provided stage directions. Both actors received identical instructions."}
+{"judge": "mistral-small:latest", "cell": "BIASFLOOR", "fixture": "ordinary", "asked": "pride", "answered": null, "correct": null, "raw": "I don't have enough information to determine which actor was in a state of pride based on the provided stage directions alone. Both actors received identical instructions."}

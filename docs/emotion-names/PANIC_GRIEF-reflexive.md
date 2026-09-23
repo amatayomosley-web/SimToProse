@@ -1,0 +1,123 @@
+# PANIC_GRIEF-reflexive — names
+
+**Names only.** Vectors and definitions are a later pass.
+
+- At home in your own skin
+- Querencia
+- Geborgenheit
+- Belonging (felt)
+- Rootedness
+- Groundedness
+- Centeredness
+- Settledness
+- Ontological security
+- Self-continuity
+- Self-coherence
+- Wholeness
+- Whole
+- Feeling like yourself again
+- Natsukashii
+- Growing pains
+- Matrescence
+- Metanoia
+- Not feeling like yourself
+- Unsettledness
+- Altered
+- Dividedness
+- Double consciousness
+- In-betweenness
+- Liminality
+- Limbo
+- Nodus tollens
+- Elegiac feeling
+- The ache of outgrowing yourself
+- Empty-nest feeling
+- Grieving the person you used to be
+- Self-grief
+- Mourning the person you might have been
+- Phantom-limb feeling
+- Hauntedness
+- Melancholia
+- Bereftness
+- Uprootedness
+- Adrift
+- Rudderlessness
+- Untetheredness
+- Lostness
+- Dislocation (felt)
+- Culture shock
+- Reverse culture shock
+- Dépaysement
+- Displaced
+- Deracination
+- Rootlessness
+- Dispossession (felt)
+- Inner exile
+- Feeling marooned
+- A stranger in a strange land
+- Foreignness (felt)
+- Otherness (felt)
+- Outsiderness
+- Unbelonging
+- Existential homelessness
+- Alienation
+- Anomie
+- Feeling like an anachronism
+- Obsolescence (felt)
+- The feeling that the world has moved on without you
+- Superfluousness (felt)
+- Feeling like a ghost in your own life
+- Self-abandonment (felt)
+- Self-estrangement
+- Self-alienation
+- Not recognizing the person you've become
+- Feeling like a shadow of your former self
+- Hollowed-out feeling
+- Hollowness
+- Feeling broken
+- Zerrissenheit
+- Unraveling (felt)
+- Fragmentation (felt)
+- Disintegration (felt)
+- Identity confusion
+- Role confusion
+- Identity crisis
+- Identity disturbance
+- Identity diffusion
+- Gender dysphoria
+- Ego-dystonia
+- Jamais vu
+- Uncanniness (self-directed)
+- Unreality (felt)
+- Ontological insecurity
+- Derealization
+- Depersonalization
+- Dissociation (felt)
+- Fugue
+- Stranger to yourself
+- Self-loss
+- Erasure (felt)
+- Feeling like a nonentity
+- Nullity (felt)
+- The relief of no longer having to be who you were
+- Unselfing
+- Kenosis
+- Oceanic feeling
+- Ego dissolution
+- Ego death
+- Annihilation (felt)
+- Feeling real
+- Embodiment (felt)
+- Being in one's element
+- Ipseity
+- Anchoredness
+- Integration (felt)
+- Communitas
+- Desolation (felt)
+- Unmooredness
+- Invisibility (felt)
+- Posthumous existence (felt)
+- Unheimlichkeit
+- Disembodiment (felt)
+- Ipseity disturbance
+- Fana
