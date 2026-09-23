@@ -536,6 +536,7 @@ def run_turn(led, run_id, char, world, groups_index, profile, temperament, affec
     from src.engine import read_api as _read_api
     _subjects = sorted({x for x in [scene_slice.get("location") or "", by or ""] if x})
     _established = _read_api.established(led.con, run_id, _subjects, as_of=turn_no).rows if _subjects else []
+    _sys = _systems.for_book(world)                  # which systems this book runs (gate systems-registry)
     packet = assemble(char, world, scene_slice, affect, char["current"]["condition"],
                       prev_affect=led.previous_affect(run_id, _actor, turn_no),
                       current_turn=turn_no,
@@ -546,9 +547,9 @@ def run_turn(led, run_id, char, world, groups_index, profile, temperament, affec
                       facts=_scene_facts.facts_for(led.con, run_id, _actor, before_turn=turn_no),
                       relationships=char["current"].get("relationships", {}),
                       recall_history=_decay.fold_recall_history(led.con, run_id, _actor),
-                      elapsed=_clock.elapsed_days_since(led.con, run_id, turn_no))
+                      elapsed=_clock.elapsed_days_since(led.con, run_id, turn_no),
+                      tired="condition_flow" in _sys)     # the room's subtle cues dim with the mind (gate tired-lexicon)
     record_faults(detect_world_faults(packet, scene_slice, event_text, world, turn_no), book_dir)
-    _sys = _systems.for_book(world)                  # which systems this book runs (gate systems-registry)
     if _systems.declared(world):
         packet["manifest"]["systems"] = sorted(_sys)
     actor = char["fixed"]["name"].lower()

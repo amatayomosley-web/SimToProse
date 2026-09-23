@@ -67,7 +67,7 @@ class _Reads(dict):
 
 def assemble(char, world, scene_slice, affect, condition, prev_affect=None,
              current_turn=0, relationships=None, recall_history=None, elapsed=None,
-             established=None, facts=None, injuries=None):
+             established=None, facts=None, injuries=None, tired=False):
     """Run the 7-step assembly pipeline for one character, one turn.
 
     scene-assembly.md §"The assembly pipeline (per acting character, per turn)"
@@ -139,7 +139,8 @@ def assemble(char, world, scene_slice, affect, condition, prev_affect=None,
     # Filter scene_slice to what this character apprehends.
     # Gated by perception/insight skill checks. Failed check = absent from PerceptSet.
     percepts = perception_scope(scene_slice, world, skills, condition, current.get("relationships", {}),
-                                me=str(fixed.get("id") or fixed.get("name") or "").lower())
+                                me=str(fixed.get("id") or fixed.get("name") or "").lower(),
+                                tired=tired)          # a worn mind's eye dims the room's subtle cues (gate tired-lexicon)
 
     # ---- Step 3: Trigger extraction (from PerceptSet ONLY — never from ground truth) ----
     # scene-assembly.md: "You cannot be triggered by what you didn't perceive."

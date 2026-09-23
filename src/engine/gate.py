@@ -66,6 +66,21 @@ def _energy_budget(condition):
     load   = float(condition.get("allostatic_load", 0.0))
     return max(0.0, energy * (1.0 - load * ALLOSTATIC_PENALTY))
 
+# A WORN MIND'S EYE (gate tired-eyes, 2026-09-22; the world lexicon's subtle cues joined it at gate tired-lexicon,
+# 2026-09-23): the share of perception a mind with nothing left keeps. [START - FALSIFIER: a character who slept a
+# full night reads as missing what a rested eye catches.]
+WORN_EYE = 0.5
+
+
+def worn_eye(skill, condition):
+    """A perception skill weighed by what the MIND has left - the owner's ruling D3, one rule for a speaker's tells
+    (`tells.catches`) and the room's subtle cues (`perception_scope`). Read exactly as the memory budget reads it
+    (`_energy_budget`: the mind's side, less the load's penalty); a rested mind keeps its whole eye, one with
+    nothing left keeps `WORN_EYE` of it."""
+    left = max(0.0, min(1.0, _energy_budget(condition or {})))
+    return float(skill) * (WORN_EYE + (1.0 - WORN_EYE) * left)
+
+
 def _passes_check(skill_value, dc):
     """Deterministic check: passes iff skill_value >= dc.
 
@@ -95,7 +110,7 @@ def _normalize(s):
 
 # ---- Step 2: Perception scope (perception-mode wall) ----
 
-def perception_scope(scene_slice, world, skills, condition, relationships=None, me=None):
+def perception_scope(scene_slice, world, skills, condition, relationships=None, me=None, tired=False):
     """Filter scene_slice to what THIS character apprehends this turn.
 
     scene-assembly.md step 2; relevancy-gate.md §"Two input domains, one machinery —
@@ -112,6 +127,8 @@ def perception_scope(scene_slice, world, skills, condition, relationships=None, 
                         belief; guide-content.md "Currently INERT")
     skills      : dict  {skill_name: float 0..1} from baseline.skills
     condition   : dict  {energy, allostatic_load, ...}
+    tired       : bool  the book runs `condition_flow`: the subtle-cue check weighs the eye by what the mind has
+                        left (`worn_eye`), as `tells.catches` does (gate tired-lexicon)
 
     Returns list of Percept dicts (the PerceptSet).
 
@@ -159,7 +176,7 @@ def perception_scope(scene_slice, world, skills, condition, relationships=None, 
     # Gated on perception skill. A character with low perception misses fine detail.
     # Examples: severity of fever, physical distress signs, environmental details.
     if _has_subtle_cues(event_text, event_kind, world):
-        if _passes_check(perception_skill, PERCEPTION_DC_SUBTLE):
+        if _passes_check(worn_eye(perception_skill, condition) if tired else perception_skill, PERCEPTION_DC_SUBTLE):
             subtle_attrs = _extract_subtle_attributes(event_text, event_kind, world)
             if subtle_attrs:
                 percepts.append(_make_percept(

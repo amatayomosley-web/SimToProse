@@ -579,7 +579,9 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
                           relationships=a["char"]["current"].get("relationships", {}),
                           recall_history=_belief_decay.fold_recall_history(
                               led.con, run_id, speaker),
-                          elapsed=_clock.elapsed_days_since(led.con, run_id, turn_no))
+                          elapsed=_clock.elapsed_days_since(led.con, run_id, turn_no),
+                          # the room's subtle cues dim with the mind, as a speaker's tells do (gate tired-lexicon)
+                          tired="condition_flow" in _sys)
         # name hygiene rides in build_turn_messages — mask every name this speaker never acquired;
         # faithful_turn REGENERATES on any latent name-leak the mask couldn't stop, before we commit.
         # seed = seed_base*1000 + beat. It used to be the bare beat index, which made the seed a pure

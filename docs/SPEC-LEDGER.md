@@ -658,7 +658,8 @@ tired)` now weighs the skill by what the mind has left - the memory budget's own
 `scripts/scene.py` passes `tired` exactly when the book runs `condition_flow`. A book without it keeps the
 skill-only check, byte for byte. Suite: `tests/test_tells.py` [5] (through the driver: the sharp keeper whose scene
 file says she arrives spent never reads the other's sign; arriving fresh she reads it and is told). NOT COVERED:
-the world lexicon's subtle cues still read the skill alone (`gate.perception_scope`).
+the world lexicon's subtle cues still read the skill alone (`gate.perception_scope`) - fixed 2026-09-23, gate
+`tired-lexicon`.
 
 **2026-09-22 — bodily injuries kept as state, healed over time (gate `injuries`):** no act could leave
 anyone hurt - the event seat was never asked about harm, a sheet's `current.condition.injuries` was read by no code
@@ -722,6 +723,16 @@ drivers) drifted the edge toward the lowered rest before the beat, a value the l
 when it was written: `authored` and `director` rows are laid down before the opening (slots 0/1); a `cliff`, or a
 keeper's hold, comes with the beat's movements (slot 3). `tests/test_attachments.py` [6] asserted the old order for
 exactly this case and now asserts the new one. Suite: `tests/test_passage.py` [cliff]. NOT COVERED: none known.
+
+**2026-09-23 — the room's subtle cues dim with the mind (gate `tired-lexicon`):** the owner's ruling D3 made a
+spent mind catch fewer of a speaker's tells (`tells.catches`), and `gate.perception_scope` went on checking the
+world lexicon's subtle cues against the raw skill, so the same tired character missed a tell and caught every
+faint sign in the room. The eye rule moved into `gate.worn_eye` (with `WORN_EYE`), read by both: the subtle-cue
+line now weighs the skill by what the mind has left when the book runs `condition_flow`, through a `tired` keyword
+on `perception_scope` and `scene.assemble` that both drivers set from the book's systems. Other percepts
+(recognition by insight, props, the plain event) keep the raw skills. Suite: `tests/test_tells.py` [6] (fresh,
+spent and energy-off; the two lines agree for every eye and mind; through `assemble`; both drivers pass the flag
+exactly when the book runs `condition_flow`), 6 of 6 mutants red.
 
 **2026-09-19 — attitude decays per RUNG, in minutes (gate `attitude-staircase`):** `toward.erode` was the pre-redesign mechanism — one flat `toward._RETENTION[path]` per DAY for every rung, so a hatred and a flicker of annoyance faded alike — and now steps the ladder exactly as `state.decay_over` does, on the minute clock, at a per-path scale whose bottom rung is that same day rate converted (`toward._attitude_half_life`, anchored to 1e-9 in `tests/test_toward.py` block 16) and whose rung-to-rung ratio is the MOOD staircase's own, so the two tiers cannot disagree about the shape of forgetting; `src/engine/passage.py` hands it MINUTES while `bond_rest.drift` / `wound.erode` / `arc.erode` keep the day conversion. Spec: the redesign's "Decay — per path AND per rung" ("Two tables, one shape"), `docs/emotion-arithmetic.md` §4.
 

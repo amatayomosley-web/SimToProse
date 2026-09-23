@@ -212,6 +212,70 @@ def test_tired_eyes(tmp):
               mira and any(ADA_TELL in m for m in mira) == sees, mira[-1:])
 
 
+def _spied_tired(mod, argv):
+    """Run a driver's main() in process with `assemble` spied -> [the `tired` it was handed, per call]."""
+    got, real = [], mod.assemble
+
+    def spy(*a, **k):
+        got.append(k.get("tired"))
+        return real(*a, **k)
+
+    saved = sys.argv
+    mod.assemble, sys.argv = spy, argv
+    try:
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            try:
+                mod.main()
+            except SystemExit:
+                pass
+    finally:
+        mod.assemble, sys.argv = real, saved
+    return got
+
+
+def test_the_rooms_cues_dim_alike(tmp):
+    print("\n[6] the room's subtle cues dim with the mind, as a speaker's tells do (gate tired-lexicon)")
+    from src.engine import gate
+    world = {"lexicon": {"attribute_classes": {"distress": ["trembling"]}, "subtle_cue_classes": ["distress"],
+                         "subtle_cues": {"shaking-hands": ["trembling"]}}}
+    slice_ = {"event": {"text": "Her hands are trembling on the rail.", "kind": "mundane"}}
+
+    def sees(cond, tired, p=0.7):
+        return any(str(x.get("ref", "")).startswith("evt.subtle.")
+                   for x in gate.perception_scope(slice_, world, {"perception": p}, cond, tired=tired))
+    fresh, spent = {"energy": 0.95, "allostatic_load": 0.0}, {"energy": 0.1, "allostatic_load": 0.0}
+    check("a-sharp-eye-arriving-fresh-catches-the-room-s-cue", sees(fresh, True))
+    check("...arriving-spent-it-misses-it", not sees(spent, True))
+    check("...and-without-the-energy-system-the-condition-is-not-read", sees(spent, False))
+    agree = all(sees({"energy": e, "allostatic_load": ld}, True, p) == tells.catches(
+                    {"baseline": {"skills": {"perception": p}}, "current": {"condition": {"energy": e, "allostatic_load": ld}}},
+                    tired=True)
+                for p in (0.55, 0.6, 0.7, 0.85, 1.0, 1.2) for e in (0.0, 0.3, 0.6, 1.0) for ld in (0.0, 0.5, 1.0))
+    check("one-rule-the-room-s-cue-and-a-speaker-s-tell-agree-for-every-eye-and-mind", agree)
+    # THROUGH THE ASSEMBLER: the flag must reach the wall, not stop at assemble's signature
+    from src.engine import scene as _assembler, vault
+    mira = vault.load_book(_book(os.path.join(tmp, "asm"), None))[1]["mira"]
+    mira["baseline"].setdefault("skills", {})["perception"] = 0.7
+
+    def assembled(tired):
+        pk = _assembler.assemble(mira, dict(world, people=[]), dict(slice_, recent=[], location=None),
+                                 dict(mira["current"]["affect"]), spent, tired=tired)
+        return any(str(x.get("ref", "")).startswith("evt.subtle.") for x in pk["volatile"]["percepts"])
+    check("assemble-hands-the-flag-to-the-wall", assembled(False) and not assembled(True), (assembled(False), assembled(True)))
+    import scene as _scene_driver
+    import direct as _chair
+    for decl, want in (({"condition_flow": True}, True), (None, False)):
+        here = os.path.join(tmp, "flow" if want else "legacy")
+        book = _book(here, decl)
+        by_scene = _spied_tired(_scene_driver, ["scene.py", "--book", book, "--scene", _cfg(here, "gale", "21:00", "30m"),
+                                                "--budget", "1", "--stub", "--no-keeper"])
+        by_chair = _spied_tired(_chair, ["direct.py", "--book", book, "--char", "Mira", "--stub", "--no-keeper",
+                                         "--circumstance", "the lamp gutters", "--prompt-only"])
+        check("the-scene-driver-hands-assemble-tired=%s-%s" % (want, "with-the-energy-system" if want else "without-it"),
+              bool(by_scene) and all(t is want for t in by_scene), by_scene)
+        check("...and-so-does-the-chair", bool(by_chair) and all(t is want for t in by_chair), by_chair)
+
+
 def main():
     print("test_tells.py — the signs a sharp eye catches\n")
     tmp = tempfile.mkdtemp(prefix="swe_tells_")
@@ -221,6 +285,7 @@ def main():
         test_reader()
         test_through_the_driver(tmp)
         test_tired_eyes(os.path.join(tmp, "tired"))
+        test_the_rooms_cues_dim_alike(os.path.join(tmp, "lexicon"))
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     print("\n%s" % ("test_tells: OK" if not FAILS else "FAILED:"))

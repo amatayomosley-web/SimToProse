@@ -25,13 +25,11 @@ __layer__ = "engine"
 
 import re
 
-from .gate import PERCEPTION_DC_SUBTLE, _energy_budget
+from .gate import PERCEPTION_DC_SUBTLE, WORN_EYE, worn_eye   # noqa: F401  (WORN_EYE: the constant is gate's)
 from .prompt import MOMENT_BEATS
 
 MAX_PER_BEAT = 3
-# A worn mind's eye (gate tired-eyes): the share of perception a mind with nothing left keeps. [START - FALSIFIER:
-# a character who slept a full night reads as missing what a rested eye catches.]
-WORN_EYE = 0.5
+# A worn mind's eye: `gate.worn_eye` and `gate.WORN_EYE`, one rule for tells and the lexicon's cues (gate tired-lexicon).
 
 # The reader's question, appended to the event seat's prompt only for a book that runs `tells`.
 RUBRIC = """
@@ -58,8 +56,7 @@ def catches(char, tired=False):
     skills = (char.get("baseline") or {}).get("skills") or {}
     eye = float(skills.get("perception", 0.5))
     if tired:
-        left = max(0.0, min(1.0, _energy_budget((char.get("current") or {}).get("condition") or {})))
-        eye *= WORN_EYE + (1.0 - WORN_EYE) * left
+        eye = worn_eye(eye, (char.get("current") or {}).get("condition") or {})
     return eye >= PERCEPTION_DC_SUBTLE
 
 
