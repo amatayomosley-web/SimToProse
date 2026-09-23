@@ -145,7 +145,7 @@ build something listed SPEC-ONLY here, flip the row in the same commit. Line num
 | Perception-mode wall (PerceptSet whitelist; identity behind insight 0.55; subtle cues behind perception 0.60; acquaintance recognition) | `scene-assembly.md:17-21,74-97`, `relevancy-gate.md:28-32` | YES | `gate.py:90-210`; never-add structural (`test_scene` whitelist canary); known-entity bypass `gate.py:176` | BUILT-AS-SPEC'D |
 | Graph recall: weighted hops, pathfinding to hinges, degree-penalty, multi-hop chains | `relevancy-gate.md:60-97` | NO | vault is FLAT by design; single-hop cost 1−confidence (`guide-engine.md:171-173` declares the reduction) | **BUILT-DIFFERENTLY (deliberate)** — the entire hop/path/DC-from-distance apparatus is spec-only behind the same interface |
 | Authored hinges (director-planted checks that always surface + branch) | `relevancy-gate.md:39` (pipeline step 5) | NO | `must_surface` exists only as the event-anchor flag (`gate.py:24,144`); no hinge authoring surface, no branch mechanics | SPEC-ONLY |
-| Name masking + latent-leak regeneration ("recorded as-is" preserved) | `knowledge-model.md` wall; status log `driving-the-engine.md:104-111` | YES | `gate.scope_names` :543 (prompt wall), `faithfulness.py:16-35` (output detector), `direct.py` `faithful_turn` :363-395 (regenerate → reject) ; `tests/test_faithful_turn.py` | BUILT-AS-SPEC'D |
+| Name masking + latent-leak regeneration ("recorded as-is" preserved) | `knowledge-model.md` wall; status log `driving-the-engine.md:104-111` | YES | `gate.scope_names` :543 (prompt wall), `faithfulness.py:16-35` (output detector), `direct.py` `faithful_turn` :365-397 (regenerate → reject) ; `tests/test_faithful_turn.py` | BUILT-AS-SPEC'D |
 
 ### Scene assembly & the packet
 
@@ -691,6 +691,17 @@ weakens alike when the book runs both `body` and `injuries`: `scripts/scene.py` 
 `mood_fold`'s replay at its openings and beats - so the resume check still re-derives every cached condition.
 Suite: `tests/test_injuries.py` [6]-[7]. NOT COVERED: several injuries weaken as the worst of them only; age and
 training do not move strength; the gap is weakened by the injuries active at the opening, not re-checked across it.
+
+**2026-09-23 — the chair keeps pace with the scene driver (gate `chair-parity`):** four gaps the 09-22 audit left
+open. `scripts/direct.py` `run_turn` committed attitude deltas and never folded them (only `--resume` did), so a
+chair session's attitude stayed where the session opened; it now folds after every commit, as `scripts/scene.py`
+does, and prints the folded line. `main`'s one-shot seam passed no `--minutes-per-turn`, so a supplied turn decayed
+nothing, and neither call site passed the brief, so the chair's composer always took the deterministic floor; both
+now pass both. A supplied turn committed no direction: `--prompt-only` now keeps the direction its prompt carried
+beside the chronicle (`<db>.directions/<run>.<actor>.json`, gitignored), and `--turn-json` commits it marked
+`via: prompt-only` when run, actor and circumstance match, else `by: none` with the reason. Suite:
+`tests/test_driver_main.py` (seven checks; the brief through an in-process spy, since `--stub` never reads it).
+NOT COVERED: a prompt step run in another checkout hands nothing over.
 
 **2026-09-19 — attitude decays per RUNG, in minutes (gate `attitude-staircase`):** `toward.erode` was the pre-redesign mechanism — one flat `toward._RETENTION[path]` per DAY for every rung, so a hatred and a flicker of annoyance faded alike — and now steps the ladder exactly as `state.decay_over` does, on the minute clock, at a per-path scale whose bottom rung is that same day rate converted (`toward._attitude_half_life`, anchored to 1e-9 in `tests/test_toward.py` block 16) and whose rung-to-rung ratio is the MOOD staircase's own, so the two tiers cannot disagree about the shape of forgetting; `src/engine/passage.py` hands it MINUTES while `bond_rest.drift` / `wound.erode` / `arc.erode` keep the day conversion. Spec: the redesign's "Decay — per path AND per rung" ("Two tables, one shape"), `docs/emotion-arithmetic.md` §4.
 

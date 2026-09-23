@@ -620,6 +620,131 @@ def test_direct_stub_with_a_quoted_circumstance_reports_the_debt(tmp):
     check("--no-keeper-kept-the-gate-off", "KEEPER" not in out, out[-400:])
 
 
+def _chronicle(out):
+    import re as _re
+    m = _re.search(r"new chronicle: (\S+)", out)
+    return m.group(1) if m else ""
+
+
+def _supplied_turn(tmp):
+    tj = os.path.join(tmp, "turn.json")
+    with io.open(tj, "w", encoding="utf-8") as fh:
+        fh.write(json.dumps({"action": "She trims the wick and turns up the lamp.", "thought": "steady now",
+                             "tags": {"type": "mundane", "summary": "tended the lamp", "dimensions": {"mastery": 0.3},
+                                      "durability": "transient", "confidence": 0.9, "subject": ""}}))
+    return tj
+
+
+def test_the_chair_ATTITUDE_moves_within_a_session(tmp):
+    """Gate chair-parity: scene.py folds attitude after every live commit; the chair folded it only on
+    --resume, so what a character lived through in a session never moved how they felt toward anyone until
+    the next session. The TOWARD line is read back from the FOLDED sheet, so it shows values only if the
+    fold ran."""
+    import re as _re
+    book = _mk_vault(tmp)
+    r = subprocess.run([sys.executable, os.path.join("scripts", "direct.py"), "--book", book, "--char", "Mira", "--stub"],
+                       input="by:tomas_keeper Tomas brought new wicks for the lamp\nquit\n",
+                       capture_output=True, text=True, cwd=REPO)
+    out = (r.stdout or "") + (r.stderr or "")
+    check("a-chair-beat-with-a-subject-exits-0", r.returncode == 0, out[-400:])
+    check("...and-its-attitude-is-folded-in-the-SAME-session",
+          bool(_re.search(r"TOWARD : \S+ [A-Z]+[+-]\d\.\d{3}", out)), out[-600:])
+
+
+def test_the_ONE_SHOT_seam_decays_by_its_minutes(tmp):
+    """Gate chair-parity: the REPL passed --minutes-per-turn to run_turn and the one-shot seam did not, so a
+    supplied turn decayed nothing however long the beat was said to last. Same turn, two lengths: the
+    committed moods must differ."""
+    import sqlite3
+    book, tj = _mk_vault(tmp), _supplied_turn(tmp)
+    got = {}
+    for mins in ("0", "240"):
+        rc, out = _run(os.path.join("scripts", "direct.py"), "--book", book, "--char", "Mira", "--stub",
+                       "--circumstance", "the lamp gutters", "--turn-json", tj, "--minutes-per-turn", mins)
+        check("one-shot-with-%s-minutes-commits" % mins, rc == 0 and "committed" in out, out[-400:])
+        con = sqlite3.connect(os.path.join(book, "runs", "the-rock-and-the-rose.db"))
+        try:
+            row = con.execute("SELECT affect FROM current_state WHERE run_id = ? ORDER BY turn DESC", (_chronicle(out),)).fetchone()
+        finally:
+            con.close()
+        got[mins] = row[0] if row else None
+    check("...and-the-longer-beat-DECAYED-more", got["0"] and got["240"] and got["0"] != got["240"], str(got)[:300])
+
+
+def test_a_SUPPLIED_turn_commits_the_direction_its_PROMPT_carried(tmp):
+    """Gate chair-parity: `--prompt-only` then `--turn-json` are two processes, and the supplied turn used to
+    commit no direction at all. The prompt step now keeps the direction beside the chronicle; the answering
+    step commits it, marked `via: prompt-only`. Without a prompt step the record says so."""
+    import sqlite3
+    book, tj = _mk_vault(tmp), _supplied_turn(tmp)
+    rc, out = _run(os.path.join("scripts", "direct.py"), "--book", book, "--char", "Mira", "--stub",
+                   "--circumstance", "the lamp gutters", "--prompt-only")
+    run = _chronicle(out)
+    check("the-prompt-step-runs", rc == 0 and run, out[-400:])
+    rc, out = _run(os.path.join("scripts", "direct.py"), "--book", book, "--char", "Mira", "--stub",
+                   "--circumstance", "the lamp gutters", "--turn-json", tj, "--resume", run)
+    check("the-answering-step-commits", rc == 0 and "committed" in out, out[-400:])
+    rc2, out2 = _run(os.path.join("scripts", "direct.py"), "--book", book, "--char", "Mira", "--stub",
+                     "--circumstance", "the lamp gutters", "--turn-json", tj)
+    # a prompt kept for ONE circumstance is not the direction of an answer to ANOTHER
+    rc3, out3 = _run(os.path.join("scripts", "direct.py"), "--book", book, "--char", "Mira", "--stub",
+                     "--circumstance", "the lamp gutters", "--prompt-only")
+    other = _chronicle(out3)
+    _run(os.path.join("scripts", "direct.py"), "--book", book, "--char", "Mira", "--stub",
+         "--circumstance", "a gull strikes the glass", "--turn-json", tj, "--resume", other)
+    con = sqlite3.connect(os.path.join(book, "runs", "the-rock-and-the-rose.db"))
+    try:
+        def _direction(run_id):
+            row = con.execute("SELECT manifest FROM decision_manifests WHERE run_id = ? ORDER BY turn DESC",
+                              (run_id,)).fetchone()
+            return (json.loads(row[0]) if row else {}).get("direction")
+        kept, bare, mismatched = _direction(run), _direction(_chronicle(out2)), _direction(other)
+    finally:
+        con.close()
+    check("a-prompt-kept-for-ANOTHER-circumstance-is-not-claimed",
+          isinstance(mismatched, dict) and mismatched.get("by") == "none", str(mismatched)[:300])
+    check("...and-commits-the-direction-its-prompt-carried", isinstance(kept, dict) and kept.get("via") == "prompt-only",
+          str(kept)[:300])
+    check("a-supplied-turn-with-NO-prompt-step-says-so",
+          isinstance(bare, dict) and bare.get("by") == "none" and "no --prompt-only" in bare.get("why", ""), str(bare)[:300])
+
+
+def test_the_chair_HANDS_the_composer_its_brief(tmp):
+    """Gate chair-parity: `main()` computed a brief for the composer and passed it to neither `run_turn` call,
+    so the chair's composer always took the deterministic floor. IN-PROCESS ON PURPOSE, unlike the rest of
+    this file: under --stub the composer never reads the brief, so the one observable is the argument main()
+    hands run_turn - a spy records it, on the REPL path and on the one-shot path."""
+    import contextlib
+    import importlib
+    sys.path.insert(0, os.path.join(REPO, "scripts"))
+    direct = importlib.import_module("direct")
+    book = _mk_vault(tmp)
+    seen = []
+
+    def spy(*a, **kw):
+        seen.append(kw)
+        return a[7], False, a[2], a[5]                    # (affect, ok, char, profile): nothing committed
+
+    real, saved = direct.run_turn, (sys.argv, sys.stdin)
+    direct.run_turn = spy
+    try:
+        for argv, stdin in ((["--brief", "the brief"], "the lamp gutters\nquit\n"),
+                            (["--brief", "the brief", "--circumstance", "the lamp gutters", "--prompt-only"], "")):
+            sys.argv = ["direct.py", "--book", book, "--char", "Mira", "--stub", "--minutes-per-turn", "30"] + argv
+            sys.stdin = io.StringIO(stdin)
+            with contextlib.redirect_stdout(io.StringIO()):
+                try:
+                    direct.main()
+                except SystemExit:
+                    pass
+    finally:
+        direct.run_turn, (sys.argv, sys.stdin) = real, saved
+    check("the-REPL-hands-run_turn-the-brief", len(seen) >= 1 and seen[0].get("brief") == "the brief", str(seen[:1])[:300])
+    check("the-ONE-SHOT-hands-run_turn-the-brief-and-the-minutes",
+          len(seen) >= 2 and seen[1].get("brief") == "the brief" and float(seen[1].get("minutes") or 0) == 30.0,
+          str(seen[1:2])[:300])
+
+
 def main():
     print("test_driver_main.py — the CLI path, executed rather than mirrored\n")
     tmp = tempfile.mkdtemp(prefix="swe_driver_")

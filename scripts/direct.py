@@ -256,8 +256,10 @@ def rung_direction(packet, brief="", model=None, stub=False):
     IT RECORDS WHAT IT SENT (gate composer-direction-recorded, 2026-09-22): `packet["manifest"]
     ["direction"]` is set on every call - `composer.record` when a direction was built, else
     {"by": "none", "why": ...}. Both drivers commit that manifest with the turn, and a retry calls this
-    again, so the committed record is the direction of the attempt that was kept. No key at all means
-    this beat built no prompt (a stub actor, a supplied turn, or a beat committed before this gate).
+    again, so the committed record is the direction of the attempt that was kept. A supplied turn commits the
+    direction its `--prompt-only` step kept (`via: prompt-only`), or `by: none` with the reason (gate
+    chair-parity). No key at all means this beat built no prompt (a stub actor, or a beat committed
+    before gate composer-direction-recorded).
     """
     rec = {"by": "none", "why": ""}
     try:
@@ -460,6 +462,50 @@ def record_faults(faults, book_dir):
 
 # ---- the chair ----
 
+def _direction_file(led, run_id, actor):
+    """Where a `--prompt-only` step leaves the direction its prompt carried, for the `--turn-json` step that
+    answers it: beside the chronicle, one file per (run, actor). None for an in-memory ledger.
+
+    ON DISK BECAUSE THE TWO STEPS ARE TWO PROCESSES (gate chair-parity, 2026-09-23). A supplied turn used to
+    commit no `direction` at all, and it cannot recompute one: with a brief and a model the composer's pick
+    is a fresh model call. Keyed by run and actor, not turn, because a brand-new run's two steps can see
+    different turn numbers (the prompt step mints it at 0; the answering step resumes at the last turn + 1)."""
+    try:
+        path = next((r[2] for r in led.con.execute("PRAGMA database_list") if r[1] == "main"), "")
+    except Exception:
+        return None
+    if not path:
+        return None
+    return os.path.join(path + ".directions", "%s.%s.json" % (run_id, actor))
+
+
+def _keep_direction(led, run_id, actor, turn_no, event_text, direction):
+    """The `--prompt-only` half: record what direction the emitted prompt carried."""
+    path = _direction_file(led, run_id, actor)
+    if not path or not isinstance(direction, dict):
+        return
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump({"run_id": run_id, "actor": actor, "turn": turn_no, "circumstance": event_text,
+                   "direction": direction}, fh)
+
+
+def _kept_direction(led, run_id, actor, event_text):
+    """The `--turn-json` half -> the direction record this supplied turn commits: the prompt step's, when one
+    was kept for this run, actor and circumstance; otherwise `by: none` with the reason. It never guesses."""
+    path = _direction_file(led, run_id, actor)
+    try:
+        with open(path, encoding="utf-8") as fh:
+            kept = json.load(fh)
+    except (TypeError, OSError, ValueError):
+        kept = None
+    if (isinstance(kept, dict) and kept.get("run_id") == run_id and kept.get("actor") == actor
+            and kept.get("circumstance") == event_text and isinstance(kept.get("direction"), dict)):
+        return dict(kept["direction"], via="prompt-only", prompt_turn=kept.get("turn"))
+    return {"by": "none", "why": "a supplied turn with no --prompt-only direction kept for this run, "
+                                 "actor and circumstance"}
+
+
 def run_turn(led, run_id, char, world, groups_index, profile, temperament, affect, turn_no, event_text, recent, model, stub, book_dir=None, by=None, supplied=None, prompt_only=False, brief="", minutes=0.0):
     """One placed circumstance through the full spine. Returns (new_affect, ok, char, profile) —
     char/profile may be EVOLVED if the event wrote a durable baseline diff (the arc engine).
@@ -515,8 +561,10 @@ def run_turn(led, run_id, char, world, groups_index, profile, temperament, affec
     # the beginning; direct.py and scene.py, the two that ACT, had neither, which is why the
     # character-simulator agent could not do its job.
     if prompt_only:
-        print(json.dumps(build_turn_messages(packet, event_text, temperament, rels,
-                                            rung_direction=rung_direction(packet, brief=brief, model=model, stub=stub)), indent=2))
+        _msgs = build_turn_messages(packet, event_text, temperament, rels,
+                                    rung_direction=rung_direction(packet, brief=brief, model=model, stub=stub))
+        _keep_direction(led, run_id, actor, turn_no, event_text, packet["manifest"].get("direction"))
+        print(json.dumps(_msgs, indent=2))
         return affect, False, char, profile
 
     if supplied is not None:
@@ -533,6 +581,7 @@ def run_turn(led, run_id, char, world, groups_index, profile, temperament, affec
                 "act": str(supplied.get("act", "") or ""),
                 "tags": supplied.get("tags") if isinstance(supplied.get("tags"), dict) else {"dimensions": {}}}
         leaks = faithfulness.check_name_leaks("%s %s" % (turn.get("action", ""), turn.get("thought", "")), rels)
+        packet["manifest"]["direction"] = _kept_direction(led, run_id, actor, event_text)
         print("  [supplied turn accepted for validation — %d char action]" % len(turn["action"]))
     else:
       try:
@@ -827,6 +876,11 @@ def run_turn(led, run_id, char, world, groups_index, profile, temperament, affec
         manifest=packet["manifest"], recall=packet["recall_refs"], rel_deltas=rel_deltas,
         utterances=claims.spoken(str(turn["action"])), target_binds=target_binds,
         readings=list(_readings), lands_on=list(_lands), rest_rows=rest_rows))
+    if toward_deltas:
+        # THE ATTITUDE MOVES WITHIN A SESSION (gate chair-parity, 2026-09-23). scripts/scene.py folds after
+        # every live commit; this driver folded only on --resume, so a chair session's attitude stayed
+        # where the session opened, whatever the character lived through in it.
+        passage.fold_toward(led.con, run_id, actor, char)
     if _seat_notes:
         print("  SEATS  : " + " | ".join(_seat_notes))
     # NEVER TRUNCATE - the operator log's silent slice gave no sign a line was cut.
@@ -842,6 +896,10 @@ def run_turn(led, run_id, char, world, groups_index, profile, temperament, affec
         print(bond_line)
     for _ln in _cliff_lines:
         print(_ln)
+    if toward_deltas:                               # read back from the FOLDED sheet, as scene.py prints it
+        _tw = char["current"].get("toward") or {}
+        print("  TOWARD : %s" % ", ".join("%s %s" % (w, " ".join("%s%+0.3f" % (k, v) for k, v in sorted((_tw.get(w) or {}).items())))
+                                        for w in sorted({t.target for t in toward_deltas})))
     # (faithfulness is enforced pre-commit by faithful_turn above — a committed turn is leak-free by construction)
 
     # ---- the arc engine: a durable event moves the BASELINE (who they now are), persists, evolves char ----
@@ -1251,10 +1309,13 @@ def main():
             except ValueError as e:
                 raise SystemExit('--turn-json is not valid JSON: %s' % e)
         try:
+            # the same minutes and brief the REPL passes (gate chair-parity): the one-shot seam used to
+            # decay nothing and hand the composer no brief
             affect, ok, char, profile = run_turn(
                 led, run_id, char, world, groups_index, profile, temperament, affect, turn_no,
                 args.circumstance, [], args.model, args.stub, book_dir=book_dir,
-                supplied=supplied, prompt_only=args.prompt_only)
+                supplied=supplied, prompt_only=args.prompt_only,
+                minutes=args.minutes_per_turn, brief=(args.brief or args.circumstance or ""))
         except ValueError as e:
             raise SystemExit(str(e))
         if args.turn_json:
@@ -1299,7 +1360,7 @@ def main():
         _brief = (args.brief or args.circumstance or "")
         affect, ok, char, profile = run_turn(led, run_id, char, world, groups_index, profile, temperament, affect,
                                              turn_no, cmd, recent, args.model, args.stub, book_dir=book_dir, by=by,
-                                             minutes=args.minutes_per_turn)
+                                             minutes=args.minutes_per_turn, brief=_brief)
         temperament = char["baseline"]["temperament"]   # re-bind: the arc may have moved the baseline
         if ok:
             recent.append(cmd)

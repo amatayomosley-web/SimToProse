@@ -31,6 +31,7 @@ desktop.ini
 runs/*.db
 runs/*.db-wal
 runs/*.db-shm
+runs/*.db.directions/
 
 # scratch
 staging/
