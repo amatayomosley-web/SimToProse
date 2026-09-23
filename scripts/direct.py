@@ -120,6 +120,23 @@ def _openrouter(messages, model, max_tokens=750):
 # the caller that holds the ledger; the engine still never calls a model (CLAUDE.md rule 3).
 LAST_USAGE = {}
 
+# THE COMPOSER'S OWN CALLS (gate composer-usage, 2026-09-23). `rung_direction` asks the composer model BEFORE the
+# actor's call and both dispatchers write the one `LAST_USAGE`, so the actor's call overwrote the composer's and
+# only an `act` row was ever logged - every composer call went uncounted. Each call's usage is kept here, one entry
+# per paid call (a retry is a second call), for the driver to log as `compose` rows (`log_compose_usage`).
+COMPOSE_USAGE = []
+
+
+def log_compose_usage(led, run_id, turn, scene=None):
+    """Log the composer calls this beat made, one `compose` row each, and clear the list -> rows written."""
+    n = 0
+    for u in COMPOSE_USAGE:
+        if u.get("model"):
+            led.log_llm_call(run_id, turn, "compose", u["model"], u.get("tokens_in"), u.get("tokens_out"), scene=scene)
+            n += 1
+    COMPOSE_USAGE.clear()
+    return n
+
 _OLLAMA_THINKS = {}
 
 
@@ -319,6 +336,7 @@ def _compose_selection(rows, brief, model, stub):
             raw = _ollama(msgs, model[len("ollama/"):], max_tokens=700, think=False)
         else:
             raw = _openrouter(msgs, model, max_tokens=700)
+        COMPOSE_USAGE.append(dict(LAST_USAGE))          # before the actor's call overwrites it (gate composer-usage)
         # NOT `_parse_reply` -- that one is shaped for the ACTOR's reply and coerces every result
         # into {action, thought, exit, addressee, act, tags}, so a composer selection came back
         # with `selected` silently dropped and every call fell back. Measured 2026-09-08.
@@ -561,9 +579,11 @@ def run_turn(led, run_id, char, world, groups_index, profile, temperament, affec
     # out, the one interface every harness shares. critic.py and narrate.py have had this pair since
     # the beginning; direct.py and scene.py, the two that ACT, had neither, which is why the
     # character-simulator agent could not do its job.
+    COMPOSE_USAGE.clear()                            # this beat's composer calls only (gate composer-usage)
     if prompt_only:
         _msgs = build_turn_messages(packet, event_text, temperament, rels,
                                     rung_direction=rung_direction(packet, brief=brief, model=model, stub=stub))
+        log_compose_usage(led, run_id, turn_no)
         _keep_direction(led, run_id, actor, turn_no, event_text, packet["manifest"].get("direction"))
         print(json.dumps(_msgs, indent=2))
         return affect, False, char, profile
@@ -596,10 +616,12 @@ def run_turn(led, run_id, char, world, groups_index, profile, temperament, affec
                                     information=(led.fold(run_id, max(turn_no - 1, 0)) or {}).get("information"),
                                     char_id=actor)
       except Exception as exc:                       # degrade, never crash; no silent skips
+        log_compose_usage(led, run_id, turn_no)       # a failed beat's composer calls were still paid for
         led.record_turn_skipped(run_id, turn_no, actor, str(exc))
         print("  [turn failed, recorded as turn-skipped: %s]" % str(exc)[:80])
         return affect, False, char, profile
 
+    log_compose_usage(led, run_id, turn_no)          # every attempt's composer calls, skipped beat or not
     # THE EMPTY DRAW. `scene.py:485` refuses one and records turn-skipped; the chair did not, so an
     # action that stayed empty through every resample committed as a real turn — a beat in the
     # chronicle where nothing happened, indistinguishable later from one where nothing was meant to.

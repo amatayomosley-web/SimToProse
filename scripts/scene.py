@@ -600,6 +600,7 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
         # engine would have sent, for the actor SALIENCE chose, and stop — the caller acts the beat
         # elsewhere and returns it via --turn-json. scene.py had neither half, which is the stated
         # reason character-simulator could not act in a multi-actor scene (direct.py:run_turn).
+        direct.COMPOSE_USAGE.clear()                 # this beat's composer calls only (gate composer-usage)
         if prompt_only:
             # THE RUNG BLOCK RIDES THE ACT SEAM TOO. The live path below reaches
             # direct.faithful_turn -> llm_turn -> build_turn_messages, which passes
@@ -613,6 +614,7 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
                                                      packet, brief=a.get("drive", ""),
                                                      model=model, stub=stub)),
                              indent=2))
+            direct.log_compose_usage(led, run_id, turn_no, scene=cfg.get("name"))
             return turn_no
         if supplied is not None:
             # A SUPPLIED TURN PASSES THE SAME WALLS. Shape first, then the name-leak check, then the
@@ -639,6 +641,7 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
                                         relationships=rels,
                                         information=(led.fold(run_id, max(turn_no - 1, 0)) or {}).get("information"),
                                         char_id=speaker)
+        direct.log_compose_usage(led, run_id, turn_no, scene=cfg.get("name"))   # paid for, committed or not
         if leaks:                                       # a leak survived retries -> skip this beat; never commit one
             led.record_turn_skipped(run_id, turn_no, speaker, "faithfulness: %s" % ", ".join(n for n, k in leaks))
             print("-- beat %d (turn %d) -- %s [faithfulness reject: %s — skipped]" % (

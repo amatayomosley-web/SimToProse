@@ -354,6 +354,110 @@ def test_the_record_is_committed_with_the_turn():
     print("  PASS  the record rides the turn's commit into decision_manifests, in both drivers")
 
 
+def _usage_faked(reply):
+    """Script `direct._openrouter` as the real one behaves for accounting: every call sets LAST_USAGE (model and
+    tokens, the n-th call n*100 in and n*10 out). Composer calls (max_tokens=700) get `reply`; actor calls a turn.
+    -> restore."""
+    import json as _json
+    d = _direct()
+    real, n = d._openrouter, [0]
+    turn = {"action": "She trims the wick and says nothing.", "thought": "", "exit": False, "addressee": "",
+            "tags": {"type": "mundane", "summary": "trims the wick", "dimensions": {}, "durability": "transient"}}
+
+    def fake(messages, model, max_tokens=750):
+        n[0] += 1
+        d.LAST_USAGE.clear()
+        d.LAST_USAGE.update({"model": model, "tokens_in": 100 * n[0], "tokens_out": 10 * n[0]})
+        return _json.dumps(reply if max_tokens == 700 else turn)
+    d._openrouter = fake
+    return lambda: setattr(d, "_openrouter", real)
+
+
+def test_each_composer_call_is_logged_as_a_compose_row():
+    """Gate composer-usage: the composer is asked before the actor and both write the one LAST_USAGE, so the
+    actor's call overwrote the composer's and only an `act` row was ever logged. Each paid call is now kept and
+    logged as its own `compose` row; a retry is a second call; a floor pick makes none."""
+    from src.engine.ledger import Ledger
+    d = _direct()
+    affect = _hot()
+    top = [r for r in C.selectable(affect) if r["rung"] > 1][:1]
+    restore = _usage_faked({"selected": [{"path": top[0]["path"], "rung": top[0]["rung"], "primary": True}], "about": ""})
+    led = Ledger(":memory:")
+    led.create_run("r1", {"catalog_version": 1, "models": {"turn": "fake/model"}, "prompt_versions": {"turn": 1}})
+    try:
+        d.COMPOSE_USAGE.clear()
+        d.rung_direction(_mpacket(affect), brief="the wick", model="fake/model")     # one paid call
+        d.rung_direction(_mpacket(affect), brief="the wick", model="fake/model")     # a retry: a second
+        d.LAST_USAGE.clear()
+        d.LAST_USAGE.update({"model": "fake/actor", "tokens_in": 999, "tokens_out": 99})   # the actor's call lands
+        n = d.log_compose_usage(led, "r1", 3)
+    finally:
+        restore()
+    rows = [tuple(r) for r in led.con.execute("SELECT turn, purpose, model, tokens_in, tokens_out FROM llm_calls "
+                                              "WHERE run_id = 'r1' ORDER BY call_id")]
+    assert n == 2 and rows == [(3, "compose", "fake/model", 100, 10), (3, "compose", "fake/model", 200, 20)], rows
+    assert d.COMPOSE_USAGE == [], "the list is cleared once logged"
+    d.rung_direction(_mpacket(affect))                                               # the floor: no call
+    assert d.log_compose_usage(led, "r1", 4) == 0, "a floor pick logged a composer call it never made"
+    print("  PASS  each paid composer call is kept past the actor's call and logged as its own compose row")
+
+
+def test_both_drivers_log_the_composers_calls():
+    """Through the real drivers: the actor, its composer and both seats run on a scripted model; after a scene and a
+    chair beat, `llm_calls` holds `compose` rows beside the `act` rows."""
+    import contextlib
+    import glob
+    import io as _io
+    import sqlite3
+    import tempfile
+    sys.path.insert(0, os.path.join(REPO, "tests"))
+    import scene
+    import direct
+    from test_systems import _book, _cfg
+    from src.engine.records import RecordError
+    affect = _hot()
+    top = [r for r in C.selectable(affect) if r["rung"] > 1][:1]
+    restore = _usage_faked({"selected": [{"path": top[0]["path"], "rung": top[0]["rung"], "primary": True}], "about": ""})
+
+    def refuse(*_a, **_k):
+        raise RecordError("APPRAISER_REPLY_NOT_JSON", "the event seat is faked out of this test")
+
+    def emotion(action, thought, model, me=None, present=(), **_k):
+        return [], [p for p in (present or ()) if p != me], "sure", []
+    tmp = tempfile.mkdtemp(prefix="swe_compose_")
+    saved = (scene.appraiser.read_event, scene.appraiser.read_emotion, sys.argv, sys.stdin)
+    scene.appraiser.read_event, scene.appraiser.read_emotion = refuse, emotion
+    try:
+        book = _book(tmp)
+        for name in ("Mira", "Ada"):                           # raise a built path so the composer has rows
+            p = os.path.join(book, "characters", "%s.md" % name)
+            txt = open(p, encoding="utf-8").read()
+            open(p, "w", encoding="utf-8").write(txt.replace('"DISPLEASURE": 0.2', '"DISPLEASURE": 0.62'))
+        runs = {}
+        for label, mod, argv, stdin in (
+                ("scene", scene, ["scene.py", "--book", book, "--scene", _cfg(tmp, "gale", "21:00", "30m"), "--budget", "2",
+                                  "--model", "fake/model", "--no-keeper"], ""),
+                ("chair", direct, ["direct.py", "--book", book, "--char", "Mira", "--model", "fake/model", "--no-keeper",
+                                   "--brief", "keep the lamp lit"], "the lamp gutters\nquit\n")):
+            sys.argv, sys.stdin = argv, _io.StringIO(stdin)
+            with contextlib.redirect_stdout(_io.StringIO()), contextlib.redirect_stderr(_io.StringIO()):
+                try:
+                    mod.main()
+                except SystemExit:
+                    pass
+            con = sqlite3.connect(glob.glob(os.path.join(book, "runs", "*.db"))[0])
+            runs[label] = {p: n for p, n in con.execute(
+                "SELECT purpose, COUNT(*) FROM llm_calls WHERE run_id = (SELECT run_id FROM runs ORDER BY rowid DESC LIMIT 1) "
+                "GROUP BY purpose")}
+            con.close()
+    finally:
+        scene.appraiser.read_event, scene.appraiser.read_emotion, sys.argv, sys.stdin = saved
+        restore()
+    for label, counts in runs.items():
+        assert counts.get("act", 0) >= 1 and counts.get("compose", 0) >= 1, "%s logged %s" % (label, counts)
+    print("  PASS  both drivers log the composer's calls as compose rows beside the act rows (%s)" % runs)
+
+
 def main():
     print("test_rung_delivery.py - the rung block reaches the actor\n")
     fails = 0
@@ -371,7 +475,9 @@ def main():
                test_a_composer_refusal_is_recorded_as_the_fallback,
                test_no_affect_records_why_no_direction_was_built,
                test_a_retry_records_the_attempt_that_was_kept,
-               test_the_record_is_committed_with_the_turn):
+               test_the_record_is_committed_with_the_turn,
+               test_each_composer_call_is_logged_as_a_compose_row,
+               test_both_drivers_log_the_composers_calls):
         try:
             fn()
         except AssertionError as exc:
