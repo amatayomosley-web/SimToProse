@@ -1162,6 +1162,9 @@ def main():
         if _drift:
             print("  [!] %s" % _detail)
             print("      earlier turns were computed from the pinned bible; later ones will not be.")
+        _ladders = rungs.ladders_drifted(led.run_config(run_id))      # LADDER DRIFT (gate ladder-pin), same rule
+        if _ladders:
+            print("  [!] %s" % _ladders)
         char = passage.fold_arc(led.con, run_id, char_id, char)   # the arc AND each opening's fade, in order
         acquired = led.acquisitions_for(run_id, char_id)       # rehydrate the grown vault (lived memory)
         if acquired:
@@ -1223,7 +1226,7 @@ def main():
         run_id = "directed-%s-%d-%s" % (book_name, int(time.time()), uuid.uuid4().hex[:6])
         cfg = {"catalog_version": 1,
                "models": {"turn": "stub" if args.stub else args.model},
-               "prompt_versions": {"turn": 1}}
+               "prompt_versions": {"turn": 1, "ladders": rungs.fingerprint()}}   # the ladders it is directed from
         if book_spec:                      # pin WHAT THIS RUN RAN AGAINST (bible.py)
             from src.engine import bible
             cfg[bible.CONFIG_KEY] = bible.build(led.con, world, chars)

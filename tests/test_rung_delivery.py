@@ -458,6 +458,87 @@ def test_both_drivers_log_the_composers_calls():
     print("  PASS  both drivers log the composer's calls as compose rows beside the act rows (%s)" % runs)
 
 
+def test_the_ladders_are_one_pin():
+    """Gate ladder-pin: BANDS, PIVOTS, BLOCKS and DESCENT_BLOCKS as one fingerprint - stable, moved by any of the
+    four, and carried by every direction record."""
+    from src.engine import rung_blocks
+    fp = rungs.fingerprint()
+    assert fp == rungs.fingerprint() and len(fp) == 16, fp
+    path = sorted(rung_blocks.BLOCKS)[0]
+    moved = {}
+    for label, table, key in (("a block", rung_blocks.BLOCKS, path), ("a pivot", rungs.PIVOTS, "DISPLEASURE"),
+                              ("a band", rung_blocks.BANDS, sorted(rung_blocks.BANDS)[0])):
+        saved = table[key]
+        table[key] = "regenerated" if label == "a block" else ([] if label == "a band" else 3)
+        try:
+            moved[label] = rungs.fingerprint() != fp
+        finally:
+            table[key] = saved
+    assert all(moved.values()) and rungs.fingerprint() == fp, moved
+    pk = _mpacket(_hot())
+    _direct().rung_direction(pk)
+    assert pk["manifest"]["direction"].get("ladders") == fp, pk["manifest"]["direction"]
+    print("  PASS  the ladders are one pin: stable, moved by any block, pivot or band, carried by every record")
+
+
+def test_both_drivers_pin_the_ladders_and_a_resume_notices():
+    """Gate ladder-pin: a new run's config pins the ladders in both drivers (it said `turn: 1` whatever they held),
+    and a resume after the ladders changed says so; an unchanged resume says nothing."""
+    import contextlib
+    import glob
+    import io as _io
+    import sqlite3
+    import tempfile
+    sys.path.insert(0, os.path.join(REPO, "tests"))
+    import scene
+    import direct
+    from test_systems import _book, _cfg
+    import json as _json
+    tmp = tempfile.mkdtemp(prefix="swe_ladders_")
+    book = _book(tmp)
+
+    def run(mod, argv, stdin=""):
+        saved = (sys.argv, sys.stdin)
+        sys.argv, sys.stdin = argv, _io.StringIO(stdin)
+        out = _io.StringIO()
+        try:
+            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(out):
+                try:
+                    mod.main()
+                except SystemExit:
+                    pass
+        finally:
+            sys.argv, sys.stdin = saved
+        return out.getvalue()
+
+    def last_config():
+        con = sqlite3.connect(glob.glob(os.path.join(book, "runs", "*.db"))[0])
+        try:
+            row = con.execute("SELECT run_id, config FROM runs ORDER BY rowid DESC LIMIT 1").fetchone()
+        finally:
+            con.close()
+        return row[0], _json.loads(row[1])
+    fp = rungs.fingerprint()
+    run(scene, ["scene.py", "--book", book, "--scene", _cfg(tmp, "gale-1", "21:00", "30m"), "--budget", "1", "--stub", "--no-keeper"])
+    scene_run, cfg = last_config()
+    assert cfg["prompt_versions"].get("ladders") == fp, cfg
+    run(direct, ["direct.py", "--book", book, "--char", "Mira", "--stub", "--no-keeper", "--circumstance", "the lamp gutters",
+                 "--prompt-only"])
+    assert last_config()[1]["prompt_versions"].get("ladders") == fp, last_config()
+    same = run(scene, ["scene.py", "--book", book, "--scene", _cfg(tmp, "gale-2", "22:00", "30m"), "--budget", "1", "--stub",
+                       "--no-keeper", "--resume", scene_run])
+    assert "rung ladders changed" not in same, "an unchanged resume cried wolf"
+    real = rungs.fingerprint
+    rungs.fingerprint = lambda: "0" * 16
+    try:
+        moved = run(scene, ["scene.py", "--book", book, "--scene", _cfg(tmp, "gale-3", "23:00", "30m"), "--budget", "1", "--stub",
+                            "--no-keeper", "--resume", scene_run])
+    finally:
+        rungs.fingerprint = real
+    assert "the rung ladders changed since this run began (pinned %s" % fp in moved, moved[-600:]
+    print("  PASS  both drivers pin the ladders in a new run's config, and a resume after they changed says so")
+
+
 def main():
     print("test_rung_delivery.py - the rung block reaches the actor\n")
     fails = 0
@@ -477,7 +558,9 @@ def main():
                test_a_retry_records_the_attempt_that_was_kept,
                test_the_record_is_committed_with_the_turn,
                test_each_composer_call_is_logged_as_a_compose_row,
-               test_both_drivers_log_the_composers_calls):
+               test_both_drivers_log_the_composers_calls,
+               test_the_ladders_are_one_pin,
+               test_both_drivers_pin_the_ladders_and_a_resume_notices):
         try:
             fn()
         except AssertionError as exc:

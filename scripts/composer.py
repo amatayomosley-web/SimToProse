@@ -309,6 +309,7 @@ def record(rows, selection, text, by, fell_back="", descending=None):
                       "block": _digest(by_key[(s["path"], s["rung"])]["block"])} for s in picked],
         "about": str(sel.get("about") or ""),
         "text": _digest(text) if text else "",
+        "ladders": rungs.fingerprint(),        # the ladders this rung was read from (gate ladder-pin)
     }
 
 

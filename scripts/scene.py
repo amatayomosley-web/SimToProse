@@ -1366,6 +1366,9 @@ def main():
         if _drift:
             print("  [!] %s" % _detail)
             print("      earlier turns were computed from the pinned bible; later ones will not be.")
+        _ladders = rungs.ladders_drifted(led.run_config(run_id))      # LADDER DRIFT (gate ladder-pin), same rule
+        if _ladders:
+            print("  [!] %s" % _ladders)
         # CFG DRIFT — the same detection for the other authored input (schema v14). The bible pin
         # covers the world and the cast; the cfg covers the location, the props and the opening
         # tags, and it shaped every turn in the scene it ran. Detection only, for the reason above.
@@ -1463,7 +1466,7 @@ def main():
         run_id = "scene-%s-%d-%s" % (book_name, int(time.time()), uuid.uuid4().hex[:6])
         run_cfg = {"catalog_version": 1,
                    "models": {"turn": "stub" if args.stub else args.model},
-                   "prompt_versions": {"turn": 1}}
+                   "prompt_versions": {"turn": 1, "ladders": rungs.fingerprint()}}   # the ladders it is directed from
         from src.engine import bible
         _fp = bible.build(led.con, world, chars)                          # pin the bible
         # REFUSE BEFORE THE RUN EXISTS. The pre-flight used to sit inside `run_scene`, after this

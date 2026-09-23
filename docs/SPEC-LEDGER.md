@@ -742,6 +742,17 @@ second call - including on a beat later skipped and on a `--prompt-only` step; a
 none. Suite: `tests/test_rung_delivery.py` (the unit, and both drivers through a scripted model), 5 of 5 mutants
 red. NOT COVERED: the `act` row still carries only the actor's last attempt, as before.
 
+**2026-09-23 — the ladders are pinned to the run (gate `ladder-pin`):** both drivers wrote `prompt_versions:
+{turn: 1}` whatever the ladders held, so the rung ladders a run was directed from were pinned to nothing and
+regenerating them silently changed what past direction meant (the composer audit's finding 11). Each selected
+block was already hashed per beat (`composer.record`); what no record held was the ladder as a whole - BANDS
+(which rung a value maps to), PIVOTS (where the descent begins), BLOCKS and DESCENT_BLOCKS. `rungs.fingerprint()`
+digests the four; both drivers pin it in a new run's config (`prompt_versions.ladders`), every direction record
+carries it (`ladders`), and a resume after the ladders changed prints a notice (`rungs.ladders_drifted`) -
+detection, not refusal, as the bible pin does. Suite: `tests/test_rung_delivery.py`, 6 of 6 mutants red. NOT
+COVERED: the prompt's other text (`prompt.py`'s sections, `direction.py`'s phrase tables) stays unpinned; the
+record's `text` digest still pins each direction as sent.
+
 **2026-09-19 — attitude decays per RUNG, in minutes (gate `attitude-staircase`):** `toward.erode` was the pre-redesign mechanism — one flat `toward._RETENTION[path]` per DAY for every rung, so a hatred and a flicker of annoyance faded alike — and now steps the ladder exactly as `state.decay_over` does, on the minute clock, at a per-path scale whose bottom rung is that same day rate converted (`toward._attitude_half_life`, anchored to 1e-9 in `tests/test_toward.py` block 16) and whose rung-to-rung ratio is the MOOD staircase's own, so the two tiers cannot disagree about the shape of forgetting; `src/engine/passage.py` hands it MINUTES while `bond_rest.drift` / `wound.erode` / `arc.erode` keep the day conversion. Spec: the redesign's "Decay — per path AND per rung" ("Two tables, one shape"), `docs/emotion-arithmetic.md` §4.
 
 **2026-09-19 — the actor's reply contract drops `social`:** `src/engine/prompt.py`'s JSON reply skeleton and its `tags.social` paragraph still asked for a block bond-arithmetic.md §2 retired 2026-09-17 (`APPRAISER_SOCIAL_RETIRED`) and nothing read; removed (gate `actor-contract-cleanup`), `attribution` kept.

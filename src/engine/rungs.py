@@ -51,6 +51,33 @@ PIVOTS = {
 }
 
 
+def fingerprint():
+    """The ladders as one pin -> a short hex digest of BANDS, PIVOTS, BLOCKS and DESCENT_BLOCKS.
+
+    PINNED BECAUSE NOTHING WAS (gate ladder-pin, 2026-09-23). Each block a beat picked is already hashed in its
+    direction record (`composer.record`), but the ladder as a whole - which rung a value maps to (BANDS), where the
+    descent begins (PIVOTS), every block - was pinned to no run: the drivers wrote `prompt_versions: {turn: 1}`
+    whatever the ladders said, so regenerating them silently changed what past direction meant. Both drivers now pin
+    this in the run's config and every direction record carries it."""
+    import hashlib
+    import json
+    blob = json.dumps({"bands": BANDS, "pivots": PIVOTS, "blocks": BLOCKS, "descent": DESCENT_BLOCKS},
+                      sort_keys=True, ensure_ascii=False, default=str)
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()[:16]
+
+
+def ladders_drifted(config):
+    """A run's stored config -> the operator line to print when the ladders changed since it began, else "".
+    Detection, not refusal (the bible pin's rule): an author regenerates ladders between scenes. A run created
+    before gate ladder-pin carries no pin and says nothing."""
+    was = ((config or {}).get("prompt_versions") or {}).get("ladders")
+    now = fingerprint()
+    if not was or was == now:
+        return ""
+    return ("the rung ladders changed since this run began (pinned %s, now %s): earlier beats were directed from "
+            "the pinned ladders; later ones will not be" % (was, now))
+
+
 def paths():
     """Every path this engine can actually resolve -> sorted list. The built set, not the designed one."""
     return sorted(BANDS)
