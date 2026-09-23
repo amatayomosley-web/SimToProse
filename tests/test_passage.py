@@ -502,6 +502,45 @@ def test_the_bounds_read_the_log_as_it_stood():
           holds1 == [("hold", "loc.healers_house", 0.6, "+")], holds1)
 
 
+def test_a_first_beat_cliff_replays_after_its_openings_drift():
+    """GATE cliff-after-drift (2026-09-23). A scene opens at turn 5 after ten days; its FIRST beat breaks trust
+    (-.40) and the cliff lowers the rest to .15 - both rows land at turn 5, beside the opening's time
+    declaration. Live, the drift ran at the opening toward the OLD rest (.80: no move), then the beat. The
+    timeline sorted every rest row first, so the replay drifted ten days toward .15 before the beat. A rest the
+    sheet or the director laid down at the same turn still takes effect before the drift."""
+    from src.engine.records import RestDeclared
+    print("\n[cliff] a first-beat cliff replays after its scene's drift")
+    led = Ledger(":memory:")
+    led.create_run("r1", {"catalog_version": 1, "models": {"turn": "stub"}, "prompt_versions": {"turn": 1}})
+    authored = {"edda_elder": {"trust": 0.80, "affinity": 0.5, "respect": 0.5, "debt": 0.0}}
+    with led.con:
+        bond_rest.write(led.con, "r1", 0, bond_rest.seed_rows("maren", authored, existing=[]))
+    led.declare_time("r1", 5, 10 * 1440.0, "ten days")                 # the second scene's opening
+    with led.con:
+        led.con.execute("INSERT INTO relationship_deltas(run_id, turn, perceiver, target, axis, delta, ord) "
+                        "VALUES ('r1', 5, 'maren', 'edda_elder', 'trust', -0.40, 'first')")
+        bond_rest.write(led.con, "r1", 5, [RestDeclared("maren", "edda_elder", "trust", 0.15, "cliff")])
+    rels = copy.deepcopy(authored)
+    bond_rest.rehydrate(rels, {}, led.timeline_for("r1", "maren"))
+    check("the-edge-drifts-toward-the-rest-it-had-at-the-opening-then-takes-the-beat",
+          abs(rels["edda_elder"]["trust"] - 0.40) < 1e-9, rels["edda_elder"])
+    order = [(t, s, it[0]) for t, s, it in bond_rest.timeline_rows(led.con, "r1", "maren") if t == 5]
+    check("...the-turn-reads-drift-then-the-beat's-own-rows", [k for _t, _s, k in order] == ["time", "rest", "edge"], order)
+    # a hold the DIRECTOR declares at scene start is laid down before the opening; one a KEEPER writes comes after
+    from src.engine import attachments
+    from src.engine.records import AttachmentDeclared
+    with led.con:
+        attachments.write(led.con, "r1", 5, [AttachmentDeclared("maren", "loc.the-ferry", 0.6, "+", "director"),
+                                             AttachmentDeclared("maren", "loc.the-mill", 0.4, "+", "keeper")])
+    order = ["%s:%s" % (it[0], it[1] if it[0] == "hold" else "") for t, _s, it in bond_rest.timeline_rows(led.con, "r1", "maren") if t == 5]
+    check("...a-director's-hold-comes-before-the-drift-and-a-keeper's-after",
+          order.index("hold:loc.the-ferry") < order.index("time:") < order.index("hold:loc.the-mill"), order)
+    # THE OPENING'S VIEW: the bonds as they stood at turn 5's opening exclude the beat's cliff (passage.fold_toward)
+    before = [it for t, s, it in bond_rest.timeline_rows(led.con, "r1", "maren", before=(5, 3)) if t == 5]
+    check("the-bonds-at-the-opening-hold-no-cliff-the-beat-had-not-yet-made",
+          not any(it[0] == "rest" and it[2] == "trust" for it in before), before)
+
+
 def main():
     print("test_passage.py — one clock, read the same way by both drivers\n")
     for fn in sorted((v for k, v in globals().items()

@@ -47,8 +47,9 @@ def rows_for(con, run_id, perceiver):
 
 
 def timeline_rows(con, run_id, perceiver, before=None, seeded_at=None):
-    """The whole bond timeline WITH its turns -> [(turn, slot, item)], ascending; within a turn rest (0),
-    hold (1), time (2), edge (3). `Ledger.timeline_for` strips the turns for `rehydrate`; the attitude
+    """The whole bond timeline WITH its turns -> [(turn, slot, item)], ascending; within a turn the rest (0)
+    and hold (1) rows laid down before the opening, then the time declaration (2), then the beat's own rows - a
+    cliff's rest, a keeper's hold - and its edge movements (3). `Ledger.timeline_for` strips the turns for `rehydrate`; the attitude
     fold (`passage.fold_toward`) keeps them, because it needs the bonds AS OF each scene opening.
 
     THE TIME ITEM IS IN DAYS (gate erosion-derived-at-replay, 2026-09-22). `time_declarations` stores
@@ -86,11 +87,23 @@ def declared_rows(con, run_id, perceiver, seeded_at=None):
     `authored` seeds and the scene's `director` holds - and drop a cliff or keeper row the turn's own
     beat wrote after it. That is the log as the scene's characters were built from it (gate
     mood-from-readings; the director's holds added by gate systems-registry, 2026-09-22)."""
-    keep = (lambda t, src: t != seeded_at or src in ("authored", "director")) if seeded_at is not None else (lambda t, src: True)
-    rows = [(t, 0, ("rest", tg, ax, v)) for t, tg, ax, v, _s in rows_for(con, run_id, perceiver) if keep(t, _s)]
-    rows += [(t, 1, ("hold", e, h, s)) for t, e, h, s, _src in _attachments.rows_for(con, run_id, perceiver)
+    keep = (lambda t, src: t != seeded_at or src in _BEFORE_THE_OPENING) if seeded_at is not None else (lambda t, src: True)
+    rows = [(t, _slot(0, _s), ("rest", tg, ax, v)) for t, tg, ax, v, _s in rows_for(con, run_id, perceiver) if keep(t, _s)]
+    rows += [(t, _slot(1, _src), ("hold", e, h, s)) for t, e, h, s, _src in _attachments.rows_for(con, run_id, perceiver)
              if keep(t, _src)]
     return rows
+
+
+# WRITTEN BEFORE THE OPENING, OR BY A BEAT (gate cliff-after-drift, 2026-09-23). An `authored` or `director` row
+# is laid down before its turn's opening and takes effect before the opening's drift (slot 0 rest, 1 hold). A row
+# a BEAT wrote - a `cliff`, a keeper's hold - came after the drift its turn opened with, so it sits with the
+# beat's own movements (slot 3). Every row used to take 0/1, so a cliff on a scene's first beat replayed BEFORE
+# that scene's drift, and a resumed edge drifted toward a lowered rest the live run had not yet set.
+_BEFORE_THE_OPENING = ("authored", "director")
+
+
+def _slot(declared_slot, source):
+    return declared_slot if source in _BEFORE_THE_OPENING else 3
 
 
 def seed(con, run_id, turn, perceiver, relationships):
@@ -224,7 +237,8 @@ def rehydrate(relationships, priors, timeline, attachments=None):
     not commute — `drift(0.80) then +0.10 != 0.80 + 0.10 then drift`. A fold that applied every
     declaration and then every movement would produce a number the run never held. Within a turn a
     rest takes effect first, then the hold, then the declaration, then the movements (the ledger's
-    0/1/2/3 tiebreak: rest, hold, time, edge).
+    0/1/2/3 tiebreak: rest, hold, time, edge) - and a rest or hold a BEAT wrote comes with its movements,
+    after the declaration (`_slot`, gate cliff-after-drift).
 
       ("rest", target, axis, value)  remembered: the edge's rest from here on
       ("hold", entity, hold, sign)   gate 5: folded onto `attachments` (the sheet block) in place

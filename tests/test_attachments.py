@@ -113,7 +113,7 @@ def test_the_rows():
 
 
 def test_the_fold():
-    print("\n[6] THE FOLD — rest, hold, time, edge within a turn; the block folds in place; no block refuses")
+    print("\n[6] THE FOLD — the turn's declarations, its time, then the beat's own rows; the block folds in place; no block refuses")
     from src.engine.records import Event, TurnCommit, RestDeclared, RelationshipDelta
     led = _ledger()
     A.seed(led.con, "r", 0, "ash", BLOCK)
@@ -127,7 +127,10 @@ def test_the_fold():
     led.declare_time("r", 4, 1.0, source="test")
     tl = led.timeline_for("r", "ash")
     at4 = [t[0] for t in tl if True][-4:]
-    check("kinds within turn 4 run rest, hold, time, edge", [t[0] for t in tl][-4:] == ["rest", "hold", "time", "edge"], [t[0] for t in tl])
+    # the director's hold was laid down before turn 4's opening; the cliff's rest was written by the beat, after the
+    # opening's drift (gate cliff-after-drift, 2026-09-23 - this line used to assert the cliff first: the defect's order)
+    check("kinds within turn 4 run the director's hold, time, then the beat's rest and edge",
+          [t[0] for t in tl][-4:] == ["hold", "time", "rest", "edge"], [t[0] for t in tl])
     check("the hold item is ('hold', entity, hold, sign)", ("hold", "loc.mill", 0.0, "+") in tl, tl)
     block = json.loads(json.dumps(BLOCK))
     rels = {"bel": {"trust": .6, "affinity": .5, "respect": .5, "debt": .0}}
