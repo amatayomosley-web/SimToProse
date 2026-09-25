@@ -26,10 +26,12 @@ sys.path.insert(0, REPO)
 from src.engine import contracts                                       # noqa: E402
 from src.engine import contracts_sheet                                 # noqa: E402
 from src.engine import contracts_world                                 # noqa: E402
+from src.engine import contracts_scene                                 # noqa: E402
 
 # which declarations go into which blueprint
 TARGETS = (("contracts_sheet", contracts_sheet.SHEET, os.path.join(REPO, "docs", "authoring", "BLUEPRINT-character.md")),
-           ("contracts_world", contracts_world.WORLD, os.path.join(REPO, "docs", "authoring", "BLUEPRINT-world.md")))
+           ("contracts_world", contracts_world.WORLD, os.path.join(REPO, "docs", "authoring", "BLUEPRINT-world.md")),
+           ("contracts_scene", contracts_scene.SCENE, os.path.join(REPO, "docs", "authoring", "BLUEPRINT-scene.md")))
 
 
 def region(name):

@@ -40,8 +40,9 @@ sys.path.insert(0, os.path.join(REPO, "scripts"))
 
 from src.engine.vault import load_book                          # noqa: E402
 from src.engine import attachments as _attachments               # noqa: E402  (gate 5: the director's declarations)
-from src.engine import condition as _condition                   # noqa: E402  (how worn someone arrives)
 from src.engine import systems as _systems                       # noqa: E402  (which systems the book runs)
+from src.engine import contracts as _contracts                   # noqa: E402  (a file walked against its declarations)
+from src.engine import contracts_scene as _scene_contract       # noqa: E402  (the scene file, declared once)
 from src.engine.records import RecordError                       # noqa: E402
 from scene import load_scene_cfg                                # noqa: E402
 
@@ -67,18 +68,29 @@ def _law_acts(world):
 
 
 def lint_cfg(cfg, world, chars):
-    """-> (errors, warnings, unchecked). Errors are resolvable facts; warnings are heuristics."""
+    """-> (errors, warnings, unchecked). Errors are resolvable facts; warnings are heuristics.
+
+    THE FILE'S OWN CONTRACT FIRST (src/engine/contracts_scene.py, gate scene-contract): every key's shape, in its
+    engine module's words - best on the file as written, which `main` passes; what stays below is what one file
+    cannot answer alone (the book's cast, places, groups and laws) and the craft rules."""
     errors, warnings = [], []
     people, locs, acts = _people(world), _locations(world), _law_acts(world)
     known = people | set(chars or {})
+    try:
+        _sys = _systems.for_book(world)
+    except RecordError:
+        _sys = _systems.defaults()                   # lint_book reports a bad declaration; this cfg is not the place
+    for f in _contracts.check(cfg, _scene_contract.SCENE, _sys):
+        (errors if f["severity"] in ("error", "retired") else warnings).append("%s %s" % (f["path"] or "the file", f["message"]))
 
     cast = cfg.get("cast") or []
     ids = [str(c.get("id")) for c in cast if isinstance(c, dict)]
 
     for cid in ids:
-        if cid not in known:
-            errors.append("cast %r is not a character in this book and not in world.people — no one "
-                          "can perceive them and the engine has no sheet to act from" % cid)
+        if cid not in set(chars or {}):
+            errors.append("cast %r is not a character in this book — the run refuses a cast member with no sheet "
+                          "to act from%s" % (cid, " (world.people names them, but a person is not a character)"
+                                             if cid in people else ""))
     dupes = {i for i in ids if ids.count(i) > 1}
     if dupes:
         errors.append("cast lists %s more than once — one seat per character per scene"
@@ -124,52 +136,19 @@ def lint_cfg(cfg, world, chars):
         errors.append("location %r is not in world.locations — no scene can produce a location "
                       "percept for it" % loc)
 
-    # THE DIRECTOR'S HOLDS (bond-arithmetic.md s3, gate 5): typed declarations — a cast member, a
-    # registered place or group, a relation word (`none` is legal: a hold that ended).
+    # THE DIRECTOR'S HOLDS against the book (the contract has checked each declaration's shape and relation word): a
+    # cast member of this scene, and a place or group the world registers.
     _names = set(_attachments.names_for(world))
     for d in cfg.get("attachments") or []:
+        if not isinstance(d, dict):
+            continue
         if str(d.get("char")) not in ids:
             errors.append("attachments: %r is not in this scene's cast" % d.get("char"))
         if str(d.get("entity")) not in _names:
             errors.append("attachments: %r is not a place or group the world registers (%s)"
                           % (d.get("entity"), ", ".join(sorted(_names)) or "nothing registered"))
-        if str(d.get("relation") or "").lower() not in _attachments.RELATION_HOLDS:
-            errors.append("attachments: relation %r is not one of %s" % (d.get("relation"), ", ".join(_attachments.RELATION_HOLDS)))
 
-    # HOW WORN SOMEONE ARRIVES (gate condition-flow; owner ruling C3a): words the engine prices, for a cast
-    # member, in a book that runs the condition system at all - the driver refuses the same things.
-    errors.extend(m for _c, m in _condition.declaration_errors(cfg.get("condition"), ids))
-    try:
-        _sys = _systems.for_book(world)
-    except RecordError:
-        _sys = _systems.defaults()                   # lint_book reports a bad declaration; this cfg is not the place
-    if cfg.get("condition") and "condition" not in _sys:
-        errors.append("condition: this scene states a condition, but the book switches the condition system off")
-
-    # DIMENSION LEGALITY — docs/template-scene-blueprint.md's pre-flight says items 1-4 are
-    # mechanically covered; item 4 (legal dimension keys) was not checked anywhere. An unknown key
-    # is not rejected downstream either: state.appraise silently no-ops on it (_DIM_TO_PATH.get),
-    # so a typo'd dimension is authored, shown to nobody, and computes nothing.
-    from src.engine.state import _DIM_TO_PATH as _LEGAL_DIMS
-    dims = (cfg.get("opening_tags") or {}).get("dimensions")
-    if isinstance(dims, dict):
-        for k, v in dims.items():
-            if k not in _LEGAL_DIMS:
-                errors.append("opening_tags.dimensions key %r is not one of the legal seven (%s) — "
-                              "appraise() silently ignores it" % (k, ", ".join(sorted(_LEGAL_DIMS))))
-            elif isinstance(v, str):
-                # A WORD is the authored form (standard-vectors.md §3); scene.py resolves it at the
-                # cfg parse seam. Only an unknown word is an error, and the message names the ladder.
-                from src.engine.severity import WORDS
-                if v.strip().lower() not in WORDS:
-                    errors.append("opening_tags.dimensions[%r] = %r is not a severity word — use one "
-                                  "of: %s" % (k, v, ", ".join(WORDS)))
-            elif not isinstance(v, (int, float)) or not (0.0 <= float(v) <= 1.0):
-                errors.append("opening_tags.dimensions[%r] = %r is neither a severity word (%s) nor "
-                              "a number in [0,1]" % (k, v, ", ".join(__import__(
-                                  "src.engine.severity", fromlist=["WORDS"]).WORDS)))
-
-    act = (cfg.get("opening_tags") or {}).get("act") or cfg.get("act")
+    act = cfg.get("act")                             # the law check reads this one; opening_tags.act reaches nothing
     if act and str(act) not in acts:
         errors.append("act %r is keyed by no law in this world — the pre-flight will find nothing to "
                       "bear on it (world.laws declares: %s)"
@@ -210,13 +189,24 @@ def main():
         world, chars = load_book(book_dir)
     except Exception as e:
         raise SystemExit("could not load book: %s" % e)
+    # THE FILE AS WRITTEN (gate scene-contract): the loader turns words into numbers, refuses `elapsed` and exits on
+    # a bad voice, so the contract reads the JSON first; the loader's own refusal is reported after, if it has one
     try:
-        cfg = load_scene_cfg(args.scene)
-    except (ValueError, OSError, json.JSONDecodeError) as e:
+        with open(args.scene, encoding="utf-8") as fh:
+            cfg = json.load(fh)
+    except (OSError, ValueError) as e:
         print("SCHEMA: %s" % e)
+        return 1
+    if not isinstance(cfg, dict):
+        print("SCHEMA: the scene file must be a JSON object")
         return 1
 
     errors, warnings, unchecked = lint_cfg(cfg, world, chars)
+    if not errors:
+        try:
+            load_scene_cfg(args.scene)
+        except (ValueError, SystemExit) as e:        # the loader exits on a bad voice; it is still a refusal to report
+            errors.append("the loader refuses this file: %s" % e)
     print("lint_scene: %s against %s" % (os.path.basename(args.scene), os.path.basename(book_dir)))
     for e in errors:
         print("  ERROR    %s" % e)

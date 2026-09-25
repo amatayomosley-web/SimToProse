@@ -213,14 +213,20 @@ def test_a_scene_CFG_may_write_the_word_the_docs_tell_it_to_write():
     assert all(isinstance(v, float) for v in dims.values()), (
         "appraise() receives floats or it raises — %r" % (dims,))
 
-    # and the LINTER accepts the word rather than reporting it as not-a-number — checked against
-    # its own source, because that message is what an author actually hits at pre-flight.
-    src = open(os.path.join(repo, "scripts", "lint_scene.py"), encoding="utf-8").read()
-    assert "is not a number in [0,1]" not in src, (
-        "lint_scene still calls a severity WORD not-a-number, which is the message an author sees "
-        "after following the doc that tells them to write one")
-    assert "is not a severity word" in src, (
-        "lint_scene must name the ladder when the word is off it")
+    # and the LINTER accepts the word rather than reporting it as not-a-number, and names the ladder when a word is
+    # off it - checked by what it SAYS to an author at pre-flight (the rule moved into the scene file's contract,
+    # src/engine/contracts_scene.py, gate scene-contract; a source grep of lint_scene.py would now read the wrong file)
+    import lint_scene
+    from src.engine.severity import WORDS
+    world, chars = {"people": [], "locations": [], "laws": []}, {"a": {}}
+    errs, _w, _u = lint_scene.lint_cfg(cfg, world, chars)
+    assert not [e for e in errs if "dimensions" in e], (
+        "lint_scene reports a severity WORD the docs tell an author to write: %r" % (errs,))
+    off = dict(cfg, opening_tags={"dimensions": {"loss": "overwhelming"}})
+    errs, _w, _u = lint_scene.lint_cfg(off, world, chars)
+    said = [e for e in errs if "dimensions" in e]
+    assert said and "is not a severity word" in said[0] and all(w in said[0] for w in WORDS), (
+        "lint_scene must name the ladder when the word is off it: %r" % (errs,))
 
 def test_no_DOC_still_teaches_the_numeric_severity_bands():
     """THE GUARD THAT WAS MISSING, widened. On 2026-09-01 the reply contract moved to a word ladder

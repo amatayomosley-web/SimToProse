@@ -1132,7 +1132,7 @@ night.*
 
 **Opening tags:** `threat` — *severe*. `care_relevant` — *real but bounded*.
 
-**Act:** none. **Elapsed:** none — this follows scene 01 the same day.
+**Act:** none. **At:** day 1, 14:00 — this follows scene 01 the same day. **Lasts:** 1h.
 
 ### Why this scene works
 
@@ -1202,8 +1202,11 @@ SCENE BLUEPRINT
   Act         (optional)  ______________________________________________
               only if the scene turns on something the world's laws rule on
 
-  Elapsed     (optional)  ________  unit: ______________________________
-              time since the last scene, in your own unit
+  At          (REQUIRED)  day ________  time ____:____
+              when the scene opens (section 11)
+
+  Lasts       (optional)  __________________________
+              how long it runs: minutes, or 30m / 2h / 1d
 ```
 
 ### And here is the shape of the file it becomes
@@ -1214,6 +1217,8 @@ recognise it. The order of the keys does not matter.
 ```json
 {
   "name": "scene_NN_short_title",
+  "at": { "day": 1, "time": "09:00" },
+  "lasts": "1h",
   "pov": "character_id",
   "location": "location_id",
   "situation": "Plain prose. Conditions and pressure. No dialogue.",
@@ -1232,6 +1237,55 @@ recognise it. The order of the keys does not matter.
   ]
 }
 ```
+
+---
+
+## 16b. Every key, as the engine declares it
+
+The table below is **generated** from the engine's own declaration of the scene file
+(`src/engine/contracts_scene.py`, gate scene-contract 2026-09-25) by `scripts/gen_contracts.py`, and the
+suite fails when the two disagree. `scripts/lint_scene.py` checks your file against it **as you wrote it**,
+before the loader turns words into numbers. Where this form's prose and the table disagree, **the table is
+right**. `active` is read. `unread` reaches nothing. `runtime` is written by the loader, and an author's
+value is overwritten. `retired` is refused. `[]` is a list's entries.
+
+<!-- GENERATED: contracts_scene -->
+| field | shape | must author | status | read by | what it is |
+|---|---|---|---|---|---|
+| `name` | text | no | active | scene (the clock's source label, the scene row, the resume drift check) | the scene's name; the file's own name when absent |
+| `situation` | text | yes | active | scene.run_scene | the moment, told to every actor each beat |
+| `cast` | list | yes | active | scene.run_scene; clock._scene_casts; mood_fold.replay | who is in the room, each with what they want |
+| `cast[]` | map | no | active | scene.run_scene |  |
+| `cast[].id` | text | no | active | scene.main (must be a character of the book) |  |
+| `cast[].drive` | text | no | active | scene.run_scene | what they want from the others here - replaces their goals |
+| `at` | map | yes | active | clock.parse_at | when the scene opens: {day, time} |
+| `at.day` | number | no | active | clock.parse_at | a whole day; 0 and below are before page one |
+| `at.time` | text | no | active | clock.parse_at | HH:MM |
+| `lasts` | any | no | active | clock.span_minutes; passage.open_scene | how long it runs: minutes, or 30m / 2h / 1d; absent, nothing decays inside the scene |
+| `at_minutes` | any | no | runtime | scene (derived from at; an author's value is overwritten) |  |
+| `lasts_minutes` | any | no | runtime | scene (derived from lasts; an author's value is overwritten) |  |
+| `elapsed` | any | no | retired | replaced by at (when the scene opens) and lasts (how long it runs) - the loader refuses elapsed (refuse) |  |
+| `subject` | any | no | active | scene.run_scene (the first beat's target; regard) | [id, group] - whom the moment is about |
+| `opening_tags` | map | no | active | scene._salience (the opener) | how hard the opening lands |
+| `opening_tags.dimensions` | delegated | no | active | floor; state.appraise | the seven appraisal dimensions, each a severity word or a number in [0,1] |
+| `opening_tags.type` | any | no | unread | - |  |
+| `opening_tags.durability` | any | no | unread | - |  |
+| `opening_tags.act` | any | no | unread | - | the law check reads the scene's own `act` |
+| `act` | text | no | active | scene.law_preflight | the act the world's laws are asked about before the run |
+| `location` | text | no | active | scene.law_preflight; gate._lookup_location | a world.locations id |
+| `props` | list | no | active | gate.perception_scope | the room's objects, plainly present - three to five |
+| `props[]` | text | no | active | gate.perception_scope |  |
+| `pov` | text | no | active | scene.record_boundary; narrate | whose eyes the narrator uses; the first cast id when absent |
+| `voice` | text | no | active | narrate | close-third \| first \| distant-third \| second |
+| `knowledge` | text | no | active | narrate | pov \| omniscient |
+| `attachments` | list | no | active | scene.run_scene (priced at the first turn) | the director's holds, in relation words |
+| `attachments[]` | map | no | active | scene.run_scene |  |
+| `attachments[].char` | text | no | active | scene.run_scene |  |
+| `attachments[].entity` | text | no | active | scene.run_scene | loc.<id> or grp.<tag> |
+| `attachments[].relation` | text | no | active | attachments.RELATION_HOLDS |  |
+| `attachments[].note` | text | no | active | scene.run_scene |  |
+| `condition` | any | no | active | condition.apply_declared; mood_fold | how worn someone arrives: {char, energy?, stress?, gap?} in words |
+<!-- END GENERATED -->
 
 ---
 

@@ -228,13 +228,16 @@ Format:
 ```
 
 **Required** — `load_scene_cfg` fails loud without them: `situation` (non-empty string), `cast`
-(non-empty list, every entry `{id, drive}`).
+(non-empty list, every entry `{id, drive}`), and `at` (`{day, time}`, when the scene opens).
 
-**Optional but consumed**: `name`, `location`, `props`, `subject`, `opening_tags`, `elapsed`.
-`elapsed` is how much time the director says has passed since the last scene, in the director's own
-unit; it relaxes every cast edge toward its resting prior.
+**Optional but consumed**: `name`, `lasts` (how long it runs), `location`, `props`, `subject`,
+`opening_tags.dimensions`, `act`, `pov`, `voice`, `knowledge`, `attachments`, `condition`. **`elapsed` is
+refused** — it was replaced by `at` and `lasts`, which the engine turns into the time between scenes.
+`opening_tags.type` and `.durability` are read by nothing.
 
-Anything else in the object is carried and read by nothing.
+The full list, with each key's shape and reader, is generated into BLUEPRINT-scene section 16b from the
+engine's own declaration (`src/engine/contracts_scene.py`). A key it does not name is read by nothing, and
+`scripts/lint_scene.py` says so.
 
 ---
 

@@ -53,9 +53,10 @@ not the dialogue — those EMERGE. A blueprint is the spine; the flesh is run.
 **File:** a JSON passed to `scripts/scene.py --scene <file>`. Shape (`scene.py:load_scene_cfg`):
 ```json
 { "name": "the-third-night", "pov": "joss_apprentice",
+  "at": {"day": 3, "time": "21:00"}, "lasts": "2h",
   "situation": "<the circumstance the actors open in — plain text>",
-  "subject": ["<entity_id>", "<group>"], 
-  "opening_tags": {"type": "threat", "dimensions": {"threat": 0.6}, "durability": "transient"},
+  "subject": ["<entity_id>", "<group>"],
+  "opening_tags": {"dimensions": {"threat": "severe"}},
   "cast": [ {"id": "joss_apprentice", "drive": "<a standing WANT, blind to the scene's outcome>"}, ... ] }
 ```
 **The drive discipline (design.md scene-goals):** a drive is a genuine standing want — **never the ending in

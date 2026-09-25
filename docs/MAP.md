@@ -1,7 +1,7 @@
 # MAP — what is in this project and what owns what
 
-**Why this file exists.** `docs/` holds 126 design docs, `src/engine/` 69 modules,
-`tests/` 118 suites. Nobody — human or agent — can hold that in their head, and reading it all every
+**Why this file exists.** `docs/` holds 126 design docs, `src/engine/` 70 modules,
+`tests/` 119 suites. Nobody — human or agent — can hold that in their head, and reading it all every
 session is not practical. **The failure this prevents is real and happened:** a session spent hours
 reasoning about the decision layer from four docs and inference, invented a parallel vocabulary
 ("vectors"), and rebuilt a worse version of the buff/debuff registry that `decision-engine.md`
@@ -232,7 +232,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `world-model` | the other half of the loop (SEED — to co-design) |
 | `world-state-ledger` | the live now (design the machinery; the line items are runtime) |
 
-## src/engine/ — 69 modules (normative for what IS)
+## src/engine/ — 70 modules (normative for what IS)
 
 | src | lines | owns |
 |---|---|---|
@@ -255,6 +255,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `connection` | how much of the character is INVESTED in the thing a moment is about. |
 | `consolidation` | Gate 4: Consolidation Validation. |
 | `contracts` | the checker every author-file contract shares: fields declared once, a file walked against them. |
+| `contracts_scene` | the scene file, declared once: every key a scene may carry, its shape, and where it stands. |
 | `contracts_sheet` | the character sheet, declared once: every field, its shape, and where it stands. |
 | `contracts_world` | the world note, declared once: every field of the book's world, its shape, and where it stands. |
 | `db` | SQLite connection + schema migration for the engine spine. |
@@ -318,7 +319,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `narrate` | 232 | the narrator (design.md layer 7, narration.md): a canonized scene -> POV-bound prose. |
 | `scene` | 393 | the multi-agent scene runner (the director sets the scene; the agents push it). |
 
-## tests/ — 118 suites (each is a PROOF of the gate it names)
+## tests/ — 119 suites (each is a PROOF of the gate it names)
 
 | tests | lines | owns |
 |---|---|---|
@@ -350,6 +351,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `test_condition` | energy and stress that move (src/engine/condition.py, gate condition-flow). |
 | `test_connection` |  |
 | `test_consolidation` |  |
+| `test_contracts_scene` |  |
 | `test_contracts_sheet` |  |
 | `test_contracts_world` |  |
 | `test_critic` |  |

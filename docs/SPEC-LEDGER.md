@@ -1029,6 +1029,24 @@ a generated table. On the owner's world notes: no errors; `season` read by nothi
 people. Suite: `tests/test_contracts_world.py`. NOT COVERED: duplicate person or place ids (the bible keeps the
 first, silently); a tension's duplicate id; the scene file (the next gate).
 
+**2026-09-25 — the scene file, declared once (gate `scene-contract`):** G2 for the last author file. `lint_scene`
+only ever saw a scene after `load_scene_cfg` had rewritten it - severity words already numbers (its own word check
+could never fire), `elapsed` already refused, a bad `voice` already a SystemExit escaping its handler - and it
+checked nothing of `pov`, `subject`'s shape, `voice` or `knowledge`, while it accepted a cast id from world.people
+that the run refuses (a cast member must be a character). The docs' example scene files used `elapsed` (refused
+since the clock) and left out `at` (required): BLUEPRINT-scene's worked example, blank form and file shape,
+template-scene-blueprint's field list, guide-continuing-the-story's example. `src/engine/contracts_scene.py` declares
+every key (from an inventory of every key scripts/scene.py, lint_scene, the narrator and the pinned-cfg readers
+take, file:line each), each vocabulary the engine's own: the clock for `at` and `lasts`, the seven appraisal
+dimensions and the severity ladder for the opening tags, the narration modes, the relation words, the condition
+words. A malformed `subject` (which the loader turns into no one, silently) and a `pov` outside the cast are errors;
+`opening_tags.type` / `.durability` / `.act` reach nothing; `elapsed` is retired. `lint_scene` checks the file as
+written, reports the loader's own refusal after, and keeps the book checks and the craft rules. BLUEPRINT-scene
+carries the declarations as a generated table (section 16b). Suite: `tests/test_contracts_scene.py` (one mutant, the
+range check, first survived on a substring that also sat in the list of legal dimension names - each part is now
+matched on its own finding's words). NOT COVERED: run-start refusal against the contract (G4);
+`mood_fold.replay` on a scene with no pinned cfg (TypeError - flagged as its own task).
+
 **2026-09-19 — attitude decays per RUNG, in minutes (gate `attitude-staircase`):** `toward.erode` was the pre-redesign mechanism — one flat `toward._RETENTION[path]` per DAY for every rung, so a hatred and a flicker of annoyance faded alike — and now steps the ladder exactly as `state.decay_over` does, on the minute clock, at a per-path scale whose bottom rung is that same day rate converted (`toward._attitude_half_life`, anchored to 1e-9 in `tests/test_toward.py` block 16) and whose rung-to-rung ratio is the MOOD staircase's own, so the two tiers cannot disagree about the shape of forgetting; `src/engine/passage.py` hands it MINUTES while `bond_rest.drift` / `wound.erode` / `arc.erode` keep the day conversion. Spec: the redesign's "Decay — per path AND per rung" ("Two tables, one shape"), `docs/emotion-arithmetic.md` §4.
 
 **2026-09-19 — the actor's reply contract drops `social`:** `src/engine/prompt.py`'s JSON reply skeleton and its `tags.social` paragraph still asked for a block bond-arithmetic.md §2 retired 2026-09-17 (`APPRAISER_SOCIAL_RETIRED`) and nothing read; removed (gate `actor-contract-cleanup`), `attribution` kept.
