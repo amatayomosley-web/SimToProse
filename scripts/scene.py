@@ -50,6 +50,7 @@ import provider as _provider                                       # noqa: E402 
 from src.engine import decay as _belief_decay                       # noqa: E402
 from src.engine import clock as _clock                              # noqa: E402
 _clockmod = _clock                                                   # the minute clock; operator prints
+from src.engine import presence as _presence                        # noqa: E402  (a name means one person)
 from src.engine.targets import retarget                             # noqa: E402  (per-primitive aboutness)
 from src.engine import targets as _targets
 from src.engine import concepts as _concepts                         # noqa: E402  (its log: binds_from/binds_for/replay)
@@ -495,8 +496,11 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
               "scene)%s" % (names.get(i, i), _clockmod.format_at(_v.at), "from their own story then" if _gap is None
                             else "from their sheet, which describes them %s later" % _win.span_words(_gap),
                             "" if _gap is None or _gap <= _win.SHEET_ADVICE_DAYS * _clockmod.MINUTES_PER_DAY else
-                            "\n            that is a long way back: consider generating a character sheet for %s as they "
-                            "were then" % names.get(i, i)))
+                            "\n            that is a long way back: consider a younger %s - a character of their own, "
+                            "with their own sheet and a place among the world's people (an id beginning with their "
+                            "name, e.g. %s_young, named %s) - called into the scene in their place (gate "
+                            "one-person-per-name: \"%s\" then means whichever is in the room)"
+                            % (names.get(i, i), i.split("_")[0], names.get(i, i), names.get(i, i))))
     # THE DIRECTOR STATES HOW THEY ARRIVE (owner ruling C3a): words, priced by the engine, applied AFTER the
     # opening's rest - the state AT the opening. The cfg is pinned whole, so the replay reads it back.
     for _c in _condition.apply_declared({i: actors[i]["char"] for i in ids}, cfg.get("condition")):
@@ -562,6 +566,11 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
                                                     _tells.catches(a["char"], tired="condition_flow" in _sys)))
                                                 if "tells" in _sys else (log, [], []))
         event_text = _compose_event(cfg["situation"], _seen, names)
+        # A NAME MEANS ONE PERSON (gate one-person-per-name): whoever of it is in the room, else whoever the story is
+        # at, from the room as it stands and the log so far - a young Mira who walks out has walked on by then
+        _elsewhere = _presence.one_per_name(world.get("people"), present, chars, cfg["at_minutes"],
+                                            lambda c: _clockmod.first_presence(led.con, run_id, c))
+        _world_b = _presence.world_meant(world, _elsewhere)   # what this beat's names, and the memories it writes, read
         scene_slice = {"event": {"text": event_text, "kind": "mundane"},
                        "target": scene_target,
                        # WHO THE SPEAKER IS ENGAGING (the redesign's gate 1): the last speaker, when
@@ -592,6 +601,8 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
                        "location": cfg.get("location") or a["char"]["current"].get("location")}
         if "tells" in _sys:                       # the signs this speaker caught become percepts (gate tells)
             scene_slice["tells_noticed"] = [t["quote"] for t in _tells_noticed]
+        if _elsewhere:                            # only a book two people share a name in carries the key
+            scene_slice["elsewhere"] = _elsewhere
         # THE FENCE (2026-09-11): what is established about who and what is here, read from the
         # chronicle as of this turn, so the actor may invent beyond it and not against it.
         _subjects = sorted({x for x in list(present) + [scene_slice.get("location") or "", scene_target or ""] if x})
@@ -634,7 +645,8 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
             packet["manifest"]["injuries"] = ["%s:%s" % (r["who"], r["stage"]) for r in packet["volatile"]["injuries"]]
         if _systems.declared(world):          # the set this beat ran, for the replay; absent = the defaults
             packet["manifest"]["systems"] = sorted(_sys)
-        rels = a["char"]["current"].get("relationships", {})
+        # the names the prompt masks and the leak check reads: only the people this scene's names mean
+        rels = _presence.rels_meant(a["char"]["current"].get("relationships", {}), _elsewhere)
         # THE ACT SEAM (docs/orchestration.md seam 1). Outbound: emit exactly the messages the
         # engine would have sent, for the actor SALIENCE chose, and stop — the caller acts the beat
         # elsewhere and returns it via --turn-json. scene.py had neither half, which is the stated
@@ -1073,7 +1085,7 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
         # GATED: `assess` reads the raw tags by design, so a turn the engine REFUSED must not
         # reach it. Ungated, a schema-invalid tag still carried a merged `target` and wrote a
         # permanent vault belief out of a self-report validate_tags had just rejected.
-        acquired = acquisition.assess(applied, tags, a["char"], world) if validation["ok"] else None
+        acquired = acquisition.assess(applied, tags, a["char"], _world_b) if validation["ok"] else None
         if acquired:
             a["char"]["current"].setdefault("vault", []).append(acquired)
             acquisition.fold_vault(a["char"]["current"]["vault"])
@@ -1125,7 +1137,7 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
             wchar = actors[wid]["char"]
             wedge = (wchar["current"].get("relationships") or {}).get(speaker) or {}
             wb = acquisition.witness_belief(names.get(speaker, speaker), tags, speaker,
-                                            trust=wedge.get("trust"), world=world, witness_id=wid)
+                                            trust=wedge.get("trust"), world=_world_b, witness_id=wid)
             if not wb:
                 continue                                # transient / no summary / deceived target — next witness
             wvault = wchar["current"].setdefault("vault", [])
@@ -1144,8 +1156,8 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
             wchar = actors[wid]["char"]
             for eid, nm in acquisition.overheard_names(str(turn.get("action", "")),
                                                        wchar["current"].get("relationships", {}),
-                                                       world.get("people", [])):
-                belief = acquisition.reveal_name(wchar, eid, nm, world)
+                                                       _world_b.get("people", [])):   # names only the Mira it means
+                belief = acquisition.reveal_name(wchar, eid, nm, _world_b)
                 if belief:
                     led.append_acquisition(run_id, wid, turn_no, belief)
                     print("   >> %s overhears the name %r (learned)" % (wid, nm))

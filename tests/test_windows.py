@@ -333,7 +333,7 @@ def test_before_a_first_scene(tmp):
     db, run_id, outs, steps = _run(book, os.path.join(tmp, "first"), (S1, boat, dawn, prologue))
     check("all-four-ran-(nothing-refused)", all("SYSTEMEXIT" not in o for o in outs), [o[-300:] for o in outs])
     notice = lambda out, who: next((ln for ln in out.splitlines() if ln.strip().startswith("WINDOW : %s plays" % who)), "")
-    advised = lambda out, who: "consider generating a character sheet for %s as they were then" % who in out
+    advised = lambda out, who: "consider a younger %s - a character of their own" % who in out   # the recipe: test_one_name
     check("ada-plays-from-her-sheet,-two-hours-before-it", "from their sheet, which describes them 2 hours later"
           in notice(outs[2], "Ada") and not advised(outs[2], "Ada"), notice(outs[2], "Ada"))
     check("tomas-plays-from-his-sheet,-two-months-before-it,-and-the-notice-advises-a-sheet-for-then",

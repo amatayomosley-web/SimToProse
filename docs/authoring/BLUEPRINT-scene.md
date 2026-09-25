@@ -916,9 +916,38 @@ suddenly change them in chapter 44.
   earlier than the moment their sheet describes, so they **play from their sheet as it stands**, and the
   notice says how much later the sheet describes them: `WINDOW : Mira plays as of day -400 09:00, from
   their sheet, which describes them 1 year later`. When that gap is **more than 30 days**, it adds the
-  advice to generate a character sheet for them as they were then — a girl of ten is not the keeper her
-  sheet describes. (The owner, 2026-09-25: *"Play the character sheet, if there is a
-  large gap in time advise generating a character sheet."*)
+  advice to write them a **younger version** (below) — a girl of ten is not the keeper her sheet
+  describes. (The owner, 2026-09-25: *"Play the character sheet, if there is a large gap in time advise
+  generating a character sheet."*)
+
+### A younger version is a character of their own (2026-09-25)
+
+The owner: *"The scene calls character, younger versions is a character."* No switch plays a character
+as they were years ago. Write a **second character**, the young Mira, and call her into the scene:
+
+- **Her own sheet:** a character note whose id is `mira_young` (the frontmatter `id:` and `fixed.id`)
+  and whose `fixed.name` is **"Mira"**, the same name as the grown Mira. Give her the relationships,
+  scars and feelings she had then (BLUEPRINT-character 1.3b).
+- **A place among the world's people:** `{"id": "mira_young", "name": "Mira", "what": "..."}`. The id
+  **begins with her name**, which is how "Mira" in a scene reaches her.
+- **The scene calls her by that id:** `"cast": [{"id": "mira_young", "drive": "..."}]`.
+
+**A name means one person.** In a scene, "Mira" means **whoever of that name is in the room**. If no
+one of that name is, it means **whoever the story is at**: the one who first walked on at or before the
+scene's time, the latest if several. If neither has walked on yet, it names both, as it always did. So
+in the flashback with the young Mira in the room, "Mira" is her, and the grown Mira is not seen, not
+spoken of, not stood with, and nothing in her record moves. In a later scene with neither of them
+there, "Mira" is the grown one. The same holds for any two people who share a name. Two of them in the
+room at once both keep it.
+
+> **HOW THIS IS USED:** before each beat, the scene driver asks `presence.one_per_name` which people
+> this beat's names do NOT mean, from the room as it stands and each character's first walk-on in the
+> log (`clock.first_presence`). A character of their own is in the room by their own id only.
+> `scene.assemble` then perceives and stands with the rest (`presence.world_meant`,
+> `presence.build_edges`). The prompt's name mask, the leak check, an overheard name and the memories
+> the beat writes read the same people (`presence.rels_meant`, `presence.world_meant`). The chair
+> (`scripts/direct.py`) does the same with its own character as the room, and it records its character
+> under the book's id for them, never under their name.
 
 **What still follows the order you run scenes:** the world's own record — who is dead, who knows
 which fact, the tensions between groups, the keeper's canon — follows the order in which you RUN

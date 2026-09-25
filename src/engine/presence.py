@@ -92,6 +92,67 @@ def named_in(text, world, normalize):
     return results
 
 
+def _character(pid, own):
+    """The book's character a person among the world's people IS -> their id, or None: their own id when it is one,
+    else the first part of it (a cast is written in the short ids, the world's people as `<name>_<role>`)."""
+    head = pid.split("_")[0]
+    return pid if pid in own else (head if head in own else None)
+
+
+def one_per_name(people, here, own, at, walked_on):
+    """A NAME MEANS ONE PERSON (gate one-person-per-name, the owner 2026-09-25) -> the ids of the people this scene's
+    names do NOT mean, sorted: their ids among the world's people and their characters' ids, so both spaces can drop them.
+
+    Two people can share a name: a younger version of a character is a character of their own ("the scene calls
+    character, younger versions is a character"), whose place among the world's people carries an id beginning with
+    the name. `named_in` matches on the name, so "Mira" named both, and in a flashback with the young one in the room
+    the grown one became a third party spoken of. For each name several people share, it means: whoever of that name
+    is here; if no one is, whoever the story is at - the one who first walked on at or before `at`, the latest if
+    several; if neither, all of them, as before. A person who is a character of their own is here by their own id
+    only: `match("mira_young", {"mira"})` is True, so the grown one in the room would have brought the young one too.
+
+    `here` the character ids in the room; `own` the book's character ids; `at` this scene's time in minutes, or None
+    (no clock: the room decides alone); `walked_on(character id)` -> the minutes their own story began, or None.
+    """
+    own, here, groups = set(own or ()), set(here or ()), {}
+    for p in people or ():
+        pid = str((p or {}).get("id") or "") if isinstance(p, dict) else ""
+        if pid:
+            groups.setdefault(pid.split("_")[0].lower(), []).append(pid)
+    out = set()
+    for ids in groups.values():
+        if len(ids) < 2:
+            continue
+        meant = [i for i in ids if i in here or _character(i, own) in here]
+        if not meant and at is not None:
+            began = {i: walked_on(_character(i, own)) for i in ids if _character(i, own)}
+            began = {i: m for i, m in began.items() if m is not None and m <= at}
+            meant = [i for i, m in began.items() if m == max(began.values())] if began else []
+        for i in ([] if not meant else ids):
+            if i not in meant:
+                out.add(i)
+                if _character(i, own) not in {_character(m, own) for m in meant}:
+                    out.add(_character(i, own))
+    return sorted(x for x in out if x)
+
+
+def world_meant(world, elsewhere):
+    """The world as this scene's names read it: without the people `one_per_name` says they do not mean. The one
+    copy every name reader takes - perception, and the beliefs a scene writes, whose `about` is stamped by name
+    (`facets.stamp`): a memory of the grown Mira made in the present was also "about" the young one."""
+    drop = set(elsewhere or ())
+    if not drop:
+        return world
+    return dict(world, people=[p for p in (world.get("people") or []) if not (isinstance(p, dict) and p.get("id") in drop)])
+
+
+def rels_meant(relationships, elsewhere):
+    """A character's relationships as this scene's names read them - what the prompt masks by, the leak check reads
+    and an overheard name teaches: an edge to the Mira the name does not mean is not in it."""
+    drop = set(elsewhere or ())
+    return {k: v for k, v in (relationships or {}).items() if k not in drop}
+
+
 def present_unnamed(present_set, named_ids, world, me=None):
     """[(entity_id, label, [observable_attrs])] for the people BODILY HERE whom the text did not name.
 
@@ -116,8 +177,9 @@ def present_unnamed(present_set, named_ids, world, me=None):
             continue
         if pid in named or pid.split("_")[0] in named:
             continue
-        # the registry's own id when the cast id is its first part; else the cast id as given
-        full = next((rid for rid in people if match(rid, {pid})), pid)
+        # the registry's own id when the cast id is its first part; else the cast id as given. Its own id first: a
+        # younger version's `mira_young` answers to `mira` too (gate one-person-per-name)
+        full = pid if pid in people else next((rid for rid in people if match(rid, {pid})), pid)
         what = str((people.get(full) or {}).get("what") or "")
         out.append((full, display_name(full.split("_")[0]), [what] if what else []))
     return out
@@ -147,15 +209,17 @@ def present_ids(percepts):
     return sorted(out)
 
 
-def build_edges(current, percepts, world):
+def build_edges(current, percepts, world, elsewhere=()):
     """Build in-scene relationship edges to present entities.
 
     scene-assembly.md §"Volatile body": relationship edges to present entities.
     Only emit edges for entities that actually appear in the PerceptSet (recognized_as
-    or entity refs) AND have a relationship record.
+    or entity refs) AND have a relationship record. `elsewhere`: the people this scene's names do not mean
+    (`one_per_name`) - the name fallback below would otherwise hand the grown Mira an edge in the young one's scene.
 
     Returns list of {target, trust, affinity, respect, debt, history}.
     """
+    elsewhere = set(elsewhere or ())
     relationships = current.get("relationships", {})
     edges = []
     seen  = set()
@@ -172,7 +236,7 @@ def build_edges(current, percepts, world):
         rec = p.get("recognized_as", "")
         if rec:
             for rel_id in relationships:
-                if rel_id.startswith(rec.lower()):
+                if rel_id.startswith(rec.lower()) and rel_id not in elsewhere:
                     present_entity_ids.add(rel_id)
 
     # SORTED = hard rule 4. Walking the SET gave hash order, which varies per PROCESS: the e2e

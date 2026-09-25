@@ -31,6 +31,7 @@ from src.engine.scene import assemble, resolve_subject, subject_groups, referenc
 from src.engine import books   # module scope: BOTH the --book and --fixture branches use it
 from src.engine import decay as _decay   # recall history fold — see run_turn's assemble call
 from src.engine import clock as _clock
+from src.engine import presence as _presence   # a name means one person (gate one-person-per-name)
 from src.engine import scene_facts as _scene_facts   # what has happened, POV-filtered (2026-09-22)
 from src.engine import concepts as _concepts   # declared story-time elapsed, same call
 from src.engine.severity import normalise_dimensions           # noqa: E402
@@ -524,7 +525,15 @@ def _kept_direction(led, run_id, actor, event_text):
                                  "actor and circumstance"}
 
 
-def run_turn(led, run_id, char, world, groups_index, profile, temperament, affect, turn_no, event_text, recent, model, stub, book_dir=None, by=None, supplied=None, prompt_only=False, brief="", minutes=0.0):
+def _names_mean(led, run_id, actor, own, world, turn_no):
+    """A NAME MEANS ONE PERSON (gate one-person-per-name) -> the people the chair's names do not mean this turn: its
+    character is the room; the story is at the reading the turn runs under, or nowhere without a clock."""
+    seg = _clock.last_scene_clock(led.con, run_id, turn_no + 1)
+    return _presence.one_per_name(world.get("people"), [actor], set(own or ()) | {actor}, None if seg is None else seg["at"],
+                                  lambda c: _clock.first_presence(led.con, run_id, c))
+
+
+def run_turn(led, run_id, char, world, groups_index, profile, temperament, affect, turn_no, event_text, recent, model, stub, book_dir=None, by=None, supplied=None, prompt_only=False, brief="", minutes=0.0, actor_id=None, own=()):
     """One placed circumstance through the full spine. Returns (new_affect, ok, char, profile) —
     char/profile may be EVOLVED if the event wrote a durable baseline diff (the arc engine).
 
@@ -533,17 +542,24 @@ def run_turn(led, run_id, char, world, groups_index, profile, temperament, affec
     laws' `act` made, for the same reason: a classifier reading "he takes the basket" and guessing
     which entity `he` is fails silently and poisons an edge instead of skipping it. Supplied, the
     character re-reads that person on their own tags; absent, no edge moves and the turn is
-    unchanged."""
+    unchanged.
+
+    `actor_id` is the book's own id for the character (gate one-person-per-name): the chair logged its character
+    by NAME, so a younger Mira named Mira would have written into the grown one's record. Absent, the name, as
+    before. `own`: the book's character ids, for whom a name means (`presence.one_per_name`)."""
+    _actor = actor_id or char["fixed"]["name"].lower()
+    _elsewhere = _names_mean(led, run_id, _actor, own, world, turn_no)
     scene_slice = {"event": {"text": event_text, "kind": "mundane"}, "recent": recent[-2:],
                    "location": char["current"].get("location"),
                    # whom this mood came from, per path, off the log — the balance meets them in full
-                   "raised_by": led.raised_by(run_id, char["fixed"]["name"].lower()),
+                   "raised_by": led.raised_by(run_id, _actor),
                    # when each path was last read, and the actor's last committed beat — the descent
                    # signal's fuel (rungs.descending): no reading at the last beat means no fuel
-                   "last_read_turn": led.last_read_turn(run_id, char["fixed"]["name"].lower()),
-                   "last_turn": led.last_turn(run_id, char["fixed"]["name"].lower())}
+                   "last_read_turn": led.last_read_turn(run_id, _actor),
+                   "last_turn": led.last_turn(run_id, _actor)}
+    if _elsewhere:                                   # only a book two people share a name in carries the key
+        scene_slice["elsewhere"] = _elsewhere
     # SLOPE as an assemble ARGUMENT, so the manifest can name it (see scene.assemble).
-    _actor = char["fixed"]["name"].lower()
     # Recall decay needs the RUN's turn, not the character's — the ledger owns it. Until
     # 2026-09-04 none of these four reached the gate, so every recall ran at turn 0 with
     # no history and no elapsed time, i.e. no decay at all. fold_recall_history derives
@@ -571,8 +587,8 @@ def run_turn(led, run_id, char, world, groups_index, profile, temperament, affec
     record_faults(detect_world_faults(packet, scene_slice, event_text, world, turn_no), book_dir)
     if _systems.declared(world):
         packet["manifest"]["systems"] = sorted(_sys)
-    actor = char["fixed"]["name"].lower()
-    rels = char["current"].get("relationships", {})
+    actor = _actor
+    rels = _presence.rels_meant(char["current"].get("relationships", {}), _elsewhere)   # the one each name means
 
     # THE ACT SEAM (docs/orchestration.md, unwired seam 1). `--prompt-only` emits exactly the
     # messages the engine would have sent; `--turn-json` hands a turn back. Between them, ANY model
@@ -883,7 +899,7 @@ def run_turn(led, run_id, char, world, groups_index, profile, temperament, affec
     # (the first beat with both feeds live rolled back on exactly that, 2026-09-11).
     toward_deltas = toward.coalesce(toward_deltas)
     led.append_turn(TurnCommit(
-        run_id=run_id, turn=turn_no, actor=char["fixed"]["name"].lower(),
+        run_id=run_id, turn=turn_no, actor=_actor,
         thought=str(turn["thought"]), action=str(turn["action"]),
         tags=tags if isinstance(tags, dict) else {}, affect=dict(new_affect),
         condition=dict(_cond_next or char["current"]["condition"]), validation=validation,
@@ -900,7 +916,7 @@ def run_turn(led, run_id, char, world, groups_index, profile, temperament, affec
                                               # ledger._project's `victim = ev['target'] or ev['actor']` always
                                               # fell through and a terminal harm marked the ACTOR dead, never the
                                               # person harmed; the betray/bond branch was unreachable entirely.
-                      actor=char["fixed"]["name"].lower())],
+                      actor=_actor)],
         manifest=packet["manifest"], recall=packet["recall_refs"], rel_deltas=rel_deltas,
         utterances=claims.spoken(str(turn["action"])), target_binds=target_binds,
         readings=list(_readings), lands_on=list(_lands), rest_rows=rest_rows))
@@ -956,7 +972,7 @@ def run_turn(led, run_id, char, world, groups_index, profile, temperament, affec
     # provenance 'lived' marks it apart from an authored .md seed. Folds forward now so the next turn's
     # recall gate can surface it; persisted to the ledger for the record.
     # GATED — see scripts/scene.py: a refused self-report must not become a permanent memory.
-    acquired = acquisition.assess(applied, tags, char, world) if validation["ok"] else None
+    acquired = acquisition.assess(applied, tags, char, _presence.world_meant(world, _elsewhere)) if validation["ok"] else None
     if acquired:
         char["current"].setdefault("vault", []).append(acquired)
         acquisition.fold_vault(char["current"]["vault"])
@@ -1140,7 +1156,11 @@ def main():
         passage.stamp_authored(char)             # before anything moves it (gate erosion-derived-at-replay)
         book_name = args.fixture
         default_db = os.path.join(REPO, "runs", "%s.db" % args.fixture)
-    char_id = char["fixed"]["name"].lower()
+    # THE BOOK'S OWN ID FOR THEM, never their name (gate one-person-per-name): two characters can share a name - a
+    # younger version is a character of their own - and the scene driver has always logged the id. A fixture has no
+    # book key: its name, as before.
+    char_id = key if book_spec else char["fixed"]["name"].lower()
+    _own = set(chars) if book_spec else {char_id}
     led = Ledger(args.db or default_db)
 
     if args.resume:
@@ -1356,7 +1376,8 @@ def main():
                 led, run_id, char, world, groups_index, profile, temperament, affect, turn_no,
                 args.circumstance, [], args.model, args.stub, book_dir=book_dir,
                 supplied=supplied, prompt_only=args.prompt_only,
-                minutes=args.minutes_per_turn, brief=(args.brief or args.circumstance or ""))
+                minutes=args.minutes_per_turn, brief=(args.brief or args.circumstance or ""),
+                actor_id=char_id, own=_own)
         except ValueError as e:
             raise SystemExit(str(e))
         if args.turn_json:
@@ -1401,7 +1422,7 @@ def main():
         _brief = (args.brief or args.circumstance or "")
         affect, ok, char, profile = run_turn(led, run_id, char, world, groups_index, profile, temperament, affect,
                                              turn_no, cmd, recent, args.model, args.stub, book_dir=book_dir, by=by,
-                                             minutes=args.minutes_per_turn, brief=_brief)
+                                             minutes=args.minutes_per_turn, brief=_brief, actor_id=char_id, own=_own)
         temperament = char["baseline"]["temperament"]   # re-bind: the arc may have moved the baseline
         if ok:
             recent.append(cmd)

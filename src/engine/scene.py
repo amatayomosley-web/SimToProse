@@ -32,7 +32,9 @@ from src.engine.records import RELATIONSHIP_AXES      # noqa: E402  (the four ax
 from src.engine.presence import (referenced_ids,      # noqa: E402  (re-exported: presence.py owns
                                  build_edges as _build_edges,      # who you are standing with)
                                  edge_from_rel as _edge_from_rel,
-                                 present_ids as _witnesses_of)     # the one presence rule, for the manifest
+                                 present_ids as _witnesses_of,     # the one presence rule, for the manifest
+                                 world_meant as _world_meant,      # a name means one person
+                                 rels_meant as _rels_meant)
 
 from src.engine.gate import (  # noqa: E402
     perception_scope,
@@ -138,7 +140,11 @@ def assemble(char, world, scene_slice, affect, condition, prev_affect=None,
     # ---- Step 2: Perception scope (perception-mode wall) ----
     # Filter scene_slice to what this character apprehends.
     # Gated by perception/insight skill checks. Failed check = absent from PerceptSet.
-    percepts = perception_scope(scene_slice, world, skills, condition, current.get("relationships", {}),
+    # A NAME MEANS ONE PERSON (gate one-person-per-name): the people this scene's names do not mean, as the driver
+    # resolved them (presence.one_per_name), are not among the people it perceives by name or stands with. Absent: all.
+    elsewhere = scene_slice.get("elsewhere") or ()
+    world = _world_meant(world, elsewhere)
+    percepts = perception_scope(scene_slice, world, skills, condition, _rels_meant(current.get("relationships"), elsewhere),
                                 me=str(fixed.get("id") or fixed.get("name") or "").lower(),
                                 tired=tired)          # a worn mind's eye dims the room's subtle cues (gate tired-lexicon)
 
@@ -175,7 +181,7 @@ def assemble(char, world, scene_slice, affect, condition, prev_affect=None,
         "goals":   list(goals),
         "percepts": [_percept_for_packet(p) for p in percepts],
         "recall":   [_recall_for_packet(r) for r in recall_entries],
-        "edges":    _build_edges(current, percepts, world),
+        "edges":    _build_edges(current, percepts, world, elsewhere),
         # WHAT IS YOURS HERE (bond gate `attachments-to-actor`, bond-arithmetic.md s7): the held
         # entities THIS TURN puts in scope — present as a percept or named as the beat's own
         # subject — priced to a relation word by attachments.word_of. Empty for a character with

@@ -211,6 +211,38 @@ appear in the book.
 **IF YOU LEAVE IT BLANK:** the pre-run check treats it as an error, not a warning, and prints
 `fixed.name missing` for that character (`scripts/lint_book.py:128-129`).
 
+**Two characters may share a name.** A name is not an id. The id (1.1) is what the machine files a
+character under, in both the scene driver and the chair. A name is what the text calls them.
+
+---
+
+## 1.3b — A younger version of them
+
+**What it is.** A scene set years before a character's sheet (a childhood, a prologue) plays their
+sheet as it stands, and the run advises a younger version when the gap is long (BLUEPRINT-scene
+section 11). A younger version is **a character of their own**, written the way you wrote the grown
+one:
+
+- **The note:** `id: mira_young` in the frontmatter and `"id": "mira_young"` in `fixed`. Begin the id
+  with their name.
+- **The name:** `"name": "Mira"`, the same as the grown one's.
+- **A place among the world's people:** a `people/` note, or a `world.people` entry, with
+  `"id": "mira_young"` and `"name": "Mira"`.
+- **Everything else as they were then:** whom they know and how well (Part Ten), their feelings on
+  page one, their scars so far. A scar the grown one carries that had not happened yet is not on
+  this sheet.
+
+**Worked example.** The grown Mira is `mira`, the keeper. The girl in the lamp room forty years
+earlier is `mira_young`, named Mira. Her sheet knows Ada as a stranger at the pier.
+
+>> **HOW THIS IS USED:** a scene calls her by `mira_young`. There, "Mira" means her, because she is
+>> in the room. A later scene with neither of them present means the grown one, because the story is
+>> at the grown one by then. The rule is `presence.one_per_name`, and BLUEPRINT-scene section 11
+>> gives it in full.
+
+**IF YOU LEAVE IT OUT:** the scene plays the grown Mira's sheet as it stands, with her adult bonds,
+scars and memories, in a scene set before any of them happened.
+
 ---
 
 ## 1.4 — What kind of creature they are

@@ -145,7 +145,7 @@ build something listed SPEC-ONLY here, flip the row in the same commit. Line num
 | Perception-mode wall (PerceptSet whitelist; identity behind insight 0.55; subtle cues behind perception 0.60; acquaintance recognition) | `scene-assembly.md:17-21,74-97`, `relevancy-gate.md:28-32` | YES | `gate.py:90-210`; never-add structural (`test_scene` whitelist canary); known-entity bypass `gate.py:176` | BUILT-AS-SPEC'D |
 | Graph recall: weighted hops, pathfinding to hinges, degree-penalty, multi-hop chains | `relevancy-gate.md:60-97` | NO | vault is FLAT by design; single-hop cost 1−confidence (`guide-engine.md:171-173` declares the reduction) | **BUILT-DIFFERENTLY (deliberate)** — the entire hop/path/DC-from-distance apparatus is spec-only behind the same interface |
 | Authored hinges (director-planted checks that always surface + branch) | `relevancy-gate.md:39` (pipeline step 5) | NO | `must_surface` exists only as the event-anchor flag (`gate.py:24,144`); no hinge authoring surface, no branch mechanics | SPEC-ONLY |
-| Name masking + latent-leak regeneration ("recorded as-is" preserved) | `knowledge-model.md` wall; status log `driving-the-engine.md:104-111` | YES | `gate.scope_names` :543 (prompt wall), `faithfulness.py:16-35` (output detector), `direct.py` `faithful_turn` :383-415 (regenerate → reject) ; `tests/test_faithful_turn.py` | BUILT-AS-SPEC'D |
+| Name masking + latent-leak regeneration ("recorded as-is" preserved) | `knowledge-model.md` wall; status log `driving-the-engine.md:104-111` | YES | `gate.scope_names` :543 (prompt wall), `faithfulness.py:16-35` (output detector), `direct.py` `faithful_turn` :384-416 (regenerate → reject) ; `tests/test_faithful_turn.py` | BUILT-AS-SPEC'D |
 
 ### Scene assembly & the packet
 
@@ -944,6 +944,30 @@ and two months before another's; a prologue a year before a third's and a newcom
 as the sheet says, the sheet's bonds resting where it puts them through every beat, the advice for the long gaps and
 not the short one, the replay exact). NOT COVERED: a way for a scene to name the sheet a character plays from in such
 a window - the advice has nowhere to plug the generated sheet in yet.
+
+**2026-09-25 — a name means one person (gate `one-person-per-name`):** the owner, on how a scene plays someone as
+they were long before their sheet: *"The scene calls character, younger versions is a character"* - no new
+mechanism; a younger version is a character of their own, with their own sheet and a place among the world's people
+(an id beginning with the name, `mira_young`, named Mira), called into the scene by that id. That answers the NOT
+COVERED of the entry above. What it needed: the engine matched a person on the first part of their id, so "Mira"
+named BOTH, and in a flashback with the young Mira in the room the grown one became a third party spoken of. The
+owner's rule, on the plan he approved: whoever of that name is in the room; if no one is, whoever the story is at -
+the one who first walked on at or before the scene's time, the latest if several; if neither has appeared yet, both,
+as before. `presence.one_per_name` resolves it each beat, from the room as it stands and the log so far (the scene
+driver) or the chair's own character and the reading its turn runs under (`scripts/direct.py`); a person who is a
+character of their own is in the room by their own id only (`presence.match("mira_young", {"mira"})` is True). What
+it drops is dropped wherever a name becomes a person: perception (`scene.assemble` reads `scene_slice["elsewhere"]`,
+`presence.world_meant`), the edge found by name (`presence.build_edges`), the prompt's mask, the leak check and an
+overheard name (`presence.rels_meant`), and the three belief writers' `about` stamp (`acquisition.assess`,
+`witness_belief`, `reveal_name` get the scene's world). FOUND BUILDING IT: (1) the chair logged its character as
+`fixed.name.lower()`, so a young Mira named Mira would have written into the grown one's record - it logs the book's
+id now, as the scene driver always has (measured on the owner's books: 14 of 18 ids equal the lower-cased name, the
+other 4 carry a full name, and no chronicle holds a row under a name-derived id); (2) a memory made in the present
+was stamped "about" both Miras. Suite: `tests/test_one_name.py` (the rule; present day, a flashback, a walk-out of
+the young one's first scene, neither in the room later and earlier; the grown Mira's record untouched by the
+flashback; the chair). NOT COVERED: a sheet's authored beliefs are stamped at load (`facets.stamp`), with no room
+and no time, so a belief naming "Mira" there stays about both; two people of one name BOTH in the room keep it both;
+recall matches the heard name as a word, so a memory of either Mira can come to mind on it.
 
 **2026-09-19 — attitude decays per RUNG, in minutes (gate `attitude-staircase`):** `toward.erode` was the pre-redesign mechanism — one flat `toward._RETENTION[path]` per DAY for every rung, so a hatred and a flicker of annoyance faded alike — and now steps the ladder exactly as `state.decay_over` does, on the minute clock, at a per-path scale whose bottom rung is that same day rate converted (`toward._attitude_half_life`, anchored to 1e-9 in `tests/test_toward.py` block 16) and whose rung-to-rung ratio is the MOOD staircase's own, so the two tiers cannot disagree about the shape of forgetting; `src/engine/passage.py` hands it MINUTES while `bond_rest.drift` / `wound.erode` / `arc.erode` keep the day conversion. Spec: the redesign's "Decay — per path AND per rung" ("Two tables, one shape"), `docs/emotion-arithmetic.md` §4.
 
