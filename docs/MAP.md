@@ -1,7 +1,7 @@
 # MAP — what is in this project and what owns what
 
-**Why this file exists.** `docs/` holds 126 design docs, `src/engine/` 64 modules,
-`tests/` 113 suites. Nobody — human or agent — can hold that in their head, and reading it all every
+**Why this file exists.** `docs/` holds 126 design docs, `src/engine/` 65 modules,
+`tests/` 114 suites. Nobody — human or agent — can hold that in their head, and reading it all every
 session is not practical. **The failure this prevents is real and happened:** a session spent hours
 reasoning about the decision layer from four docs and inference, invented a parallel vocabulary
 ("vectors"), and rebuilt a worse version of the buff/debuff registry that `decision-engine.md`
@@ -232,7 +232,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `world-model` | the other half of the loop (SEED — to co-design) |
 | `world-state-ledger` | the live now (design the machinery; the line items are runtime) |
 
-## src/engine/ — 64 modules (normative for what IS)
+## src/engine/ — 65 modules (normative for what IS)
 
 | src | lines | owns |
 |---|---|---|
@@ -296,6 +296,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `tensions` | the first register on the world-appraisal chassis. |
 | `toward` | the MICRO tier: what one specific person makes you feel. |
 | `vault` | the Obsidian book-vault loader (machine/content seam at the repository level). |
+| `window` | a scene set in a character's past is a WINDOW for them (gate flashback-windows, 2026-09-25). |
 | `world_appraisal` | the world-side mirror of `state-engine.md`. ONE mechanism, three registers. |
 | `world_events` | what makes an event worth recording to the WORLD, and what each type means. |
 | `wound` | the wound tier: engine-owned scars keyed (concept, path), minted, moved, folded. |
@@ -313,7 +314,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `narrate` | 232 | the narrator (design.md layer 7, narration.md): a canonized scene -> POV-bound prose. |
 | `scene` | 393 | the multi-agent scene runner (the director sets the scene; the agents push it). |
 
-## tests/ — 113 suites (each is a PROOF of the gate it names)
+## tests/ — 114 suites (each is a PROOF of the gate it names)
 
 | tests | lines | owns |
 |---|---|---|
@@ -427,6 +428,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `test_toward` |  |
 | `test_vault` |  |
 | `test_verify_sheet` | every command scripts/verify.py would run names a file that exists. |
+| `test_windows` |  |
 | `test_world_appraisal` |  |
 | `test_world_events` | the world types, checked against the fold that actually consumes them. |
 | `test_wound` |  |

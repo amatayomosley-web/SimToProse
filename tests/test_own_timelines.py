@@ -77,18 +77,20 @@ def _four(tmp):
     return book
 
 
-def _run(book, tmp, scenes, walker=None):
+def _run(book, tmp, scenes, walker=None, resume=False):
     """Scenes through scripts/scene.py main, the second on on a --resume; `passage.age` watched. `walker` {scene: id}
-    walks out on their first line there. -> (db, run_id, outs, steps): steps = [(scene, "opening"|"beat", minutes,
+    walks out on their first line there; `resume` continues the book's run from the first scene on. -> (db, run_id, outs, steps): steps = [(scene, "opening"|"beat", minutes,
     {id: slow state BEFORE the step})]."""
     import scene
     outs, steps, now = [], [], {"scene": None, "opening": False, "replay": False}
 
     def fake_turn(packet, event_text, temperament, model, stub, **k):
         other = next((e.get("target") for e in ((packet.get("volatile") or {}).get("edges") or []) if e.get("target")), "")
-        return ({"action": "She trims the wick and says the wind is backing.", "thought": "",
+        # one line per SCENE, never per turn: what a listener learns in one scene is new in the next, and two run
+        # orders of the same scenes still compare
+        return ({"action": "She trims the wick in the %s and says the wind is backing." % now["scene"], "thought": "",
                  "exit": (walker or {}).get(now["scene"]) == k.get("char_id"), "addressee": other, "act": "",
-                 "tags": {"type": "threat", "summary": "trims the wick", "dimensions": {"threat": 0.7},
+                 "tags": {"type": "threat", "summary": "trims the wick in the %s" % now["scene"], "dimensions": {"threat": 0.7},
                           "durability": "durable", "subject": other, "object": other,
                           "showed": {"affinity": 0.85, "trust": 0.8}}}, [])
 
@@ -97,7 +99,10 @@ def _run(book, tmp, scenes, walker=None):
 
     def emotion(action, thought, model, led=None, run_id=None, turn=None, me=None, present=(), **_k):
         other = next(p for p in present if p != me)          # nothing here reads the turn: run orders compare
-        return ([Reading(path="WARINESS", rung=rungs.rung_at("WARINESS", 0.7)[1], about=other, confidence="sure")],
+        # a scene named "hard" reads another feeling, harder - enough to move a resting mood - so scenes leave different
+        # marks (a window's must be told from the present's); every other scene reads the same
+        path, level = ("DISPLEASURE", 0.9) if "hard" in str(now["scene"]) else ("WARINESS", 0.7)
+        return ([Reading(path=path, rung=rungs.rung_at(path, level)[1], about=other, confidence="sure")],
                 [other], "sure", [])
 
     real_age, real_open, real_replay = passage.age, passage.apply_opening, mood_fold.replay
@@ -131,7 +136,7 @@ def _run(book, tmp, scenes, walker=None):
             now["scene"] = name
             argv = ["scene.py", "--book", book, "--scene", _cfg(tmp, name, day, time, lasts, {"cast": cast}),
                     "--budget", str(budget), "--model", "fake/model", "--no-keeper"]
-            if i:
+            if i or resume:
                 argv += ["--resume", sqlite3.connect(glob.glob(os.path.join(book, "runs", "*.db"))[0]).execute(
                     "SELECT run_id FROM runs").fetchone()[0]]
             sys.argv = argv
@@ -304,7 +309,8 @@ def test_days_before_day_one(tmp):
         led = Ledger(path)
         sql = led.con.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='scene_clock'").fetchone()[0]
         kept = [tuple(r) for r in led.con.execute("SELECT run_id, turn, at_minutes, lasts_minutes, beat_minutes FROM scene_clock")]
-        check("%s-migrates-to-v32-with-its-rows" % label, led.con.execute("PRAGMA user_version").fetchone()[0] == 32
+        from src.engine import db as _db
+        check("%s-migrates-to-v32-with-its-rows" % label, led.con.execute("PRAGMA user_version").fetchone()[0] == _db.SCHEMA_VERSION
               and kept == [("r", 0, 60.0, 30.0, 15.0)] and not re.search(r"\bat_minutes\s*>=", sql), (kept, sql))
         led.record_scene_clock("r", 5, -600.0, None, 0.0)
         check("%s-...takes-a-reading-before-day-1" % label, clock.last_scene_clock(led.con, "r")["at"] == -600.0)

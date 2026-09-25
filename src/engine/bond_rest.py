@@ -25,6 +25,7 @@ from . import attachments as _attachments
 from .bonds import _NEUTRAL, _clamp01
 from .decay_law import relax
 from . import clock as _clock          # MINUTES_PER_DAY: the timeline's time item is in days
+from . import window as _window        # which of a perceiver's rows count (gate flashback-windows)
 from .records import RELATIONSHIP_AXES, RecordError, RestDeclared
 
 _INSERT = ("INSERT INTO rest_declared (run_id, turn, perceiver, target, axis, rest, source) "
@@ -39,14 +40,16 @@ def write(con, run_id, turn, rows):
         con.execute(_INSERT, (run_id, int(turn), rr.perceiver, rr.target, rr.axis, float(rr.rest), rr.source))
 
 
-def rows_for(con, run_id, perceiver):
-    """[(turn, target, axis, rest, source)] for one perceiver, in log order."""
+def rows_for(con, run_id, perceiver, view=None):
+    """[(turn, target, axis, rest, source)] for one perceiver, in log order - the rows their `view` keeps (gate
+    flashback-windows: a cliff in a scene set in their past does not lower a rest in their present, nor one of their
+    present a window's). None is their present (`window.current`); `window.ALL` every row."""
     return [(int(r[0]), r[1], r[2], float(r[3]), r[4]) for r in con.execute(
-        "SELECT turn, target, axis, rest, source FROM rest_declared WHERE run_id = ? AND perceiver = ? "
-        "ORDER BY turn, rest_id", (run_id, perceiver))]
+        "SELECT turn, target, axis, rest, source FROM rest_declared WHERE run_id = ? AND perceiver = ?"
+        + _window.clause(_window.of(con, run_id, perceiver, view)) + " ORDER BY turn, rest_id", (run_id, perceiver))]
 
 
-def timeline_rows(con, run_id, perceiver, before=None, seeded_at=None):
+def timeline_rows(con, run_id, perceiver, before=None, seeded_at=None, view=None):
     """The whole bond timeline WITH its turns -> [(turn, slot, item)], ascending; within a turn the rest (0)
     and hold (1) rows laid down before the opening, then the opening's time (2), then the beat's own time (3),
     then the beat's own rows - a cliff's rest, a keeper's hold - and its edge movements (4). `Ledger.timeline_for`
@@ -65,15 +68,18 @@ def timeline_rows(con, run_id, perceiver, before=None, seeded_at=None):
     BOUNDS, for a replay that needs the bonds as they stood (gate mood-from-readings, 2026-09-22):
     `before` = (turn, slot) keeps the rows strictly before it - (t, 4) is the bonds a beat at t read, its
     opening's and its own minutes in, its own edge movements out; `seeded_at` is `declared_rows'`. Both None is
-    the whole timeline.
+    the whole timeline. `view` (gate flashback-windows, `window.view`; None - their present): only the
+    perceiver's rows it keeps - their present leaves their windows out, a window sees their past and itself.
     """
-    rows = declared_rows(con, run_id, perceiver, seeded_at=seeded_at)
-    rows += [(t, s, ("time", m / _clock.MINUTES_PER_DAY, m)) for t, s, m in _clock.time_items(con, run_id, perceiver)]
+    view = _window.of(con, run_id, perceiver, view)
+    rows = [r for r in declared_rows(con, run_id, perceiver, seeded_at=seeded_at) if _window.keeps(view, r[0])]
+    rows += [(t, s, ("time", m / _clock.MINUTES_PER_DAY, m)) for t, s, m in _clock.time_items(con, run_id, perceiver,
+                                                                                               view=view)]
     # BOTH ORDERS. Filtering to 'first' would silently drop the second-order tier (what the perceiver
     # believes the OTHER holds), which schema v8 exists to hold.
     rows += [(int(t), 4, ("edge", tgt, axis, float(d), o)) for t, tgt, axis, d, o in con.execute(
-        "SELECT turn, target, axis, delta, ord FROM relationship_deltas WHERE run_id = ? AND perceiver = ?",
-        (run_id, perceiver))]
+        "SELECT turn, target, axis, delta, ord FROM relationship_deltas WHERE run_id = ? AND perceiver = ?"
+        + _window.clause(view), (run_id, perceiver))]
     if before is not None:
         rows = [r for r in rows if (r[0], r[1]) < tuple(before)]
     return sorted(rows, key=lambda r: (r[0], r[1]))
@@ -90,7 +96,10 @@ def declared_rows(con, run_id, perceiver, seeded_at=None):
     beat wrote after it. That is the log as the scene's characters were built from it (gate
     mood-from-readings; the director's holds added by gate systems-registry, 2026-09-22)."""
     keep = (lambda t, src: t != seeded_at or src in _BEFORE_THE_OPENING) if seeded_at is not None else (lambda t, src: True)
-    rows = [(t, _slot(0, _s), ("rest", tg, ax, v)) for t, tg, ax, v, _s in rows_for(con, run_id, perceiver) if keep(t, _s)]
+    # EVERY ROW HERE (`window.ALL`): `timeline_rows` keeps what its view keeps, and a present view taken here would drop a
+    # window's own cliffs before a window's view could keep them (gate flashback-windows)
+    rows = [(t, _slot(0, _s), ("rest", tg, ax, v)) for t, tg, ax, v, _s in rows_for(con, run_id, perceiver, _window.ALL)
+            if keep(t, _s)]
     rows += [(t, _slot(1, _src), ("hold", e, h, s)) for t, e, h, s, _src in _attachments.rows_for(con, run_id, perceiver)
              if keep(t, _src)]
     return rows
@@ -110,11 +119,12 @@ def _slot(declared_slot, source):
     return declared_slot if source in _BEFORE_THE_OPENING else _BEAT
 
 
-def rows_before(con, run_id, perceiver, turn):
+def rows_before(con, run_id, perceiver, turn, view=None):
     """`rows_for` as a beat at `turn` reads them -> the same shape: every earlier turn's rows, and this turn's
     only when laid down before its opening (gate slow-tiers-run: the replay ages a beat against the rests the live
     beat saw, not the cliff it went on to make)."""
-    return [r for r in rows_for(con, run_id, perceiver) if r[0] < int(turn) or (r[0] == int(turn) and r[4] in _BEFORE_THE_OPENING)]
+    return [r for r in rows_for(con, run_id, perceiver, view)
+            if r[0] < int(turn) or (r[0] == int(turn) and r[4] in _BEFORE_THE_OPENING)]
 
 
 def seed(con, run_id, turn, perceiver, relationships):
@@ -122,7 +132,7 @@ def seed(con, run_id, turn, perceiver, relationships):
     -> rows written. Idempotent, so run creation, a late join and a pre-v28 resume all call it; the
     rows land at `turn`, so the fold applies them before that turn's declaration. Its own
     transaction: the callers are drivers between beats, not inside append_turn."""
-    rows = seed_rows(perceiver, relationships, existing=rows_for(con, run_id, perceiver))
+    rows = seed_rows(perceiver, relationships, existing=rows_for(con, run_id, perceiver, _window.ALL))
     if rows:
         with con:
             write(con, run_id, turn, rows)

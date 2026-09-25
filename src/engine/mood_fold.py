@@ -10,7 +10,9 @@ and no code ever did the derivation. `replay` does it, and `divergence` measures
 WHAT IT REPLAYS: a scene-driven run, scene by scene from the `scenes` rows, as scripts/scene.py ran it.
   resume   each cast member from the sheet the run PINNED (`bible.for_run`), the log folded up to the
            scene's first turn - the arc, the bonds and holds (with the resume's own seed rows), the
-           aboutness binds, the wounds - and the mood the replay itself last produced (never the cache).
+           aboutness binds, the wounds - and the mood the replay itself last produced (never the cache),
+           all in their VIEW at that scene (gate flashback-windows, `window.view`): a scene set in their
+           past replays them as they were then, and their next scene picks up where they were before it.
   profile  built at the scene's start, BEFORE the opening fades anything, and rebuilt after that
            character's own wound refold or arc change: exactly when the drivers build it. Decay and the
            receipt read the profile's held map from that build and its relationships live (a profile
@@ -48,6 +50,7 @@ from . import passage
 from . import readings as _readings
 from . import systems as _systems
 from . import targets as _targets
+from . import window as _window
 from .consolidation import CATALOG
 from .records import PATHS, Reading
 from .state import appraise, build_profile, decay, receive
@@ -55,25 +58,26 @@ from .state import appraise, build_profile, decay, receive
 TOLERANCE = 1e-9          # what `divergence` reports as agreement: float noise, never a feeling
 
 
-def _bonds(con, run_id, cid, ch, before, seeded_at=None):
-    """(edges, holds) as they stood: the authored ones folded through the timeline up to `before`."""
+def _bonds(con, run_id, cid, ch, before, seeded_at=None, view=None):
+    """(edges, holds) as they stood: the authored ones folded through the timeline up to `before`, in `view`."""
     rels = _copy.deepcopy(ch["current"]["_authored_relationships"])
     holds = _copy.deepcopy(ch["current"].get("_authored_attachments") or {})
-    items = [it for _t, _k, it in bond_rest.timeline_rows(con, run_id, cid, before=before, seeded_at=seeded_at)]
+    items = [it for _t, _k, it in bond_rest.timeline_rows(con, run_id, cid, before=before, seeded_at=seeded_at, view=view)]
     bond_rest.rehydrate(rels, (ch.get("baseline") or {}).get("relationship_priors", {}), items, attachments=holds)
     return rels, holds
 
 
-def _resumed(con, run_id, cid, sheet, start, mood, enabled=None, condition=None):
+def _resumed(con, run_id, cid, sheet, start, mood, enabled=None, condition=None, view=None):
     """One cast member as the resume at `start` rebuilt them (scripts/scene.py main) -> the char. `mood` and
-    `condition` are the ones the replay itself carried out of the last scene (None: the sheet's)."""
+    `condition` are the ones the replay itself carried out of the last scene (None: the sheet's); `view` theirs."""
     ch = _copy.deepcopy(sheet)
     passage.stamp_authored(ch)
-    ch = passage.fold_arc(con, run_id, cid, ch, before_turn=start)
-    ch["current"]["relationships"], ch["current"]["attachments"] = _bonds(con, run_id, cid, ch, (start, 2), seeded_at=start)
+    ch = passage.fold_arc(con, run_id, cid, ch, before_turn=start, view=view)
+    ch["current"]["relationships"], ch["current"]["attachments"] = _bonds(con, run_id, cid, ch, (start, 2), seeded_at=start,
+                                                                          view=view)
     ch["current"].setdefault("targets", {})
-    _targets.replay(ch, _targets.binds_for(con, run_id, cid, before_turn=start))
-    passage.fold_wounds(con, run_id, cid, ch, before_turn=start)
+    _targets.replay(ch, _targets.binds_for(con, run_id, cid, before_turn=start, view=view))
+    passage.fold_wounds(con, run_id, cid, ch, before_turn=start, view=view)
     if mood is not None:
         ch["current"]["affect"] = dict(mood)
     if condition is not None:
@@ -113,7 +117,7 @@ def replay(con, run_id, sheets, notes=None, conditions=None):
     when the scene ran `condition_flow`, set by the scene cfg's pinned `condition` list (gate condition-flow)."""
     notes = notes if notes is not None else []
     outc = conditions if conditions is not None else {}
-    out, mood, cond, chs, prof, temp, binds = {}, {}, {}, {}, {}, {}, {}
+    out, mood, cond, chs, prof, temp, binds, hist = {}, {}, {}, {}, {}, {}, {}, {}
     scenes = con.execute("SELECT start_turn, end_turn, cfg_fingerprint FROM scenes WHERE run_id = ? "
                          "ORDER BY start_turn", (run_id,)).fetchall()
     covered = {t for s in scenes for t in range(int(s[0]), int(s[1]) + 1)}
@@ -129,15 +133,19 @@ def replay(con, run_id, sheets, notes=None, conditions=None):
                                             "WHERE run_id = ? AND turn = ?", (run_id, start)).fetchone()
         enabled = _systems_at(con, run_id, start)
         flow, body_on, inj_on = "condition_flow" in enabled, "body" in enabled, "injuries" in enabled
+        # EACH CAST MEMBER IN THEIR VIEW AT THIS SCENE (gate flashback-windows): carried from the last mood the replay
+        # produced for them there - before a scene set in their past, not the one it left them in
+        views = {c: _window.view(con, run_id, c, reading=start) for c in cast}
         for c in cast:
-            chs[c] = _resumed(con, run_id, c, sheets[c], start, mood.get(c), enabled, cond.get(c))
+            m, k = next(((m, k) for t, m, k in reversed(hist.get(c) or []) if _window.keeps(views[c], t)), (None, None))
+            chs[c] = _resumed(con, run_id, c, sheets[c], start, m, enabled, k, view=views[c])
             binds[c] = dict(chs[c]["current"].get("targets") or {})
-        rests = {c: [r for r in bond_rest.rows_for(con, run_id, c) if r[0] < start or (r[0] == start and r[4] == "authored")]
-                 for c in cast}
+        rests = {c: [r for r in bond_rest.rows_for(con, run_id, c, views[c])
+                     if r[0] < start or (r[0] == start and r[4] == "authored")] for c in cast}
         passage.apply_opening({c: chs[c] for c in cast}, rests.get, float(at_m),
-                              {c: clock.presence_end(con, run_id, c, start) for c in cast}, flow=flow, body=body_on,
-                              stated=_condition.stated_gaps(body.get("condition")),
-                              weakened=({c: _injuries.weakening(con, run_id, c, chs[c], start) for c in cast}
+                              {c: clock.presence_end(con, run_id, c, start, views[c]) for c in cast}, flow=flow,
+                              body=body_on, stated=_condition.stated_gaps(body.get("condition")),
+                              weakened=({c: _injuries.weakening(con, run_id, c, chs[c], start, views[c]) for c in cast}
                                         if (inj_on and body_on) else None))
         _condition.apply_declared({c: chs[c] for c in cast}, body.get("condition"))     # the director's words, as run
         for c in cast:
@@ -145,18 +153,21 @@ def replay(con, run_id, sheets, notes=None, conditions=None):
             prof[c], temp[c] = build_profile(chs[c]), chs[c]["baseline"]["temperament"]
             mood[c] = dict(chs[c]["current"]["affect"])
             cond[c] = dict(chs[c]["current"].get("condition") or {})
+            hist.setdefault(c, []).append((start, dict(mood[c]), dict(cond[c])))
         for t in range(start, end + 1):
             _beat(con, run_id, t, cast, float(per_beat or 0.0), mood, chs, prof, temp, binds, out, notes,
-                  cond=cond, outc=outc, flow=flow, body=body_on, injuries=inj_on)
+                  cond=cond, outc=outc, flow=flow, body=body_on, injuries=inj_on, views=views, hist=hist)
     return out
 
 
 def _beat(con, run_id, t, cast, per_beat, mood, chs, prof, temp, binds, out, notes, cond=None, outc=None, flow=False,
-          body=False, injuries=False):
+          body=False, injuries=False, views=None, hist=None):
     """One committed beat, as scripts/scene.py run_scene computed its moods - and, beside them, the
-    conditions it committed: moved by the beat's minutes and the speaker's impact when `flow`."""
+    conditions it committed: moved by the beat's minutes and the speaker's impact when `flow`. `views` {id: the
+    scene's view of them} (gate flashback-windows); `hist` collects {id: [(turn, mood, condition)]} for the carry."""
     cond, outc = (cond if cond is not None else {}), (outc if outc is not None else {})
-    cap = ((lambda c: _body.capacity(chs[c], _injuries.weakening(con, run_id, c, chs[c], t) if injuries else 0))
+    views, hist = views or {}, (hist if hist is not None else {})
+    cap = ((lambda c: _body.capacity(chs[c], _injuries.weakening(con, run_id, c, chs[c], t, views.get(c)) if injuries else 0))
            if body else (lambda c: 1.0))                             # gates body-exertion, injury-weakens
     row = con.execute("SELECT actor, tags, validation FROM turns WHERE run_id = ? AND turn = ?", (run_id, t)).fetchone()
     if row is None:
@@ -177,9 +188,9 @@ def _beat(con, run_id, t, cast, per_beat, mood, chs, prof, temp, binds, out, not
     # gate own-timelines - a walk-out's time reaches them at their next opening), where the drivers age them: before
     # the decay, against the rests the live beat read
     passage.age({c: chs[c] for c in cast if c in room}, clock.beat_minutes(con, run_id, t),
-                lambda c: bond_rest.rows_before(con, run_id, c, t))
+                lambda c: bond_rest.rows_before(con, run_id, c, t, views.get(c)))
     for c in cast:                                                   # the profile reads the edges live
-        prof[c]["relationships"] = _bonds(con, run_id, c, chs[c], (t, 4))[0]
+        prof[c]["relationships"] = _bonds(con, run_id, c, chs[c], (t, 4), view=views.get(c))[0]
     rested = decay(mood[spk], temp[spk], prof[spk], elapsed=per_beat, targets=before, present=room)
     for b in (step4.get("bystanders") or ()):                        # step 4, where the beat recorded it
         mood[b] = decay(mood[b], temp[b], prof[b], elapsed=per_beat, targets=dict(binds[b]), present=room)
@@ -187,7 +198,9 @@ def _beat(con, run_id, t, cast, per_beat, mood, chs, prof, temp, binds, out, not
         if flow:                                                     # a bystander's beat costs its minutes
             cond[b] = _condition.spend(cond[b], per_beat, 0.0, mood[b], 1.0 / cap(b))
         outc[(t, b)] = dict(cond.get(b) or {})
-    reps = {ab: _targets.repeat_count(con, run_id, spk, ab, before_turn=t) for ab in {str(v) for v in mid.values() if v}}
+        hist.setdefault(b, []).append((t, dict(mood[b]), dict(cond.get(b) or {})))
+    reps = {ab: _targets.repeat_count(con, run_id, spk, ab, before_turn=t, view=views.get(spk))
+            for ab in {str(v) for v in mid.values() if v}}
     if rs:
         mood[spk], impact = receive(rested, rs, prof[spk], targets=mid, repeats=reps, present=room)
     else:
@@ -199,15 +212,17 @@ def _beat(con, run_id, t, cast, per_beat, mood, chs, prof, temp, binds, out, not
             cond[spk] = _body.exert(cond[spk], tags.get("exertion"), per_beat, cap(spk))
     outc[(t, spk)] = dict(cond.get(spk) or {})
     binds[spk] = _targets.bind_readings(mid, [], temperament=temp[spk], affect=mood[spk])    # rule 5 last
-    logged = dict(_targets.replay({"current": {"targets": {}}}, _targets.binds_for(con, run_id, spk, before_turn=t + 1)))
+    logged = dict(_targets.replay({"current": {"targets": {}}}, _targets.binds_for(con, run_id, spk, before_turn=t + 1,
+                                                                                 view=views.get(spk))))
     if {k: v for k, v in binds[spk].items() if v} != {k: v for k, v in logged.items() if v}:
         notes.append("turn %d %s: the replayed binds %r differ from the log's %r" % (t, spk, binds[spk], logged))
     out[(t, spk)] = dict(mood[spk])
+    hist.setdefault(spk, []).append((t, dict(mood[spk]), dict(cond.get(spk) or {})))
     moved = con.execute("SELECT 1 FROM wound_deltas WHERE run_id = ? AND char_id = ? AND turn = ? UNION ALL "
                         "SELECT 1 FROM wound_minted WHERE run_id = ? AND char_id = ? AND turn = ?",
                         (run_id, spk, t, run_id, spk, t)).fetchone()
     if moved:                                                        # after the commit, as the driver
-        passage.fold_wounds(con, run_id, spk, chs[spk], before_turn=t + 1)
+        passage.fold_wounds(con, run_id, spk, chs[spk], before_turn=t + 1, view=views.get(spk))
         prof[spk] = build_profile(chs[spk])
     diff = con.execute("SELECT diff FROM arc_diffs WHERE run_id = ? AND char_id = ? AND turn = ?", (run_id, spk, t)).fetchone()
     if diff:

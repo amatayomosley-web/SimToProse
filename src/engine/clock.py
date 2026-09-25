@@ -54,7 +54,8 @@ time since they were last in a room (`since_presence`), and one per beat they ar
 they sat out or walked out of, which reaches them at their next opening instead (`time_items`, `presences`). Their
 sheet describes them where they first walk on (`first_presence`), not on the run's first page. So two scenes that
 share no one may overlap in story time and run in either order; what is refused is one character in two places at
-once, or a scene set before their own story's latest point (`refuse_overlap`). Days may be 0 or negative - before
+once (`window.admit`); a scene set before their own story's latest point is a WINDOW for them - they play as they were
+then and nothing of it reaches their present (gate flashback-windows, `window.py`). Days may be 0 or negative - before
 day 1. The world's own state - tensions, the fold of deaths and knowers - still follows the order scenes were run.
 """
 import bisect as _bisect
@@ -315,7 +316,7 @@ def beat_end(con, run_id, turn):
     return None if seg is None else _beat_end_at(seg, turn)
 
 
-def time_items(con, run_id, char_id, before_turn=None):
+def time_items(con, run_id, char_id, before_turn=None, view=None):
     """Every stretch of story time ONE CHARACTER lived -> [(turn, slot, minutes)], ascending (gate own-timelines).
 
     At each opening they are in the room for, after an earlier presence: their own time since (`since_presence` - the
@@ -324,10 +325,15 @@ def time_items(con, run_id, char_id, before_turn=None):
     appearance - the sheet is who they are then - and nothing for a beat they sat out or had walked out of: that time
     reaches them at their next opening, in one item. A gap declared at a turn with no reading (a log from before
     schema v25) is that turn's opening for everyone, as it always was. `before_turn` keeps earlier turns only. Until
-    this gate every character took every stretch of the run (gate slow-tiers-run), in the scene or not."""
+    this gate every character took every stretch of the run (gate slow-tiers-run), in the scene or not. `view`: which
+    of their scenes count (gate flashback-windows - `window.view`; None is their present (`window.current`)):
+    their present leaves their windows out, and a window sees their main line before its time and itself."""
     reads = _readings(con, run_id, before_turn)
+    v, win = _view(con, run_id, char_id, view)
     starts, out, prev = [r["turn"] for r in reads], [], None
     for t in presences(con, run_id, char_id, before_turn):
+        if not win.keeps(v, t):
+            continue
         k = _bisect.bisect_right(starts, t) - 1
         if k >= 0:
             if t == reads[k]["turn"] and prev is not None:          # they are in this opening, and were somewhere before
@@ -371,12 +377,14 @@ def days_since(con, run_id, char_id, turn, now_turn):
     return 0.0 if now is None or then is None else max(0.0, now - then) / float(MINUTES_PER_DAY)
 
 
-def first_presence(con, run_id, char_id):
+def first_presence(con, run_id, char_id, view=None):
     """Where one character's own story began -> minutes, or None before their first beat (gate own-timelines): the
     opening of the reading their first beat in the room ran under - the moment their sheet describes them. It was
     page one, the run's first opening, for everyone; a character who walks on in a later scene is met as their
-    sheet says, then, and their sheet's memories and injuries are dated from there."""
-    here = presences(con, run_id, char_id)
+    sheet says, then, and their sheet's memories and injuries are dated from there. Their first scene of the view -
+    their main line's first, a window never coming before it (gate flashback-windows)."""
+    v, win = _view(con, run_id, char_id, view)
+    here = [t for t in presences(con, run_id, char_id) if win.keeps(v, t)]
     seg = last_scene_clock(con, run_id, here[0] + 1) if here else None
     return None if seg is None else seg["at"]
 
@@ -433,11 +441,18 @@ def presences(con, run_id, char_id, before_turn=None):
     return out
 
 
-def last_present(con, run_id, char_id, before_turn):
+def last_present(con, run_id, char_id, before_turn, view=None):
     """The last turn before `before_turn` this character was bodily in the room -> int, or None (gate absent-age):
-    the last of their `presences`."""
-    here = presences(con, run_id, char_id, before_turn)
+    the last of their `presences` the view keeps (gate flashback-windows: a window is not where they last were)."""
+    v, win = _view(con, run_id, char_id, view)
+    here = [t for t in presences(con, run_id, char_id, before_turn) if win.keeps(v, t)]
     return here[-1] if here else None
+
+
+def _view(con, run_id, char_id, view):
+    """(the view a reader uses, the window module): `window` reads this module, so it is imported here, late."""
+    from . import window as _window
+    return _window.of(con, run_id, char_id, view), _window
 
 
 def _ended(con, run_id, turn):
@@ -452,15 +467,16 @@ def _ended(con, run_id, turn):
     return {"end": seg["at"] + (seg["lasts"] or 0.0), "owed": owed}
 
 
-def presence_end(con, run_id, char_id, before_turn):
+def presence_end(con, run_id, char_id, before_turn, view=None):
     """Where one character's OWN time last stood before a turn -> {"end", "owed"} or None (gate gap-day-and-night).
 
     Their last beat in the room (`last_present`) and the scene reading that beat ran under: `end` is its declared
     end (opening + lasts), `owed` the minutes it declared that they did not spend in the room - `lasts` less the
     beats up to and including their last one. Until gate absent-age `owed` counted every beat of the scene, so
     the minutes after a walk-out were no one's; now they are the walk-out's, as the rest of their absence is.
-    None: never present before this turn, or no reading to measure from - the sheet is their state."""
-    last = last_present(con, run_id, char_id, before_turn)
+    None: never present before this turn, or no reading to measure from - the sheet is their state. `view`: gate
+    flashback-windows (`last_present`)."""
+    last = last_present(con, run_id, char_id, before_turn, view)
     return None if last is None else _ended(con, run_id, last)
 
 
@@ -477,53 +493,11 @@ def own_time(con, run_id, char_id, start_turn, at_minutes):
     return None if ended is None else since_presence(ended, at_minutes)
 
 
-def _intervals(con, run_id, char_id):
-    """[(start, end)] - the story time one character spent in each scene or chair session they were in, in run order
-    (gate own-timelines): from its opening to its DECLARED end when they were still in the room at its last beat
-    (a lull ends the talk, not their being there), else to the end of their last beat in it (they walked out)."""
-    reads = _readings(con, run_id)
-    starts, last_of, mine = [r["turn"] for r in reads], {}, {}
-    for (t,) in con.execute("SELECT DISTINCT turn FROM turns WHERE run_id = ?", (run_id,)):
-        k = _bisect.bisect_right(starts, int(t)) - 1
-        if k >= 0:
-            last_of[k] = max(last_of.get(k, int(t)), int(t))
-    for t in presences(con, run_id, char_id):
-        k = _bisect.bisect_right(starts, t) - 1
-        if k >= 0:
-            mine[k] = max(mine.get(k, t), t)
-    return [(reads[k]["at"], reads[k]["at"] + (reads[k]["lasts"] or 0.0) if p == last_of[k] else _beat_end_at(reads[k], p))
-            for k, p in sorted(mine.items())]
-
-
-def refuse_overlap(con, run_id, cast, at_minutes, lasts_minutes):
-    """Refuse an opening that puts one of its cast in two places at once, or before their own story's latest point
-    -> None (gate own-timelines). It replaces `gap_before`'s refusal, which compared the opening with the scene run
-    last, whoever was in it: scenes that share no one may now overlap in story time and run in either order.
-
-    CLOCK_TWO_PLACES_AT_ONCE: the opening's span (at to at + lasts) overlaps one of their `_intervals`; spans that
-    only touch are not two places. CLOCK_RUNS_BACKWARDS: it opens before the latest point their own story has
-    reached - a scene set in their past, which gate flashback-windows is to make a window for them."""
-    a = float(at_minutes)
-    b = a + float(lasts_minutes or 0.0)
-    for c in cast:
-        spans = _intervals(con, run_id, c)
-        for s, e in spans:
-            if s < b and a < e:
-                raise RecordError("CLOCK_TWO_PLACES_AT_ONCE",
-                                  "%s is in a scene from %s to %s; this one, %s to %s, would put them in two places "
-                                  "at once" % (c, format_at(s), format_at(e), format_at(a), format_at(b)))
-        reached = max((e for _s, e in spans), default=None)
-        if reached is not None and a < reached:
-            raise RecordError("CLOCK_RUNS_BACKWARDS",
-                              "%s's own story has reached %s and this scene opens at %s, before it: a scene set in "
-                              "a character's past is not built yet - open it at %s or later, or leave them out of it"
-                              % (c, format_at(reached), format_at(a), format_at(reached)))
-
-
 def gap_before(con, run_id, at_minutes, before_turn=None):
     """Minutes between the END of the scene run last and this opening -> float, or None for the run's first. SIGNED
     since gate own-timelines: negative when this scene is set earlier, which is legal when it shares no one with
-    that scene (`refuse_overlap` refuses one character in two places, or before their own latest). It is what the
+    that scene (`window.admit` refuses one character in two places; one set in a character's past is a window for
+    them, gate flashback-windows). It is what the
     operator line prints and, when positive, what the log declares; no one ages by it - each character ages by
     their own time (`since_presence`). Until that gate it refused any opening before the last scene's end."""
     prev = last_scene_clock(con, run_id, before_turn)

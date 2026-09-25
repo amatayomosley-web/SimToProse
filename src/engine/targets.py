@@ -13,6 +13,8 @@ Pure, deterministic, stdlib. The registry it consults (`records.DIRECTEDNESS`) i
 """
 import json
 
+from . import window as _window        # which of a character's rows count (gate flashback-windows)
+
 from .records import admits_role, RecordError
 from .state import _AT_REST, _DIM_TO_PATH
 
@@ -171,7 +173,7 @@ def write_binds(con, run_id, turn, char_id, binds):
     return n
 
 
-def binds_for(con, run_id, char_id, before_turn=None):
+def binds_for(con, run_id, char_id, before_turn=None, view=None):
     """Every aboutness change this character made, in turn order -> [(primary, target)].
 
     Ordered by (turn, bind_id) because the fold is LAST-WRITE-WINS: unlike the summing folds beside
@@ -180,14 +182,15 @@ def binds_for(con, run_id, char_id, before_turn=None):
     impossible for one primitive but not across two.
     """
     # `before_turn`: only the binds committed before that turn - what a resume there read (gate
-    # mood-from-readings, 2026-09-22). None is the whole log, as before.
-    bound = "" if before_turn is None else " AND turn < %d" % int(before_turn)
+    # mood-from-readings, 2026-09-22). None is the whole log, as before. `view`: gate flashback-windows.
+    bound = ("" if before_turn is None else " AND turn < %d" % int(before_turn)) + _window.clause(
+        _window.of(con, run_id, char_id, view))
     return [(r["primary_"], r["target"]) for r in con.execute(
         "SELECT primary_, target FROM target_binds WHERE run_id = ? AND char_id = ?" + bound +
         " ORDER BY turn, bind_id", (run_id, char_id))]
 
 
-def repeat_count(con, run_id, char_id, about, before_turn=None):
+def repeat_count(con, run_id, char_id, about, before_turn=None, view=None):
     """How many CONSECUTIVE most-recent committed turns of this character were about `about`.
 
     The repetition term's input (`connection.repetition`), READ FROM THE LOG rather than kept in a
@@ -203,7 +206,7 @@ def repeat_count(con, run_id, char_id, about, before_turn=None):
     if before_turn is not None:
         q += " AND turn < ?"
         args.append(int(before_turn))
-    q += " ORDER BY turn DESC"
+    q += _window.clause(_window.of(con, run_id, char_id, view)) + " ORDER BY turn DESC"   # gate flashback-windows
     n = 0
     want = str(about)
     for row in con.execute(q, args):

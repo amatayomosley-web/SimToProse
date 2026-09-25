@@ -1274,6 +1274,14 @@ def main():
                 char["current"]["condition"] = _condition.split(char["current"]["condition"])   # gate energy-reserves
         except RecordError as e:
             raise SystemExit("condition flow: %s" % e)
+    if not args.at and args.resume:
+        # A CHAIR WITH NO CLOCK AFTER A WINDOW (gate flashback-windows): its turns would join the scene set in its
+        # character's past, where nothing reaches their present - refused by name; an --at opens it in the present.
+        from src.engine import window as _window
+        try:
+            _window.require_present(led.con, run_id, char_id)
+        except RecordError as e:
+            raise SystemExit("chair: %s" % e)
     if args.at:
         _at_minutes = _parse_chair_at(args.at)
         _lasts_minutes = _clock.span_minutes(args.lasts) if args.lasts else None

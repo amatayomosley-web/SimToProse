@@ -70,10 +70,12 @@ each character's strength, `body.capacity`; gate body-exertion):
      tiers aged (`own_minutes`; a first appearance is absent from it, and so is everyone at a run's
      first opening); `relaxed` is every id whose slow tiers this call aged (sorted).
 
-Raises `RecordError("CLOCK_TWO_PLACES_AT_ONCE" | "CLOCK_RUNS_BACKWARDS", ...)` through
-`clock.refuse_overlap`, before anything is logged, when the opening puts one of its cast in two places
-at once or before their own story's latest point (gate own-timelines) — in either driver. Scenes that
-share no one may overlap in story time and run in either order.
+Raises `RecordError("CLOCK_TWO_PLACES_AT_ONCE" | ...)` through `window.admit`, before anything is
+logged, when the opening puts one of its cast in two places at once (gate own-timelines) — in either
+driver. Scenes that share no one may overlap in story time and run in either order. `windows` (the scene
+driver): an opening set before a character's own story's latest point is a WINDOW for them (gate
+flashback-windows) and the result's `windows` names them {id: window.View}; the chair (no `windows`) is
+refused one (CLOCK_RUNS_BACKWARDS).
 
 Deterministic, stdlib + engine imports only, no LLM, no randomness. Fails loud through the modules
 it calls.
@@ -90,6 +92,7 @@ from . import condition as _condition
 from . import injuries as _injuries
 from . import connection
 from . import toward
+from . import window as _window
 from . import wound
 from .state import build_profile, decay
 from .records import PATHS, RecordError
@@ -98,10 +101,11 @@ import json as _json
 
 
 def open_scene(led, run_id, start_turn, at_minutes, lasts_minutes, budget, chars, names=None, flow=False, body=False,
-               stated=None, injuries=False):
-    # NO ONE IN TWO PLACES, NO ONE BEFORE THEIR OWN LATEST (gate own-timelines) - refused before the reading is logged,
-    # so a refused opening leaves no reading behind to block the corrected one at the same turn.
-    clock.refuse_overlap(led.con, run_id, list(chars), at_minutes, lasts_minutes)
+               stated=None, injuries=False, windows=False):
+    # NO ONE IN TWO PLACES (gate own-timelines) - refused before the reading is logged, so a refused opening leaves no
+    # reading behind to block the corrected one at the same turn. Set in someone's past, it is a WINDOW for them
+    # (gate flashback-windows): the drivers built them as they were then, and nothing it does reaches their present.
+    wins = _window.admit(led.con, run_id, list(chars), at_minutes, lasts_minutes, start_turn, windows=windows)
     per_beat = (float(lasts_minutes) / float(budget)) if lasts_minutes and budget else 0.0
     led.record_scene_clock(run_id, start_turn, at_minutes, lasts_minutes, per_beat)
     elapsed = led.gap_before(run_id, at_minutes, before_turn=start_turn)
@@ -118,18 +122,23 @@ def open_scene(led, run_id, start_turn, at_minutes, lasts_minutes, budget, chars
         # Since gate own-timelines no one ages by it (each character by their own time), and a scene set earlier
         # than the one run last - a negative gap, legal when they share no one - declares nothing.
         led.declare_time(run_id, start_turn, elapsed, str(names or ""))
+    # EACH CHARACTER'S VIEW OF THEIR OWN LOG (gate flashback-windows): the window's for whom this is one - their past
+    # before its time, and itself - and their present for everyone else. `views` goes back to the driver, which
+    # hands each actor theirs for every read of their history until the scene ends.
+    views = {i: wins.get(i) or _window.current(led.con, run_id, i) for i in chars}
     # EACH CHARACTER'S OWN TIME, from the last beat they were in the room: the mood's (gate absent-age), the slow
     # tiers' (gate own-timelines) and, in a book running `condition_flow`, the condition's (gate gap-day-and-night).
-    gaps = {i: clock.presence_end(led.con, run_id, i, start_turn) for i in chars}
+    gaps = {i: clock.presence_end(led.con, run_id, i, start_turn, views[i]) for i in chars}
     # AN INJURY WEAKENS THE BODY WHILE IT HEALS (gate injury-weakens): read at the opening, for the gap before it.
-    weak = ({i: _injuries.weakening(led.con, run_id, i, chars[i], start_turn) for i in chars}
+    weak = ({i: _injuries.weakening(led.con, run_id, i, chars[i], start_turn, views[i]) for i in chars}
             if (injuries and body) else None)
-    relaxed = apply_opening(chars, lambda i: bond_rest.rows_for(led.con, run_id, i), at_minutes, gaps, flow=flow,
-                            body=body, stated=stated, weakened=weak)
+    relaxed = apply_opening(chars, lambda i: bond_rest.rows_for(led.con, run_id, i, views[i]), at_minutes, gaps,
+                            flow=flow, body=body, stated=stated, weakened=weak)
     # keyword form, not a literal {"elapsed": ...} — this is the DERIVED result of gap_before, the
     # thing that retired an AUTHORED cfg `elapsed` field (2026-09-10, clock.py), not a reappearance
     # of it; tests/test_retired_vocabulary.py greps source text and cannot tell the two apart.
-    return dict(elapsed=elapsed, owed=owed, per_beat=per_beat, relaxed=relaxed, own=own_minutes(chars, at_minutes, gaps))
+    return dict(elapsed=elapsed, owed=owed, per_beat=per_beat, relaxed=relaxed, own=own_minutes(chars, at_minutes, gaps),
+                windows=wins, views=views)
 
 
 def own_minutes(ids, at, gaps):
@@ -327,17 +336,17 @@ def _bound(before_turn):
     return "" if before_turn is None else " AND turn < %d" % int(before_turn)
 
 
-def _stretches(con, run_id, char_id, before_turn=None):
+def _stretches(con, run_id, char_id, before_turn=None, view=None):
     """{turn: [minutes, ...]} - every stretch of story time one character lived, a turn's opening before its beat's
-    own (`clock.time_items`: gate slow-tiers-run, per character since gate own-timelines). Until gate slow-tiers-run
-    the only stretch was a declared gap between scenes."""
+    own (`clock.time_items`: gate slow-tiers-run, per character since gate own-timelines, in their view since gate
+    flashback-windows). Until gate slow-tiers-run the only stretch was a declared gap between scenes."""
     out = {}
-    for t, _slot, m in clock.time_items(con, run_id, char_id, before_turn):
+    for t, _slot, m in clock.time_items(con, run_id, char_id, before_turn, view):
         out.setdefault(int(t), []).append(float(m))
     return out
 
 
-def fold_toward(con, run_id, char_id, char, before_turn=None):
+def fold_toward(con, run_id, char_id, char, before_turn=None, view=None):
     """Rebuild `current.toward` from the authored attitude, the logged deltas and every stretch of story time's
     fade, in log order -> the rebuilt dict. Called on resume and after every committed beat. `before_turn`
     folds the log as it stood before that turn (the mood replay's resume); None is the whole log.
@@ -345,19 +354,23 @@ def fold_toward(con, run_id, char_id, char, before_turn=None):
     ONE WALK OF THE BOND TIMELINE (gate slow-tiers-run): the attitude fades on the bonds AS THEY STOOD at each
     stretch - its own drift already in, the beat's movements not - so the walk folds the bonds one item at a time
     (`bond_rest.rehydrate`, its rests carried across) and reads the connections at every time item. The fold used
-    to rebuild the bonds from the sheet at each opening; with a stretch at every beat that is a rebuild per beat."""
+    to rebuild the bonds from the sheet at each opening; with a stretch at every beat that is a rebuild per beat.
+    `view`: which of their rows count (gate flashback-windows, `window.view`; None - their present)."""
+    view = _window.of(con, run_id, char_id, view)
     cur = char.setdefault("current", {})
     authored = cur.setdefault("_authored_toward", {w: dict(v) for w, v in (cur.get("toward") or {}).items()
                                                    if isinstance(v, dict)})
     cur["toward"] = {w: dict(v) for w, v in authored.items()}
-    rows = bond_rest.timeline_rows(con, run_id, char_id, before=None if before_turn is None else (int(before_turn), 0))
+    rows = bond_rest.timeline_rows(con, run_id, char_id, before=None if before_turn is None else (int(before_turn), 0),
+                                   view=view)
     if any(it[0] == "time" for _t, _s, it in rows) and "_authored_relationships" not in cur:
         raise RecordError("PASSAGE_FOLD_UNSTAMPED",
                           "passage: the attitude fold needs the authored bonds - call stamp_authored "
                           "when the sheet loads, before anything moves it")
     by_turn = {}
     for t, tgt, prim, d in con.execute("SELECT turn, target, primary_, delta FROM toward_deltas WHERE run_id = ? "
-                                       "AND perceiver = ?" + _bound(before_turn) + " ORDER BY turn, delta_id",
+                                       "AND perceiver = ?" + _bound(before_turn) + _window.clause(view)
+                                       + " ORDER BY turn, delta_id",
                                        (run_id, char_id)):
         by_turn.setdefault(int(t), []).append((str(tgt), str(prim), float(d)))
     pending = {}
@@ -397,10 +410,11 @@ def fold_toward(con, run_id, char_id, char, before_turn=None):
     return cur["toward"]
 
 
-def fold_wounds(con, run_id, char_id, char, before_turn=None):
+def fold_wounds(con, run_id, char_id, char, before_turn=None, view=None):
     """Rebuild `baseline.wounds`: the authored wounds, each minting at its turn, the logged deltas and every
     opening's fade, in log order -> the list (mutated in place). Called on resume and after every beat.
-    `before_turn` folds the log as it stood before that turn; None is the whole log."""
+    `before_turn` folds the log as it stood before that turn; None is the whole log. `view`: gate flashback-windows."""
+    view = _window.of(con, run_id, char_id, view)
     base = char.setdefault("baseline", {})
     wounds = base.setdefault("wounds", [])
     if not isinstance(wounds, list):
@@ -408,7 +422,7 @@ def fold_wounds(con, run_id, char_id, char, before_turn=None):
     minted = [(int(r[0]), wound.make(r[2], r[3], r[4], r[5], text=r[6], triggers=_json.loads(r[7] or "[]")))
               for r in con.execute("SELECT turn, wound_id, concept, path, intensity, source, text, triggers "
                                    "FROM wound_minted WHERE run_id = ? AND char_id = ?" + _bound(before_turn) +
-                                   " ORDER BY turn, mint_id",
+                                   _window.clause(view) + " ORDER BY turn, mint_id",
                                    (run_id, str(char_id)))]
     minted_ids = {m["id"] for _t, m in minted}
     live = []
@@ -420,12 +434,13 @@ def fold_wounds(con, run_id, char_id, char, before_turn=None):
             live.append(w)
     wounds[:] = live
     have = {str(w.get("id", "")) for w in wounds if isinstance(w, dict)}
-    stretches = _stretches(con, run_id, char_id, before_turn)
+    stretches = _stretches(con, run_id, char_id, before_turn, view)
     mints_at, deltas_at = {}, {}
     for t, m in minted:
         mints_at.setdefault(t, []).append(m)
     for t, wid, d in con.execute("SELECT turn, wound_id, delta FROM wound_deltas WHERE run_id = ? AND char_id = ?"
-                                 + _bound(before_turn) + " ORDER BY turn, delta_id", (run_id, str(char_id))):
+                                 + _bound(before_turn) + _window.clause(view) + " ORDER BY turn, delta_id",
+                                 (run_id, str(char_id))):
         deltas_at.setdefault(int(t), []).append((str(wid), float(d)))
     pending = {}
 
@@ -460,13 +475,15 @@ def fold_wounds(con, run_id, char_id, char, before_turn=None):
     return wounds
 
 
-def fold_arc(con, run_id, char_id, char, before_turn=None):
+def fold_arc(con, run_id, char_id, char, before_turn=None, view=None):
     """Replay the arc - each durable diff and every stretch of story time's fade of the resting means - in log
     order -> the char (a new dict when any diff applies, as `arc.apply` returns one). `before_turn` folds the
-    log as it stood before that turn; None is the whole log."""
-    stretches = _stretches(con, run_id, char_id, before_turn)
+    log as it stood before that turn; None is the whole log. `view`: gate flashback-windows."""
+    view = _window.of(con, run_id, char_id, view)
+    stretches = _stretches(con, run_id, char_id, before_turn, view)
     diffs = {int(t): _json.loads(d) for t, d in con.execute(
-        "SELECT turn, diff FROM arc_diffs WHERE run_id = ? AND char_id = ?" + _bound(before_turn) + " ORDER BY turn",
+        "SELECT turn, diff FROM arc_diffs WHERE run_id = ? AND char_id = ?" + _bound(before_turn) + _window.clause(view)
+        + " ORDER BY turn",
         (run_id, char_id))}
     for turn in sorted(set(diffs) | set(stretches)):
         for minutes in stretches.get(turn, ()):

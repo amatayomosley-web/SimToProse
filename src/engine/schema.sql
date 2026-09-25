@@ -776,7 +776,10 @@ CREATE TABLE IF NOT EXISTS wound_minted (
     source    TEXT    NOT NULL DEFAULT '',               -- run:<turn>
     text      TEXT    NOT NULL DEFAULT '',               -- the beat, for the actor's words
     triggers  TEXT    NOT NULL DEFAULT '[]',             -- JSON list of perceived surfaces
-    UNIQUE (run_id, char_id, wound_id)
+    -- ONE BIRTH PER TURN, since schema v33 (gate flashback-windows, 2026-09-25): a scar minted in a scene set in a
+    -- character's past never reaches their present, so their present may mint the same (concept, path) again -
+    -- and v26's UNIQUE (run_id, char_id, wound_id) rolled that whole beat back. `db._migrate` rebuilds an older table.
+    UNIQUE (run_id, char_id, wound_id, turn)
 );
 CREATE TRIGGER IF NOT EXISTS wound_minted_no_update
 BEFORE UPDATE ON wound_minted BEGIN

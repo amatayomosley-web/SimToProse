@@ -56,6 +56,7 @@ from __future__ import annotations
 import json
 
 from . import fold as _fold
+from . import window as _window        # which of a witness's facts count (gate flashback-windows)
 from .records import RecordError
 
 # The two row kinds this module folds. A third — `changed`, for object STATE — is DESIGNED and NOT
@@ -227,12 +228,14 @@ def run_rows(con, run_id, before_turn=None):
     return rows
 
 
-def facts_for(con, run_id, actor, before_turn=None, budgets=BUDGETS):
+def facts_for(con, run_id, actor, before_turn=None, budgets=BUDGETS, view=None):
     """The one call a driver makes: this actor's witnessed facts, most recent first.
 
     Takes the LIVE connection both drivers already hold (`led.con`) rather than re-opening the
     file: the drivers' other in-turn reads (`read_api.established`, `previous_affect`) all go through
-    the same handle.
+    the same handle. `view` (gate flashback-windows): only the facts of beats it keeps - what they witnessed in a
+    scene set in their past is not in their present, and a window holds nothing they witnessed after its time.
     """
-    return for_actor(run_rows(con, run_id, before_turn=before_turn),
+    view = _window.of(con, run_id, actor, view)
+    return for_actor([r for r in run_rows(con, run_id, before_turn=before_turn) if _window.keeps(view, r["turn"])],
                      actor, present_by_turn(con, run_id), budgets=budgets)

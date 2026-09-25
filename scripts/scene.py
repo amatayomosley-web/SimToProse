@@ -479,7 +479,15 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
                                         budget, {i: actors[i]["char"] for i in ids}, names=cfg.get("name"),
                                         flow="condition_flow" in _sys, body="body" in _sys,
                                         stated=_condition.stated_gaps(cfg.get("condition")),
-                                        injuries="injuries" in _sys)
+                                        injuries="injuries" in _sys, windows=True)
+    # EACH ACTOR'S VIEW OF THEIR OWN LOG (gate flashback-windows): every read of their history this scene goes
+    # through it - for whom the scene is a window, their past before its time and the scene itself.
+    for i in ids:
+        actors[i]["view"] = _clock_result["views"][i]
+    # THE NOTICE, BEFORE A BEAT IS PAID FOR: whom this scene is a window for.
+    for i, _v in sorted(_clock_result["windows"].items()):
+        print("   WINDOW : %s plays as of %s, from their own story then - nothing this scene does reaches their "
+              "present (a report follows the scene)" % (names.get(i, i), _clockmod.format_at(_v.at)))
     # THE DIRECTOR STATES HOW THEY ARRIVE (owner ruling C3a): words, priced by the engine, applied AFTER the
     # opening's rest - the state AT the opening. The cfg is pinned whole, so the replay reads it back.
     for _c in _condition.apply_declared({i: actors[i]["char"] for i in ids}, cfg.get("condition")):
@@ -501,8 +509,10 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
               " resting disposition, feelings toward their rest" % (
                   int(_clock_result["elapsed"]),
                   " (+%d owed by the last scene)" % int(_clock_result["owed"]) if _clock_result["owed"] else ""))
-    elif (_clock_result["elapsed"] or 0) < 0:          # gate own-timelines: legal when the two share no one
-        print("\n  set %d minutes before the last scene run ended - it shares no one with it" % int(-_clock_result["elapsed"]))
+    elif (_clock_result["elapsed"] or 0) < 0:          # gates own-timelines, flashback-windows: earlier in the story
+        print("\n  set %d minutes before the last scene run ended - earlier in the story%s" % (
+            int(-_clock_result["elapsed"]), "; a window for %s" % ", ".join(sorted(_clock_result["windows"]))
+            if _clock_result["windows"] else "; it shares no one with it"))
     # EACH CHARACTER AGED BY THEIR OWN TIME AWAY (gates absent-age, own-timelines): name whoever was out of the room
     # longer than the scene gap, and anyone appearing for the first time, so the operator can see why one cooled more.
     if _clock_result["elapsed"] is not None:
@@ -551,11 +561,11 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
                        "engaged": (log[-1]["who"] if log and log[-1]["who"] != speaker else ""),
                        # WHOM THE SPEAKER'S MOOD CAME FROM, per path, off the log (ledger.raised_by): the
                        # balance meets that person at the mood in full; `current.targets` clears at rest.
-                       "raised_by": led.raised_by(run_id, speaker),
+                       "raised_by": led.raised_by(run_id, speaker, a["view"]),
                        # WHEN EACH PATH WAS LAST READ and the speaker's last committed beat, off the
                        # log: the descent signal's fuel (rungs.descending, the redesign's gate 3).
-                       "last_read_turn": led.last_read_turn(run_id, speaker),
-                       "last_turn": led.last_turn(run_id, speaker),
+                       "last_read_turn": led.last_read_turn(run_id, speaker, a["view"]),
+                       "last_turn": led.last_turn(run_id, speaker, a["view"]),
                        "recent": [l["action"] for l in _seen[-2:]],
                        "props": cfg.get("props") or [],
                        # WHO IS BODILY HERE. Shrinks on exit, so it is always "right now". Supplying
@@ -581,20 +591,20 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
         # Without them every recall in a cast scene ran at turn 0 with no history.
         packet = assemble(a["char"], world, scene_slice, a["affect"],
                           a["char"]["current"]["condition"],
-                          prev_affect=led.previous_affect(run_id, speaker, turn_no),
+                          prev_affect=led.previous_affect(run_id, speaker, turn_no, a["view"]),
                           current_turn=turn_no,
                           established=_established,
                           # WHAT HAS HAPPENED HERE (2026-09-22): this speaker's own witnessed facts
                           # of the run so far. `before_turn=turn_no` excludes the beat being
                           # composed, which does not exist yet.
-                          facts=_scene_facts.facts_for(led.con, run_id, speaker, before_turn=turn_no),
+                          facts=_scene_facts.facts_for(led.con, run_id, speaker, before_turn=turn_no, view=a["view"]),
                           # WHO IS HURT, as this speaker knows it (gate injuries; only when the book runs it):
                           # what they saw happen and their own sheet's, each aged on the clock.
-                          injuries=(_injuries.for_actor(led.con, run_id, speaker, a["char"], turn_no)
+                          injuries=(_injuries.for_actor(led.con, run_id, speaker, a["char"], turn_no, a["view"])
                                     if "injuries" in _sys else None),
                           relationships=a["char"]["current"].get("relationships", {}),
                           recall_history=_belief_decay.fold_recall_history(
-                              led.con, run_id, speaker),
+                              led.con, run_id, speaker, a["view"]),
                           # EACH MEMORY ITS OWN STORY TIME (gate memory-fades): since the beat that formed or last
                           # recalled it, to this beat's start - the time after the current beat, handed here before,
                           # is zero at the head of the log, so no memory faded in a live run. A sheet memory's, since
@@ -774,7 +784,8 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
         # the attitude read the aged state. The actor already read the state the beat began in. The ROOM, not the
         # cast (gate own-timelines): someone who walked out lives the rest of the scene elsewhere, and that time
         # reaches them at their next opening, as the folds give it (`clock.time_items`).
-        _passage.age({i: actors[i]["char"] for i in present}, per_beat, lambda i: bond_rest.rows_for(led.con, run_id, i))
+        _passage.age({i: actors[i]["char"] for i in present}, per_beat,
+                     lambda i: bond_rest.rows_for(led.con, run_id, i, actors[i]["view"]))
         # DECAY FIRST, THEN THE RECEIPT — the spec's beat order (docs/emotion-arithmetic.md
         # section 8; the twin comment in scripts/direct.py has the measurement). The beat's
         # minutes pass, then the reading lands on what is left.
@@ -793,7 +804,8 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
         _bystanders = _passage.bystanders({i: actors[i] for i in present}, speaker, per_beat, _here)
         packet["manifest"]["decay"] = {"minutes": per_beat, "here": sorted(_here), "bystanders": sorted(_bystanders)}
         _abouts = {str(t) for t in a["targets"].values() if t}
-        _repeats = {ab: _targets.repeat_count(led.con, run_id, speaker, ab, before_turn=turn_no) for ab in _abouts}
+        _repeats = {ab: _targets.repeat_count(led.con, run_id, speaker, ab, before_turn=turn_no, view=a["view"])
+                    for ab in _abouts}
         if _readings:                                        # Phase 3: the receipt from readings
             a["affect"], impact = receive(rested, _readings, a["profile"], targets=a["targets"],
                                           repeats=_repeats, present=_here)
@@ -813,7 +825,8 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
             # THE BODY (gate body-exertion): each spender's waking minutes weighed against their own strength,
             # and the speaker's act priced from the reader's exertion word
             # AN INJURY WEAKENS THE BODY WHILE IT HEALS (gate injury-weakens): the worst of each one's own, before now
-            _cap = {c: (_body.capacity(actors[c]["char"], _injuries.weakening(led.con, run_id, c, actors[c]["char"], turn_no)
+            _cap = {c: (_body.capacity(actors[c]["char"], _injuries.weakening(led.con, run_id, c, actors[c]["char"], turn_no,
+                                                                              actors[c]["view"])
                                        if "injuries" in _sys else 0) if "body" in _sys else 1.0)
                     for c in [speaker] + list(_bystanders)}
             _cond_next[speaker] = _condition.spend(a["char"]["current"]["condition"], per_beat, impact, a["affect"],
@@ -851,7 +864,8 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
         for wid, deltas, _v, cliffs in bond_moves:
             if cliffs:
                 _after = bonds.apply_deltas(actors[wid]["char"]["current"].get("relationships", {}).get(speaker, {}), deltas)
-                _cur = bond_rest.resolve(bond_rest.rows_for(led.con, run_id, wid), actors[wid]["char"]["baseline"].get("relationship_priors", {}), speaker)
+                _cur = bond_rest.resolve(bond_rest.rows_for(led.con, run_id, wid, actors[wid]["view"]),   # their view
+                                         actors[wid]["char"]["baseline"].get("relationship_priors", {}), speaker)
                 rest_rows += bond_rest.cliff_rows(wid, speaker, _after, cliffs, _cur)
         # THE ACCOUNT MOVES ON A TRANSFER (s6, 2026-09-18): the seat reports what changed hands and on
         # what terms; `bonds.debt_postings` prices it once per pair from the words and the accounts —
@@ -968,7 +982,7 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
         if toward_deltas:
             # THE FOLD, NOT THE AUTHORED-PLUS-DELTAS REPLAY: that one erased this scene's opening fade at
             # its first beat (gate erosion-derived-at-replay).
-            _passage.fold_toward(led.con, run_id, speaker, a["char"])
+            _passage.fold_toward(led.con, run_id, speaker, a["char"], view=a["view"])
             _seen = sorted({t.target for t in toward_deltas})
             print("   TOWARD : %s  %s" % (names.get(speaker, speaker), ", ".join(
                 "%s %s" % (names.get(w, w), " ".join("%s%+0.3f" % (k, v) for k, v in
@@ -989,7 +1003,7 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
             # Calling the SAME function on the SAME rows the resume path reads makes divergence
             # impossible rather than unlikely. `bonds.py` records this lesson for edges: a replay
             # hand-copied into each driver drifts, and the copies are the defect.
-            _passage.fold_wounds(led.con, run_id, speaker, a["char"])   # mints, deltas AND the fade, in log order
+            _passage.fold_wounds(led.con, run_id, speaker, a["char"], view=a["view"])   # mints, deltas AND the fade
             _wounds = a["char"]["baseline"].get("wounds") or []
             a["profile"] = build_profile(a["char"])          # the held registry moved
             for _wd in wound_deltas:
@@ -1416,10 +1430,16 @@ def main():
         # THE LOG BEFORE THIS SCENE'S OPENING, and no further (gate slow-tiers-run): the opening's own stretch is applied
         # by `open_scene` below, so a reading an aborted launch left at this turn must not age anyone here too.
         _open = state["turn"] + 1
+        # EACH CAST MEMBER IN THEIR VIEW OF THIS OPENING (gate flashback-windows): set in someone's past, the scene is a
+        # window for them, and they are rebuilt as they were then - nothing of their later story, nothing of another
+        # window; everyone else as they are now. `open_scene` refuses what cannot be (two places at once) by name.
+        from src.engine import window as _window
+        _at = scene_cfg["at_minutes"] if "at_minutes" in scene_cfg else _clockmod.parse_at(scene_cfg["at"])
+        _views = {cid: _window.view(led.con, run_id, cid, at=_at, start=_open) for cid in cast_ids}
         for cid in cast_ids:                                       # rehydrate each cast member the prior scene evolved
             ch = chars[cid]
-            ch = _passage.fold_arc(led.con, run_id, cid, ch, before_turn=_open)   # diffs AND each stretch's fade
-            acq = led.acquisitions_for(run_id, cid)
+            ch = _passage.fold_arc(led.con, run_id, cid, ch, before_turn=_open, view=_views[cid])   # diffs AND each fade
+            acq = led.acquisitions_for(run_id, cid, _views[cid])
             if acq:
                 ch["current"].setdefault("vault", []).extend(acq)
             from src.engine.acquisition import fold_vault
@@ -1438,7 +1458,7 @@ def main():
             # happened, because drift and deltas do not commute.
             bond_rest.rehydrate(ch["current"].setdefault("relationships", {}),
                                 ch["baseline"].get("relationship_priors", {}),
-                                led.timeline_for(run_id, cid, before=(_open, 2)),
+                                led.timeline_for(run_id, cid, before=(_open, 2), view=_views[cid]),
                                 attachments=ch["current"].setdefault("attachments", {}))
             if _moves:                       # OPERATOR output, not the prompt — rule 5 is the prompt
                 print("   %s: refolded %d edge movement(s) toward %s"
@@ -1451,23 +1471,23 @@ def main():
             # rather than the already-healed one.
             # ABOUTNESS — the tier this block did not replay until 2026-09-06. Wiring one driver
             # and not the other is indistinguishable from working until someone runs the other path.
-            _tbinds = _targets.binds_for(led.con, run_id, cid)
+            _tbinds = _targets.binds_for(led.con, run_id, cid, view=_views[cid])
             _targets.replay(ch, _tbinds)
             if _tbinds:
                 print("   %s: refolded %d aboutness bind(s) on %s"
                       % (cid, len(_tbinds), ", ".join(sorted(ch["current"].get("targets") or {})) or "nothing"))
             _tmoves = led.toward_deltas_for(run_id, cid)
-            _passage.fold_toward(led.con, run_id, cid, ch, before_turn=_open)
+            _passage.fold_toward(led.con, run_id, cid, ch, before_turn=_open, view=_views[cid])
             if _tmoves:
                 print("   %s: refolded %d micro movement(s) toward %d person(s)"
                       % (cid, len(_tmoves), len({m[0] for m in _tmoves})))
             _wmoves = led.wound_deltas_for(run_id, cid)
-            _passage.fold_wounds(led.con, run_id, cid, ch, before_turn=_open)   # mints, deltas and the fade, in log order
+            _passage.fold_wounds(led.con, run_id, cid, ch, before_turn=_open, view=_views[cid])   # mints, deltas, fade
             if _wmoves:                      # OPERATOR output, not the prompt — rule 5 is the prompt
                 print("   %s: refolded %d wound movement(s) on %s"
                       % (cid, len(_wmoves), ", ".join(sorted({m[0] for m in _wmoves}))))
             # mood AND condition, one restore shared with the chair (gate resume-and-parity)
-            _passage.restore_latest(ch, led.latest_affect(run_id, cid))
+            _passage.restore_latest(ch, led.latest_affect(run_id, cid, _views[cid]))
             chars[cid] = ch
         start_turn = state["turn"] + 1
         print("resumed %s at turn %d (determinism OK)" % (run_id, state["turn"]))
@@ -1563,6 +1583,16 @@ def main():
         # needs the bible to check a claim's object against — see attachments.names_for.
         _keeper.canon_gate(led, run_id, start_turn, next_turn - 1, _provider.seat_model(), args.stub, world=world)
     last = record_and_park(led, run_id, scene_cfg, start_turn, next_turn, cast_ids)
+    # THE REPORT, AFTER THE SCENE (gate flashback-windows): what a window would have added to each character it was
+    # one for - the rows of theirs their present will never read. The actors decided what happened, so it can only
+    # be told once they have.
+    from src.engine import window as _window
+    for cid in cast_ids:
+        _v = _window.view(led.con, run_id, cid, reading=start_turn)
+        if next_turn > start_turn and _window.is_window(_v):
+            _added = _window.report(led.con, run_id, cid, start_turn, next_turn - 1)
+            print("   WINDOW : %s - had this been their story, they would carry: %s" % (
+                cid, "; ".join(_added) if _added else "nothing lasting"))
     _report_lore(led, run_id, keeper_ran, args.stub)
     print("\nparked %s at turn %d — continue with: python scripts/scene.py --vault \"%s\"%s --resume %s" % (
         run_id, last, book_dir, " --stub" if args.stub else "", run_id))

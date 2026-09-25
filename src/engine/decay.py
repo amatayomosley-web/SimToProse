@@ -25,11 +25,18 @@ FLOOR_TRANSIENT = 0.05
 FLOOR_DURABLE = 0.35
 
 
-def fold_recall_history(con, run_id, actor):
+def _window_clause(con, run_id, actor, view):
+    """`window.clause` for one character's view (gate flashback-windows); imported late - the window reads the clock."""
+    from . import window as _window
+    return _window.clause(_window.of(con, run_id, actor, view))
+
+
+def fold_recall_history(con, run_id, actor, view=None):
     """Fold append-only chronicle tables to derive {bid: {'last_turn': int, 'count': int}}.
 
     In accordance with 'cause is logged once; effect is derived at replay'.
-    Keys strictly on content-derived belief_id (bid) from decision_manifests.
+    Keys strictly on content-derived belief_id (bid) from decision_manifests. `view` (gate flashback-windows): only
+    the recalls of beats it keeps.
     """
     if not con or not run_id or not actor:
         return {}
@@ -37,7 +44,8 @@ def fold_recall_history(con, run_id, actor):
     history = {}
     try:
         rows = con.execute(
-            "SELECT turn, manifest FROM decision_manifests WHERE run_id = ? AND actor = ? ORDER BY turn ASC",
+            "SELECT turn, manifest FROM decision_manifests WHERE run_id = ? AND actor = ?"
+            + _window_clause(con, run_id, actor, view) + " ORDER BY turn ASC",
             (run_id, actor)
         ).fetchall()
         for r in rows:

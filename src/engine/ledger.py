@@ -22,6 +22,7 @@ import sqlite3
 
 from . import db
 from . import clock as _clock
+from . import window as _window     # which of a character's rows a reader sees (gate flashback-windows)
 from . import snapshots as _snap
 from . import writeonce as _once
 from . import fold as _fold
@@ -283,12 +284,13 @@ class Ledger:
                 "INSERT INTO acquisitions (run_id, char_id, turn, belief) VALUES (?, ?, ?, ?)",
                 (run_id, char_id, turn, json.dumps(belief)))
 
-    def acquisitions_for(self, run_id, char_id):
+    def acquisitions_for(self, run_id, char_id, view=None):
         """Every belief char_id acquired this run, in acquisition order — the simulated additions to the
         seeded vault (rehydrate on resume by appending these to the .md seed), each carrying the turn it was
         learned: a row from before gate memory-fades takes it from the row, and one from before gate
-        learned-memories-durable is filed as meaningful (every learned memory came from a durable event)."""
-        rows = self.con.execute("SELECT turn, belief FROM acquisitions WHERE run_id = ? AND char_id = ? ORDER BY turn, acquisition_id", (run_id, char_id)).fetchall()
+        learned-memories-durable is filed as meaningful (every learned memory came from a durable event). `view`: the
+        memories their view keeps (gate flashback-windows; None - their present)."""
+        rows = self.con.execute("SELECT turn, belief FROM acquisitions WHERE run_id = ? AND char_id = ?" + self._line(run_id, char_id, view) + " ORDER BY turn, acquisition_id", (run_id, char_id)).fetchall()
         return [dict({"created_turn": int(r["turn"]), "durability": "durable"}, **json.loads(r["belief"])) for r in rows]
 
     # ---- the DECLARED clock. Bodies in `clock.py`, which carries the contract; these stay so the
@@ -321,7 +323,7 @@ class Ledger:
         """Minutes since the previous scene ended, or None for the first scene."""
         return _clock.gap_before(self.con, run_id, at_minutes, before_turn)
 
-    def timeline_for(self, run_id, char_id, before=None):
+    def timeline_for(self, run_id, char_id, before=None, view=None):
         """Declarations and edge movements INTERLEAVED in turn order — the input to bond_rest.rehydrate.
 
         Order is the whole point. Drift is multiplicative toward a resting prior; a delta is
@@ -335,9 +337,13 @@ class Ledger:
         """
         # ONE reader, beside the fold that consumes it (`bond_rest.timeline_rows`, which also converts the
         # declaration's MINUTES to the DAYS `drift` reads - gate erosion-derived-at-replay, 2026-09-22).
-        return [item for _t, _k, item in _bond_rest.timeline_rows(self.con, run_id, char_id, before=before)]
+        return [item for _t, _k, item in _bond_rest.timeline_rows(self.con, run_id, char_id, before=before, view=view)]
 
-    def raised_by(self, run_id, actor):
+    def _line(self, run_id, char_id, view):
+        """The SQL for the rows one character's view keeps (`window.clause`, gate flashback-windows)."""
+        return _window.clause(_window.of(self.con, run_id, char_id, view))
+
+    def raised_by(self, run_id, actor, view=None):
         """{path: about} — whom this character's mood on each path came from: the `about` of the LAST
         reading on that path, in log order. '' when the last reading was unbound; a `concept:` id
         stays as it is; a path never read is absent.
@@ -350,12 +356,12 @@ class Ledger:
         """
         out = {}
         for r in self.con.execute(
-                "SELECT path, about FROM readings WHERE run_id = ? AND actor = ? "
-                "ORDER BY turn, reading_id", (run_id, actor)):
+                "SELECT path, about FROM readings WHERE run_id = ? AND actor = ?" + self._line(run_id, actor, view)
+                + " ORDER BY turn, reading_id", (run_id, actor)):
             out[str(r["path"])] = str(r["about"] or "")
         return out
 
-    def last_read_turn(self, run_id, actor):
+    def last_read_turn(self, run_id, actor, view=None):
         """{path: turn} — the LAST turn on which this character's feeling on each path was read.
 
         THE DESCENT SIGNAL'S FUEL (redesign gate 3, 2026-09-12). A path is climbing while it is
@@ -368,17 +374,18 @@ class Ledger:
         read is absent. Pair with `last_turn`; `rungs.descending` does the comparison.
         """
         return {str(r["path"]): int(r["t"]) for r in self.con.execute(
-            "SELECT path, MAX(turn) AS t FROM readings WHERE run_id = ? AND actor = ? GROUP BY path",
-            (run_id, actor))}
+            "SELECT path, MAX(turn) AS t FROM readings WHERE run_id = ? AND actor = ?" + self._line(run_id, actor, view)
+            + " GROUP BY path", (run_id, actor))}
 
-    def last_turn(self, run_id, actor):
+    def last_turn(self, run_id, actor, view=None):
         """The turn number of this character's most recent COMMITTED beat, or None before any.
 
         `turns` is keyed (run, turn, actor) and every committed beat writes one row inside the same
         transaction as its readings (`append_turn`), so the two readers agree on what "last beat"
         means. In a cast scene the actors alternate, so this is per actor, not `latest_turn`.
         """
-        row = self.con.execute("SELECT MAX(turn) AS t FROM turns WHERE run_id = ? AND actor = ?", (run_id, actor)).fetchone()
+        row = self.con.execute("SELECT MAX(turn) AS t FROM turns WHERE run_id = ? AND actor = ?" + self._line(run_id, actor, view),
+                               (run_id, actor)).fetchone()
         return int(row["t"]) if row and row["t"] is not None else None
 
     def lands_on_for(self, run_id, turn):
@@ -523,7 +530,7 @@ class Ledger:
         row = self.con.execute("SELECT MAX(turn) AS t FROM turns WHERE run_id = ?", (run_id,)).fetchone()
         return -1 if row["t"] is None else row["t"]
 
-    def previous_affect(self, run_id, char_id, before_turn):
+    def previous_affect(self, run_id, char_id, before_turn, view=None):
         """The affect this character committed BEFORE `before_turn`, or None.
 
         `latest_affect`'s sibling, and the one that makes SLOPE answerable. The ledger already held
@@ -534,14 +541,16 @@ class Ledger:
         None on the first turn, which renders exactly as it always did.
         """
         row = self.con.execute(
-            "SELECT affect FROM current_state WHERE run_id = ? AND char_id = ? AND turn < ? "
-            "ORDER BY turn DESC LIMIT 1", (run_id, char_id, int(before_turn))).fetchone()
+            "SELECT affect FROM current_state WHERE run_id = ? AND char_id = ? AND turn < ?" + self._line(run_id, char_id, view)
+            + " ORDER BY turn DESC LIMIT 1", (run_id, char_id, int(before_turn))).fetchone()
         return json.loads(row["affect"]) if row else None
 
-    def latest_affect(self, run_id, char_id):
+    def latest_affect(self, run_id, char_id, view=None):
+        """The mood and condition of this character's latest beat in their view (gate flashback-windows: after a
+        scene set in their past, the one before it) -> {"affect", "condition"} or None."""
         row = self.con.execute(
-            "SELECT affect, condition FROM current_state WHERE run_id = ? AND char_id = ? ORDER BY turn DESC LIMIT 1",
-            (run_id, char_id)).fetchone()
+            "SELECT affect, condition FROM current_state WHERE run_id = ? AND char_id = ?" + self._line(run_id, char_id, view)
+            + " ORDER BY turn DESC LIMIT 1", (run_id, char_id)).fetchone()
         if row is None:
             return None
         return {"affect": json.loads(row["affect"]), "condition": json.loads(row["condition"])}

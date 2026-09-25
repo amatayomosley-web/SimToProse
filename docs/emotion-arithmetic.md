@@ -479,7 +479,10 @@ mood: at each opening a character attends, their own time since they were last i
 each beat, its minutes for those in the room. A walk-out's slow tiers stop with the room and take the
 rest at their next opening; a first appearance arrives as the sheet describes them, bonds, scars and
 resting means untouched. Two scenes that share no one may overlap in story time and run in either
-order; only one character in two places at once, or before their own story's latest point, is refused.
+order; only one character in two places at once is refused. A scene set before a character's own
+story's latest point is a WINDOW for them (gate flashback-windows, `window.py`): they play from their
+state as of that time - mood, condition, slow tiers, memories, binds - and nothing it produces reaches
+their present; for anyone whose story it goes on, it is their story.
 
 ---
 

@@ -29,6 +29,7 @@ from __future__ import annotations
 
 from . import clock as _clock
 from . import scene_facts as _scene_facts
+from . import window as _window        # which of the injuries they know count (gate flashback-windows)
 from .records import RecordError
 
 # word -> (days to heal, leaves a lasting mark?, the reader's line). START values from the ordinary course of
@@ -170,30 +171,32 @@ def run_rows(con, run_id, before_turn=None):
     return rows
 
 
-def weakening(con, run_id, char_id, char, before_turn):
+def weakening(con, run_id, char_id, char, before_turn, view=None):
     """How many strength words lower the body counts at the beat `before_turn` -> 0, 1 or 2: the worst of the
     character's OWN injuries still fresh or healing - the log's and the sheet's - never a sum (`body.capacity`)."""
-    return max([WEAKENS[r["severity"]] for r in for_actor(con, run_id, char_id, char, before_turn)
+    return max([WEAKENS[r["severity"]] for r in for_actor(con, run_id, char_id, char, before_turn, view)
                 if r["who"] == char_id and r["stage"] in (FRESH, HEALING)] or [0])
 
 
-def for_actor(con, run_id, actor, char, before_turn):
+def for_actor(con, run_id, actor, char, before_turn, view=None):
     """What `actor` knows of injuries still showing at the beat `before_turn` -> [{who, what, severity, stage}].
 
     The injuries of beats they witnessed (`scene_facts.witnessed`), aged from the beat they were taken; then
     their own sheet's, aged from their first scene less `ago`. Healed ones are gone; a grave one stays as its mark. Most
-    recent first; the sheet's last."""
+    recent first; the sheet's last. `view` (gate flashback-windows): only the beats it keeps - a hurt taken in a
+    scene set in their past is not on them now, and one taken after a window's time is not on them in it."""
     now = _clock.at_turn(con, run_id, before_turn)
     present = _scene_facts.present_by_turn(con, run_id)
+    view = _window.of(con, run_id, actor, view)
     out = []
-    for r in reversed(run_rows(con, run_id, before_turn)):
+    for r in reversed([r for r in run_rows(con, run_id, before_turn) if _window.keeps(view, r["turn"])]):
         if not _scene_facts.witnessed(r, actor, present) and r["who"] != actor:
             continue
         then = _clock.at_turn(con, run_id, r["turn"])
         s = stage(r["severity"], (now - then) if (now is not None and then is not None) else 0.0)
         if s:
             out.append({"who": r["who"], "what": r["what"], "severity": r["severity"], "stage": s})
-    start = _clock.first_presence(con, run_id, actor)          # where their story began (gate own-timelines)
+    start = _clock.first_presence(con, run_id, actor, view)    # where their story began (gate own-timelines)
     start = now if start is None else start                     # ...or begins, with this very beat
     for r in ((((char or {}).get("current") or {}).get("condition") or {}).get("injuries") or []):
         if r.get("ago") is None:
