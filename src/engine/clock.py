@@ -329,6 +329,15 @@ def story_now(con, run_id):
     return max(points) if points else None
 
 
+def days_since(con, run_id, turn, now_turn):
+    """Story DAYS from the end of beat `turn` to the start of beat `now_turn` -> float (gate memory-fades): a
+    memory's own time since the beat that formed or last recalled it; `turn` None is page one (`opening`), for a
+    memory the sheet carries. 0.0 when either end has no scene reading - no clock, no time."""
+    now = at_turn(con, run_id, now_turn)
+    then = opening(con, run_id) if turn is None else beat_end(con, run_id, turn)
+    return 0.0 if now is None or then is None else max(0.0, now - then) / float(MINUTES_PER_DAY)
+
+
 def opening(con, run_id):
     """When the run's first scene opened, in minutes -> float, or None: page one, the moment a sheet describes."""
     row = con.execute("SELECT at_minutes FROM scene_clock WHERE run_id=? ORDER BY turn LIMIT 1", (run_id,)).fetchone()

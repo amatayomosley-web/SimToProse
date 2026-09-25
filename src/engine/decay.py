@@ -72,7 +72,10 @@ def calculate_effective_confidence(belief, current_turn=0, relationships=None,
       current_turn   : int current scene turn (used if elapsed is None)
       relationships  : dict of live character relationship edges {target: edge_dict}
       recall_history : dict derived from fold_recall_history {bid: {last_turn, count}}
-      elapsed        : float declared story time elapsed (from clock.elapsed_since)
+      elapsed        : the story time this memory has had, in days: a callable (turn or None) -> days, asked
+                       with the turn that last recalled or formed it, or None for one the sheet carries (page
+                       one) - each memory its own time (gate memory-fades; both drivers pass
+                       `clock.days_since`) - or one number for every memory (a caller with no clock)
     """
     if not isinstance(belief, dict):
         return 0.5
@@ -100,7 +103,14 @@ def calculate_effective_confidence(belief, current_turn=0, relationships=None,
         last_recalled = 0
         recall_count = 0
 
-    if elapsed is not None:
+    if callable(elapsed):
+        # EACH MEMORY ITS OWN STORY TIME (gate memory-fades): since it was last recalled, or formed - or, carried
+        # on the sheet with no turn of its own, since page one. The drivers handed this the time AFTER the current
+        # beat, which is zero at the head of the log, so no memory ever faded in a live run.
+        dated = (bool(bid and recall_history and bid in recall_history)
+                 or "created_turn" in belief or "last_recalled_turn" in belief)
+        delta_t = max(0.0, float(elapsed(last_recalled if dated else None)))
+    elif elapsed is not None:
         delta_t = max(0.0, float(elapsed))
     else:
         delta_t = float(max(0, int(current_turn) - last_recalled))

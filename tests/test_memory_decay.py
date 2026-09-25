@@ -194,6 +194,141 @@ def test_chronicle_fold_recall_history():
     check("watchword-count-is-1", history["b:watchword"]["count"] == 1)
 
 
+def test_each_memory_its_own_story_time():
+    """gate memory-fades (2026-09-24). Both drivers handed the gate the story time AFTER the current beat - zero at
+    the head of the log - so no memory faded in a live run. Each memory now has its own: since the beat that formed
+    or last recalled it, or, carried on the sheet, since page one; and with no clock, none."""
+    print("\n[9] Each memory its own story time (gate memory-fades)")
+    from src.engine import clock
+    from src.engine.decay_law import relax
+    from src.engine.ledger import Ledger
+    from src.engine.records import PATHS, TurnCommit
+    led = Ledger(":memory:")
+    led.create_run("r", {"catalog_version": 1, "models": {"turn": "stub"}, "prompt_versions": {"turn": 1}})
+    led.register_character("r", "m", {"id": "m", "name": "M"}, {})
+    led.record_scene_clock("r", 0, 480.0, 60.0, 20.0)                 # 08:00, an hour, twenty minutes a beat
+    for t in (0, 1, 2):
+        led.append_turn(TurnCommit(run_id="r", turn=t, actor="m", thought="-", action="-", tags={},
+                                   validation={"ok": True}, affect={p: 0.2 for p in PATHS}))
+    led.record_scene_clock("r", 3, 1920.0, 30.0, 10.0)               # next morning at 08:00
+    led.append_turn(TurnCommit(run_id="r", turn=3, actor="m", thought="-", action="-", tags={},
+                               validation={"ok": True}, affect={p: 0.2 for p in PATHS}))
+    since = lambda t: clock.days_since(led.con, "r", t, 4)           # asked at the start of beat 4: 08:10, day 2
+    sheet = {"claim": "the relief boat was due at dawn", "confidence": 0.8, "durability": "transient", "bid": "b:boat"}
+    learned = dict(sheet, bid="b:learned", created_turn=1)
+    got = decay.calculate_effective_confidence(sheet, elapsed=since)
+    want = relax(0.8, decay.FLOOR_TRANSIENT, decay.RETENTION_TRANSIENT, (1930.0 - 480.0) / 1440.0)
+    check("a-sheet's-memory-fades-from-page-one", abs(got - round(want, 4)) < 1e-12 and got < 0.8, repr((got, want)))
+    got = decay.calculate_effective_confidence(learned, elapsed=since)
+    want = relax(0.8, decay.FLOOR_TRANSIENT, decay.RETENTION_TRANSIENT, (1930.0 - 520.0) / 1440.0)
+    check("a-learned-one-from-the-end-of-the-beat-that-taught-it", abs(got - round(want, 4)) < 1e-12, repr((got, want)))
+    got = decay.calculate_effective_confidence(sheet, elapsed=since, recall_history={"b:boat": {"last_turn": 3, "count": 1}})
+    check("a-recalled-one-from-its-last-recall-(here-no-time-at-all)", got == 0.8, repr(got))
+    check("a-core-one-never", decay.calculate_effective_confidence(dict(sheet, durability="core"), elapsed=since) == 0.8)
+    bare = Ledger(":memory:")
+    bare.create_run("q", {"catalog_version": 1, "models": {"turn": "stub"}, "prompt_versions": {"turn": 1}})
+    check("no-clock-no-time", decay.calculate_effective_confidence(
+        sheet, elapsed=lambda t: clock.days_since(bare.con, "q", t, 4)) == 0.8)
+    with led.con:                                                    # a memory logged before this gate: no turn in it
+        led.con.execute("INSERT INTO acquisitions (run_id, char_id, turn, belief) VALUES ('r', 'm', 2, ?)",
+                        (json.dumps({"claim": "the lamp oil was low"}),))
+    kept = led.acquisitions_for("r", "m")
+    check("an-old-logged-memory-takes-its-turn-from-its-row", kept and kept[-1].get("created_turn") == 2, repr(kept))
+    fresh = {"claim": "the wind backed at noon"}
+    led.append_acquisition("r", "m", 3, fresh)
+    check("a-new-one-is-stamped-in-place-and-in-the-log", fresh.get("created_turn") == 3
+          and led.acquisitions_for("r", "m")[-1].get("created_turn") == 3, repr(fresh))
+
+
+def test_a_live_run_forgets():
+    """The same through scripts/scene.py main: a memory the sheet carries and one a witness learns, across two
+    scenes a day apart, as the recall gate actually receives them."""
+    print("\n[10] A live run forgets (gate memory-fades)")
+    import contextlib
+    import glob
+    import io
+    import re
+    import shutil
+    import sqlite3
+    sys.path.insert(0, os.path.join(REPO, "scripts"))
+    sys.path.insert(0, os.path.join(REPO, "tests"))
+    import scene
+    from src.engine import associative, clock, rungs
+    from src.engine.decay_law import relax
+    from src.engine.records import Reading, RecordError
+    from test_condition import FLOW, _cfg
+    from test_systems import _book
+    tmp = tempfile.mkdtemp(prefix="swe_forget_")
+    book = _book(tmp, FLOW)
+    path = os.path.join(book, "characters", "Mira.md")
+    txt = open(path, encoding="utf-8").read()
+    m = re.search(r"```json\n(.*)\n```", txt, re.S)
+    data = json.loads(m.group(1))
+    data["current"]["vault"] = [{"claim": "the relief boat was due at dawn", "confidence": 0.8, "durability": "transient",
+                                 "bid": "b:boat", "provenance": "seed"}]
+    open(path, "w", encoding="utf-8").write(txt[:m.start(1)] + json.dumps(data, indent=1) + txt[m.end(1):])
+    seen = []
+    real = associative.calculate_effective_confidence
+
+    def spy(belief, current_turn=0, relationships=None, recall_history=None, elapsed=None):
+        out = real(belief, current_turn, relationships, recall_history, elapsed)
+        seen.append((dict(belief), elapsed, out))
+        return out
+
+    def fake_turn(packet, event_text, temperament, model, stub, **k):
+        other = next((e.get("target") for e in ((packet.get("volatile") or {}).get("edges") or []) if e.get("target")), "")
+        return ({"action": "She trims the wick and says the wind is backing.", "thought": "", "exit": False,
+                 "addressee": other, "act": "",
+                 "tags": {"type": "threat", "summary": "trims the wick", "dimensions": {"threat": 0.7},
+                          "durability": "durable", "subject": other, "object": other}}, [])
+
+    def refuse(*_a, **_k):
+        raise RecordError("APPRAISER_REPLY_NOT_JSON", "the event seat is faked out of this test")
+
+    def emotion(action, thought, model, led=None, run_id=None, turn=None, me=None, present=(), **_k):
+        other = next(p for p in present if p != me)
+        return ([Reading(path="WARINESS", rung=rungs.rung_at("WARINESS", 0.6)[1], about=other, confidence="sure")],
+                [other], "sure", [])
+
+    saved = (scene.faithful_turn, scene.appraiser.read_event, scene.appraiser.read_emotion, sys.argv,
+             associative.calculate_effective_confidence)
+    scene.faithful_turn, scene.appraiser.read_event, scene.appraiser.read_emotion = fake_turn, refuse, emotion
+    associative.calculate_effective_confidence = spy
+    try:
+        for i, (name, day, time) in enumerate((("dusk", 1, "18:00"), ("next-dusk", 2, "18:00"))):
+            argv = ["scene.py", "--book", book, "--scene", _cfg(tmp, name, day, time, "1h"), "--budget", "2",
+                    "--model", "fake/model", "--no-keeper"]
+            if i:
+                db = glob.glob(os.path.join(book, "runs", "*.db"))[0]
+                argv += ["--resume", sqlite3.connect(db).execute("SELECT run_id FROM runs").fetchone()[0]]
+            sys.argv = argv
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                scene.main()
+        db = glob.glob(os.path.join(book, "runs", "*.db"))[0]
+        con = sqlite3.connect(db)
+        con.row_factory = sqlite3.Row
+        run_id = con.execute("SELECT run_id FROM runs").fetchone()[0]
+        check("the-gate-was-handed-a-clock-not-a-zero", seen and all(callable(e) for _b, e, _o in seen),
+              repr(sorted({repr(e)[:30] for _b, e, _o in seen})))
+        boat = [(e, o) for b, e, o in seen if b.get("bid") == "b:boat"]
+        start2 = con.execute("SELECT MAX(start_turn) FROM scenes").fetchone()[0]
+        at2 = clock.at_turn(con, run_id, start2)
+        want = round(relax(0.8, decay.FLOOR_TRANSIENT, decay.RETENTION_TRANSIENT, (at2 - clock.opening(con, run_id)) / 1440.0), 4)
+        check("the-sheet's-memory-is-whole-at-page-one", boat and boat[0][1] == 0.8, repr(boat[:1]))
+        check("...and-a-day-weaker-when-the-next-scene-opens", any(abs(o - want) < 1e-12 for _e, o in boat) and want < 0.8,
+              repr((want, [o for _e, o in boat])))
+        rows = [(int(r["turn"]), json.loads(r["belief"])) for r in con.execute("SELECT turn, belief FROM acquisitions")]
+        check("a-witness-learned-something-and-the-log-keeps-when", rows and all(b.get("created_turn") == t for t, b in rows),
+              repr(rows[:2]))
+        learned = [b for b, _e, _o in seen if b.get("bid") != "b:boat"]      # every memory the sheet did not carry
+        check("...and-the-vault's-copy-fades-from-that-beat", learned and all("created_turn" in b for b in learned),
+              repr([b for b in learned if "created_turn" not in b][:1]))
+    finally:
+        (scene.faithful_turn, scene.appraiser.read_event, scene.appraiser.read_emotion, sys.argv,
+         associative.calculate_effective_confidence) = saved
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 if __name__ == "__main__":
     test_core_belief_invariance()
     test_transient_vs_durable_decay()
@@ -202,6 +337,8 @@ if __name__ == "__main__":
     test_live_connection_slows_decay()
     test_faintness_reaches_prompt_sureness()
     test_chronicle_fold_recall_history()
+    test_each_memory_its_own_story_time()
+    test_a_live_run_forgets()
     print("\n" + "-" * 50)
     print(f"{len(PASS)} passed, {len(FAIL)} failed")
     sys.exit(1 if FAIL else 0)

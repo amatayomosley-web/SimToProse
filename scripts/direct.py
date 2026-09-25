@@ -565,7 +565,8 @@ def run_turn(led, run_id, char, world, groups_index, profile, temperament, affec
                       facts=_scene_facts.facts_for(led.con, run_id, _actor, before_turn=turn_no),
                       relationships=char["current"].get("relationships", {}),
                       recall_history=_decay.fold_recall_history(led.con, run_id, _actor),
-                      elapsed=_clock.elapsed_days_since(led.con, run_id, turn_no),
+                      # EACH MEMORY ITS OWN STORY TIME (gate memory-fades), as scripts/scene.py passes it
+                      elapsed=lambda t, _now=turn_no: _clock.days_since(led.con, run_id, t, _now),
                       tired="condition_flow" in _sys)     # the room's subtle cues dim with the mind (gate tired-lexicon)
     record_faults(detect_world_faults(packet, scene_slice, event_text, world, turn_no), book_dir)
     if _systems.declared(world):

@@ -592,7 +592,10 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
                           relationships=a["char"]["current"].get("relationships", {}),
                           recall_history=_belief_decay.fold_recall_history(
                               led.con, run_id, speaker),
-                          elapsed=_clock.elapsed_days_since(led.con, run_id, turn_no),
+                          # EACH MEMORY ITS OWN STORY TIME (gate memory-fades): since the beat that formed or last
+                          # recalled it, to this beat's start - the time after the current beat, handed here before,
+                          # is zero at the head of the log, so no memory faded in a live run
+                          elapsed=lambda t, _now=turn_no: _clock.days_since(led.con, run_id, t, _now),
                           # the room's subtle cues dim with the mind, as a speaker's tells do (gate tired-lexicon)
                           tired="condition_flow" in _sys)
         # name hygiene rides in build_turn_messages — mask every name this speaker never acquired;
@@ -1097,6 +1100,7 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
             if not wb:
                 continue                                # transient / no summary / deceived target — next witness
             wvault = wchar["current"].setdefault("vault", [])
+            wb.setdefault("created_turn", turn_no)      # learned at this beat: both copies below fade from it
             if not any(isinstance(x, dict) and x.get("claim") == wb["claim"] for x in wvault):
                 wvault.append(dict(wb))
                 acquisition.fold_vault(wvault)

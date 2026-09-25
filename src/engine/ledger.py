@@ -270,10 +270,13 @@ class Ledger:
     def append_acquisition(self, run_id, char_id, turn, belief):
         """Persist a belief the character ACQUIRED this run (knowledge-model.md §acquisition): the
         simulated twin of an authored .md seed, provenance distinguishing them. One row per acquired
-        belief. run_turn folds it forward in-session; resume-replay shares the arc_diffs gap."""
+        belief. run_turn folds it forward in-session; resume-replay shares the arc_diffs gap. The belief is
+        stamped IN PLACE with the turn it was learned (`created_turn`, gate memory-fades), so the copy the
+        vault already holds fades from that beat, as the logged one does."""
         if not isinstance(belief, dict) or "claim" not in belief:
             raise RecordError("LEDGER_ACQUISITION_INVALID",
                           "append_acquisition: belief must be a dict carrying a claim")
+        belief.setdefault("created_turn", int(turn))
         self.load_run(run_id)
         with self.con:
             self.con.execute(
@@ -282,9 +285,10 @@ class Ledger:
 
     def acquisitions_for(self, run_id, char_id):
         """Every belief char_id acquired this run, in acquisition order — the simulated additions to the
-        seeded vault (rehydrate on resume by appending these to the .md seed)."""
-        rows = self.con.execute("SELECT belief FROM acquisitions WHERE run_id = ? AND char_id = ? ORDER BY turn, acquisition_id", (run_id, char_id)).fetchall()
-        return [json.loads(r["belief"]) for r in rows]
+        seeded vault (rehydrate on resume by appending these to the .md seed), each carrying the turn it was
+        learned: a row from before gate memory-fades takes it from the row."""
+        rows = self.con.execute("SELECT turn, belief FROM acquisitions WHERE run_id = ? AND char_id = ? ORDER BY turn, acquisition_id", (run_id, char_id)).fetchall()
+        return [dict({"created_turn": int(r["turn"])}, **json.loads(r["belief"])) for r in rows]
 
     # ---- the DECLARED clock. Bodies in `clock.py`, which carries the contract; these stay so the
     # existing call sites are unchanged and the cause/derivation seam is visible from here.
