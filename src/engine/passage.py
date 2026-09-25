@@ -62,12 +62,14 @@ each character's strength, `body.capacity`; gate body-exertion):
                     `declare_time`'s provenance string, exactly as `scripts/scene.py` always passed
                     it. Optional because the chair has no scene cfg to draw one from: a chair-
                     declared gap carries no label, same as an unnamed scene always has.
-  -> {"elapsed": minutes or None, "owed": minutes, "per_beat": minutes, "relaxed": [ids]}
+  -> {"elapsed": minutes or None, "owed": minutes, "per_beat": minutes, "relaxed": [ids], "own": {id: minutes}}
      `elapsed` is None for the first opening of a run (nothing to derive a gap from), and nothing is
      applied; `owed` is the previous opening's unspent `lasts` (0.0 when it spent it all, or
      declared none); `relaxed` is every id this call actually aged (sorted; empty when `elapsed`
      was falsy — zero minutes is the absence of a declaration, not a declaration of zero, per
-     clock.py's own rule).
+     clock.py's own rule); `own` is how long each character had been out of the room, the minutes
+     their mood aged (`own_minutes`; a first appearance is absent from it, and so is everyone at a
+     run's first opening).
 
 Raises `RecordError("CLOCK_RUNS_BACKWARDS", ...)` through `ledger.gap_before` when this opening's
 `at_minutes` falls before the previous opening's own end — the clock does not run backwards, in
@@ -111,8 +113,9 @@ def open_scene(led, run_id, start_turn, at_minutes, lasts_minutes, budget, chars
         # table — so a resumed cast lost every winter that passed. The declaration is MINUTES; the
         # three older tiers read it in DAYS (clock.elapsed_days_since), `toward.erode` as declared.
         led.declare_time(run_id, start_turn, elapsed, str(names or ""))
-    # THE CONDITION'S GAP IS EACH CHARACTER'S OWN (gate gap-day-and-night): from the last scene they were in.
-    gaps = {i: clock.presence_end(led.con, run_id, i, start_turn) for i in chars} if flow else None
+    # EACH CHARACTER'S OWN TIME, from the last beat they were in the room: the mood's (gate absent-age) and, in a
+    # book running `condition_flow`, the condition's (gate gap-day-and-night).
+    gaps = {i: clock.presence_end(led.con, run_id, i, start_turn) for i in chars}
     # AN INJURY WEAKENS THE BODY WHILE IT HEALS (gate injury-weakens): read at the opening, for the gap before it.
     weak = ({i: _injuries.weakening(led.con, run_id, i, chars[i], start_turn) for i in chars}
             if (injuries and body) else None)
@@ -121,7 +124,18 @@ def open_scene(led, run_id, start_turn, at_minutes, lasts_minutes, budget, chars
     # keyword form, not a literal {"elapsed": ...} — this is the DERIVED result of gap_before, the
     # thing that retired an AUTHORED cfg `elapsed` field (2026-09-10, clock.py), not a reappearance
     # of it; tests/test_retired_vocabulary.py greps source text and cannot tell the two apart.
-    return dict(elapsed=elapsed, owed=owed, per_beat=per_beat, relaxed=relaxed)
+    return dict(elapsed=elapsed, owed=owed, per_beat=per_beat, relaxed=relaxed,
+                own=own_minutes(chars, at_minutes, gaps) if elapsed is not None else {})
+
+
+def own_minutes(ids, at, gaps):
+    """{id: minutes} - how long each character has been out of the room at an opening (gate absent-age): from the
+    scene reading they were last in (`gaps`, {id: clock.presence_end(...)}) to `at`, plus what they owe of it (the
+    rest of a scene they walked out of, or one that lulled). An id with no earlier presence is left out: a first
+    appearance arrives with the mood on the sheet. For someone in the last scene to its end this is exactly the
+    run's gap plus that scene's unspent minutes - the old rule, which aged whoever was in the NEW scene by the
+    time since the LAST one ended, so a character who sat scenes out came back feeling as they did when they left."""
+    return {i: (float(at) - g["end"]) + g["owed"] for i in ids for g in [(gaps or {}).get(i)] if g is not None}
 
 
 def apply_opening(chars, elapsed, owed, rest_rows, flow=False, body=False, at=None, gaps=None, stated=None,
@@ -130,10 +144,15 @@ def apply_opening(chars, elapsed, owed, rest_rows, flow=False, body=False, at=No
 
     THE APPLICATION HALF OF `open_scene`, split out verbatim (gate mood-from-readings, 2026-09-22) so the
     mood replay applies an opening with the very code the drivers ran, rather than a second copy of it.
-    The mood decays over `elapsed + owed` (the gap plus what the last scene left unspent); a declared gap
-    also drifts each edge toward its rest, erodes the wounds, returns the temperament toward what was
-    authored and fades the attitude. `rest_rows(id)` -> that character's rest rows as the opening reads
-    them (`bond_rest.rows_for` at the time). `elapsed` None or 0 applies no gap: [] is returned.
+    Each character's mood decays over THEIR OWN time out of the room (`own_minutes`, from `gaps` {id:
+    clock.presence_end(...) or None} and `at`, this opening - gate absent-age): someone who sat scenes out
+    or walked out comes back cooled by all of it, a first appearance keeps the sheet's mood, and someone in
+    the last scene to its end gets the gap plus that scene's unspent minutes, as everyone did before. After
+    the run's first opening `gaps` is required (PASSAGE_GAPS_MISSING). A declared gap also drifts each edge
+    toward its rest, erodes the wounds, returns the temperament toward what was authored and fades the
+    attitude - on the run's clock, for everyone, as the replay folds do. `rest_rows(id)` -> that
+    character's rest rows as the opening reads them (`bond_rest.rows_for` at the time). `elapsed` None or 0
+    applies no gap to those tiers: [] is returned.
 
     `flow` (the book runs `condition_flow`, gate condition-flow): the owed minutes cost energy and the
     gap restores it (`condition.opening`) - first, while the mood is still the one the last scene ended
@@ -153,13 +172,17 @@ def apply_opening(chars, elapsed, owed, rest_rows, flow=False, body=False, at=No
             chars[i]["current"]["condition"] = _condition.between(
                 chars[i]["current"]["condition"], g["end"], at, g["owed"], chars[i]["current"].get("affect"),
                 1.0 / _body.capacity(chars[i], (weakened or {}).get(i, 0)) if body else 1.0, (stated or {}).get(i))
-    if elapsed is not None and elapsed + owed > 0:
-        for i in ids:
-            ch = chars[i]
-            profile = build_profile(ch)
-            temperament = ch["baseline"]["temperament"]
-            aged = decay(dict(ch["current"]["affect"]), temperament, profile, elapsed=elapsed + owed)
-            ch["current"]["affect"] = dict(aged)
+    if elapsed is not None:                # the run's first opening has nothing before it to age from
+        if gaps is None:
+            raise RecordError("PASSAGE_GAPS_MISSING",
+                              "passage: an opening after the run's first needs each character's presence "
+                              "(gaps {id: clock.presence_end(...)}) to age their mood by their own time away")
+        for i, minutes in own_minutes(ids, at, gaps).items():
+            if minutes > 0:
+                ch = chars[i]
+                aged = decay(dict(ch["current"]["affect"]), ch["baseline"]["temperament"], build_profile(ch),
+                             elapsed=minutes)
+                ch["current"]["affect"] = dict(aged)
     if not elapsed:
         return []
     elapsed_days = elapsed / float(clock.MINUTES_PER_DAY)

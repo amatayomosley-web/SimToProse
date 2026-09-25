@@ -495,6 +495,14 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
               " resting disposition, feelings toward their rest" % (
                   int(_clock_result["elapsed"]),
                   " (+%d owed by the last scene)" % int(_clock_result["owed"]) if _clock_result["owed"] else ""))
+    # EACH MOOD AGED BY ITS OWN TIME AWAY (gate absent-age): name whoever was out of the room longer than the
+    # scene gap, and anyone appearing for the first time, so the operator can see why one mood cooled more.
+    if _clock_result["elapsed"] is not None:
+        _gap = _clock_result["elapsed"] + _clock_result["owed"]
+        _away = ["%s %d min" % (i, int(m)) for i, m in sorted(_clock_result["own"].items()) if abs(m - _gap) > 1e-9]
+        _away += ["%s first appears (the sheet's mood)" % i for i in ids if i not in _clock_result["own"]]
+        if _away:
+            print("  own time away: %s" % "; ".join(_away))
     print("  opens %s%s" % (_clockmod.format_at(cfg["at_minutes"]),
                             ", lasts %d min (%.1f per beat)" % (int(cfg["lasts_minutes"]), per_beat)
                             if cfg.get("lasts_minutes") else ", no duration authored — no decay inside the scene"))

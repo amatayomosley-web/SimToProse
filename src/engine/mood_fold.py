@@ -15,7 +15,8 @@ WHAT IT REPLAYS: a scene-driven run, scene by scene from the `scenes` rows, as s
            character's own wound refold or arc change: exactly when the drivers build it. Decay and the
            receipt read the profile's held map from that build and its relationships live (a profile
            keeps a reference to the sheet's edges), so each beat reads the bonds as they stood.
-  opening  `passage.apply_opening`, the very code `open_scene` runs, over the gap the clock logged.
+  opening  `passage.apply_opening`, the very code `open_scene` runs, over the gap the clock logged and
+           each cast member's own time out of the room (`clock.presence_end`, gate absent-age).
   beat     decay first over the beat's minutes, then the receipt from the logged readings (or, with no
            readings, `appraise` on the logged tags); every other present character decays when the
            manifest records it (step 4, since gate non-speaker-decay); the binds follow rules 1-5.
@@ -135,7 +136,7 @@ def replay(con, run_id, sheets, notes=None, conditions=None):
         passage.apply_opening({c: chs[c] for c in cast}, clock.gap_before(con, run_id, float(at_m), before_turn=start),
                               clock.unspent_before(con, run_id, start) or 0.0, rests.get, flow=flow, body=body_on,
                               at=float(at_m), stated=_condition.stated_gaps(body.get("condition")),
-                              gaps={c: clock.presence_end(con, run_id, c, start) for c in cast} if flow else None,
+                              gaps={c: clock.presence_end(con, run_id, c, start) for c in cast},
                               weakened=({c: _injuries.weakening(con, run_id, c, chs[c], start) for c in cast}
                                         if (inj_on and body_on) else None))
         _condition.apply_declared({c: chs[c] for c in cast}, body.get("condition"))     # the director's words, as run

@@ -466,6 +466,15 @@ declaration also feeds, in DAYS) and both `scene.py` and
 of its own (a beat has no duration; `--minutes-per-turn` is a separate, per-invocation knob) — see
 docs/guide-operating.md.
 
+**EACH MOOD ON ITS OWN CLOCK (2026-09-24, gate absent-age).** The gap a mood decays over at an
+opening is the character's own: from the last beat they were in the room (`clock.presence_end` —
+the speaker, or the room a beat's manifest records; a beat logged before 2026-09-22 records no room,
+so its scene's whole cast counts) to this opening, plus the minutes of that scene they did not spend
+in it. Someone who sat scenes out or walked out comes back cooled by all of it; someone in the last
+scene to its end gets exactly the gap plus its unspent minutes, as everyone did before; a first
+appearance keeps the sheet's mood. The attitude and the three older tiers keep the declared gap,
+which the replay folds already apply to every character, present or not.
+
 ---
 
 ## 5. When the engine receives a tag — the beat sequence
@@ -491,7 +500,9 @@ docs/guide-operating.md.
            each beat over the same minutes and room as the speaker's decay, on each bystander's own
            binds; the moods ride the turn as `TurnCommit.bystanders` -> one current_state row per
            present character per beat, and the manifest's `decay` records the cause (minutes, room,
-           bystanders). An exited character stops decaying until the next opening
+           bystanders). An exited character stops decaying until the next opening, and that opening
+           ages them over their own time away, the rest of the scene they left included (gate
+           absent-age, 2026-09-24)
 5  floor:  urge = salience·[landed ≠ False] + addressed + disruption − recency − inhibition
            BUILT 2026-09-19 (gate lands-on-to-floor): the seat's lands_on PRUNES the salience term
            (a listener the beat did not reach gets 0; a reached listener keeps the counterfactual

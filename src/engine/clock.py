@@ -258,27 +258,57 @@ def unspent_before(con, run_id, start_turn):
     return max(0.0, prev["lasts"] - beats * prev["beat_minutes"])
 
 
-def presence_end(con, run_id, char_id, before_turn):
-    """Where one character's OWN time last stood before a turn -> {"end", "owed"} or None (gate gap-day-and-night).
+def _scene_casts(con, run_id):
+    """[(start_turn, end_turn, {cast ids})] for each recorded scene of a run, from its pinned cfg - what a beat
+    that records no room falls back on (`last_present`). A scene whose cfg the log does not hold is left out."""
+    out = []
+    for s, e, fp in con.execute("SELECT start_turn, end_turn, cfg_fingerprint FROM scenes WHERE run_id = ?", (run_id,)):
+        row = con.execute("SELECT body FROM scene_cfgs WHERE fingerprint = ?", (fp,)).fetchone() if fp else None
+        if row is not None:
+            cast = _json.loads(row[0]).get("cast") or []
+            out.append((int(s), int(e), {str(c.get("id")) for c in cast if isinstance(c, dict)}))
+    return out
 
-    Their last beat present in this run - the speaker (`turns.actor`), or one of the room a scene beat's manifest
-    records under `decay.here` - and the scene reading that beat ran under: `end` is its declared end (opening +
-    lasts), `owed` what it declared and its beats did not spend (`unspent_before`'s arithmetic, for that reading).
-    None: never present before this turn, or no reading to measure from - the sheet is their state."""
-    last = None
+
+def last_present(con, run_id, char_id, before_turn):
+    """The last turn before `before_turn` this character was bodily in the room -> int, or None (gate absent-age).
+
+    The speaker (`turns.actor`), or one of the room a scene beat's manifest records under `decay.here` - written
+    every beat since gate non-speaker-decay (2026-09-22). A beat logged before that records no room: the log
+    cannot tell who listened from who had walked out, so its scene's whole cast counts, which is what every
+    opening before this gate assumed, and what keeps those runs replaying as they ran. A chair turn sits in no
+    scene, so only its speaker was there."""
+    casts = None
     for t, actor, man in con.execute(
             "SELECT t.turn, t.actor, m.manifest FROM turns t LEFT JOIN decision_manifests m ON m.run_id = t.run_id "
             "AND m.turn = t.turn WHERE t.run_id = ? AND t.turn < ? ORDER BY t.turn DESC", (run_id, int(before_turn))):
-        here = ((_json.loads(man) if man else {}).get("decay") or {}).get("here") or ()
-        if actor == char_id or char_id in here:
-            last = int(t)
-            break
+        if actor == char_id:
+            return int(t)
+        room = ((_json.loads(man) if man else {}).get("decay") or {}).get("here")
+        if room is not None:
+            if char_id in room:
+                return int(t)
+            continue
+        if casts is None:
+            casts = _scene_casts(con, run_id)
+        if any(s <= int(t) <= e and char_id in cast for s, e, cast in casts):
+            return int(t)
+    return None
+
+
+def presence_end(con, run_id, char_id, before_turn):
+    """Where one character's OWN time last stood before a turn -> {"end", "owed"} or None (gate gap-day-and-night).
+
+    Their last beat in the room (`last_present`) and the scene reading that beat ran under: `end` is its declared
+    end (opening + lasts), `owed` the minutes it declared that they did not spend in the room - `lasts` less the
+    beats up to and including their last one. Until gate absent-age `owed` counted every beat of the scene, so
+    the minutes after a walk-out were no one's; now they are the walk-out's, as the rest of their absence is.
+    None: never present before this turn, or no reading to measure from - the sheet is their state."""
+    last = last_present(con, run_id, char_id, before_turn)
     seg = None if last is None else last_scene_clock(con, run_id, last + 1)
     if seg is None:
         return None
-    nxt = con.execute("SELECT MIN(turn) FROM scene_clock WHERE run_id = ? AND turn > ? AND turn < ?",
-                      (run_id, seg["turn"], int(before_turn))).fetchone()[0]
-    beats = (int(nxt) if nxt is not None else int(before_turn)) - seg["turn"]
+    beats = last + 1 - seg["turn"]
     owed = max(0.0, seg["lasts"] - beats * seg["beat_minutes"]) if seg["lasts"] is not None else 0.0
     return {"end": seg["at"] + (seg["lasts"] or 0.0), "owed": owed}
 

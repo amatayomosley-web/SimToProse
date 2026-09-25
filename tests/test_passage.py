@@ -67,13 +67,24 @@ def _ledger(chars, run_id="r1"):
     return led
 
 
+def _in_the_room(led, turn, actor, here):
+    """A committed beat: `actor` spoke and `here` were in the room (the manifest's `decay.here`) - what an opening
+    reads for how long each character has been away (gate absent-age). With no beat before it, a character is at
+    their first appearance and keeps the sheet's mood."""
+    from src.engine.records import PATHS, TurnCommit
+    led.append_turn(TurnCommit(run_id="r1", turn=turn, actor=actor, thought="-", action="-", tags={},
+                               validation={"ok": True}, affect={p: 0.2 for p in PATHS},
+                               manifest={"decay": {"minutes": 0.0, "here": sorted(here), "bystanders": []}}))
+
+
 def test_a_declared_gap_decays_drifts_and_erodes():
     print("\n[1] A DECLARED GAP (at 420/15, opened at 440) — decay, drift toward the SEEDED rest, "
           "wound and toward erosion")
     chars = _cast()
     led = _ledger(chars)
-    # a prior opening at 420, lasting 15 (budget 1: beat_minutes == lasts) — ends at 435
+    # a prior opening at 420, lasting 15 (budget 1: beat_minutes == lasts) — ends at 435; both were in it
     led.record_scene_clock("r1", 0, 420.0, 15.0, 15.0)
+    _in_the_room(led, 0, "maren", ("maren", "edda_elder"))
 
     maren = chars["maren"]
     maren["current"]["affect"]["WARINESS"] = 0.60          # an excursion for decay to relax back
@@ -116,9 +127,11 @@ def test_a_declared_gap_decays_drifts_and_erodes():
 def test_a_lull_owes_its_unspent_remainder():
     print("\n[2] A LULL — beats*beat_minutes < lasts, the unspent remainder is OWED and APPLIED")
     chars = _cast()
+    chars["maren"]["current"]["affect"]["WARINESS"] = 0.60      # an excursion, so fifteen minutes and five differ
     led = _ledger(chars)
-    # a 15-minute scene budgeted at 5 min/beat that lulled after ONE beat: 10 unspent
+    # a 15-minute scene budgeted at 5 min/beat that lulled after ONE beat, with her in it: 10 unspent
     led.record_scene_clock("r1", 0, 420.0, 15.0, 5.0)
+    _in_the_room(led, 0, "maren", ("maren", "edda_elder"))
     result = passage.open_scene(led, "r1", 1, 440.0, None, 1, chars)      # gap 440-435=5
     check("elapsed-is-5", result["elapsed"] == 5.0, result)
     check("owed-is-the-unspent-10", result["owed"] == 10.0, result)
@@ -127,10 +140,12 @@ def test_a_lull_owes_its_unspent_remainder():
     # proves the decay loop used elapsed PLUS owed, not elapsed alone.
     from src.engine.state import build_profile, decay
     fresh = _cast()["maren"]
+    fresh["current"]["affect"]["WARINESS"] = 0.60
     profile = build_profile(fresh)
     want = decay(dict(fresh["current"]["affect"]), fresh["baseline"]["temperament"], profile, elapsed=15.0)
+    alone = decay(dict(fresh["current"]["affect"]), fresh["baseline"]["temperament"], profile, elapsed=5.0)
     check("decay-used-elapsed-PLUS-owed-not-elapsed-alone",
-          chars["maren"]["current"]["affect"] == want, (chars["maren"]["current"]["affect"], want))
+          chars["maren"]["current"]["affect"] == want and want != alone, (chars["maren"]["current"]["affect"], want))
 
 
 def test_opening_before_the_prior_end_is_refused():

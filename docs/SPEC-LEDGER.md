@@ -481,7 +481,8 @@ turn's transaction (`RECORD_BYSTANDER_IS_ACTOR` refuses the actor as its own bys
 manifest's `decay` key records the cause: the minutes, the room and the bystanders. The room's
 in-memory moods follow once the commit holds, before the floor reads them. NOT COVERED: a character who
 exits stops decaying until the next opening; a character absent from a scene is not aged by that
-scene's duration at their next opening (the gap is measured from the previous scene's end); the chair
+scene's duration at their next opening (the gap is measured from the previous scene's end) - both
+CLOSED 2026-09-24 (gate `absent-age`): the next opening ages each of them over their own time away; the chair
 holds no other present character. Suites: `tests/test_passage.py` [11], `tests/test_ledger.py`
 (`test_bystander_rows_ride_the_turn`), `tests/test_scene_persistence.py` [4]; eight mutations each
 turn at least one red.
@@ -623,7 +624,9 @@ beat's manifest records under `decay.here`) and that scene's declared end and un
 mood off the page is not known); a scene cfg's `condition` entry `{char, gap: rested | awake}` supersedes
 (`CONDITION_WORD_UNKNOWN` otherwise); a character's first appearance applies nothing. `passage.open_scene`
 and `mood_fold.replay` compute the same gaps from the log. Mood, bonds, wounds, arc and attitude keep the
-run-level gap exactly as before (the owner's open issue on absent characters). MEASURED
+run-level gap exactly as before (the owner's open issue on absent characters) - for the mood, CLOSED 2026-09-24
+(gate `absent-age`: it takes each character's own gap too, and a walk-out's `owed` now runs to the scene's end;
+the other four were never stuck, since the folds replay every declared gap onto every character). MEASURED
 (`tests/test_condition.py` [8]): A (10:00-10:30), a POV cut B (10:32-10:42) without her, A again at 10:45 -
 her own gap is 10:30 to 10:45 and her opening is her last value minus exactly fifteen waking minutes, where
 the old rule rested her; with `gap: rested` written she rests; the replay re-derives every condition.
@@ -752,6 +755,28 @@ carries it (`ladders`), and a resume after the ladders changed prints a notice (
 detection, not refusal, as the bible pin does. Suite: `tests/test_rung_delivery.py`, 6 of 6 mutants red. NOT
 COVERED: the prompt's other text (`prompt.py`'s sections, `direction.py`'s phrase tables) stays unpinned; the
 record's `text` digest still pins each direction as sent.
+
+**2026-09-24 — a character's mood ages by their own time out of the room (gate `absent-age`):** an opening
+decayed the NEW scene's cast over the run's gap since the LAST scene ended plus that scene's unspent minutes
+(`passage.apply_opening`), so someone who sat scenes out, or walked out early, came back feeling as they did
+when they left - the owner's open issue on absent characters, approved 2026-09-24 as: they age with story time,
+and a first appearance keeps the sheet's mood (as its condition already did). Each character's mood now decays
+over `passage.own_minutes`: from the scene reading of the last beat they were in the room (`clock.presence_end`)
+to this opening, plus the minutes of that scene they did not spend in it. `presence_end` counts those to the
+character's OWN last beat - it counted every beat of the scene, so the rest of a scene someone walked out of was
+no one's; now it is theirs, their energy's too in a `condition_flow` book. Presence is `clock.last_present`: the
+speaker, or the room a beat's manifest records under `decay.here`; a beat logged before gate non-speaker-decay
+records no room, so its scene's whole cast counts - the log cannot tell a listener from a walk-out there, and
+staying is what every earlier opening assumed. MEASURED on a real book's three recorded scenes: without that
+rule 2 of their 5 openings would move, for a character who spoke one beat before each scene ended and then
+listened; with it the run replays IDENTICAL (33 moods, 33 conditions), and so do the frozen golden runs. Someone
+in the last scene to its end gets exactly the old number. An opening after a run's first refuses to run without
+presence (`PASSAGE_GAPS_MISSING`): a silent skip would freeze every mood. The slow tiers were never stuck and are
+unchanged - `passage.fold_toward` / `fold_wounds` / `fold_arc` and `bond_rest.timeline_rows` replay every
+declared gap onto every character, present or not. Suite: `tests/test_absent_age.py` (a POV cut, a walk-out, a
+book without the energy flow, a log that records no room, the refusal); `tests/test_passage.py` [1]-[2] give
+their characters a beat before the opening. 12 of 12 mutants red. NOT COVERED: no slow tier ages by a scene's own
+minutes, for anyone, present or absent; the chair ages its one character by its own time and prints no line for it.
 
 **2026-09-19 — attitude decays per RUNG, in minutes (gate `attitude-staircase`):** `toward.erode` was the pre-redesign mechanism — one flat `toward._RETENTION[path]` per DAY for every rung, so a hatred and a flicker of annoyance faded alike — and now steps the ladder exactly as `state.decay_over` does, on the minute clock, at a per-path scale whose bottom rung is that same day rate converted (`toward._attitude_half_life`, anchored to 1e-9 in `tests/test_toward.py` block 16) and whose rung-to-rung ratio is the MOOD staircase's own, so the two tiers cannot disagree about the shape of forgetting; `src/engine/passage.py` hands it MINUTES while `bond_rest.drift` / `wound.erode` / `arc.erode` keep the day conversion. Spec: the redesign's "Decay — per path AND per rung" ("Two tables, one shape"), `docs/emotion-arithmetic.md` §4.
 

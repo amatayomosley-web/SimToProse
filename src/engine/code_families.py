@@ -222,6 +222,8 @@ _CLOCK = {
     "LEDGER_SCENE_CLOCK_REWRITE": "a scene's clock reading was declared twice with different values; scene_clock is append-only",
     # the fade derived at replay, 2026-09-22 (passage.fold_toward)
     "PASSAGE_FOLD_UNSTAMPED":     "the attitude fold met a declared gap on a sheet whose authored bonds were never stamped at load, so it cannot rebuild the bonds that opening read",
+    # each character's own time, 2026-09-24 (passage.apply_opening, gate absent-age)
+    "PASSAGE_GAPS_MISSING":       "an opening after the run's first was applied with no presence for its cast, so no one's mood could age by their own time away - a silent skip would freeze every mood",
 }
 
 # ---- SYSTEMS_* — which engine systems a book runs (src/engine/systems.py, 2026-09-22) ----
