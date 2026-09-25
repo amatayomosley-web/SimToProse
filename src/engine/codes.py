@@ -104,6 +104,7 @@ from .code_families import (
     _READ,
     _ATTACH_F,
     _COMPOSITION_F,
+    _CONTRACT_F,
     _KEEPER_F,
     _APPRAISER_F,
     _READING_F,
@@ -157,6 +158,7 @@ _FAMILIES = (
     _READ,
     _ATTACH_F,
     _COMPOSITION_F,
+    _CONTRACT_F,
     _KEEPER_F,
 )
 

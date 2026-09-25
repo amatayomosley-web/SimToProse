@@ -72,7 +72,8 @@ def _check_num(name, v):
     `direction: value must be a number in [0,1], got 'it takes me over'` — which names neither the
     character nor the path, and `name` is literally "value" at the busiest call site
     (identity_view._phrase). The pre-flight now catches this class before a run
-    (scripts/lint_book.py _numeric_slot_errors), so reaching HERE means the pre-flight was skipped.
+    (scripts/lint_book.py, against the sheet's contract in src/engine/contracts_sheet.py), so reaching HERE
+    means the pre-flight was skipped.
     Say so, since that is the actionable part.
     """
     if not isinstance(v, (int, float)) or isinstance(v, bool) or not (0.0 <= float(v) <= 1.0):

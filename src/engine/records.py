@@ -32,6 +32,11 @@ from .errors import EngineError
 # dropped rather than ported.
 PATHS = ("STIRRING", "WARINESS", "DISPLEASURE", "GOODWILL",
          "DEFLATION", "DISTASTE", "RECEPTIVITY", "SELF-REGARD", "LEVITY")
+# THE RETIRED BASIS AS DATA (gate sheet-contract, 2026-09-25): each old primitive and the path that replaced it - the
+# "was" column above, which the owner ruled REPLACED, not translated. The sheet contract names the successor when a
+# sheet is still keyed by a primitive; nothing converts a value (PLAY's successor, LEVITY, is built since 2026-09-11).
+RETIRED_PRIMITIVES = {"SEEKING": "STIRRING", "LUST": "STIRRING", "FEAR": "WARINESS", "RAGE": "DISPLEASURE",
+                      "CARE": "GOODWILL", "PANIC_GRIEF": "DEFLATION", "DISGUST": "DISTASTE", "PLAY": "LEVITY"}
 # LEVITY joined 2026-09-11 by the owner's ruling ("add levity back in; if it fails in production we
 # repair"). PLAY's old appraisal pushes are restored under its name in state._DIM_TO_PATH.
 

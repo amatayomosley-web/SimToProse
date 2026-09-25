@@ -76,6 +76,146 @@ the scene cfg's is **BLUEPRINT-scene.md**. You need both, but not yet.
 
 ---
 
+## Every field, as the engine declares it
+
+The table below is **generated** from the engine's own declaration of the sheet
+(`src/engine/contracts_sheet.py`, gate sheet-contract 2026-09-25) by `scripts/gen_contracts.py`, and the
+suite fails when the two disagree. The pre-run check (`scripts/lint_book.py`) walks your sheet against the
+same declarations. Where this document's prose and the table disagree, **the table is right**, and the
+prose is a defect.
+
+- **status** — `active`: the engine reads it. `retired`: it was read, and something replaced it (the table
+  names what). `unread`: nothing reads it, so it reaches no prompt and computes nothing. `runtime`: the
+  engine writes it, and you may seed it.
+- **Annotations** — any key that begins with `_`, or is named `note`, is ignored everywhere, at any depth.
+  Put your design notes there.
+- **Keys the table does not name** are reported as undeclared: nothing reads them. The exceptions are the
+  two blocks the actor reads verbatim, `fixed.position` and `baseline.voice`, where any key is yours.
+- **`<PATH>`** is any of the nine paths. **`<PRIMITIVE>`** and **`<OLD_AXIS>`** are the retired
+  emotion keys and genotype axes. **`<id>`** / **`<name>`** stand for any key.
+
+<!-- GENERATED: contracts_sheet -->
+| field | shape | must author | status | read by | what it is |
+|---|---|---|---|---|---|
+| `fixed` | section | yes | active | - | who they are: identity the actor is told |
+| `baseline` | section | yes | active | - | how they are made: temperament, values, voice, skills |
+| `current` | section | yes | active | - | how they are on page one: mood, bonds, condition |
+| `fixed.id` | text | no | active | scene._build_stable | their id, told to the actor; the file's id is the join |
+| `fixed.name` | text | yes | active | scene._build_stable | the name a reader would call them |
+| `fixed.people` | text | no | active | scene._build_stable | their people, told to the actor |
+| `fixed.position` | prose | no | active | scene._build_stable | place, class, era, niche - told to the actor verbatim |
+| `fixed.genotype` | map | no | active | heritable.entry | how hard a feeling lands and how long it stays, per path |
+| `fixed.genotype.<PATH>` | map | no | active | heritable.entry |  |
+| `fixed.genotype.<PATH>.hit` | word or number (heritable.GAIN) | no | active | heritable.entry | how hard it lands (a number is clamped) |
+| `fixed.genotype.<PATH>.hold` | word or number (heritable.PERSIST) | no | active | heritable.entry | how long it stays (a number is clamped) |
+| `fixed.genotype.<PATH>.rest` | any | no | retired | replaced by baseline.temperament.<PATH>.rest - where they rest is a design choice, beside the voice (move) |  |
+| `fixed.genotype.<OLD_AXIS>` | any | no | retired | replaced by one {hit, hold} cell per path (heritable refuses the old axes: GENOTYPE_OLD_AXES) (refuse) |  |
+| `fixed.role_tier` | any | no | unread | - | nothing reads how big a part they play |
+| `fixed.physical` | any | no | unread | - |  |
+| `fixed.voice` | any | no | unread | - | the voice the actor reads is baseline.voice |
+| `fixed.formative` | any | no | unread | - |  |
+| `baseline.temperament` | map | no | active | heritable | where each path rests |
+| `baseline.temperament.<PATH>` | map | no | active | heritable |  |
+| `baseline.temperament.<PATH>.rest` | word or unit (heritable.REST_WORDS) | no | active | heritable.ensure_temperament | where the path rests - a word, or a number in [0,1] |
+| `baseline.temperament.<PATH>.mean` | unit | no | runtime | state.decay | the resting mean, seeded from the rest word; the arc moves it |
+| `baseline.temperament.<PRIMITIVE>` | any | no | retired | replaced by the path that took its place (the one records.RETIRED_PRIMITIVES names); the owner ruled replaced, not translated (refuse) |  |
+| `baseline.traits` | map | no | active | identity_view.direct_identity | personality facets |
+| `baseline.traits.<name>` | map | no | active | identity_view.direct_identity |  |
+| `baseline.traits.<name>.mean` | unit | no | active | identity_view.direct_identity; floor (extraversion) |  |
+| `baseline.traits.<name>.variability` | any | no | unread | - |  |
+| `baseline.model` | map | no | active | state; floor; connection | the worth menu: values, foundations, needs, regard |
+| `baseline.model.schwartz` | map | no | active | state; floor; connection |  |
+| `baseline.model.schwartz.<name>` | unit | no | active | state; floor; connection |  |
+| `baseline.model.moral_foundations` | map | no | active | state; connection |  |
+| `baseline.model.moral_foundations.<name>` | unit | no | active | state; connection |  |
+| `baseline.model.needs` | map | no | active | state; connection |  |
+| `baseline.model.needs.<name>` | unit | no | active | state; connection |  |
+| `baseline.model.regard` | map | no | active | state._regard | whom they count as people, by group or id; the arc moves it |
+| `baseline.model.regard.<name>` | unit | no | active | state._regard |  |
+| `baseline.model.resolution_priority` | any | no | unread | - |  |
+| `baseline.drives` | map | no | active | scene._manner_drives |  |
+| `baseline.drives.goals` | list | no | active | scene._manner_drives; connection |  |
+| `baseline.drives.goals[].goal` | text | no | active | scene._manner_drives | told to the actor |
+| `baseline.drives.goals[].priority` | unit | no | active | connection |  |
+| `baseline.drives.goals[].satisfaction` | any | no | unread | - |  |
+| `baseline.drives.goals[].urgency` | any | no | unread | - | urgency is read on current.active_goals |
+| `baseline.drives.orientation` | any | no | unread | - | cut from what the actor sees (scene._manner_drives) |
+| `baseline.drives.fears_wounds` | any | no | retired | replaced by baseline.wounds - a wound is engine state, keyed by a concept and a path (move) |  |
+| `baseline.voice` | prose | no | active | identity_view.direct_identity; narrate | how they sound - told to the actor verbatim |
+| `baseline.skills` | map | yes | active | gate.perception_scope; bonds; tells; consolidation | both drivers index it directly: absent, a run crashes |
+| `baseline.skills.<name>` | unit | no | active | gate.perception_scope (perception, insight); consolidation (combat) |  |
+| `baseline.provenance` | any | no | unread | - | where the numbers came from - kept out of the prompt |
+| `baseline.catalog` | delegated | no | active | levers.active_rows | tier-3 rows: a standing fact multiplies a path |
+| `baseline.wounds` | list | no | active | wound; connection; levers; passage | engine state, minted - never hand-written |
+| `baseline.wounds[]` | delegated | no | active | wound._check |  |
+| `baseline.relationship_priors` | map | no | active | bond_rest; bonds |  |
+| `baseline.relationship_priors.default_trust` | unit | no | active | bond_rest | where a stranger's trust rests |
+| `baseline.relationship_priors.update` | delegated | no | active | bonds.rates_of | how fast trust is granted and withdrawn, in words |
+| `baseline.relationship_priors.in_group` | any | no | retired | replaced by current.relationships (a person) or current.attachments grp.<tag> (a group) (move) |  |
+| `baseline.relationship_priors.out_group` | any | no | unread | - |  |
+| `baseline.relationship_priors.in_group_capacity` | any | no | unread | - |  |
+| `baseline.body` | delegated | when the book runs body | active | body.capacity | strength, one word - every act is weighed against it |
+| `current.affect` | map | yes | active | state.appraise | the mood on page one, one number per path |
+| `current.affect.<PATH>` | unit | yes | active | state.appraise |  |
+| `current.affect.<PRIMITIVE>` | any | no | retired | replaced by the path that took its place (the one records.RETIRED_PRIMITIVES names); the owner ruled replaced, not translated (refuse) |  |
+| `current.condition` | map | when the book runs condition | active | condition; gate; direction | how worn they arrive |
+| `current.condition.energy` | unit | when the book runs condition_flow | active | condition; gate._energy_budget |  |
+| `current.condition.allostatic_load` | unit | when the book runs condition_flow | active | gate._energy_budget; arc |  |
+| `current.condition.injuries` | delegated | no | active | injuries.require | page-one injuries: {what, severity, ago} |
+| `current.condition.<name>` | number | no | active | levers (a catalog row's condition_at_most) |  |
+| `current.relationships` | map | no | active | presence; bonds; bond_rest; direction | one edge per person they know |
+| `current.relationships.<id>` | map | no | active | presence.edge_from_rel |  |
+| `current.relationships.<id>.trust` | unit | no | active | bonds; bond_rest; direction |  |
+| `current.relationships.<id>.affinity` | unit | no | active | bonds; bond_rest; direction |  |
+| `current.relationships.<id>.respect` | unit | no | active | bonds; bond_rest; direction |  |
+| `current.relationships.<id>.debt` | unit | no | active | bonds; bond_rest; direction |  |
+| `current.relationships.<id>.known_as` | text | no | active | gate.scope_names; faithfulness; acquisition | what they call someone whose name they do not know |
+| `current.relationships.<id>.history` | any | no | unread | - | copied onto the edge; no prompt renders it |
+| `current.relationships.<id>.their_view` | map | no | runtime | bonds.reflect; direction |  |
+| `current.relationships.<id>.their_view.<name>` | unit | no | runtime | direction |  |
+| `current.attachments` | delegated | no | active | attachments; connection; scene._build_holds | what they hold that is not a person: loc.<id> / grp.<tag> -> {hold, sign} |
+| `current.active_goals` | list | no | active | gate.run_gate; identity_view |  |
+| `current.active_goals[].goal` | text | no | active | gate.run_gate |  |
+| `current.active_goals[].urgency` | unit | no | active | identity_view |  |
+| `current.location` | text | no | active | gate.perception_scope | a world.locations id |
+| `current.vault` | list | no | active | gate.run_gate; decay; acquisition | what they believe - the Beliefs section |
+| `current.vault[]` | map | no | active | gate.run_gate |  |
+| `current.vault[].claim` | text | no | active | gate.run_gate |  |
+| `current.vault[].confidence` | unit | no | active | decay |  |
+| `current.vault[].provenance` | text | no | active | decay |  |
+| `current.vault[].links` | list | no | active | gate.run_gate |  |
+| `current.vault[].about` | list | no | runtime | facets.stamp |  |
+| `current.vault[].topics` | list | no | runtime | facets.stamp |  |
+| `current.vault[].place` | text | no | runtime | facets.stamp |  |
+| `current.vault[].believed_value` | any | no | runtime | associative (carried; dropped at the packet) |  |
+| `current.vault[].durability` | text | no | active | decay |  |
+| `current.vault[].status` | text | no | runtime | acquisition |  |
+| `current.vault[].must_surface` | bool | no | active | gate.run_gate |  |
+| `current.vault[].bid` | text | no | runtime | acquisition |  |
+| `current.vault[].target_actor` | text | no | active | associative |  |
+| `current.vault[].epistemic_stance` | text | no | active | associative |  |
+| `current.vault[].created_turn` | number | no | runtime | decay |  |
+| `current.vault[].last_recalled_turn` | number | no | runtime | decay |  |
+| `current.vault[].recall_count` | number | no | runtime | decay |  |
+| `current.vault[].supersedes` | any | no | runtime | acquisition |  |
+| `current.vault[].superseded_by` | any | no | runtime | acquisition |  |
+| `current.vault[].timestamp` | any | no | unread | - |  |
+| `current.targets` | map | no | runtime | targets; scene | what each path's feeling is about now |
+| `current.targets.<PATH>` | text | no | runtime | targets |  |
+| `current.toward` | map | no | runtime | toward; passage | attitude: signed feeling toward a person |
+| `current.toward.<id>` | map | no | runtime | toward |  |
+| `current.toward.<id>.<PATH>` | signed | no | runtime | toward |  |
+| `current.zone` | any | no | unread | - |  |
+| `id` | any | no | unread | - | the id the engine reads is fixed.id |
+| `formative` | map | no | active | composition_pass (backstory) | the composition pass's input |
+| `formative.backstory` | text | no | active | composition_pass |  |
+| `formative.<name>` | any | no | unread | - | class, culture, history: fold what matters into fixed.position |
+| `backstory` | text | no | active | composition_pass |  |
+| `formative_picks` | list | no | active | composition_pass | the formative profiles picked, {profile, weight} |
+<!-- END GENERATED -->
+
+---
+
 # PART ZERO — WHICH SYSTEMS YOUR BOOK RUNS
 
 ## 0.1 — The parts you may not need
@@ -395,12 +535,12 @@ Two shapes are GONE and the engine refuses to run either rather than guess a tra
   `anger_proneness`, `effortful_control`, `sensitivity` (all retired 2026-09-10). A genotype block
   that still carries any of them fails outright — error `GENOTYPE_OLD_AXES`
   (`heritable.OLD_AXES`, `src/engine/heritable.py:104-105`, refused at `:129-158`; the pre-run
-  check repeats the same refusal, `scripts/lint_book.py:317-321`).
+  check reports it from the sheet's contract, `src/engine/contracts_sheet.py` `fixed.genotype.<OLD_AXIS>`).
 - **A `rest` key inside a genotype cell** — the shape this section itself described for the few
   hours between the two rulings above. A cell that still carries `rest` fails outright too — error
   `GENOTYPE_REST_MOVED`, naming the path and telling you where the word goes now
   (`src/engine/heritable.py:151-157`; the pre-run check repeats it,
-  `scripts/lint_book.py:333-338`).
+  from the sheet's contract, `src/engine/contracts_sheet.py` `fixed.genotype.<PATH>.rest`).
 
 Nothing maps an old sheet onto the new shape automatically, on purpose: a real book migrates once,
 by hand, with its author's eyes on every line — the same way the two fixtures below were rewritten,
@@ -503,7 +643,7 @@ blank and this person reacts to everything exactly like everyone else; your cast
 
 **IF YOU GET A WORD WRONG:** the pre-run check treats it as an error, not a warning, and names the
 path, the cell, what you typed, and the legal words for that specific cell
-(`scripts/lint_book.py:339-350`). Run the check. It is the only thing standing between you and a
+(the sheet's contract, `src/engine/contracts_sheet.py` `fixed.genotype.<PATH>.hit` / `.hold`). Run the check. It is the only thing standing between you and a
 silently flattened character.
 
 **Two ways to fill this in.** For background and supporting people, have someone draw them — there
@@ -573,7 +713,7 @@ the cap still matters for an authored NUMBER, which can land on a rung no word r
 
 A rest above the cap — word or number — is HONOURED exactly as written, never blocked: the pre-run
 check WARNS instead, naming the rung, so a character resting at genuine loathing is a decision you
-made on purpose, with a receipt, and never a typo (`scripts/lint_book.py:379-383`).
+made on purpose, with a receipt, and never a typo (`scripts/lint_book.py` `lint`, the resting face's receipts).
 
 ### The annotation rule — same trap as before, same fix
 
@@ -588,7 +728,7 @@ first, then your note in parentheses:
 reads as `raised`.
 
 **IF YOU GET A WORD WRONG:** the pre-run check treats it as an error, not a warning, and names the
-path and the legal words for `rest` (`scripts/lint_book.py:371-375`).
+path and the legal words for `rest` (the sheet's contract, `src/engine/contracts_sheet.py` `baseline.temperament.<PATH>.rest`).
 
 ### Numbers, when a word will not say it
 
@@ -611,7 +751,7 @@ losing the run's own history.
 
 **If a sheet already carries a mean that disagrees with its rest word** by a whole rung, the
 pre-run check WARNS, naming both — this is how an old primitive-scale sheet, or a rest word moved
-without its mean, gets caught (`scripts/lint_book.py:387-393`). Delete the mean to re-seed it from
+without its mean, gets caught (`scripts/lint_book.py` `lint`, the resting face's receipts). Delete the mean to re-seed it from
 the current rest word, or move the rest word to match.
 
 **IF YOU LEAVE A PATH BLANK:** it rests `quiet` — the species floor
@@ -726,7 +866,7 @@ on its own salt so it never collides with `hit`/`hold` (`make_genotype.draw_rest
 
 ## 3.2 — What they are feeling on page one
 
-**Key path:** `current.affect` — the same eight names, one number each
+**Key path:** `current.affect` — the nine paths, one number each
 
 **REQUIRED — all nine, again.**
 
@@ -896,7 +1036,7 @@ restart it, and the character carries the same scar (`tests/test_multipliers.py`
 
 `id` is derived — `concept@PATH` — never authored (`src/engine/wound.py:279-281`, `wound_id`).
 `source` must start `profile:` or `run:`; anything else is a wound hand-written rather than minted,
-and the pre-run check refuses it by name (`scripts/lint_book.py:437-440`). The shape itself —
+and the pre-run check refuses it by name (`src/engine/contracts_sheet.py` `_wound`). The shape itself —
 `concept` in the registry, `path` one of the nine, `intensity` in `[0,1]` — is checked at
 `src/engine/wound.py:284-295`, `_check`.
 
@@ -1007,7 +1147,7 @@ still give them one, path (b) above; you are not required to pre-author every wo
 mint.
 
 **IF YOU WRITE `fears_wounds` ANYWAY:** the pre-run check errors, naming `baseline.wounds` and the
-profile route as the fix (`scripts/lint_book.py:417-423`). This is not a warning you can leave in —
+profile route as the fix (`src/engine/contracts_sheet.py`, `baseline.drives.fears_wounds`: retired, policy move). This is not a warning you can leave in —
 the field is not read at all, so a run built against it is missing the friction you meant to write,
 and nothing will tell you that until someone goes looking.
 
@@ -1070,7 +1210,12 @@ ground-truth event text — you cannot be triggered by what you did not perceive
 
 **Key path:** `baseline.drives.orientation` — four sub-fields
 
-**REQUIRED for principals and supporting characters.**
+**READ BY NOTHING since 2026-09-06.** `scene._manner_drives` keeps only each goal's own text from
+`drives`, so `orientation` never reaches the actor. The engine treats it as a routing bias, and the
+state layer already spends that. Everything below describes the older behaviour, **crash included**:
+a number here can no longer stop a run, because nothing renders it. The table at the top of this
+document is the authority (`orientation`: unread). The section is kept until the owner decides whether
+orientation comes back.
 
 ### WRITE WORDS. NEVER NUMBERS. This one will take the book down.
 

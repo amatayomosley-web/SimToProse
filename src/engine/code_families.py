@@ -552,6 +552,21 @@ _COMPOSITION_F = {
     "COMPOSITION_ATTACH_ENTITY_REPEATED":           "the attachment classifier named the same entity twice",
 }
 
+# ---- CONTRACT_* — an author file walked against its declarations (src/engine/contracts.py, gate sheet-contract) ----
+# Findings, not refusals, until run-start refusal lands: `contracts.check` REPORTS each under one of these.
+_CONTRACT_F = {
+    "CONTRACT_FIELD_UNKNOWN":         "a key the file's contract does not declare - nothing reads it; an annotation begins with `_`",
+    "CONTRACT_FIELD_RETIRED":         "a field that was read and was replaced - the finding names what took its place and whether to prune, move or refuse it",
+    "CONTRACT_FIELD_UNREAD":          "a declared field nothing reads - an author wrote it and it reaches no prompt and computes nothing",
+    "CONTRACT_FIELD_TYPE":            "a declared field of the wrong shape, range or vocabulary word - its reader would take a default or fail mid-run",
+    "CONTRACT_FIELD_MISSING":         "a field the book must author (always, or because it runs the system that reads it) is absent",
+    "CONTRACT_FIELD_ABSENT":          "an optional field is absent, and the contract says what the character goes without",
+    "CONTRACT_FIELD_REFUSED":         "the engine module that reads a field refused its value - the finding carries that module's own refusal",
+    "CONTRACT_FIELD_ADVICE":          "a well-shaped field the contract has something to say about (a half-authored pair, a belief with no claim)",
+    "CONTRACT_WOUND_SOURCE":          "a wound row's source is neither profile:<id> nor run:<turn> - a wound is minted, never hand-written",
+    "CONTRACT_CATALOG_WOUND_UNKNOWN": "a catalog row names a wound this sheet does not carry, so it would fire at full magnitude whatever happens to that wound",
+}
+
 # ---- TOWARD_* — the MICRO tier: what one specific person makes you feel (src/engine/toward.py) ----
 _TOWARD = {
     "TAG_DIMENSION_VALUE_NOT_NUMERIC": "a dimension's magnitude is not a number",

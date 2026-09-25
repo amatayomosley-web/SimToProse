@@ -108,7 +108,7 @@ disposition rather than an episode — the cap only actually stops a WORD on two
 `raised`, LEVITY at `raised`, DISTASTE at `low`); the other six paths' caps matter only for an authored NUMBER. A rest
 above the cap, word or number, is still HONOURED — the pre-run check WARNS, naming the rung, so a
 character resting at genuine loathing is a decision with a receipt, never a typo
-(`scripts/lint_book.py:379-383`). The engine reads only the first word, lowercased, same as every
+(`scripts/lint_book.py` `lint`, the resting face's receipts). The engine reads only the first word, lowercased, same as every
 other word field (`heritable.word`, `src/engine/heritable.py:111-118`) — `"raised (watchful by
 habit)"` reads as `raised`. A NUMBER in `rest` is the resting mean directly, clamped to `[0, 1]`
 (`heritable.rest_mean`, `src/engine/heritable.py:235-240`), bypassing the rung system except for
@@ -128,7 +128,7 @@ authored rest's mean unless the book opens mid-crisis.
 
 **If a sheet already carries a mean that disagrees with its rest word** by a whole rung,
 `lint_book.py` WARNS, naming both — this is how an old primitive-scale sheet, or a rest word moved
-without its mean, gets caught (`scripts/lint_book.py:387-393`). Delete the mean to re-seed it from
+without its mean, gets caught (`scripts/lint_book.py` `lint`, the resting face's receipts). Delete the mean to re-seed it from
 the current rest word, or move the rest word to match.
 
 **The actor sees it.** A rest word is rendered under `disposition`, as a sentence beside the six

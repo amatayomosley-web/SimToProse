@@ -399,7 +399,8 @@ def _build_stable(fixed, baseline):
             "id":       fixed.get("id"),
             "name":     fixed.get("name"),
             "people":   fixed.get("people"),
-            "position": _sort_nested(fixed.get("position", {})),
+            # notes stripped, as from voice and drives: an annotation reaches no prompt (gate sheet-contract)
+            "position": _sort_nested(_strip_notes(fixed.get("position", {}))),
         },
         "drives":     _sort_nested(_strip_notes(_manner_drives(drives_raw))),
         "voice":      _sort_nested(_strip_notes(baseline.get("voice", {}))),

@@ -50,13 +50,13 @@ def main():
     check("error-rest-inside-the-genotype", "genotype.DEFLATION.rest" in errs and "baseline.temperament.DEFLATION.rest" in errs, errs)
     check("warn-rest-above-the-cap-names-the-rung", "baseline.temperament.DISTASTE.rest sits at rung 3" in warns, warns)
     check("warn-mean-a-rung-off-its-rest-word", "baseline.temperament.STIRRING.mean 0.62" in warns and "rest says 'low'" in warns, warns)
-    check("error-affect-range", "current.affect[WARINESS]" in errs, errs)
-    check("error-condition-type", "current.condition missing or not a dict" in errs, errs)
+    check("error-affect-range", "current.affect.WARINESS must be a number in [0,1]" in errs, errs)
+    check("error-condition-type", "current.condition must be an object" in errs, errs)
     check("warn-bad-relationship-key", "nobody_here" in warns and "never surface" in warns, warns)
 
     # 3. a missing section is a hard error
     rep2 = lint_book.lint(world, {"x": {"fixed": {"name": "X"}, "baseline": {}}})  # no current
-    check("error-missing-section", any("missing/invalid section 'current'" in e for e in rep2["errors"]), str(rep2["errors"]))
+    check("error-missing-section", any("current is required and absent" in e for e in rep2["errors"]), str(rep2["errors"]))
 
     # 4. THE WOUND'S OWN FIELDS. A missing `intensity` was caught nowhere, and
     # `identity_view._said` supplies 0.5 for an absent weight — so a dead daughter reached the
@@ -70,7 +70,7 @@ def main():
     # WOUNDS LEFT THE SHEET (gate three, 2026-09-11): the prose block is refused by name
     e_missing = _wounded({"id": "w0", "wound": "the fever she could not break", "trigger": ["fever"]})
     check("error-fears-wounds-is-refused",
-          "fears_wounds is not read since 2026-09-11" in e_missing and "baseline.wounds" in e_missing, e_missing)
+          "fears_wounds is RETIRED" in e_missing and "baseline.wounds" in e_missing, e_missing)
     bad = copy.deepcopy(maren)
     bad["baseline"]["wounds"] = [{"id": "zebra@WARINESS", "concept": "zebra", "path": "WARINESS", "intensity": 0.5, "source": "profile:t"}]
     e_concept = " | ".join(lint_book.lint(world, {"maren": bad})["errors"])
