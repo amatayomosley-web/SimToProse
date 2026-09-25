@@ -859,35 +859,91 @@ Use an act exactly as the world note spells it.
 "lasts": "90m"
 ```
 
-`at` is when this scene opens, in the book's own calendar: a **day count from the story's first
-day** (day 1 is the first day anything happens) and a **24-hour time**. Months, seasons and
-festivals stay prose — the engine reads none of them and `history.md`'s "causes, not dates" still
-governs the past; this is the present's arithmetic only. `lasts` is how long the scene runs:
-minutes, or `"90m"`, `"2h"`, `"1d"`. Leave `lasts` out and the scene has no duration.
+`at` is when this scene opens, in the book's own calendar: a **day count** and a **24-hour time**.
+Day 1 is the story's first day; **day 0, day -3 and so on are the days before it** — a prologue, a
+childhood, the night before the book begins. Months, seasons and festivals stay prose — the engine
+reads none of them and `history.md`'s "causes, not dates" still governs the past; this is the
+present's arithmetic only. `lasts` is how long the scene runs: minutes, or `"90m"`, `"2h"`, `"1d"`.
+Leave `lasts` out and the scene has no duration.
 
 The unit is **the minute, and it is the engine's** (`src/engine/clock.py`). The old `elapsed`
 field — "how much time passed, in whatever unit you like" — is gone and is **refused** if a cfg
-still carries it: time between scenes is now DERIVED, this scene's `at` minus the previous scene's
-end, so there is one source for the fact instead of two.
+still carries it: time between scenes is DERIVED from the `at` and `lasts` you give each scene, so
+there is one source for the fact instead of two.
 
-> **HOW THIS IS USED:** at the start of the scene, once, the engine logs this scene's reading
-> (`scene_clock`, schema v25), derives the minutes since the previous scene ended, and logs THAT as
-> the declaration every slower tier already consumes (`time_declarations`) — relationships relax
+### Every character lives on their own timeline (2026-09-25)
+
+The people in your book are real people, and a scene is only where we look (the owner: *"their stat
+runs with or without us looking"*). **Between one scene of theirs and the next, each character lives
+through their own time**: a startle is gone by morning and a grief is not; a night's sleep rests them
+and a day awake tires them; a friendship left alone drifts back to where it rests; an old scar eases;
+a feeling toward someone fades; a memory loses its edge. You never write any of that. It follows from
+the `at` and `lasts` you give each scene.
+
+- **What counts is who was in the room.** A character ages beat by beat while they are in a scene.
+  Someone who sat a scene out, or walked out of it, takes the time they spent elsewhere at their next
+  scene, all at once. A character who walks out is free from the moment they left; one who stays is
+  in the scene until its `lasts` runs out, even if the talk dies early.
+- **A character's sheet describes them where they first walk on**, not on the book's first page.
+  Someone who first appears in chapter 12 arrives exactly as their sheet says, and the memories and
+  injuries on the sheet are dated from that scene (an injury's `ago` counts back from it).
+- **Scenes that share no one can overlap in time and run in any order.** Following one character
+  down the street while the scene they left goes on, cutting between two places at once, showing a
+  morning elsewhere after an evening here: all fine. The engine keeps each person's clock separately.
+- **One person cannot be in two places at once.** A scene that would put someone in two overlapping
+  scenes is refused before anything is logged (`CLOCK_TWO_PLACES_AT_ONCE`): move its `at`, or leave
+  them out of it. A scene that opens as another ends only touches it.
+
+### A scene set in someone's past is a WINDOW for them
+
+If a scene is set earlier than the point a character's own story has already reached — a flashback,
+for them — it is a **window**: they play as they were **then** (their bonds, scars, mood, energy,
+injuries, and only the memories they had formed by then), and **nothing that happens in it reaches
+their present**. You have followed them for forty chapters; a flashback in chapter 43 does not
+suddenly change them in chapter 44.
+
+- The run says so before the first beat: `WINDOW : Mira plays as of day 2 08:00, from their own
+  story then - nothing this scene does reaches their present`. After the scene it reports, in words,
+  what the window would have added had it been their story: `WINDOW : mira - had this been their
+  story, they would carry: trust toward tomas rose; a memory: ...`. If you want those effects to
+  count, run the scene where it falls in their story, before the scenes that come after it.
+- For anyone whose own story has **not** reached that time, the scene is simply their story going on.
+  For a character who has never appeared before, it is their first scene: their timeline starts there
+  and carries on into their later scenes.
+- Two windows for the same person do not see each other: each plays them from their own story as of
+  its time, whatever order you run them in.
+- **Not yet:** a window before a character's very first scene is refused
+  (`CLOCK_WINDOW_BEFORE_FIRST_SCENE`), because the engine has no state for them before the moment their
+  sheet describes. How such a flashback should play is a decision still to be made.
+
+**What still follows the order you run scenes:** the world's own record — who is dead, who knows
+which fact, the tensions between groups, the keeper's canon — follows the order in which you RUN
+scenes, not the order they happen in the story. A flashback in which someone dies records that death
+from the moment it is run. Keep world-changing events in scenes you run in story order.
+
+**The chair** (`scripts/direct.py`, one character at a time) always stays in its character's
+present: an `--at` earlier than their own latest scene is refused (`CLOCK_RUNS_BACKWARDS`), and right
+after a scene set in their past, give it an `--at` (a session with none is refused,
+`CLOCK_CHAIR_IN_A_WINDOW`).
+
+> **HOW THIS IS USED:** at the start of the scene, once, the engine refuses anyone in two places at
+> once (`window.admit`), logs this scene's reading (`scene_clock`), and ages each character by their
+> own time since they were last in a room (`clock.presence_end`, `passage.apply_opening`): the
+> feelings decay on each path's own half-life in minutes (`state.decay`), relationships relax
 > toward each character's resting disposition, wounds erode, temperament returns toward what the
-> genotype says, feelings toward a person fade (those four read the clock in days,
-> `clock.elapsed_days_since`). And since 2026-09-10 the fifth: **every character's feelings decay
-> over that gap** on the path's own half-life, in minutes (`state.decay`, `state._HALF_LIFE`) —
-> a startle is gone by morning, a grief is not. Inside the scene, each beat is given
-> `lasts / budget` minutes and decays by that; a scene that lulls before its budget owes the
-> unspent remainder to the next scene's opening, derived from the log (`clock.unspent_before`).
+> genotype says, feelings toward a person fade (`passage.age`). Inside the scene each beat is given
+> `lasts / budget` minutes, and they pass for everyone in the room; the minutes a scene declared and
+> did not spend - it lulled, or someone walked out - reach each character at their next opening. A
+> window's cast is built from their own story as of its time, and every read of their history in it
+> stays inside that view (`window.view`).
 
 > **IF YOU LEAVE `lasts` OUT:** nothing decays *inside* the scene — no beat has a duration unless
-> you authored one — and the whole settling lands at the next scene's opening. That is correct for
-> a scene that is one continuous exchange; say `lasts` when the scene spans an evening.
+> you authored one — and the whole settling lands at each character's next scene. That is correct
+> for a scene that is one continuous exchange; say `lasts` when the scene spans an evening.
 
-> **IF TWO SCENES OPEN AT THE SAME TIME:** the gap is zero, nothing is declared, and the cast walks
-> into the second exactly as they left the first. A scene that opens BEFORE the previous one ended
-> is refused (`CLOCK_RUNS_BACKWARDS`) — fix the cfg, the clock does not run backwards.
+> **IF TWO SCENES OPEN AT THE SAME TIME:** for anyone in both, the gap is zero and they walk into the
+> second exactly as they left the first. Two scenes that share someone and overlap are refused; two
+> that share no one may overlap freely.
 
 **Your answer:**
 

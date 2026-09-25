@@ -129,7 +129,12 @@ erosion, the toward vectors, exactly as a scene applies them. `--lasts` (minutes
 session opens next. **Absent `--at`, nothing changes: no clock row is written, and the chair says so**
 (`chair: no --at given — running on --minutes-per-turn only (no scene clock declared)`) —
 `--minutes-per-turn` stays the chair's own knob for decay BETWEEN this invocation's own beats, a
-separate and smaller thing than the clock between invocations. The canon gate — the same one a
+separate and smaller thing than the clock between invocations. Since 2026-09-25 the gap is the
+character's OWN (gate own-timelines: from the last beat they were in a room, a scene or a chair), and
+the chair stays in their present (gate flashback-windows): an `--at` before their own latest scene is
+refused (`CLOCK_RUNS_BACKWARDS`), and so is a session with no `--at` right after a scene set in their
+past (`CLOCK_CHAIR_IN_A_WINDOW`). The author's rules for time - own timelines, overlapping scenes,
+flashbacks as windows - are `docs/authoring/BLUEPRINT-scene.md` section 11. The canon gate — the same one a
 scene runs (below) — fires over whatever this invocation committed, once it ends; see **the lore
 licence's debt**, next, for when and what it reports.
 
