@@ -2166,7 +2166,7 @@ python scripts/lint_book.py --vault "<the book folder>"
 ```
 
 Errors would break a run. Warnings mean something you authored is switched off. **A run with
-warnings is not clean** — the tool says so itself (`scripts/lint_book.py:307-309`).
+warnings is not clean** — the tool says so itself (`scripts/lint_book.py` `main`).
 
 **The messages you are most likely to see, and what each means for you:**
 

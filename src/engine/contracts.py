@@ -189,6 +189,8 @@ def _visit(value, segs, fields, out, sheet, ctx):
         out.append(_finding("unread", "CONTRACT_FIELD_UNREAD", segs, "is read by nothing - it reaches no prompt and "
                             "computes nothing%s" % ("; " + f.doc if f.doc else "")))
         return
+    if value is None:
+        return                                          # null is not authored: absence is the required check's to report
     why = _shape_error(f, value)
     if why:
         out.append(_finding("error", "CONTRACT_FIELD_TYPE", segs, "%s, got %s" % (why, _short(value))))

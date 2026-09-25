@@ -153,7 +153,7 @@ your scene names them.
 > with a `world/` note and nothing yet in `characters/` raises `VAULT_NO_CHARACTERS`
 > (`src/engine/vault.py:161-162`), because `load_book` is the one function both
 > `scripts/scene.py` (`scripts/scene.py:683`) and `scripts/lint_book.py`
-> (`scripts/lint_book.py:291`) call to open a book — there is no path that gets you further without
+> (`scripts/lint_book.py` `main`) call to open a book — there is no path that gets you further without
 > at least one character file already sitting in that folder. Copy one real character in before you
 > test-run a new book, even a throwaway one.
 

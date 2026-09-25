@@ -24,6 +24,70 @@ not be asked to fill in anything inert.
 
 ---
 
+## Every field, as the engine declares it
+
+The table below is **generated** from the engine's own declaration of the world note
+(`src/engine/contracts_world.py`, gate world-contract 2026-09-25) by `scripts/gen_contracts.py`, and the
+suite fails when the two disagree. The pre-run check (`scripts/lint_book.py`) walks your world against the
+same declarations. Where this sheet's prose and the table disagree, **the table is right**. Status and
+annotations mean what they mean in BLUEPRINT-character's table: `active` is read, `unread` reaches nothing,
+`runtime` is written by the engine, and any key beginning with `_` is a note of yours and is ignored.
+`[]` is a list's entries, and `<name>` stands for any key. The laws, the tensions and the systems are
+checked by their own modules (`law.py`, `tensions.py`, `systems.py`), which have the final word.
+
+<!-- GENERATED: contracts_world -->
+| field | shape | must author | status | read by | what it is |
+|---|---|---|---|---|---|
+| `world` | text | no | runtime | narrate | the world's title; the note's id when absent |
+| `timeline` | text | no | active | narrate | which spine in book.json the narrator reads |
+| `season` | any | no | unread | - | nothing reads it; a season that must reach a character goes in the scene |
+| `people` | list | no | active | presence; bible; attachments; acquisition | everyone a character can perceive or name |
+| `people[]` | map | no | active | presence.named_in |  |
+| `people[].id` | text | no | active | presence.named_in; bible; scene.subject_groups | the join: its first word is the name the text is searched for |
+| `people[].what` | text | no | active | presence (shown on a passed insight check); bible; critic |  |
+| `people[].name` | text | no | active | facets; scene._display_names; acquisition.overheard_names | the name said aloud; the id, title-cased, when absent |
+| `people[].groups` | list | no | active | attachments.names_for; scene.subject_groups | group tags - grp.<tag> attachments and regard; a LIST (a string is read letter by letter) |
+| `people[].groups[]` | text | no | active | attachments.names_for |  |
+| `locations` | list | no | active | gate._lookup_location; attachments; bible; critic |  |
+| `locations[]` | map | no | active | gate._lookup_location |  |
+| `locations[].id` | text | no | active | gate._lookup_location; attachments; bible |  |
+| `locations[].what` | text | no | active | gate._lookup_location; bible; critic | what a character perceives of the place |
+| `locations[].name` | text | no | active | scene._holds_display_name | the name a hold is shown by; `what`, then the id |
+| `lexicon` | map | no | active | gate._lexicon; facets | the world's perception vocabulary |
+| `lexicon.attribute_classes` | map | no | active | gate._extract_event_attributes; facets.topics_in |  |
+| `lexicon.attribute_classes.<name>` | list | no | active | gate._extract_event_attributes | the words that mark the class - a LIST (a string is scanned letter by letter, so almost anything matches) |
+| `lexicon.attribute_classes.<name>[]` | text | no | active | gate._extract_event_attributes |  |
+| `lexicon.subtle_cues` | map | no | active | gate._extract_subtle_attributes |  |
+| `lexicon.subtle_cues.<name>` | list | no | active | gate._extract_subtle_attributes | the fine signs a sharp eye catches |
+| `lexicon.subtle_cues.<name>[]` | text | no | active | gate._extract_subtle_attributes |  |
+| `lexicon.subtle_cue_classes` | list | no | active | gate._has_subtle_cues | which attribute classes count as subtle; each must be an attribute_classes key |
+| `lexicon.subtle_cue_classes[]` | text | no | active | gate._has_subtle_cues |  |
+| `laws` | list | no | active | law._project_laws; scene (the pre-flight, _law_events) | the blueprint's default laws apply too, unless blueprint_defaults is false |
+| `laws[]` | map | no | active | law._normalise_law |  |
+| `laws[].id` | text | no | active | law._normalise_law |  |
+| `laws[].statement` | text | no | active | law._normalise_law |  |
+| `laws[].domain` | text | no | active | law._normalise_law |  |
+| `laws[].modality` | text | no | active | law._normalise_law | IMPOSSIBLE \| FORBIDS \| REQUIRES \| PERMITS |
+| `laws[].epistemic` | text | no | active | law._normalise_law |  |
+| `laws[].act` | text | no | active | law._applies; scene (the act vocabulary shown to the actor) |  |
+| `laws[].location_scope` | text | no | active | law._applies |  |
+| `laws[].actor_class` | text | no | active | scene._law_events |  |
+| `laws[].target_class` | text | no | active | bible (stored; nothing supplies a target class yet) |  |
+| `laws[].time_from` | number | no | active | law._applies | a tick - a text value raises mid-run |
+| `laws[].time_to` | number | no | active | law._applies | a tick - a text value raises mid-run |
+| `laws[].teeth` | any | no | active | law.verdict_for; scene (printed) |  |
+| `laws[].excepts` | any | no | active | law._normalise_law; law._project_laws | PERMITS only: the law ids this one excepts, a list or a comma-separated line |
+| `laws[].source_note` | any | no | unread | - | stored with the law; nothing reads it back |
+| `blueprint_defaults` | bool | no | active | law._blueprint_defaults | false turns the five default laws off - only a literal false does |
+| `switches` | map | no | active | law.completeness (strict bible builds only) | magic / divine / beings, answered |
+| `switches.<name>` | any | no | active | law.completeness |  |
+| `systems` | delegated | no | active | systems.for_book | switch a system on or off for this book |
+| `tensions` | delegated | no | active | tensions.from_world; keeper | standing tensions the world keeps |
+| `standing_facts` | any | no | active | critic (out of the loop; never perception) | facts only the critic reads |
+<!-- END GENERATED -->
+
+---
+
 ## Contents
 
 1. Before you start — how the file is shaped
@@ -1393,7 +1457,7 @@ Both linters start by loading the whole book, and the loader hard-refuses a book
 in `characters/` — coded `VAULT_NO_CHARACTERS`, raised the moment either linter starts, before a
 single line of your world note is looked at: `if not chars: raise VaultError("VAULT_NO_CHARACTERS",
 "%s: no character notes found" % book_dir)` (`src/engine/vault.py:161-162`). `lint_book.py` catches
-this and prints it as a single error (`scripts/lint_book.py:288-295`); `lint_scene.py` does not
+this and prints it as a single error (`scripts/lint_book.py` `main`); `lint_scene.py` does not
 catch it at all, and exits with a bare "could not load book: ..." (`scripts/lint_scene.py:172-177`).
 Either way, with `characters/` empty, you get back nothing about your world — not even a warning.
 
@@ -1447,7 +1511,7 @@ python scripts/lint_book.py --vault "<path to your book folder>"
 
 An error means a run would break. A warning means something is authored but switched off — an
 empty people list, a lexicon that is missing, a relationship pointing at nobody. A run with
-warnings is **not** clean; the tool says so itself (`scripts/lint_book.py:307-309`).
+warnings is **not** clean; the tool says so itself (`scripts/lint_book.py` `main`).
 
 **The scene linter** checks one scene config against this world — that its location is
 registered, its act is keyed by a law, and its cast exists

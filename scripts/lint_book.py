@@ -26,6 +26,7 @@ from src.engine import attachments                               # noqa: E402  (
 from src.engine import systems as _systems                       # noqa: E402  (which systems the book runs)
 from src.engine import contracts as _contracts                   # noqa: E402  (a file walked against its declarations)
 from src.engine import contracts_sheet as _sheet_contract       # noqa: E402  (the character sheet, declared once)
+from src.engine import contracts_world as _world_contract       # noqa: E402  (the world note, declared once)
 from src.engine.state import _DIM_TO_PATH                        # noqa: E402  (the appraisal vocabulary, DERIVED)
 
 # Never a second hand-written list: `state._DIM_TO_PATH` IS the engine's dimension
@@ -82,21 +83,21 @@ def _identity_strings(fixed, baseline):
 _SEVERITY = {"error": "errors", "retired": "errors", "unread": "warnings", "unknown": "warnings", "advice": "warnings"}
 
 
-def _grouped(findings):
-    """-> [(severity, line)]: findings saying the same thing about the same declared field, one line naming each
-    key - a sheet still on the old basis reads as nine missing paths in one line, not nine lines."""
+def _grouped(findings, fields):
+    """-> [(severity, where, what)]: findings saying the same thing about the same declared field, one line naming
+    each key - a sheet still on the old basis reads as nine missing paths in one line, not nine lines."""
     groups = {}
     for f in findings:
         segs = tuple(f["path"].split(".")) if f["path"] else ()
-        decl = _contracts.match(segs, _sheet_contract.SHEET) if segs else None
+        decl = _contracts.match(segs, fields) if segs else None
         pattern = decl.path if decl and "<" in decl.path else f["path"]
         groups.setdefault((f["severity"], f["code"], pattern, f["message"]), []).append(f["path"])
     out = []
     for (sev, _code, pattern, msg), paths in groups.items():
         if len(paths) == 1:
-            out.append((sev, "%s %s" % (paths[0] or "the sheet", msg)))
+            out.append((sev, paths[0], msg))
         else:
-            out.append((sev, "%s %s: %s" % (pattern, msg, ", ".join(p.rsplit(".", 1)[-1] for p in paths))))
+            out.append((sev, pattern, "%s: %s" % (msg, ", ".join(p.rsplit(".", 1)[-1] for p in paths))))
     return out
 
 
@@ -110,49 +111,31 @@ def lint(world, chars):
     people_ids = {p.get("id") for p in (world.get("people") or []) if isinstance(p, dict) and p.get("id")}
     _registered = attachments.names_for(world)
     location_ids = {l.get("id") for l in (world.get("locations") or []) if isinstance(l, dict) and l.get("id")}
-    if not world.get("lexicon"):
-        warnings.append("world: no lexicon — perception falls back to generic extraction (kind + leading words), thin")
-    # ABSENCE checks. Every per-item check below iterates a collection, so an EMPTY collection is
-    # structurally invisible to it: zero beliefs, zero relationships and zero people all lint clean
-    # while the mechanism they feed is switched off. A dark mechanism is the expensive failure —
-    # it degrades silently and the prose merely reads thin. Name it here, once, up front.
-    if not world.get("people"):
-        warnings.append("world.people is EMPTY — entity recognition (insight >= 0.55) has nothing to "
-                        "recognize, and every relationship edge below is disabled with it. "
-                        "people/*.md notes load ONLY when frontmatter says type: person")
-    if not world.get("locations"):
-        warnings.append("world.locations is EMPTY — no scene can produce a location percept")
-    if not world.get("laws"):
-        warnings.append("world.laws is EMPTY — the world refuses nothing; laws_bearing_on/verdict_for "
-                        "have no rule to return")
+    # WHICH SYSTEMS THE BOOK RUNS (gate systems-registry, 2026-09-22): the systems it switches off stop being demanded
+    # of the sheets below. A declaration the engine cannot honour is reported once, by the world's contract.
+    try:
+        _enabled = _systems.for_book(world)
+    except RecordError:
+        _enabled = _systems.defaults()
+    # THE WORLD'S CONTRACT (src/engine/contracts_world.py, gate world-contract): every field's shape and whether anything
+    # reads it; the laws, the tensions and the systems in their own modules' words
+    for sev, where, what in _grouped(_contracts.check(world, _world_contract.WORLD, _enabled), _world_contract.WORLD):
+        (errors if _SEVERITY[sev] == "errors" else warnings).append("world.%s: %s" % (where or "note", what))
     # LAWS REACHABILITY. src/engine/bible.py:_applies narrows a law by its `act` ONLY when the
     # CALLER supplies one, so a law carrying an act fires only if some scene cfg declares that
     # act (scripts/scene.py pre-flight). A law nothing can key is a rule the world states and
     # never applies -- verdict_for had no caller at all until 2026-08-22.
-    _acts = sorted({str(l.get("act")) for l in (world.get("laws") or []) if l.get("act")})
+    _acts = sorted({str(l.get("act")) for l in (world.get("laws") or []) if isinstance(l, dict) and l.get("act")})
     if _acts:
         warnings.append("world.laws: %d law(s) are keyed by an `act`; a scene cfg must declare the "
                         "matching act or the law never fires. Acts: %s%s"
                         % (len(_acts), ", ".join(_acts[:4]), " ..." if len(_acts) > 4 else ""))
-    for i, loc in enumerate(world.get("locations") or []):
-        if not (isinstance(loc, dict) and loc.get("id")):
-            warnings.append("world.locations[%d]: missing id" % i)
-    for i, p in enumerate(world.get("people") or []):
-        if not (isinstance(p, dict) and p.get("id")):
-            warnings.append("world.people[%d]: missing id" % i)
-    # AUTHORED TENSIONS — the fifth live field (world-state-ledger.md). Validated at the authoring
-    # boundary, because a tension with an unusable interest or an empty watch looks live and can
-    # never move: nothing would be in scope, nothing would price, and it would sit inert for a whole
-    # book with no error anywhere. Also cross-checked against the world's own ids, so a tension that
-    # watches a place the world does not register is caught here rather than by silence.
+    # A TENSION WATCHING WHAT THE BOOK DOES NOT REGISTER - across the world and the cast, so beside the contract. A
+    # malformed tension is the contract's to report; this reads only the ones that load.
     try:
         from src.engine.tensions import from_world as _tensions_from_world
-        from src.engine.errors import EngineError as _EngErr
         _tensions = _tensions_from_world(world)
-    except _EngErr as _te:
-        _tensions = []
-        errors.append("world.tensions: %s" % _te)
-    except ImportError:
+    except (RecordError, ValueError):
         _tensions = []
     _people_ids = {p.get("id") for p in (world.get("people") or []) if isinstance(p, dict)}
     for _t in _tensions:
@@ -166,15 +149,6 @@ def lint(world, chars):
             if _people_ids and _who not in _people_ids and _who not in (chars or {}):
                 warnings.append("world.tensions[%s] watches party %r, which is neither a registered "
                                 "person nor a cast member — check the id" % (_t.get("id"), _who))
-
-    # WHICH SYSTEMS THE BOOK RUNS (gate systems-registry, 2026-09-22): a declaration the engine cannot
-    # honour is an error here, not a crash at the first beat; the systems it switches off stop being
-    # demanded of the sheets below.
-    try:
-        _enabled = _systems.for_book(world)
-    except RecordError as e:
-        errors.append("world.systems: %s" % e)
-        _enabled = _systems.defaults()
 
     # CAST-JOIN checks (character-authoring-rules.md Rule 1c). The packet is built by JOINS on ids;
     # the engine never infers a connection. A character authored only in characters/ is invisible to
@@ -203,8 +177,9 @@ def lint(world, chars):
             continue
         # THE CONTRACT (src/engine/contracts_sheet.py): every field's shape, whether this book must author it, and
         # whether anything reads it - one declaration, the engine's own validators for the blocks they own
-        for sev, line in _grouped(_contracts.check(ch, _sheet_contract.SHEET, _enabled, {"registered": _registered})):
-            (errors if _SEVERITY[sev] == "errors" else warnings).append("%s: %s" % (tag, line))
+        for sev, where, what in _grouped(_contracts.check(ch, _sheet_contract.SHEET, _enabled, {"registered": _registered}),
+                                         _sheet_contract.SHEET):
+            (errors if _SEVERITY[sev] == "errors" else warnings).append("%s: %s %s" % (tag, where or "the sheet", what))
         fixed, baseline, current = ({} if not isinstance(ch.get(k), dict) else ch[k] for k in ("fixed", "baseline", "current"))
         for _off in _systems.authored_for_off(ch, _enabled):
             warnings.append("%s: a %s block is authored, but this book switches the %s system off - it does "
