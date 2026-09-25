@@ -56,9 +56,10 @@ def test_the_act_seam(tmp=None):
     seam = src.split("if supplied is not None:")[1].split("else:")[0]
     check("the supplied path runs the name-leak check", "check_name_leaks" in seam,
           "a supplied turn would bypass the faithfulness wall — the seam becomes a hole")
+    # the contract lives in one record now (gate actor-reply): tests/test_replies.py refuses each malformed shape by code
     check("and it enforces the turn contract",
-          "missing" in seam and "action" in seam and "tags" in seam,
-          "a malformed supplied turn must throw naming the missing field")
+          "actor_reply(supplied, supplied=True)" in seam,
+          "a malformed supplied turn must be refused by the reply's record, naming the missing field")
 
     # the wall itself still discriminates, on the same relationships shape the seam passes it
     from src.engine import faithfulness

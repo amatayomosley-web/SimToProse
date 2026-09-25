@@ -346,7 +346,20 @@ removed from the actor's own reply contract 2026-09-19 (gate `actor-contract-cle
 - **The weighing is the point.** If the stage directions pull in different directions, `thought`
   **must** name the pulls it is resolving and which one wins. If they agree, say what you are doing
   and no more.
-- **`exit`** — true only if the action is to physically leave the scene now.
+- **`exit`** — true only if the action is to physically leave the scene now. Only a JSON `true` exits: the
+  reply's record (`src/engine/replies.py`, `actor_reply`) reads `"exit": "false"` as staying, where `bool()` once
+  walked the character out.
+
+**How the reply is read** (gate actor-reply, 2026-09-25). One record for both ways a reply arrives:
+`replies.actor_reply`. A key the contract above does not name is kept on the record, written to the committed
+turn's validation record (`turns.validation`, as `reply_extra`) and reported - never refused, since nothing reads it
+and a refused reply costs a paid retry; a beat that is skipped, or a draw the retry loop throws away, commits
+nothing, its extra keys with it. A reply the engine draws from its own model and that holds no JSON object is an
+empty draw, which the retry loop redraws; a null action or thought is empty, never the word "None". A turn supplied
+through `--turn-json` (`{action, thought, tags, exit?, addressee?}`, plus `act?` for the scene driver - the chair
+keys no law by an act, and says so) has its shape checked before anything is opened and is refused by name:
+`REPLY_NOT_AN_OBJECT`, `REPLY_FIELD_MISSING`, `REPLY_FIELD_TYPE` (a null optional field is absent). Its tags'
+content is checked where the tags are used, as ever.
 
 ---
 

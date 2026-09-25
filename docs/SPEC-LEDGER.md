@@ -1092,6 +1092,26 @@ keys names the system that asks for them. NOT COVERED: the read-along bench's ow
 person-note findings labelled `world` and list items unindexed; a sheet nobody plays is pinned unchecked, and a later
 scene's replay reads that pin.
 
+**2026-09-25 — the actor's reply, read into one record (gate `actor-reply`):** G5 of the contracts plan, for the actor.
+`direct._parse_reply` built the turn from six `.get()`s and dropped every other key unseen, read `"exit": "false"`
+as an exit (`bool`), and carried a null action or thought on as the word "None", which was committed and shown to
+the seats; the `--turn-json` seam's shape check was written twice by hand (`scene.run_scene`, `direct.run_turn`),
+raised a bare ValueError after the run row was written, and coerced a wrong-typed `tags`; the chair took a file
+holding `null` as no turn at all and silently acted its own, and crashed with a TypeError on a number; `scene.py`'s
+help omitted `act`, which it reads. `src/engine/replies.py` (`actor_reply`) reads both into a frozen `ActorReply`
+under ONE policy: a key the contract does not name is kept (`extra`), written to the committed turn's validation
+record (`turns.validation`, as `reply_extra`) and reported - never refused, since nothing reads it and a refused
+reply costs a paid retry (a skipped beat or a discarded draw commits nothing, its extra keys with it). A MODEL's
+reply keeps its degradation - no JSON object is an empty draw, redrawn; a falsy act is no act - save three things:
+`exit` is only a JSON true, and a null action or thought is empty, not "None". A SUPPLIED turn has its shape checked
+by both drivers' `main` before anything is opened, refused by a registered code - `REPLY_NOT_AN_OBJECT`,
+`REPLY_FIELD_MISSING`, `REPLY_FIELD_TYPE` - with a null OPTIONAL field read as absent, as a model's is; its tags'
+content is still checked where they are used. The chair keys no law by an act, and now says so when a turn carries
+one. No prompt builder changed, but the values fed to them did for those three shapes, and recorded runs replay by a
+hash of the exact prompt messages (`provider.prompt_key`): none of the owner's saved replies carries one (1,122 reply
+files, 66 of them an actor's; no recorded turn holds the word "None"). Suite: `tests/test_replies.py`. NOT COVERED:
+the event seat, thermometer and injuries seat, the keeper's three and the composer - their own gates.
+
 **2026-09-19 — attitude decays per RUNG, in minutes (gate `attitude-staircase`):** `toward.erode` was the pre-redesign mechanism — one flat `toward._RETENTION[path]` per DAY for every rung, so a hatred and a flicker of annoyance faded alike — and now steps the ladder exactly as `state.decay_over` does, on the minute clock, at a per-path scale whose bottom rung is that same day rate converted (`toward._attitude_half_life`, anchored to 1e-9 in `tests/test_toward.py` block 16) and whose rung-to-rung ratio is the MOOD staircase's own, so the two tiers cannot disagree about the shape of forgetting; `src/engine/passage.py` hands it MINUTES while `bond_rest.drift` / `wound.erode` / `arc.erode` keep the day conversion. Spec: the redesign's "Decay — per path AND per rung" ("Two tables, one shape"), `docs/emotion-arithmetic.md` §4.
 
 **2026-09-19 — the actor's reply contract drops `social`:** `src/engine/prompt.py`'s JSON reply skeleton and its `tags.social` paragraph still asked for a block bond-arithmetic.md §2 retired 2026-09-17 (`APPRAISER_SOCIAL_RETIRED`) and nothing read; removed (gate `actor-contract-cleanup`), `attribution` kept.

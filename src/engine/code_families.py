@@ -569,6 +569,15 @@ _CONTRACT_F = {
     "CONTRACT_RUN_REFUSED":           "a run's files break their contracts where the engine would misread or silently drop them (an error, an undeclared key, a retired field to move or refused) - the run stops before its chronicle is opened",
 }
 
+# ---- REPLY_* — a reply read into its record (src/engine/replies.py, gate actor-reply) ----
+# Raised only where a PERSON wrote the reply (the `--turn-json` seam); a model's reply degrades instead, and an extra
+# key is recorded, never refused.
+_REPLY_F = {
+    "REPLY_NOT_AN_OBJECT":  "a supplied turn is not a JSON object - the contract is {action, thought, tags, exit?, addressee?, act?}",
+    "REPLY_FIELD_MISSING":  "a supplied turn lacks action, thought or tags",
+    "REPLY_FIELD_TYPE":     "a supplied turn carries a field of the wrong type (text for action/thought/addressee/act, true or false for exit, an object for tags)",
+}
+
 # ---- TOWARD_* — the MICRO tier: what one specific person makes you feel (src/engine/toward.py) ----
 _TOWARD = {
     "TAG_DIMENSION_VALUE_NOT_NUMERIC": "a dimension's magnitude is not a number",

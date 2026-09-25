@@ -69,6 +69,7 @@ from src.engine import body as _body                              # noqa: E402  
 from src.engine import tells as _tells                            # noqa: E402  (the signs a sharp eye catches)
 from src.engine import injuries as _injuries                      # noqa: E402  (bodily injuries, healing over time)
 from src.engine import contracts as _contracts                    # noqa: E402  (the author files, refused at run start)
+from src.engine import replies as _replies                        # noqa: E402  (a model's reply, read into its record)
 from src.engine import levers                                      # noqa: E402  (the wound refold on resume)
 from src.engine import wound                                       # noqa: E402  (the wound tier's mover)
 from src.engine import toward                                      # noqa: E402  (the MICRO tier)
@@ -680,15 +681,9 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
         if supplied is not None:
             # A SUPPLIED TURN PASSES THE SAME WALLS. Shape first, then the name-leak check, then the
             # identical validate/appraise/commit path below. A re-entry that skips the wall is a
-            # hole in it, and the risk does not fall because the model was a stranger's.
-            missing = [k for k in ("action", "thought", "tags") if k not in supplied]
-            if missing:
-                raise ValueError("supplied turn is missing %s — the contract is "
-                                 "{action, thought, tags, exit?, addressee?}" % ", ".join(missing))
-            turn = {"action": str(supplied.get("action", "")), "thought": str(supplied.get("thought", "")),
-                    "exit": bool(supplied.get("exit", False)), "addressee": supplied.get("addressee", ""),
-                    "act": str(supplied.get("act", "") or ""),
-                    "tags": supplied.get("tags") if isinstance(supplied.get("tags"), dict) else {"dimensions": {}}}
+            # hole in it, and the risk does not fall because the model was a stranger's. The shape is
+            # `replies.actor_reply`'s (gate actor-reply): `main` checked the file before the chronicle opened.
+            turn = _replies.actor_reply(supplied, supplied=True).as_turn()
             leaks = faithfulness.check_name_leaks("%s %s" % (turn["action"], turn["thought"]), rels)
             print("  [supplied turn accepted for validation — %d char action]" % len(turn["action"]))
             supplied = None          # one supplied beat per invocation; the rest act normally
@@ -791,6 +786,11 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
             applied = dict(tags, dimensions={d: v for d, v in tags.get("dimensions", {}).items() if d in legit})
         else:
             applied = tags
+        # A KEY THE REPLY CARRIED THAT NOTHING READS (gate actor-reply): written to the turn's own validation record
+        # and reported, never refused - a model adds keys, and dropped unseen they hid it drifting from its contract
+        if turn.get("extra"):
+            validation["reply_extra"] = list(turn["extra"])
+            print("   [the reply carries key(s) nothing reads: %s]" % ", ".join(turn["extra"]))
         if target:
             applied = dict(applied, target=target)
             if tgroup:
@@ -1353,19 +1353,28 @@ def main():
                          "seam's outbound half. Any model anywhere can consume this "
                          "(docs/orchestration.md seam 1)")
     ap.add_argument("--turn-json", default=None, dest="turn_json",
-                    help="a file holding {action, thought, tags, exit?, addressee?} (or '-' for "
-                         "stdin) — the inbound half. Used INSTEAD of the local model for the first "
-                         "beat of this invocation; the engine validates, appraises and commits it "
-                         "through the SAME path a locally-generated turn takes, faithfulness wall "
-                         "included. Pair with --resume and --budget 1 to act one beat at a time")
+                    help="a file holding {action, thought, tags, exit?, addressee?, act?} (or '-' "
+                         "for stdin) — the inbound half. Used INSTEAD of the local model for the "
+                         "first beat of this invocation; its shape checked before anything is opened "
+                         "(REPLY_*), then validated, appraised and committed through the SAME path a locally-"
+                         "generated turn takes, faithfulness wall included. Pair with --resume and "
+                         "--budget 1 to act one beat at a time")
     args = ap.parse_args()
 
+    # THE ACT SEAM'S INBOUND FILE, checked before anything is opened (gate actor-reply): a malformed turn was refused
+    # inside the scene loop, after the run row was written, by a bare ValueError
     supplied = None
     if args.turn_json:
-        raw = sys.stdin.read() if args.turn_json == "-" else open(args.turn_json, encoding="utf-8").read()
-        supplied = json.loads(raw)
-        if not isinstance(supplied, dict):
-            raise SystemExit("--turn-json must hold a JSON object, got %s" % type(supplied).__name__)
+        try:
+            raw = sys.stdin.read() if args.turn_json == "-" else open(args.turn_json, encoding="utf-8").read()
+            supplied = json.loads(raw)
+            _replies.actor_reply(supplied, supplied=True)
+        except RecordError as e:
+            raise SystemExit(str(e))
+        except ValueError as e:
+            raise SystemExit("--turn-json is not valid JSON: %s" % e)
+        except OSError as e:
+            raise SystemExit("--turn-json cannot be read: %s" % e)
 
     # pre-warm: cold-load the model NOW, before load_book pulls the engine's recall models into host RAM.
     # On this RAM-constrained host the 17 GB model's cold load (UseMmap:false) OOMs if it lands mid-scene

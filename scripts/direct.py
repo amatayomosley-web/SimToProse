@@ -30,6 +30,7 @@ sys.path.insert(0, REPO)
 from src.engine.scene import assemble, resolve_subject, subject_groups, referenced_ids  # noqa: E402
 from src.engine import books   # module scope: BOTH the --book and --fixture branches use it
 from src.engine import contracts as _contracts   # the author files, refused at run start (gate run-start-refusal)
+from src.engine import replies as _replies       # a model's reply, read into its record (gate actor-reply)
 from src.engine import decay as _decay   # recall history fold — see run_turn's assemble call
 from src.engine import clock as _clock
 from src.engine import presence as _presence   # a name means one person (gate one-person-per-name)
@@ -223,14 +224,13 @@ def _parse_reply(text):
         d = json.loads(m.group(0)) if m else {}
     except Exception:
         d = {}
-    tags = d.get("tags") if isinstance(d.get("tags"), dict) else {"dimensions": {}}
     # `act` was dropped here, so `scene.py:_law_events` — which returns [] on a falsy act — could
     # never fire, and no authored law has ever bound to a real model reply. The prompt asks for it
     # whenever the world declares laws; the parser simply never carried it through. Its own tests
     # passed by calling `_law_events` directly with a hand-built {"act": ...} dict.
-    return {"action": d.get("action", ""), "thought": d.get("thought", ""),
-            "exit": bool(d.get("exit", False)), "addressee": d.get("addressee", ""),
-            "act": str(d.get("act", "") or ""), "tags": tags}
+    # THE RECORD NOW (gate actor-reply): the same turn, read by `replies.actor_reply` - a key nothing reads is kept
+    # in `extra` rather than dropped unseen, and only a JSON true exits (`bool("false")` walked a character out)
+    return _replies.actor_reply(d).as_turn()
 
 
 def rung_summary(affect):
@@ -610,15 +610,9 @@ def run_turn(led, run_id, char, world, groups_index, profile, temperament, affec
         # A SUPPLIED TURN PASSES THE SAME WALLS. `faithful_turn` exists because a model emits names
         # it does not hold, and that risk does not fall when the model is a stranger's — a re-entry
         # that skips the wall is a hole in it. Shape first, then the name-leak check, then the
-        # identical validate/appraise/commit path below.
-        missing = [k for k in ("action", "thought", "tags") if k not in supplied]
-        if missing:
-            raise ValueError("supplied turn is missing %s — the contract is "
-                             "{action, thought, tags, exit?, addressee?}" % ", ".join(missing))
-        turn = {"action": str(supplied.get("action", "")), "thought": str(supplied.get("thought", "")),
-                "exit": bool(supplied.get("exit", False)), "addressee": supplied.get("addressee", ""),
-                "act": str(supplied.get("act", "") or ""),
-                "tags": supplied.get("tags") if isinstance(supplied.get("tags"), dict) else {"dimensions": {}}}
+        # identical validate/appraise/commit path below. The shape is `replies.actor_reply`'s (gate actor-reply):
+        # `main` checked the file before the chronicle opened; this refuses a caller that hands the turn in directly.
+        turn = _replies.actor_reply(supplied, supplied=True).as_turn()
         leaks = faithfulness.check_name_leaks("%s %s" % (turn.get("action", ""), turn.get("thought", "")), rels)
         packet["manifest"]["direction"] = _kept_direction(led, run_id, actor, event_text)
         print("  [supplied turn accepted for validation — %d char action]" % len(turn["action"]))
@@ -654,6 +648,8 @@ def run_turn(led, run_id, char, world, groups_index, profile, temperament, affec
                                 "faithfulness: used name(s) not theirs after retries: %s" % ", ".join(n for n, k in leaks))
         print("  [faithfulness reject: %s used %s after retries — turn skipped]" % (actor, ", ".join(n for n, k in leaks)))
         return affect, False, char, profile
+    if turn.get("act"):                              # a reply's act is the scene driver's; the chair keys no law by it
+        print("  [the chair keys no law by an act, so it reads none: %r]" % turn["act"])
     # THE SEATS (Phase 3, wired 2026-09-11) — the twin of scripts/scene.py's block. The chair has no
     # cast roster, but the PACKET knows who is in the room: `volatile.edges` carries one edge per
     # entity the PerceptSet recognised (the stub reads the same list). Until 2026-09-18 the event seat
@@ -705,6 +701,11 @@ def run_turn(led, run_id, char, world, groups_index, profile, temperament, affec
         applied = dict(tags, dimensions={d: v for d, v in tags.get("dimensions", {}).items() if d in legit})
     else:
         applied = tags
+    # A KEY THE REPLY CARRIED THAT NOTHING READS (gate actor-reply): written to the turn's own validation record and
+    # reported, never refused - scene.py does the same
+    if turn.get("extra"):
+        validation["reply_extra"] = list(turn["extra"])
+        print("  [the reply carries key(s) nothing reads: %s]" % ", ".join(turn["extra"]))
     # subject resolution: who is this event about + their class -> the empathy scope (state._regard, arc).
     # The actor may NAME a present party (it reads the scene); the engine validates presence and resolves
     # the group from the registry (never the LLM — the regard number stays off the prompt).
@@ -1078,9 +1079,11 @@ def main():
                          "Any model anywhere can consume this (docs/orchestration.md seam 1)")
     ap.add_argument("--turn-json", default=None, dest="turn_json",
                     help="a file holding {action, thought, tags, exit?, addressee?} (or '-' for "
-                         "stdin) — the inbound half. The engine validates, appraises and commits it "
-                         "through the SAME path a locally-generated turn takes, faithfulness wall "
-                         "included. Requires a circumstance via --circumstance")
+                         "stdin) — the inbound half. Its shape is checked before anything is opened "
+                         "(REPLY_*); the engine then validates, appraises and commits it through the "
+                         "SAME path a locally-generated turn takes, faithfulness wall included. An "
+                         "`act` is the scene driver's: the chair keys no law, and says so. Requires a "
+                         "circumstance via --circumstance")
     ap.add_argument("--circumstance", default=None,
                     help="the placed circumstance for a --prompt-only / --turn-json turn")
     ap.add_argument("--brief", default=None,
@@ -1114,6 +1117,24 @@ def main():
                          "sayings the fence cannot see until the keeper notices them — is left "
                          "unresolved; the run's closing 'lore:' line says how much")
     args = ap.parse_args()
+
+    # THE ACT SEAM'S INBOUND FILE, read and checked before anything is opened (gate actor-reply): read after the run
+    # was created, a malformed turn failed after its row was written - and a file holding JSON that is not an object
+    # crashed with a TypeError
+    supplied = None
+    if (args.prompt_only or args.turn_json) and not args.circumstance:
+        raise SystemExit("--prompt-only and --turn-json need --circumstance '<what happened>'")
+    if args.turn_json:
+        try:
+            raw = sys.stdin.read() if args.turn_json == '-' else open(args.turn_json, encoding='utf-8').read()
+            supplied = json.loads(raw)
+            _replies.actor_reply(supplied, supplied=True)
+        except RecordError as e:
+            raise SystemExit(str(e))
+        except ValueError as e:
+            raise SystemExit('--turn-json is not valid JSON: %s' % e)
+        except OSError as e:
+            raise SystemExit('--turn-json cannot be read: %s' % e)
 
     # BOUND ON BOTH BRANCHES. Only the --book arm assigned this, and the --turn-json call site
     # below reads it unconditionally, so every --fixture run through that path died with
@@ -1369,17 +1390,7 @@ def main():
     # THE ACT SEAM: one turn, non-interactive, in or out. Placed before the REPL so a harness
     # never has to speak the REPL's language — argv in, stdout out, exit code.
     if args.prompt_only or args.turn_json:
-        if not args.circumstance:
-            raise SystemExit("--prompt-only and --turn-json need --circumstance '<what happened>'")
-        supplied = None
-        if args.turn_json:
-            raw = (sys.stdin.read() if args.turn_json == '-'
-                   else open(args.turn_json, encoding='utf-8').read())
-            try:
-                supplied = json.loads(raw)
-            except ValueError as e:
-                raise SystemExit('--turn-json is not valid JSON: %s' % e)
-        try:
+        try:                                          # `supplied`: read and checked at the top of main
             # the same minutes and brief the REPL passes (gate chair-parity): the one-shot seam used to
             # decay nothing and hand the composer no brief
             affect, ok, char, profile = run_turn(
