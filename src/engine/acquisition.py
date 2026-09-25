@@ -107,6 +107,7 @@ def reveal_name(char, entity_id, name, world=None):
         "claim": "%s is named %s" % (knew_as, name),
         "confidence": 1.0,
         "provenance": "learned",
+        "durability": "durable",                          # a name is a standing fact (gate learned-memories-durable)
         "believed_value": True,
         "links": [str(entity_id)],
     }, world, subject=entity_id)
@@ -184,6 +185,7 @@ def witness_belief(actor_name, tags, actor_id, trust=None, world=None, witness_i
         "claim": claim,
         "confidence": conf,
         "provenance": prov,
+        "durability": "durable",                          # only a durable act is witnessed (gate learned-memories-durable)
         "believed_value": True,
         "links": [str(actor_id)],
     }, world, subject=actor_id)
@@ -316,6 +318,9 @@ def _build_belief(summary, conf, subject, tags, vault, world):
         "claim": summary,
         "confidence": max(0.0, min(1.0, conf)),
         "provenance": "lived",
+        # A MEANINGFUL MEMORY (gate learned-memories-durable, 2026-09-24): `assess` keeps only a durable event, and with
+        # no durability `decay` filed every learned memory as an everyday detail - a week on, barely recalled at all
+        "durability": "durable",
         "believed_value": True,
         "links": [str(subject)],
         "status": "active",

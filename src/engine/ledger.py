@@ -286,9 +286,10 @@ class Ledger:
     def acquisitions_for(self, run_id, char_id):
         """Every belief char_id acquired this run, in acquisition order — the simulated additions to the
         seeded vault (rehydrate on resume by appending these to the .md seed), each carrying the turn it was
-        learned: a row from before gate memory-fades takes it from the row."""
+        learned: a row from before gate memory-fades takes it from the row, and one from before gate
+        learned-memories-durable is filed as meaningful (every learned memory came from a durable event)."""
         rows = self.con.execute("SELECT turn, belief FROM acquisitions WHERE run_id = ? AND char_id = ? ORDER BY turn, acquisition_id", (run_id, char_id)).fetchall()
-        return [dict({"created_turn": int(r["turn"])}, **json.loads(r["belief"])) for r in rows]
+        return [dict({"created_turn": int(r["turn"]), "durability": "durable"}, **json.loads(r["belief"])) for r in rows]
 
     # ---- the DECLARED clock. Bodies in `clock.py`, which carries the contract; these stay so the
     # existing call sites are unchanged and the cause/derivation seam is visible from here.

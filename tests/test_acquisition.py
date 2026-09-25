@@ -164,6 +164,32 @@ def test_the_actors_summary_survives_the_seat():
     check("with-the-summary-the-beat-is-remembered", b is not None and b["claim"] == "I read the chapter out for her", repr(b))
 
 
+def test_learned_memories_are_meaningful():
+    """gate learned-memories-durable (2026-09-24): every memory learned in a story came from a durable event (or is a
+    name), and carried no durability, so `decay` faded it as an everyday detail - a week on, barely recalled."""
+    print("\n[H] learned memories fade as meaningful ones")
+    from src.engine import decay
+    from src.engine.decay_law import relax
+    lived = acquisition.assess({"target": "delphine"}, {"summary": "I read the chapter out for Delphine",
+                                                        "durability": "durable", "confidence": 0.85}, _char())
+    seen = acquisition.witness_belief("Nora", {"summary": "I read the chapter out for Delphine", "durability": "durable"}, "nora")
+    char = _char()
+    char["current"]["relationships"] = {"delphine": {"trust": 0.6}}
+    named = acquisition.reveal_name(char, "delphine", "Delphine")
+    check("lived-witnessed-and-named-are-all-meaningful",
+          all(b and b.get("durability") == "durable" for b in (lived, seen, named)), repr((lived, seen, named)))
+    week = decay.calculate_effective_confidence(lived, elapsed=7.0)
+    want = round(relax(0.85, min(0.85, decay.FLOOR_DURABLE), decay.RETENTION_DURABLE, 7.0), 4)
+    check("a-week-on-it-fades-at-the-meaningful-rate", week == want and week > 0.6, repr((week, want)))
+    led = Ledger(os.path.join(tempfile.mkdtemp(), "old.db"))
+    led.create_run("r1", {"catalog_version": 1})
+    with led.con:                                      # a memory logged before this gate: no durability in it
+        led.con.execute("INSERT INTO acquisitions (run_id, char_id, turn, belief) VALUES ('r1', 'nora', 2, ?)",
+                        ('{"claim": "old", "provenance": "lived", "links": []}',))
+    check("a-memory-logged-before-reads-back-meaningful", led.acquisitions_for("r1", "nora")[0].get("durability") == "durable",
+          repr(led.acquisitions_for("r1", "nora")))
+
+
 def main():
     print("test_acquisition.py — the vault grows (knowledge-model.md acquisition)\n")
     test_assess_promotes_durable_subject_turn()
@@ -176,6 +202,7 @@ def main():
     test_faithfulness_name_leak()
     test_overheard_names()
     test_the_actors_summary_survives_the_seat()
+    test_learned_memories_are_meaningful()
     total = len(PASS) + len(FAIL)
     print("\n--- summary ---\n  %d / %d passed" % (len(PASS), total))
     if FAIL:
