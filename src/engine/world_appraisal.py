@@ -221,8 +221,9 @@ def cool(value, elapsed, rate=DEFAULT_COOLING, rest=0.0):
     would make time a second writer. So the fold keeps the RAW accumulated value and this applies
     time at read, the way `state.py` keeps the current tier and derives the effective one.
 
-    `elapsed` is director-declared units from `time_declarations` — the same clock `arc.erode`,
-    `bond_rest.drift` and `wound.erode` already read. One clock, now four tiers.
+    `elapsed` is story time in days from the one clock (`clock.elapsed_days_since`): since gate story-clock
+    (2026-09-24) every minute since the tension was last heated, inside scenes and between them, not only the
+    declared gaps. The same clock `arc.erode`, `bond_rest.drift` and `wound.erode` read.
 
     `rest` IS THE PARAMETER THIS FUNCTION'S OWN NOTE RESERVED. It read "DECAY ASSUMES A ZERO REST
     POINT... cool(..., rest=...)", and 2026-09-03 was the moment: the arithmetic moved to

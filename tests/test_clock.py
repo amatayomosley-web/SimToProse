@@ -77,13 +77,17 @@ def test_the_derivation(tmp):
     owed = led.unspent_before("r1", 7)
     check("unspent-lasts-is-owed", owed == 18.0, owed)
     led.declare_time("r1", 7, gap, "derived")
-    check("declaration-is-in-minutes", led.elapsed_since("r1", 0) == 12 * 60.0)
+    check("declaration-is-in-minutes",
+          led.con.execute("SELECT elapsed FROM time_declarations WHERE turn = 7").fetchone()[0] == 12 * 60.0)
+    led.record_scene_clock("r1", 7, a2, None, 0.0)                    # the next scene's reading, as open_scene logs it
+    check("story-time-since-beat-0-is-the-rest-of-the-scene-and-the-gap",   # gate story-clock: 20:06 -> 09:00
+          led.elapsed_since("r1", 0) == 54.0 + 12 * 60.0, led.elapsed_since("r1", 0))
     check("opening-before-the-last-end-is-refused",
           _refuses(lambda: led.gap_before("r1", clock.parse_at({"day": 1, "time": "20:30"}), before_turn=7),
                    "CLOCK_RUNS_BACKWARDS"))
     # a replay of the same reading is idempotent; a different one is refused (append-only)
     led.record_scene_clock("r1", 0, a1, 60.0, beat_minutes=6.0)
-    check("same-reading-replays-silently", led.last_scene_clock("r1")["at"] == a1)
+    check("same-reading-replays-silently", clock.last_scene_clock(led.con, "r1", 1)["at"] == a1)
     check("different-reading-is-refused",
           _refuses(lambda: led.record_scene_clock("r1", 0, a1 + 5, 60.0, 6.0), "LEDGER_SCENE_CLOCK_REWRITE"))
     check("no-lasts-owes-nothing", (led.record_scene_clock("r1", 7, a2, None, 0.0) or True)
@@ -153,6 +157,46 @@ def test_the_clock_call_lives_in_ONE_place():
               "passage.open_scene(" in src, "the driver no longer calls the shared helper")
 
 
+def test_the_story_clock(tmp):
+    """gate story-clock (2026-09-24). The owner: "their stat runs with or without us looking." `elapsed_since`
+    summed the DECLARED time after a turn - the gaps between scenes - so a scene's own minutes and a lulled scene's
+    unspent ones passed for nothing that read it. It now measures story time from the end of a beat."""
+    print("\n[5] THE STORY CLOCK — every minute counts: a scene's own, the unspent ones, the gaps")
+    from src.engine.records import TurnCommit
+    led = Ledger(os.path.join(tmp, "story.db"))
+    led.create_run("r1", {"catalog_version": 1, "models": {"decide": "stub"}, "prompt_versions": {"decide": 1}})
+    led.register_character("r1", "m", {"id": "m", "name": "M"}, {})
+
+    def beat(t):
+        led.append_turn(TurnCommit(run_id="r1", turn=t, actor="m", thought="-", action="-", tags={},
+                                   validation={"ok": True}, affect={p: 0.2 for p in PATHS}))
+    led.record_scene_clock("r1", 0, 600.0, 30.0, 10.0)               # A: 10:00, thirty minutes, ten a beat
+    beat(0), beat(1)                                                 # ...lulled after two: ten minutes unspent
+    led.record_scene_clock("r1", 2, 660.0, 20.0, 10.0)               # B: 11:00
+    led.declare_time("r1", 2, 30.0, "derived")                       # 10:30 -> 11:00
+    beat(2), beat(3)
+    check("a-beat-ends-its-minutes-after-its-reading", [clock.beat_end(led.con, "r1", t) for t in range(4)]
+          == [610.0, 620.0, 670.0, 680.0], [clock.beat_end(led.con, "r1", t) for t in range(4)])
+    check("the-story-has-reached-the-last-beat's-end", clock.story_now(led.con, "r1") == 680.0)
+    check("since-beat-0-counts-A's-next-beat-its-unspent-ten-the-gap-and-B",
+          led.elapsed_since("r1", 0) == 10.0 + 10.0 + 30.0 + 20.0, led.elapsed_since("r1", 0))
+    old = led.con.execute("SELECT SUM(elapsed) FROM time_declarations WHERE turn > 0").fetchone()[0]
+    check("...where-the-declared-sum-saw-only-the-gap", old == 30.0, old)
+    check("a-declaration-at-the-aged-turn-still-predates-its-end", led.elapsed_since("r1", 2) == 10.0)
+    check("the-last-beat-has-nothing-since-it", led.elapsed_since("r1", 3) == 0.0)
+    check("...nor-a-beat-not-yet-played", led.elapsed_since("r1", 4) == 0.0, led.elapsed_since("r1", 4))
+    led.record_scene_clock("r1", 4, 720.0, None, 0.0)                # C opens at noon; no beat yet
+    check("an-opening-moves-the-story-on-before-its-first-beat", clock.story_now(led.con, "r1") == 720.0
+          and led.elapsed_since("r1", 3) == 40.0, (clock.story_now(led.con, "r1"), led.elapsed_since("r1", 3)))
+    check("in-days-for-the-tiers-that-read-days", abs(led.elapsed_days_since("r1", 0) - 110.0 / 1440.0) < 1e-15,
+          led.elapsed_days_since("r1", 0) * 1440.0)
+    bare = Ledger(os.path.join(tmp, "bare.db"))                       # a log with no scene reading at all
+    bare.create_run("r2", {"catalog_version": 1, "models": {"decide": "stub"}, "prompt_versions": {"decide": 1}})
+    bare.declare_time("r2", 1, 5.0, "d"), bare.declare_time("r2", 2, 7.0, "d")
+    check("a-log-with-no-reading-sums-its-declared-gaps-as-before",
+          bare.elapsed_since("r2", 0) == 12.0 and bare.elapsed_since("r2", 2) == 0.0 and clock.story_now(bare.con, "r2") is None)
+
+
 def main():
     print("test_clock.py — the minute clock")
     tmp = tempfile.mkdtemp(prefix="stp-clock-")
@@ -161,6 +205,7 @@ def main():
         test_the_derivation(tmp)
         test_emotion_on_the_clock()
         test_the_clock_call_lives_in_ONE_place()
+        test_the_story_clock(tmp)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     print("\nVERDICT: %s" % ("PASS" if not _FAILS else "FAIL -> %s" % _FAILS))

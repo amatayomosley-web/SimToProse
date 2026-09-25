@@ -292,7 +292,7 @@ class Ledger:
         return _clock.declare(self.con, run_id, turn, elapsed, source, on_rewrite=LedgerError)
 
     def elapsed_since(self, run_id, turn):
-        """Declared MINUTES between a turn and the head. One clock, five tiers — see `clock.py`."""
+        """Story MINUTES since a beat ended (gate story-clock). One clock, five tiers — see `clock.py`."""
         return _clock.elapsed_since(self.con, run_id, turn)
 
     def elapsed_days_since(self, run_id, turn):

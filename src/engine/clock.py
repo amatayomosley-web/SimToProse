@@ -36,8 +36,15 @@ SUMMED reading, and there is exactly one of those.
 
 TWO RULES THAT LOOK LIKE DETAILS AND ARE NOT:
 
-  * A declaration records time passed BEFORE its turn. So `elapsed_since(t)` sums `turn > t`, never
-    `>=` — a declaration at the same turn as the thing being aged PREDATES it and must not age it.
+  * A declaration records time passed BEFORE its turn. So `elapsed_since(t)` counts from the END of beat
+    `t` (and, on a log with no scene reading, sums `turn > t`, never `>=`) — a declaration at the same turn
+    as the thing being aged PREDATES it and must not age it.
+
+THE STORY DOES NOT STOP WHEN THE PAGE LOOKS AWAY (owner, 2026-09-24: "these are real people, the book is
+us peeking into their world. When we look doesn't determine their state, their stat runs with or without
+us looking"). Time is story time wherever it passes - between scenes, inside them, in the minutes a scene
+that lulled never spent - and a scene or a chapter is only where the clock is read. `beat_end` and
+`story_now` place any moment of the log on it; `elapsed_since` measures between them (gate story-clock).
   * `elapsed` must be > 0. Nothing passing is not a declaration; it is the absence of one, and
     accepting it would let a caller quietly reset an erosion clock while looking like bookkeeping.
 """
@@ -102,7 +109,7 @@ def declare(con, run_id, turn, elapsed, source="", on_rewrite=None):
 
 
 def elapsed_days_since(con, run_id, turn):
-    """The declared MINUTES since a turn, in DAYS — the unit the four older tiers were calibrated
+    """The story MINUTES since a turn (`elapsed_since`), in DAYS — the unit the four older tiers were calibrated
     in. `bond_rest._RETENTION`, `wound`, `arc._ERODE`, `tensions` and belief decay were all tuned per
     "declared unit" when the unit was the author's own and, on the fixture books, a day; the
     minute lock (2026-09-10) would have made every one of them ~1440x too fast overnight. They keep
@@ -113,7 +120,17 @@ def elapsed_days_since(con, run_id, turn):
 
 
 def elapsed_since(con, run_id, turn):
-    """Declared MINUTES between a turn and the head -> float. `turn >`, for the reason in the header."""
+    """The story MINUTES since a beat ended -> float (gate story-clock): from the end of beat `turn` to how far
+    the story has reached (`story_now`). The rest of that scene, a lulled scene's unspent minutes, every gap and
+    every later scene's beats all count - the story does not stop when no scene is looking at someone, and a
+    declaration at `turn` itself predates that beat's end, the header's rule. Until this gate it summed only the
+    DECLARED time after the turn, which is the gaps between scenes and nothing else.
+
+    A run with no scene reading (a log from before schema v25, or a hand-built one) holds only its declared gaps,
+    and they are summed exactly as before."""
+    now, end = story_now(con, run_id), beat_end(con, run_id, turn)
+    if now is not None and end is not None:
+        return max(0.0, now - end)
     row = con.execute(
         "SELECT COALESCE(SUM(elapsed), 0) AS total FROM time_declarations "
         "WHERE run_id = ? AND turn > ?", (run_id, int(turn))).fetchone()
@@ -237,6 +254,25 @@ def at_turn(con, run_id, turn):
     if seg is None:
         return None
     return seg["at"] + (int(turn) - seg["turn"]) * seg["beat_minutes"]
+
+
+def beat_end(con, run_id, turn):
+    """The story minute a beat ENDED at -> float, or None when no scene reading covers it (gate story-clock):
+    `at_turn`'s arithmetic, one beat on - the reading it ran under plus its minutes for every beat up to this one."""
+    seg = last_scene_clock(con, run_id, int(turn) + 1)
+    if seg is None:
+        return None
+    return seg["at"] + (int(turn) - seg["turn"] + 1) * seg["beat_minutes"]
+
+
+def story_now(con, run_id):
+    """How far the story has reached -> minutes, or None for a run with no scene reading (gate story-clock): the
+    end of the last committed beat, or the latest reading's opening when a scene has opened since."""
+    last = con.execute("SELECT MAX(turn) FROM turns WHERE run_id = ?", (run_id,)).fetchone()[0]
+    reading = last_scene_clock(con, run_id)
+    points = [p for p in ((beat_end(con, run_id, last) if last is not None else None),
+                          (reading["at"] if reading else None)) if p is not None]
+    return max(points) if points else None
 
 
 def opening(con, run_id):
