@@ -316,7 +316,7 @@ class Ledger:
         """Minutes since the previous scene ended, or None for the first scene."""
         return _clock.gap_before(self.con, run_id, at_minutes, before_turn)
 
-    def timeline_for(self, run_id, char_id):
+    def timeline_for(self, run_id, char_id, before=None):
         """Declarations and edge movements INTERLEAVED in turn order — the input to bond_rest.rehydrate.
 
         Order is the whole point. Drift is multiplicative toward a resting prior; a delta is
@@ -324,13 +324,13 @@ class Ledger:
         arrives at a different number than the run actually held. Returning them merged by turn is
         what makes the rebuild equal the live value rather than merely resemble it.
 
-        -> [("rest", target, axis, rest) | ("hold", entity, hold, sign) | ("time", elapsed) |
-            ("edge", target, axis, delta, order)], ascending by turn; within a turn rest, then hold,
-        then time, then edge.
+        -> [("rest", target, axis, rest) | ("hold", entity, hold, sign) | ("time", days, minutes) |
+            ("edge", target, axis, delta, order)], ascending by turn; within a turn rest, hold, the opening's time,
+        the beat's own, then its rows. `before` (turn, slot) bounds it: a resume reads up to (start, 2).
         """
         # ONE reader, beside the fold that consumes it (`bond_rest.timeline_rows`, which also converts the
         # declaration's MINUTES to the DAYS `drift` reads - gate erosion-derived-at-replay, 2026-09-22).
-        return [item for _t, _k, item in _bond_rest.timeline_rows(self.con, run_id, char_id)]
+        return [item for _t, _k, item in _bond_rest.timeline_rows(self.con, run_id, char_id, before=before)]
 
     def raised_by(self, run_id, actor):
         """{path: about} — whom this character's mood on each path came from: the `about` of the LAST

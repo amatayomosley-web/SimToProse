@@ -48,28 +48,29 @@ def rows_for(con, run_id, perceiver):
 
 def timeline_rows(con, run_id, perceiver, before=None, seeded_at=None):
     """The whole bond timeline WITH its turns -> [(turn, slot, item)], ascending; within a turn the rest (0)
-    and hold (1) rows laid down before the opening, then the time declaration (2), then the beat's own rows - a
-    cliff's rest, a keeper's hold - and its edge movements (3). `Ledger.timeline_for` strips the turns for `rehydrate`; the attitude
-    fold (`passage.fold_toward`) keeps them, because it needs the bonds AS OF each scene opening.
+    and hold (1) rows laid down before the opening, then the opening's time (2), then the beat's own time (3),
+    then the beat's own rows - a cliff's rest, a keeper's hold - and its edge movements (4). `Ledger.timeline_for`
+    strips the turns for `rehydrate`; the attitude fold (`passage.fold_toward`) keeps them, because it needs the
+    bonds AS OF each stretch of time.
 
-    THE TIME ITEM IS IN DAYS (gate erosion-derived-at-replay, 2026-09-22). `time_declarations` stores
-    MINUTES (passage.open_scene declares the gap it derived in minutes), and `drift` reads DAYS - the
-    live opening hands it `elapsed / MINUTES_PER_DAY`. This reader handed the replay the raw minutes,
-    so a resumed run drifted every edge 1,440 times too hard: a one-day gap between scenes replayed as
-    about four years, enough to walk a friendship back to a stranger's rest. The live run's only gap
-    was a few minutes, which is why no recorded number moved.
+    EVERY MINUTE OF STORY TIME (gate slow-tiers-run, 2026-09-24; docs/design.md, "State runs whether or not the
+    page is looking"). The time items are `clock.time_items`: each opening's gap plus what the last scene left
+    unspent, and each committed beat's own minutes - for every perceiver, in the scene or not. Until this gate the
+    only item was the declared gap between scenes, so an edge drifted nothing inside a scene that lasted a day.
+
+    THE TIME ITEM IS IN DAYS (gate erosion-derived-at-replay, 2026-09-22): ("time", days, minutes). `drift` reads
+    DAYS; the minutes ride beside them so the attitude fold erodes by the very float the live step used.
 
     BOUNDS, for a replay that needs the bonds as they stood (gate mood-from-readings, 2026-09-22):
-    `before` = (turn, slot) keeps the rows strictly before it - (t, 3) is the bonds a beat at t read,
-    its opening's drift in, its own edge movements out; `seeded_at` is `declared_rows`'. Both None is
-    the whole timeline, exactly as before.
+    `before` = (turn, slot) keeps the rows strictly before it - (t, 4) is the bonds a beat at t read, its
+    opening's and its own minutes in, its own edge movements out; `seeded_at` is `declared_rows'`. Both None is
+    the whole timeline.
     """
     rows = declared_rows(con, run_id, perceiver, seeded_at=seeded_at)
-    rows += [(int(t), 2, ("time", float(e) / _clock.MINUTES_PER_DAY))
-             for t, e in con.execute("SELECT turn, elapsed FROM time_declarations WHERE run_id = ?", (run_id,))]
+    rows += [(t, s, ("time", m / _clock.MINUTES_PER_DAY, m)) for t, s, m in _clock.time_items(con, run_id)]
     # BOTH ORDERS. Filtering to 'first' would silently drop the second-order tier (what the perceiver
     # believes the OTHER holds), which schema v8 exists to hold.
-    rows += [(int(t), 3, ("edge", tgt, axis, float(d), o)) for t, tgt, axis, d, o in con.execute(
+    rows += [(int(t), 4, ("edge", tgt, axis, float(d), o)) for t, tgt, axis, d, o in con.execute(
         "SELECT turn, target, axis, delta, ord FROM relationship_deltas WHERE run_id = ? AND perceiver = ?",
         (run_id, perceiver))]
     if before is not None:
@@ -78,9 +79,9 @@ def timeline_rows(con, run_id, perceiver, before=None, seeded_at=None):
 
 
 def declared_rows(con, run_id, perceiver, seeded_at=None):
-    """The DECLARATIONS half of the timeline: rest rows at slot 0, hold rows at slot 1 ->
+    """The DECLARATIONS half of the timeline: rest rows at slot 0, hold rows at slot 1 (a beat's own at 4) ->
     [(turn, slot, item)]. Lives beside the fold that reads them; ledger.timeline_for adds the turn's
-    time (slot 2) and edge (slot 3) items and sorts. Moved here 2026-09-18 (gate 5) because ledger.py
+    time (slots 2 and 3) and edge (slot 4) items and sorts. Moved here 2026-09-18 (gate 5) because ledger.py
     sits at the 300-code-line bound and the rows are this module's to read.
 
     `seeded_at` (a turn): keep that turn's rows only when written BEFORE its opening - a resume's
@@ -96,14 +97,23 @@ def declared_rows(con, run_id, perceiver, seeded_at=None):
 
 # WRITTEN BEFORE THE OPENING, OR BY A BEAT (gate cliff-after-drift, 2026-09-23). An `authored` or `director` row
 # is laid down before its turn's opening and takes effect before the opening's drift (slot 0 rest, 1 hold). A row
-# a BEAT wrote - a `cliff`, a keeper's hold - came after the drift its turn opened with, so it sits with the
-# beat's own movements (slot 3). Every row used to take 0/1, so a cliff on a scene's first beat replayed BEFORE
-# that scene's drift, and a resumed edge drifted toward a lowered rest the live run had not yet set.
+# a BEAT wrote - a `cliff`, a keeper's hold - came after the drift its turn opened with and after the beat's own
+# minutes (gate slow-tiers-run), so it sits with the beat's own movements (slot 4). Every row used to take 0/1, so
+# a cliff on a scene's first beat replayed BEFORE that scene's drift, and a resumed edge drifted toward a lowered
+# rest the live run had not yet set.
 _BEFORE_THE_OPENING = ("authored", "director")
+_BEAT = 4
 
 
 def _slot(declared_slot, source):
-    return declared_slot if source in _BEFORE_THE_OPENING else 3
+    return declared_slot if source in _BEFORE_THE_OPENING else _BEAT
+
+
+def rows_before(con, run_id, perceiver, turn):
+    """`rows_for` as a beat at `turn` reads them -> the same shape: every earlier turn's rows, and this turn's
+    only when laid down before its opening (gate slow-tiers-run: the replay ages a beat against the rests the live
+    beat saw, not the cliff it went on to make)."""
+    return [r for r in rows_for(con, run_id, perceiver) if r[0] < int(turn) or (r[0] == int(turn) and r[4] in _BEFORE_THE_OPENING)]
 
 
 def seed(con, run_id, turn, perceiver, relationships):
@@ -207,8 +217,10 @@ def cliff_rows(perceiver, target, edge_after, cliffs, current_rest, source="clif
 def drift(edge, rest, elapsed=1.0):
     """Unreinforced edges settle back toward their REST (relationships.md:30; bond-arithmetic.md s6).
 
-    `elapsed` is in DAYS and NOT beats: a single conversation must not erode a friendship, which is
-    why this is not wired into the beat loop. `rest` is the edge's own {axis: value} from `resolve`
+    `elapsed` is in DAYS. It is wired into the beat loop since gate slow-tiers-run (2026-09-24): a beat has
+    minutes now, and a half-hour conversation drifts an edge by the half-hour it lasted - a fifth of a percent of
+    the way home on affinity, the fastest axis - which is what "a single conversation must not erode a friendship"
+    was guarding when a beat had no duration at all. `rest` is the edge's own {axis: value} from `resolve`
     — never `_NEUTRAL` handed in as a shortcut: drift to neutral turns a devoted friend into a
     stranger over a winter, and that is the defect this module's docstring records.
     """
@@ -229,21 +241,24 @@ def drift(edge, rest, elapsed=1.0):
     return out
 
 
-def rehydrate(relationships, priors, timeline, attachments=None):
+def rehydrate(relationships, priors, timeline, attachments=None, rests=None):
     """Rebuild edges from the sheet by walking rests, declarations and movements IN THE ORDER THEY
     HAPPENED (Ledger.timeline_for). Returns the same dict, folded in place.
 
     ORDER IS LOAD-BEARING: drift is multiplicative toward a rest, a delta is additive, and they do
     not commute — `drift(0.80) then +0.10 != 0.80 + 0.10 then drift`. A fold that applied every
     declaration and then every movement would produce a number the run never held. Within a turn a
-    rest takes effect first, then the hold, then the declaration, then the movements (the ledger's
-    0/1/2/3 tiebreak: rest, hold, time, edge) - and a rest or hold a BEAT wrote comes with its movements,
-    after the declaration (`_slot`, gate cliff-after-drift).
+    rest takes effect first, then the hold, then the opening's time, then the beat's own time, then the
+    movements (the ledger's 0/1/2/3/4 tiebreak) - and a rest or hold a BEAT wrote comes with its movements
+    (`_slot`, gate cliff-after-drift).
 
       ("rest", target, axis, value)  remembered: the edge's rest from here on
       ("hold", entity, hold, sign)   gate 5: folded onto `attachments` (the sheet block) in place
-      ("time", elapsed)              every edge drifts toward its resolved rest
+      ("time", days[, minutes])      every edge drifts toward its resolved rest
       ("edge", target, axis, d, ord) added to the edge ("first") or to `their_view` ("second")
+
+    `rests` ({target: {axis: rest}}, gate slow-tiers-run) carries the resolved rests across calls, so a walk that
+    stops at every stretch of time (`passage.fold_toward`) folds one item at a time and lands where one pass does.
 
     An unknown item kind is REFUSED: the old walk skipped one silently, and a silently skipped rest
     row would be this gate's dormancy.
@@ -252,7 +267,7 @@ def rehydrate(relationships, priors, timeline, attachments=None):
         raise RecordError("BONDS_RELATIONSHIPS_NOT_A_DICT", "rehydrate: relationships must be a dict, got %r"
                          % type(relationships).__name__)
     priors = priors or {}
-    rests = {}                                       # target -> {axis: rest}, the latest per axis
+    rests = {} if rests is None else rests           # target -> {axis: rest}, the latest per axis
     for item in (timeline or ()):
         kind = item[0]
         if kind == "rest":

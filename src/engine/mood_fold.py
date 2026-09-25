@@ -17,7 +17,8 @@ WHAT IT REPLAYS: a scene-driven run, scene by scene from the `scenes` rows, as s
            keeps a reference to the sheet's edges), so each beat reads the bonds as they stood.
   opening  `passage.apply_opening`, the very code `open_scene` runs, over the gap the clock logged and
            each cast member's own time out of the room (`clock.presence_end`, gate absent-age).
-  beat     decay first over the beat's minutes, then the receipt from the logged readings (or, with no
+  beat     the beat's minutes age every cast member's slow tiers (`passage.age`, gate slow-tiers-run), then
+           decay first over the beat's minutes, then the receipt from the logged readings (or, with no
            readings, `appraise` on the logged tags); every other present character decays when the
            manifest records it (step 4, since gate non-speaker-decay); the binds follow rules 1-5.
 Each step calls the engine function the driver called; nothing is re-implemented here.
@@ -173,8 +174,12 @@ def _beat(con, run_id, t, cast, per_beat, mood, chs, prof, temp, binds, out, not
     room = set(step4.get("here") or ()) or (set(cast) | ({str(target)} if _concepts.looks_like_concept(target) else set()))
     before = dict(binds[spk])
     mid = _targets.bind_readings(before, rs, me=spk) if rs else _targets.retarget(before, applied, me=spk)
+    # THE BEAT'S MINUTES FOR EVERY SLOW TIER OF THE CAST (gate slow-tiers-run), where the drivers age them: before
+    # the decay, against the rests the live beat read
+    passage.age({c: chs[c] for c in cast}, clock.beat_minutes(con, run_id, t),
+                lambda c: bond_rest.rows_before(con, run_id, c, t))
     for c in cast:                                                   # the profile reads the edges live
-        prof[c]["relationships"] = _bonds(con, run_id, c, chs[c], (t, 3))[0]
+        prof[c]["relationships"] = _bonds(con, run_id, c, chs[c], (t, 4))[0]
     rested = decay(mood[spk], temp[spk], prof[spk], elapsed=per_beat, targets=before, present=room)
     for b in (step4.get("bystanders") or ()):                        # step 4, where the beat recorded it
         mood[b] = decay(mood[b], temp[b], prof[b], elapsed=per_beat, targets=dict(binds[b]), present=room)

@@ -48,6 +48,7 @@ that lulled never spent - and a scene or a chapter is only where the clock is re
   * `elapsed` must be > 0. Nothing passing is not a declaration; it is the absence of one, and
     accepting it would let a caller quietly reset an erosion clock while looking like bookkeeping.
 """
+import bisect as _bisect
 import json as _json
 
 from .errors import EngineError
@@ -256,13 +257,66 @@ def at_turn(con, run_id, turn):
     return seg["at"] + (int(turn) - seg["turn"]) * seg["beat_minutes"]
 
 
+def _span_beats(seg):
+    """How many beats a reading's declared span holds -> int, or None when it declares no `lasts` (or no minutes)."""
+    if seg["lasts"] is None or not seg["beat_minutes"]:
+        return None
+    return int(round(seg["lasts"] / seg["beat_minutes"]))
+
+
+def beat_minutes(con, run_id, turn):
+    """The story minutes a beat itself took -> float (gate slow-tiers-run): its reading's per-beat share while the
+    reading's declared span holds it, and nothing past that or with no reading. A scene's beats never outrun their
+    budget; a chair session opens with a budget of one, so a second turn under the same `--at` adds no time."""
+    seg = last_scene_clock(con, run_id, int(turn) + 1)
+    if seg is None or not seg["beat_minutes"]:
+        return 0.0
+    held = _span_beats(seg)
+    return 0.0 if held is not None and int(turn) - seg["turn"] >= held else seg["beat_minutes"]
+
+
 def beat_end(con, run_id, turn):
     """The story minute a beat ENDED at -> float, or None when no scene reading covers it (gate story-clock):
-    `at_turn`'s arithmetic, one beat on - the reading it ran under plus its minutes for every beat up to this one."""
+    `at_turn`'s arithmetic, one beat on - the reading it ran under plus its minutes for every beat up to this one,
+    never past the span the reading declared (gate slow-tiers-run)."""
     seg = last_scene_clock(con, run_id, int(turn) + 1)
     if seg is None:
         return None
-    return seg["at"] + (int(turn) - seg["turn"] + 1) * seg["beat_minutes"]
+    beats, held = int(turn) - seg["turn"] + 1, _span_beats(seg)
+    return seg["at"] + (min(beats, held) if held is not None else beats) * seg["beat_minutes"]
+
+
+def time_items(con, run_id, before_turn=None):
+    """Every stretch of story time the log holds -> [(turn, slot, minutes)], ascending (gate slow-tiers-run). At each
+    scene reading after the run's first, its OPENING (slot 2): the gap since the last reading ended plus what that
+    scene declared and did not spend - exactly the `elapsed + owed` its opening applied (`gap_before`'s and
+    `unspent_before`'s arithmetic); at every committed beat, the beat's own minutes (slot 3, `beat_minutes`). A gap
+    declared at a turn with no reading (a log from before schema v25) is that turn's opening. `before_turn` keeps
+    earlier turns only. The slow tiers age by exactly these, live and in every fold."""
+    bound = "" if before_turn is None else " AND turn < %d" % int(before_turn)
+    reads = [{"turn": int(r[0]), "at": float(r[1]), "lasts": None if r[2] is None else float(r[2]),
+              "beat_minutes": float(r[3] or 0.0)} for r in con.execute(
+        "SELECT turn, at_minutes, lasts_minutes, beat_minutes FROM scene_clock WHERE run_id = ?" + bound
+        + " ORDER BY turn", (run_id,))]
+    out = []
+    for prev, seg in zip(reads, reads[1:]):
+        gap = seg["at"] - (prev["at"] + (prev["lasts"] or 0.0))
+        owed = (max(0.0, prev["lasts"] - max(0, seg["turn"] - prev["turn"]) * prev["beat_minutes"])
+                if prev["lasts"] is not None else 0.0)
+        if gap + owed > 0:
+            out.append((seg["turn"], 2, gap + owed))
+    opened = {r["turn"] for r in reads}
+    out += [(int(t), 2, float(e)) for t, e in con.execute(
+        "SELECT turn, elapsed FROM time_declarations WHERE run_id = ?" + bound, (run_id,)) if int(t) not in opened]
+    starts = [r["turn"] for r in reads]
+    for (t,) in con.execute("SELECT DISTINCT turn FROM turns WHERE run_id = ?" + bound, (run_id,)):
+        k = _bisect.bisect_right(starts, int(t)) - 1
+        if k < 0 or not reads[k]["beat_minutes"]:
+            continue
+        held = _span_beats(reads[k])
+        if held is None or int(t) - reads[k]["turn"] < held:
+            out.append((int(t), 3, reads[k]["beat_minutes"]))
+    return sorted(out)
 
 
 def story_now(con, run_id):

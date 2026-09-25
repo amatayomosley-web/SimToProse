@@ -382,6 +382,11 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
     _law_acts = sorted({str(l.get("act")) for l in (world.get("laws") or []) if l.get("act")})
 
     gi = subject_groups(world)
+    # WHAT THE SHEETS AUTHORED, before anything below moves them (idempotent: `main` stamped them at load). The folds
+    # rebuild from it after every beat, and since gate slow-tiers-run every beat with minutes is a stretch of time they
+    # fold across, so a caller that hands this loop an unstamped sheet would be refused mid-scene.
+    for c in cfg["cast"]:
+        _passage.stamp_authored(chars[c["id"]])
     # THE DIRECTOR DECLARES A HOLD (bond-arithmetic.md s3, gate 5): a typed row with a RELATION WORD,
     # priced by the engine's table — never a float — written at the scene's first turn on its own
     # transaction (like seed and declare_time) and applied to the sheet BEFORE the profiles are built.
@@ -450,13 +455,13 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
     present = list(ids)
 
     # DRIFT (relationships.md: "without reinforcement, relationships slowly decay toward a resting
-    # state ... affinity fades faster than trust"). Applied at scene START, once, because a gap in
-    # the story is between scenes — a beat has no duration, and drifting per beat would cool a
-    # friendship over the course of one conversation. The unit of `elapsed` is the DIRECTOR'S: this
-    # engine holds no world clock, so nothing here converts days into anything.
+    # state ... affinity fades faster than trust"). It was applied here at scene START only, "because a
+    # beat has no duration"; beats carry minutes since 2026-09-10, and since gate slow-tiers-run
+    # (2026-09-24) the opening ages the four older tiers by the gap PLUS the last scene's unspent
+    # minutes, and every beat below ages them again by its own minutes, for the whole cast.
     # ONE CLOCK, IN MINUTES (clock.py, 2026-09-10). Log this scene's reading, derive the gap since
-    # the previous scene ENDED, and hand the gap to the four older tiers exactly as before —
-    # plus emotion, the fifth. A scene that lulled early last time owes its unspent `lasts` here.
+    # the previous scene ENDED, and hand it to the four older tiers — plus emotion, the fifth. A
+    # scene that lulled early last time owes its unspent `lasts` here.
     if "at_minutes" not in cfg:                       # a dict cfg that bypassed load_scene_cfg
         if "at" not in cfg:
             raise SystemExit("scene %r needs `at`: {day: N, time: HH:MM} — when it opens (clock.py)"
@@ -756,6 +761,11 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
         # THE CHANGE, NOT THE MAP — see the twin comment in scripts/direct.py. A dropped bind rides
         # as a release row or un-binding is not replayable.
         target_binds = _targets.binds_from(_before_targets, a["targets"])
+        # THE BEAT'S MINUTES PASS FOR EVERY SLOW TIER OF THE WHOLE CAST, in the room or out of it (gate slow-tiers-run;
+        # docs/design.md, "State runs whether or not the page is looking"): edges drift, scars and resting means ease,
+        # attitudes fade - before the beat's own movements, where the folds put the beat's time, so the bond law, the
+        # wound trial and the attitude read the aged state. The actor already read the state the beat began in.
+        _passage.age({i: actors[i]["char"] for i in actors}, per_beat, lambda i: bond_rest.rows_for(led.con, run_id, i))
         # DECAY FIRST, THEN THE RECEIPT — the spec's beat order (docs/emotion-arithmetic.md
         # section 8; the twin comment in scripts/direct.py has the measurement). The beat's
         # minutes pass, then the reading lands on what is left.
@@ -1393,9 +1403,12 @@ def main():
             if _cd:
                 print("  [!] scene %d (%s): %s" % (_s["scene_no"], _cfg_name, _cdet))
                 print("      that scene's turns were computed from the pinned cfg, not this one.")
+        # THE LOG BEFORE THIS SCENE'S OPENING, and no further (gate slow-tiers-run): the opening's own stretch is applied
+        # by `open_scene` below, so a reading an aborted launch left at this turn must not age anyone here too.
+        _open = state["turn"] + 1
         for cid in cast_ids:                                       # rehydrate each cast member the prior scene evolved
             ch = chars[cid]
-            ch = _passage.fold_arc(led.con, run_id, cid, ch)            # diffs AND each opening's fade, in order
+            ch = _passage.fold_arc(led.con, run_id, cid, ch, before_turn=_open)   # diffs AND each stretch's fade
             acq = led.acquisitions_for(run_id, cid)
             if acq:
                 ch["current"].setdefault("vault", []).extend(acq)
@@ -1415,7 +1428,7 @@ def main():
             # happened, because drift and deltas do not commute.
             bond_rest.rehydrate(ch["current"].setdefault("relationships", {}),
                                 ch["baseline"].get("relationship_priors", {}),
-                                led.timeline_for(run_id, cid),
+                                led.timeline_for(run_id, cid, before=(_open, 2)),
                                 attachments=ch["current"].setdefault("attachments", {}))
             if _moves:                       # OPERATOR output, not the prompt — rule 5 is the prompt
                 print("   %s: refolded %d edge movement(s) toward %s"
@@ -1434,12 +1447,12 @@ def main():
                 print("   %s: refolded %d aboutness bind(s) on %s"
                       % (cid, len(_tbinds), ", ".join(sorted(ch["current"].get("targets") or {})) or "nothing"))
             _tmoves = led.toward_deltas_for(run_id, cid)
-            _passage.fold_toward(led.con, run_id, cid, ch)
+            _passage.fold_toward(led.con, run_id, cid, ch, before_turn=_open)
             if _tmoves:
                 print("   %s: refolded %d micro movement(s) toward %d person(s)"
                       % (cid, len(_tmoves), len({m[0] for m in _tmoves})))
             _wmoves = led.wound_deltas_for(run_id, cid)
-            _passage.fold_wounds(led.con, run_id, cid, ch)   # mints, deltas and the fade, in log order
+            _passage.fold_wounds(led.con, run_id, cid, ch, before_turn=_open)   # mints, deltas and the fade, in log order
             if _wmoves:                      # OPERATOR output, not the prompt — rule 5 is the prompt
                 print("   %s: refolded %d wound movement(s) on %s"
                       % (cid, len(_wmoves), ", ".join(sorted({m[0] for m in _wmoves}))))

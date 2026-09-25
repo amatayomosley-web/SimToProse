@@ -727,6 +727,10 @@ def run_turn(led, run_id, char, world, groups_index, profile, temperament, affec
     # concept is "here" when this beat names it. Decay ran on the binds before this beat; the
     # receipt uses the binds it made; repetition counts prior beats from the log.
     _here = {str(applied.get("target"))} if _concepts.looks_like_concept(applied.get("target")) else set()
+    # THE TURN'S MINUTES PASS FOR EVERY SLOW TIER (gate slow-tiers-run; docs/design.md, "State runs whether or not the
+    # page is looking"): the story clock's minutes for this turn, as the folds count them - its reading's per-beat
+    # share, none past the session's declared span (`clock.beat_minutes`) - before the turn's own movements.
+    passage.age({actor: char}, _clock.beat_minutes(led.con, run_id, turn_no), lambda i: bond_rest.rows_for(led.con, run_id, i))
     rested = decay(affect, temperament, profile, elapsed=minutes, targets=_before_targets, present=_here)
     _abouts = {str(t) for t in targets.values() if t}
     _repeats = {ab: _targets.repeat_count(led.con, run_id, actor, ab, before_turn=turn_no) for ab in _abouts}
@@ -1165,7 +1169,9 @@ def main():
         _ladders = rungs.ladders_drifted(led.run_config(run_id))      # LADDER DRIFT (gate ladder-pin), same rule
         if _ladders:
             print("  [!] %s" % _ladders)
-        char = passage.fold_arc(led.con, run_id, char_id, char)   # the arc AND each opening's fade, in order
+        # THE LOG BEFORE THIS SESSION'S OPENING (gate slow-tiers-run): `open_scene` applies its own stretch below.
+        _open = state["turn"] + 1
+        char = passage.fold_arc(led.con, run_id, char_id, char, before_turn=_open)   # the arc AND each stretch's fade
         acquired = led.acquisitions_for(run_id, char_id)       # rehydrate the grown vault (lived memory)
         if acquired:
             char["current"].setdefault("vault", []).extend(acquired)
@@ -1182,7 +1188,7 @@ def main():
         # may have played scenes that did, and losing those was the defect.
         bond_rest.rehydrate(char["current"].setdefault("relationships", {}),
                             char["baseline"].get("relationship_priors", {}),
-                            led.timeline_for(run_id, char_id),
+                            led.timeline_for(run_id, char_id, before=(_open, 2)),
                             attachments=char["current"].setdefault("attachments", {}))
         if _moves:                           # OPERATOR output, not the prompt — rule 5 is the prompt
             print("refolded %d edge movement(s) toward %s"
@@ -1201,12 +1207,12 @@ def main():
             print("refolded %d aboutness bind(s) on %s"
                   % (len(_tbinds), ", ".join(sorted(char["current"].get("targets") or {})) or "nothing"))
         _tmoves = led.toward_deltas_for(run_id, char_id)
-        passage.fold_toward(led.con, run_id, char_id, char)
+        passage.fold_toward(led.con, run_id, char_id, char, before_turn=_open)
         if _tmoves:
             print("refolded %d micro movement(s) toward %d person(s)"
                   % (len(_tmoves), len({m[0] for m in _tmoves})))
         _wmoves = led.wound_deltas_for(run_id, char_id)
-        passage.fold_wounds(led.con, run_id, char_id, char)   # mints, deltas and the fade, in log order
+        passage.fold_wounds(led.con, run_id, char_id, char, before_turn=_open)   # mints, deltas and the fade, in log order
         if _wmoves:
             print("refolded %d wound movement(s) on %s"
                   % (len(_wmoves), ", ".join(sorted({m[0] for m in _wmoves}))))

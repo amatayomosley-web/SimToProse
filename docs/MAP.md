@@ -1,7 +1,7 @@
 # MAP — what is in this project and what owns what
 
 **Why this file exists.** `docs/` holds 126 design docs, `src/engine/` 64 modules,
-`tests/` 111 suites. Nobody — human or agent — can hold that in their head, and reading it all every
+`tests/` 112 suites. Nobody — human or agent — can hold that in their head, and reading it all every
 session is not practical. **The failure this prevents is real and happened:** a session spent hours
 reasoning about the decision layer from four docs and inference, invented a parallel vocabulary
 ("vectors"), and rebuilt a worse version of the buff/debuff registry that `decision-engine.md`
@@ -313,7 +313,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `narrate` | 232 | the narrator (design.md layer 7, narration.md): a canonized scene -> POV-bound prose. |
 | `scene` | 393 | the multi-agent scene runner (the director sets the scene; the agents push it). |
 
-## tests/ — 111 suites (each is a PROOF of the gate it names)
+## tests/ — 112 suites (each is a PROOF of the gate it names)
 
 | tests | lines | owns |
 |---|---|---|
@@ -418,6 +418,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `test_self_contained` | the engine STANDS ALONE. |
 | `test_severity` | the event-strength vocabulary resolves onto the EXISTING 0..1 scale. |
 | `test_state` |  |
+| `test_story_time` | bonds, scars, attitudes and resting means run on story time (gate slow-tiers-run). |
 | `test_subject` |  |
 | `test_systems` | which engine systems a book runs (src/engine/systems.py, gate systems-registry). |
 | `test_tells` | the signs a sharp eye catches, and a listener who misses them never reads (gate tells). |

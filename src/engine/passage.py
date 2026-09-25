@@ -183,9 +183,30 @@ def apply_opening(chars, elapsed, owed, rest_rows, flow=False, body=False, at=No
                 aged = decay(dict(ch["current"]["affect"]), ch["baseline"]["temperament"], build_profile(ch),
                              elapsed=minutes)
                 ch["current"]["affect"] = dict(aged)
-    if not elapsed:
+    if elapsed is None:
         return []
-    elapsed_days = elapsed / float(clock.MINUTES_PER_DAY)
+    # THE OPENING'S STRETCH FOR THE SLOW TIERS is the gap AND what the last scene left unspent (gate slow-tiers-run):
+    # `clock.time_items`' opening item, to the float. Until then they took the gap alone.
+    return age(chars, elapsed + owed, rest_rows)
+
+
+def age(chars, minutes, rest_rows):
+    """Story time passing for the slow tiers of every character given -> the ids it aged, sorted (gate
+    slow-tiers-run; docs/design.md, "State runs whether or not the page is looking").
+
+    THE ONE STEP every stretch of story time takes, live and in the folds: at an opening (`apply_opening`: the gap
+    plus the last scene's unspent minutes), at every beat for the whole cast, on the page or off (both drivers and
+    `mood_fold._beat`, before the beat's own movements), and item by item in `fold_toward` / `fold_wounds` /
+    `fold_arc` and `bond_rest.rehydrate` over `clock.time_items`. Each edge drifts toward its own rest, each untouched
+    scar eases toward its floor, the resting means return toward what was authored, and the attitudes fade toward
+    zero on the bonds as they have just drifted - the order the folds keep. Until this gate only the gap between
+    scenes did any of it. `rest_rows(id)` -> that character's rest rows as this moment reads them; `minutes` of 0
+    or less ages nothing: []."""
+    if not minutes or float(minutes) <= 0.0:
+        return []
+    minutes = float(minutes)
+    days = minutes / float(clock.MINUTES_PER_DAY)
+    ids = list(chars)
     for i in ids:
         ch = chars[i]
         priors = ch["baseline"].get("relationship_priors", {})
@@ -195,24 +216,24 @@ def apply_opening(chars, elapsed, owed, rest_rows, flow=False, body=False, at=No
         _rows = rest_rows(i)
         for tgt, edge in rels.items():
             if isinstance(edge, dict):
-                rels[tgt] = dict(edge, **bond_rest.drift(edge, bond_rest.resolve(_rows, priors, tgt), elapsed_days))
-        # the SAME declared unit erodes an untouched wound — one clock, two tiers
+                rels[tgt] = dict(edge, **bond_rest.drift(edge, bond_rest.resolve(_rows, priors, tgt), days))
+        # the SAME stretch erodes an untouched wound — one clock, two tiers
         # (docs/character-model.md "DECAY AND CONNECTION": two clocks and no third).
         for _w in (ch["baseline"].get("wounds") or []):          # engine wounds (gate three)
             if isinstance(_w, dict) and "intensity" in _w:
-                _e = wound.erode(_w, elapsed_days)
+                _e = wound.erode(_w, days)
                 if _e:
                     _w.setdefault("_authored_intensity", float(_w["intensity"]))
                     _w["intensity"] = max(0.0, min(1.0, float(_w["intensity"]) + _e))
-        # THE SAME DECLARATION, three tiers. Edges drift toward their priors, wounds erode
+        # THE SAME STRETCH, three tiers. Edges drift toward their priors, wounds erode
         # toward their floor, temperament returns toward what the author wrote, and feelings
         # toward a person fade toward ZERO — slower for people this character is invested in,
         # because connection does its second job here (docs/character-model.md). The last of
-        # those reads the declaration in MINUTES (the staircase's clock), the first three in days.
-        arc.erode(ch, elapsed_days)
+        # those reads the stretch in MINUTES (the staircase's clock), the first three in days.
+        arc.erode(ch, days)
         _conns = {who: connection.for_target(rels, who)
                   for who in ((ch["current"].get("toward") or {}))}
-        toward.erode(ch, elapsed, _conns)
+        toward.erode(ch, minutes, _conns)
     return sorted(ids)
 
 
@@ -264,11 +285,13 @@ def bystanders(room, speaker, minutes, here):
 # its turn with the scene's first beat.
 #
 # ORDER. A fade multiplies whatever value it finds; a delta adds. They do not commute. Between two
-# openings the deltas stay ORDER-FREE - summed, then clamped once, exactly as `toward.replay` and
-# `levers.replay_wound_deltas` have always done - and each opening's fade applies at its place in the
-# log: after every delta of the turns before it, before the deltas of its own turn (the opening
-# precedes the scene's first beat, which shares its turn number). With no declaration in the log each
-# fold equals the old restorer exactly; tests/test_passage.py pins that.
+# stretches of story time the deltas stay ORDER-FREE - summed, then clamped once, exactly as
+# `toward.replay` and `levers.replay_wound_deltas` have always done - and each stretch's fade applies at
+# its place in the log: after every delta of the turns before it, before the deltas of its own turn. Since
+# gate slow-tiers-run (2026-09-24) the stretches are `clock.time_items`: each opening (the gap plus what the
+# last scene left unspent) and each committed beat's own minutes, the opening's first - so a scene that
+# lasts a day fades every tier across that day, for everyone, not only across the gaps between scenes.
+# With no stretch in the log each fold equals the old restorer exactly; tests/test_passage.py pins that.
 # ---------------------------------------------------------------------------------------------------
 
 def stamp_authored(char):
@@ -296,37 +319,33 @@ def _bound(before_turn):
     return "" if before_turn is None else " AND turn < %d" % int(before_turn)
 
 
-def _declarations(con, run_id, before_turn=None):
-    """{turn: minutes} - every declared gap of the run (the cause the folds derive the fade from)."""
-    return {int(t): float(e) for t, e in con.execute(
-        "SELECT turn, elapsed FROM time_declarations WHERE run_id = ?" + _bound(before_turn), (run_id,))}
-
-
-def _conns_at(con, run_id, char_id, char, turn):
-    """{who: connection} for the people this character feels toward, from the bonds AS THEY STOOD at the
-    opening of `turn` - the authored edges folded through every earlier bond row and the opening's own
-    rest, hold and time rows, but not its beat's edge rows. That is what the live opening read."""
-    cur = char.get("current") or {}
-    if "_authored_relationships" not in cur:
-        raise RecordError("PASSAGE_FOLD_UNSTAMPED",
-                          "passage: the attitude fold needs the authored bonds - call stamp_authored "
-                          "when the sheet loads, before anything moves it")
-    rels = _copy.deepcopy(cur["_authored_relationships"])
-    atts = _copy.deepcopy(cur.get("_authored_attachments") or {})
-    items = [it for _t, _k, it in bond_rest.timeline_rows(con, run_id, char_id, before=(turn, 3))]
-    bond_rest.rehydrate(rels, (char.get("baseline") or {}).get("relationship_priors", {}), items, attachments=atts)
-    return {who: connection.for_target(rels, who) for who in (cur.get("toward") or {})}
+def _stretches(con, run_id, before_turn=None):
+    """{turn: [minutes, ...]} - every stretch of story time the log holds, a turn's opening before its beat's own
+    (`clock.time_items`, gate slow-tiers-run). Until that gate the only stretch was a declared gap between scenes."""
+    out = {}
+    for t, _slot, m in clock.time_items(con, run_id, before_turn):
+        out.setdefault(int(t), []).append(float(m))
+    return out
 
 
 def fold_toward(con, run_id, char_id, char, before_turn=None):
-    """Rebuild `current.toward` from the authored attitude, the logged deltas and every opening's fade,
-    in log order -> the rebuilt dict. Called on resume and after every committed beat. `before_turn`
-    folds the log as it stood before that turn (the mood replay's resume); None is the whole log."""
+    """Rebuild `current.toward` from the authored attitude, the logged deltas and every stretch of story time's
+    fade, in log order -> the rebuilt dict. Called on resume and after every committed beat. `before_turn`
+    folds the log as it stood before that turn (the mood replay's resume); None is the whole log.
+
+    ONE WALK OF THE BOND TIMELINE (gate slow-tiers-run): the attitude fades on the bonds AS THEY STOOD at each
+    stretch - its own drift already in, the beat's movements not - so the walk folds the bonds one item at a time
+    (`bond_rest.rehydrate`, its rests carried across) and reads the connections at every time item. The fold used
+    to rebuild the bonds from the sheet at each opening; with a stretch at every beat that is a rebuild per beat."""
     cur = char.setdefault("current", {})
     authored = cur.setdefault("_authored_toward", {w: dict(v) for w, v in (cur.get("toward") or {}).items()
                                                    if isinstance(v, dict)})
     cur["toward"] = {w: dict(v) for w, v in authored.items()}
-    decls = _declarations(con, run_id, before_turn)
+    rows = bond_rest.timeline_rows(con, run_id, char_id, before=None if before_turn is None else (int(before_turn), 0))
+    if any(it[0] == "time" for _t, _s, it in rows) and "_authored_relationships" not in cur:
+        raise RecordError("PASSAGE_FOLD_UNSTAMPED",
+                          "passage: the attitude fold needs the authored bonds - call stamp_authored "
+                          "when the sheet loads, before anything moves it")
     by_turn = {}
     for t, tgt, prim, d in con.execute("SELECT turn, target, primary_, delta FROM toward_deltas WHERE run_id = ? "
                                        "AND perceiver = ?" + _bound(before_turn) + " ORDER BY turn, delta_id",
@@ -345,14 +364,26 @@ def fold_toward(con, run_id, char_id, char, before_turn=None):
             cur["toward"][who] = merged
         pending.clear()
 
-    for turn in sorted(set(by_turn) | set(decls)):
-        if turn in decls:
-            flush()
-            toward.erode(char, decls[turn], _conns_at(con, run_id, char_id, char, turn))
+    def pend(turn):
         for who, prim, d in by_turn.get(turn, ()):
             if prim in PATHS:
                 slot = pending.setdefault(who, {})
                 slot[prim] = slot.get(prim, 0.0) + d
+
+    rels = _copy.deepcopy(cur.get("_authored_relationships") or {})
+    atts = _copy.deepcopy(cur.get("_authored_attachments") or {})
+    priors, rests, turns, k = (char.get("baseline") or {}).get("relationship_priors", {}), {}, sorted(by_turn), 0
+    for t, _slot, item in rows:
+        if item[0] == "time":                         # every earlier turn's deltas land before this stretch
+            while k < len(turns) and turns[k] < t:
+                pend(turns[k])
+                k += 1
+            flush()
+        bond_rest.rehydrate(rels, priors, [item], attachments=atts, rests=rests)
+        if item[0] == "time":
+            toward.erode(char, item[2], {who: connection.for_target(rels, who) for who in (cur.get("toward") or {})})
+    for turn in turns[k:]:
+        pend(turn)
     flush()
     return cur["toward"]
 
@@ -380,7 +411,7 @@ def fold_wounds(con, run_id, char_id, char, before_turn=None):
             live.append(w)
     wounds[:] = live
     have = {str(w.get("id", "")) for w in wounds if isinstance(w, dict)}
-    decls = _declarations(con, run_id, before_turn)
+    stretches = _stretches(con, run_id, before_turn)
     mints_at, deltas_at = {}, {}
     for t, m in minted:
         mints_at.setdefault(t, []).append(m)
@@ -397,17 +428,18 @@ def fold_wounds(con, run_id, char_id, char, before_turn=None):
                 w["intensity"] = max(0.0, min(1.0, float(w["intensity"]) + pending[wid]))
         pending.clear()
 
-    for turn in sorted(set(mints_at) | set(deltas_at) | set(decls)):
-        if turn in decls:
+    for turn in sorted(set(mints_at) | set(deltas_at) | set(stretches)):
+        if turn in stretches:
             flush()
-            days = decls[turn] / float(clock.MINUTES_PER_DAY)
-            for w in wounds:                                  # exactly what the live opening does
-                if isinstance(w, dict) and "intensity" in w:
-                    e = wound.erode(w, days)
-                    if e:
-                        w.setdefault("_authored_intensity", float(w["intensity"]))
-                        w["intensity"] = max(0.0, min(1.0, float(w["intensity"]) + e))
-        for m in mints_at.get(turn, ()):                      # a wound minted in a beat joins after its opening
+            for minutes in stretches[turn]:                   # the opening's stretch, then the beat's own
+                days = minutes / float(clock.MINUTES_PER_DAY)
+                for w in wounds:                              # exactly what the live step (`age`) does
+                    if isinstance(w, dict) and "intensity" in w:
+                        e = wound.erode(w, days)
+                        if e:
+                            w.setdefault("_authored_intensity", float(w["intensity"]))
+                            w["intensity"] = max(0.0, min(1.0, float(w["intensity"]) + e))
+        for m in mints_at.get(turn, ()):                      # a wound minted in a beat joins after its time
             if m["id"] not in have:
                 # its minted strength IS its authored one, stamped as it joins - as `wound.fold` did -
                 # so `levers.scale_to_wounds` scales a faded scar against what it was minted at
@@ -420,16 +452,16 @@ def fold_wounds(con, run_id, char_id, char, before_turn=None):
 
 
 def fold_arc(con, run_id, char_id, char, before_turn=None):
-    """Replay the arc - each durable diff and every opening's fade of the resting means - in log order
-    -> the char (a new dict when any diff applies, as `arc.apply` returns one). `before_turn` folds the
+    """Replay the arc - each durable diff and every stretch of story time's fade of the resting means - in log
+    order -> the char (a new dict when any diff applies, as `arc.apply` returns one). `before_turn` folds the
     log as it stood before that turn; None is the whole log."""
-    decls = _declarations(con, run_id, before_turn)
+    stretches = _stretches(con, run_id, before_turn)
     diffs = {int(t): _json.loads(d) for t, d in con.execute(
         "SELECT turn, diff FROM arc_diffs WHERE run_id = ? AND char_id = ?" + _bound(before_turn) + " ORDER BY turn",
         (run_id, char_id))}
-    for turn in sorted(set(diffs) | set(decls)):
-        if turn in decls:
-            arc.erode(char, decls[turn] / float(clock.MINUTES_PER_DAY))
+    for turn in sorted(set(diffs) | set(stretches)):
+        for minutes in stretches.get(turn, ()):
+            arc.erode(char, minutes / float(clock.MINUTES_PER_DAY))
         if turn in diffs:
             char = arc.apply(char, diffs[turn])
     return char

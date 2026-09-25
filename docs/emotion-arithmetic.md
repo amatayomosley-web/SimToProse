@@ -472,8 +472,10 @@ the speaker, or the room a beat's manifest records; a beat logged before 2026-09
 so its scene's whole cast counts) to this opening, plus the minutes of that scene they did not spend
 in it. Someone who sat scenes out or walked out comes back cooled by all of it; someone in the last
 scene to its end gets exactly the gap plus its unspent minutes, as everyone did before; a first
-appearance keeps the sheet's mood. The attitude and the three older tiers keep the declared gap,
-which the replay folds already apply to every character, present or not.
+appearance keeps the sheet's mood. The attitude and the three older tiers run on the same story
+time (gate slow-tiers-run, 2026-09-24): every stretch of it - each opening's gap plus the last
+scene's unspent minutes, and every beat's own minutes - ages them for the whole cast, on the page or
+off, through one step (`passage.age`) that the folds replay item for item (`clock.time_items`).
 
 ---
 

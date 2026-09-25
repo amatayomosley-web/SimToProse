@@ -432,7 +432,7 @@ def test_a_declared_day_replays_as_one_day_of_bond_drift():
     check("the-live-opening-drifted-the-displaced-edge", 0.50 < live < 0.75, live)
     check("the-replayed-edge-equals-the-live-drift", abs(replay["edda_elder"]["trust"] - live) < 1e-12,
           (replay["edda_elder"]["trust"], live))
-    check("the-timeline's-time-item-is-ONE-day", ("time", 1.0) in items, items)
+    check("the-timeline's-time-item-is-ONE-day", ("time", 1.0, 1440.0) in items, items)   # days, and the minutes beside them
     as_minutes = [("time", 1440.0) if it[0] == "time" else it for it in items]
     wrong = copy.deepcopy(maren["current"]["_authored_relationships"])
     bond_rest.rehydrate(wrong, maren["baseline"].get("relationship_priors", {}), as_minutes, attachments={})
