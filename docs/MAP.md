@@ -1,7 +1,7 @@
 # MAP — what is in this project and what owns what
 
-**Why this file exists.** `docs/` holds 126 design docs, `src/engine/` 65 modules,
-`tests/` 115 suites. Nobody — human or agent — can hold that in their head, and reading it all every
+**Why this file exists.** `docs/` holds 126 design docs, `src/engine/` 66 modules,
+`tests/` 116 suites. Nobody — human or agent — can hold that in their head, and reading it all every
 session is not practical. **The failure this prevents is real and happened:** a session spent hours
 reasoning about the decision layer from four docs and inference, invented a parallel vocabulary
 ("vectors"), and rebuilt a worse version of the buff/debuff registry that `decision-engine.md`
@@ -232,7 +232,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `world-model` | the other half of the loop (SEED — to co-design) |
 | `world-state-ledger` | the live now (design the machinery; the line items are runtime) |
 
-## src/engine/ — 65 modules (normative for what IS)
+## src/engine/ — 66 modules (normative for what IS)
 
 | src | lines | owns |
 |---|---|---|
@@ -287,6 +287,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `scene` | Scene Assembly: deterministic 7-step pipeline producing the decision packet. |
 | `scene_cfg` | the scene cfg a scene ran against, pinned so a replay can name its inputs. |
 | `scene_facts` | what has happened in this run, as FACTS, filtered to one actor's point of view. |
+| `scene_slice` | the assembler's request: what a driver hands `scene.assemble` each beat, as a closed record. |
 | `severity` | the event-strength vocabulary: seven engine-owned words on the existing 0..1 scale. |
 | `snapshots` | the folded world, cached. NOT the source of truth, and the file says so. |
 | `state` | State Engine, Gate 2. |
@@ -314,7 +315,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `narrate` | 232 | the narrator (design.md layer 7, narration.md): a canonized scene -> POV-bound prose. |
 | `scene` | 393 | the multi-agent scene runner (the director sets the scene; the agents push it). |
 
-## tests/ — 115 suites (each is a PROOF of the gate it names)
+## tests/ — 116 suites (each is a PROOF of the gate it names)
 
 | tests | lines | owns |
 |---|---|---|
@@ -417,6 +418,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `test_scene_config` |  |
 | `test_scene_facts` | the POV fact ledger: the leak tests first, then shape, render, measurement. |
 | `test_scene_persistence` |  |
+| `test_scene_slice` |  |
 | `test_scenes` |  |
 | `test_self_contained` | the engine STANDS ALONE. |
 | `test_severity` | the event-strength vocabulary resolves onto the EXISTING 0..1 scale. |

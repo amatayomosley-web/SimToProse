@@ -398,13 +398,13 @@ _FAULT_F = {
 # proposed merging them on the ground that scene.assemble is the only caller, so these could never
 # fire — but tests/test_scene.py:291 and :295 call perception_scope and run_gate DIRECTLY to assert
 # exactly these guards. A code's prefix names the module that OWNS the refusal, not one that
-# happens to sit above it.
+# happens to sit above it. By that same rule the SLICE's own refusals left this family on 2026-09-25 (gate
+# slice-contract): the scene slice is checked once, by `scene_slice.of`, the module that now owns it - perception and
+# assembly both pass through that door, and `SCENE_SLICE_*` is its prefix.
 _GATE_F = {
     "GATE_CONDITION_NOT_AN_OBJECT":   "a character's condition (energy/allostatic_load) is not an object, so the perception or recall budget cannot be computed",
-    "GATE_EVENT_MISSING_TEXT":        "the scene slice names no event text, so there is no core percept to anchor the PerceptSet on",
     "GATE_GOALS_NOT_A_LIST":          "a character's active-goals list is not a list, so goal-salience cannot rank the recall budget",
     "GATE_PERCEPTS_NOT_A_LIST":       "the PerceptSet handed in is not a list, so what was actually perceived cannot be read back",
-    "GATE_SCENE_SLICE_NOT_AN_OBJECT": "the scene slice handed to perception is not an object, so nothing in it can be perceived",
     "GATE_SKILLS_NOT_AN_OBJECT":      "a character's skill map is not an object, so no perception/insight check has a value to test against",
     "GATE_TRIGGERS_NOT_A_LIST":       "the trigger list handed to the recall gate is not a list, so nothing in the vault could ever be matched",
     "GATE_VAULT_NOT_A_LIST":          "a character's belief vault is not a list, so the recall gate has nothing to match triggers against",
@@ -429,7 +429,9 @@ _SCENE_F = {
     "SCENE_FACTS_ROWS_NOT_A_LIST":     "the POV fact filter was handed something other than a list of fact rows, so no beat could be attributed to anyone",
     "SCENE_SLICE_EVENT_MISSING":      "a scene slice carries no event dict, so the pipeline has nothing for the character to perceive this turn",
     "SCENE_SLICE_EVENT_TEXT_MISSING": "a scene slice's event carries no text, so there is nothing to extract triggers or percepts from",
-    "SCENE_SLICE_NOT_AN_OBJECT":      "the scene slice handed to assembly is not a dict, so there is no ground truth for the pipeline to perceive from",
+    "SCENE_SLICE_FIELD_TYPE":         "a key the assembler's request declares carries the wrong shape (src/engine/scene_slice.py), so its reader would have taken a default or a wrong value in silence",
+    "SCENE_SLICE_NOT_AN_OBJECT":      "the scene slice handed to assembly or perception is not an object, so there is no ground truth for the pipeline to perceive from",
+    "SCENE_SLICE_UNKNOWN_KEY":        "the scene slice carries a key the assembler's request does not declare (src/engine/scene_slice.py) - read by nothing, a misspelt key vanished in silence before this was refused",
     "SCENE_SUBJECT_INPUTS_INVALID":   "the edges list or the group index handed to subject resolution is not the required shape, so no event subject or subject class can be resolved",
     "SCENE_WORLD_NOT_AN_OBJECT":      "the book's world slice handed to assembly (or here, to subject-group indexing) is not a dict, so no locations, people or lexicon can be read from it",
 }

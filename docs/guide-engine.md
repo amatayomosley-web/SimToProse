@@ -87,6 +87,10 @@ API: `assemble(char, world, scene_slice, affect, condition) -> {stable, volatile
 percepts, recall, edges}, manifest, recall_refs}` · `perception_scope(scene_slice, world, skills,
 condition) -> [Percept]` · `extract_triggers(percepts)` · `run_gate(triggers, vault, skills, goals,
 condition)`. Percept = `{ref, channel, fidelity, attributes, recognized_as?, must_surface}`.
+`scene_slice` is the assembler's request: a `scene_slice.SceneSlice`, or a dict that both entries pass
+through one door (`scene_slice.of`), which refuses an undeclared key or a wrong shape, naming it. The
+engine reads the record's attributes, never the dict, and `tests/test_scene_slice.py` [5] fails on a
+read that goes around the door.
 
 Invariants:
 1. **Never-add is structural** — assembly has no generator; every attribute derives from inputs.

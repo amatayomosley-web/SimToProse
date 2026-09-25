@@ -18,6 +18,7 @@ from .presence import (match as _present_match,   # named is not seen — see pr
                        display_name as _display_name,
                        named_in as _named_in,
                        present_unnamed as _present_unnamed)   # present is seen — see presence.py
+from .scene_slice import of as _slice_of   # the assembler's request, closed and typed (gate slice-contract)
 # ---- Percept type (scene-assembly.md §"The packet") ----
 
 def _make_percept(ref, channel, fidelity, attributes, recognized_as=None, must_surface=False,
@@ -119,7 +120,8 @@ def perception_scope(scene_slice, world, skills, condition, relationships=None, 
 
     Parameters
     ----------
-    scene_slice : dict  {event: {text, kind}, recent: [...], location: str|None}
+    scene_slice : the assembler's request - a `scene_slice.SceneSlice`, or a dict the door makes one of; every key
+                  it may carry is declared there, and an undeclared one is refused (gate slice-contract)
     world       : dict  the book's world slice (locations, people, lexicon;
                         standing_facts is ALSO present but INERT here — read only
                         by the out-of-loop critic, never by perception. A fact
@@ -134,8 +136,7 @@ def perception_scope(scene_slice, world, skills, condition, relationships=None, 
 
     Raises ValueError on malformed input.
     """
-    if not isinstance(scene_slice, dict):
-        raise RecordError("GATE_SCENE_SLICE_NOT_AN_OBJECT", "perception_scope: scene_slice must be a dict")
+    s = _slice_of(scene_slice)                # THE ONE DOOR (gate slice-contract): a closed, typed record, or a refusal
     if not isinstance(world, dict):
         raise RecordError("GATE_WORLD_NOT_AN_OBJECT", "perception_scope: world must be a dict")
     if not isinstance(skills, dict):
@@ -143,17 +144,11 @@ def perception_scope(scene_slice, world, skills, condition, relationships=None, 
     if not isinstance(condition, dict):
         raise RecordError("GATE_CONDITION_NOT_AN_OBJECT", "perception_scope: condition must be a dict")
 
-    event = scene_slice.get("event")
-    if not isinstance(event, dict) or "text" not in event:
-        raise RecordError("GATE_EVENT_MISSING_TEXT", "perception_scope: scene_slice.event must be a dict with 'text'")
-
-    event_text = str(event.get("text", ""))
-    event_kind = str(event.get("kind", "mundane"))
-    location   = scene_slice.get("location")
-    recent     = scene_slice.get("recent", [])
+    event_text = s.event["text"]
+    event_kind = s.event["kind"]
+    location   = s.location
     # WHO IS BODILY HERE (presence.py). None = untracked -> every named entity reads present.
-    present_ids = scene_slice.get("present")
-    present_set = None if present_ids is None else {str(i) for i in present_ids}
+    present_set = None if s.present is None else set(s.present)
 
     perception_skill = float(skills.get("perception", 0.5))
     insight_skill    = float(skills.get("insight", 0.5))
@@ -199,7 +194,7 @@ def perception_scope(scene_slice, world, skills, condition, relationships=None, 
     # them would withdraw the affordances exactly when a character most needs something to do with
     # their hands. A prop that SHOULD be hidden is a subtle cue and belongs in the event text, where
     # PERCEPTION_DC_SUBTLE already applies.
-    for prop in (scene_slice.get("props") or []):
+    for prop in s.props:
         text = str(prop).strip()
         if not text:
             continue
@@ -214,7 +209,7 @@ def perception_scope(scene_slice, world, skills, condition, relationships=None, 
     # -- Percept 2c: TELLS this listener caught (gate tells; the `tells` system) - a sign another actor let slip,
     # marked by the event reader and passed on by `tells.for_listener` only to a listener sharp enough for it.
     # Absent the system the key is never set and nothing is added.
-    for tell in (scene_slice.get("tells_noticed") or []):
+    for tell in s.tells_noticed:
         text = str(tell).strip()
         if text:
             percepts.append(_make_percept(ref="tell.%s" % _safe_ref(text[:30]), channel="visual", fidelity=1.0,

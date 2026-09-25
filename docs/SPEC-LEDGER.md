@@ -969,6 +969,24 @@ flashback; the chair). NOT COVERED: a sheet's authored beliefs are stamped at lo
 and no time, so a belief naming "Mira" there stays about both; two people of one name BOTH in the room keep it both;
 recall matches the heard name as a word, so a memory of either Mira can come to mind on it.
 
+**2026-09-25 — the assembler's request is a closed, typed record (gate `slice-contract`):** G1 of the contracts plan
+the owner approved ("Go"), agreed with Symphony on the shared board (convo #4, posts #240-248). The scene slice was
+documented as {event, recent, location} (the `assemble` docstring; guide-content's "complete input contract", which
+added "The machine reads nothing else"), while the scene driver sent twelve keys; nothing refused a key nobody
+declared, and every reader took what it wanted by `.get()`, so a misspelt key was accepted and read as its default.
+`src/engine/scene_slice.py` declares every key once - event {text, kind, target}, recent, location, present, props,
+target, engaged, raised_by, last_read_turn, last_turn, tells_noticed, elsewhere - in a frozen `SceneSlice`, and `of`
+is the one door `scene.assemble` and `gate.perception_scope` both pass: an undeclared key (at the top or inside the
+event) is refused as `SCENE_SLICE_UNKNOWN_KEY`, a declared one of the wrong shape as `SCENE_SLICE_FIELD_TYPE`,
+naming it. The engine reads the record's attributes; perception's own copy of two of the checks
+(`GATE_SCENE_SLICE_NOT_AN_OBJECT`, `GATE_EVENT_MISSING_TEXT`) is retired, the refusal now owned by the module that
+declares the slice. Absent is kept apart from empty where the readers depend on it: `present` (untracked, the chair,
+versus nobody here) and `raised_by` (no run behind the slice, where the sheet's targets stand in, versus a run with
+no readings). The drivers keep building dicts. Suite: `tests/test_scene_slice.py` (every key accepted; every
+undeclared key and every wrong shape refused naming it; absent versus empty through assembly; both doors alike; no
+read of the slice around the door, by AST). NOT COVERED: the packet `assemble` returns (a later gate); the event's
+`kind` stays an open string, no document declaring the kinds.
+
 **2026-09-19 — attitude decays per RUNG, in minutes (gate `attitude-staircase`):** `toward.erode` was the pre-redesign mechanism — one flat `toward._RETENTION[path]` per DAY for every rung, so a hatred and a flicker of annoyance faded alike — and now steps the ladder exactly as `state.decay_over` does, on the minute clock, at a per-path scale whose bottom rung is that same day rate converted (`toward._attitude_half_life`, anchored to 1e-9 in `tests/test_toward.py` block 16) and whose rung-to-rung ratio is the MOOD staircase's own, so the two tiers cannot disagree about the shape of forgetting; `src/engine/passage.py` hands it MINUTES while `bond_rest.drift` / `wound.erode` / `arc.erode` keep the day conversion. Spec: the redesign's "Decay — per path AND per rung" ("Two tables, one shape"), `docs/emotion-arithmetic.md` §4.
 
 **2026-09-19 — the actor's reply contract drops `social`:** `src/engine/prompt.py`'s JSON reply skeleton and its `tags.social` paragraph still asked for a block bond-arithmetic.md §2 retired 2026-09-17 (`APPRAISER_SOCIAL_RETIRED`) and nothing read; removed (gate `actor-contract-cleanup`), `attribution` kept.

@@ -35,6 +35,7 @@ from src.engine.presence import (referenced_ids,      # noqa: E402  (re-exported
                                  present_ids as _witnesses_of,     # the one presence rule, for the manifest
                                  world_meant as _world_meant,      # a name means one person
                                  rels_meant as _rels_meant)
+from src.engine.scene_slice import of as _slice_of     # noqa: E402  (the assembler's request, closed and typed)
 
 from src.engine.gate import (  # noqa: E402
     perception_scope,
@@ -86,9 +87,10 @@ def assemble(char, world, scene_slice, affect, condition, prev_affect=None,
                         standing_facts is ALSO present but INERT in assembly —
                         read only by the out-of-loop critic; see guide-content.md
                         "Currently INERT")
-    scene_slice : dict  {event: {text, kind}, recent: [...], location: str|None}
-                        caller-constructed ground truth; the pipeline perceives FROM it
-    affect      : dict  {primary: float} current affect (7 primaries)
+    scene_slice : the assembler's request - a `scene_slice.SceneSlice`, or a dict the door (`scene_slice.of`)
+                  makes one of: every key a caller may pass is declared there, and an undeclared one is
+                  refused (gate slice-contract). Caller-constructed ground truth; the pipeline perceives FROM it
+    affect      : dict  {path: float} current affect, the paths of `records.PATHS`
     condition   : dict  {energy, allostatic_load, ...}
     established : list  what is ESTABLISHED about the beat's subjects (`read_api.established`
                         rows: {subject, authored, kept, open}) — the fence the actor is handed
@@ -109,12 +111,7 @@ def assemble(char, world, scene_slice, affect, condition, prev_affect=None,
     _her.ensure_temperament(char)           # rest words -> resting means, once, idempotent
     if not isinstance(world, dict):
         raise RecordError("SCENE_WORLD_NOT_AN_OBJECT", "assemble: world must be a dict")
-    if not isinstance(scene_slice, dict):
-        raise RecordError("SCENE_SLICE_NOT_AN_OBJECT", "assemble: scene_slice must be a dict")
-    if "event" not in scene_slice or not isinstance(scene_slice["event"], dict):
-        raise RecordError("SCENE_SLICE_EVENT_MISSING", "assemble: scene_slice must have 'event' dict")
-    if "text" not in scene_slice["event"]:
-        raise RecordError("SCENE_SLICE_EVENT_TEXT_MISSING", "assemble: scene_slice.event must have 'text'")
+    s = _slice_of(scene_slice)               # THE ONE DOOR (gate slice-contract): a closed, typed record, or a refusal
     if not isinstance(affect, dict):
         raise RecordError("SCENE_AFFECT_NOT_AN_OBJECT", "assemble: affect must be a dict")
     if not isinstance(condition, dict):
@@ -142,9 +139,9 @@ def assemble(char, world, scene_slice, affect, condition, prev_affect=None,
     # Gated by perception/insight skill checks. Failed check = absent from PerceptSet.
     # A NAME MEANS ONE PERSON (gate one-person-per-name): the people this scene's names do not mean, as the driver
     # resolved them (presence.one_per_name), are not among the people it perceives by name or stands with. Absent: all.
-    elsewhere = scene_slice.get("elsewhere") or ()
+    elsewhere = s.elsewhere
     world = _world_meant(world, elsewhere)
-    percepts = perception_scope(scene_slice, world, skills, condition, _rels_meant(current.get("relationships"), elsewhere),
+    percepts = perception_scope(s, world, skills, condition, _rels_meant(current.get("relationships"), elsewhere),
                                 me=str(fixed.get("id") or fixed.get("name") or "").lower(),
                                 tired=tired)          # a worn mind's eye dims the room's subtle cues (gate tired-lexicon)
 
@@ -186,7 +183,7 @@ def assemble(char, world, scene_slice, affect, condition, prev_affect=None,
         # entities THIS TURN puts in scope — present as a percept or named as the beat's own
         # subject — priced to a relation word by attachments.word_of. Empty for a character with
         # no attachments, or none of them in scope this turn; direction.direct_holds renders it.
-        "holds":    _build_holds(current, percepts, world, scene_slice),
+        "holds":    _build_holds(current, percepts, world, s),
         # THE FENCE (2026-09-11): binding facts about who and what is here, so the actor may invent
         # beyond them and not against them. Rows pass through unchanged; the prompt renders them.
         "established": [dict(r) for r in (established or []) if isinstance(r, dict)],
@@ -209,9 +206,9 @@ def assemble(char, world, scene_slice, affect, condition, prev_affect=None,
     # With no authored catalog this is the IDENTITY: effective == affect, and every run predating
     # the tier reproduces byte-identically.
     _edges  = {e.get("target"): e for e in volatile["edges"] if e.get("target")}
-    _target = scene_slice["event"].get("target") or scene_slice.get("target")
+    _target = s.event.get("target") or s.target
     _ctx = {
-        "text":      scene_slice["event"].get("text", ""),
+        "text":      s.event["text"],
         "edges":     _edges,
         "affect":    dict(affect),
         "condition": dict(condition),
@@ -244,7 +241,7 @@ def assemble(char, world, scene_slice, affect, condition, prev_affect=None,
     # person present, else nobody — and then effective == mood, the identity.
     _me = str(fixed.get("id") or fixed.get("name") or "").lower()
     _present_ids = [str(k) for k in _edges]
-    _engaged = str(scene_slice.get("engaged") or "")
+    _engaged = s.engaged
     if not _engaged or _engaged == _me:
         _engaged = _target if (_target and str(_target) != _me
                                and not str(_target).startswith("concept:")) else ""
@@ -256,7 +253,7 @@ def assemble(char, world, scene_slice, affect, condition, prev_affect=None,
                                 # WHOM THE MOOD CAME FROM meets it in full. The driver reads it off the
                                 # log (`ledger.raised_by`: the last reading per path); `current.targets`
                                 # is the fallback for a slice with no run behind it, and it clears at rest.
-                                targets=(scene_slice.get("raised_by") if isinstance(scene_slice.get("raised_by"), dict)
+                                targets=(s.raised_by if s.raised_by is not None
                                          else current.get("targets") or {}))
     for _e in volatile["edges"]:
         _sv = _stirs.get(str(_e.get("target")))
@@ -272,7 +269,7 @@ def assemble(char, world, scene_slice, affect, condition, prev_affect=None,
     # above the pivot. A slice with no run behind it (tests, --fixture) carries neither key and
     # reads "no fuel", which changes nothing while every mood sits below its pivot.
     volatile["state"]["descending"] = _rungs.descending(
-        affect, _origin, scene_slice.get("last_read_turn") or {}, scene_slice.get("last_turn"))
+        affect, _origin, s.last_read_turn, s.last_turn)
     # SLOPE — last turn's affect, so the direction can say how fast this came on. An ARGUMENT like
     # affect/condition: injecting it post-assembly put an input the manifest could not name.
     if prev_affect:
@@ -336,7 +333,7 @@ def assemble(char, world, scene_slice, affect, condition, prev_affect=None,
         # one presence rule an untracked percept counts as present, which is right for who you stand
         # with and wrong for who WITNESSED a beat: recorded as a list it made anyone merely named in
         # the chair a witness to its facts. Null is read as "the speaker alone" (gate resume-and-parity).
-        "present":           _witnesses_of(percepts) if "present" in scene_slice else None,
+        "present":           _witnesses_of(percepts) if s.present is not None else None,
     }
 
     # ---- Steps 6 + 7 deferred to the integrator ----
@@ -584,11 +581,11 @@ def _holds_display_name(entity, world):
     return entity
 
 
-def _build_holds(current, percepts, world, scene_slice):
+def _build_holds(current, percepts, world, s):
     """`current.attachments`'s `+` entries -> what the actor is shown he holds this turn.
 
     Kept when the entity is something THIS TURN's PerceptSet actually contains (a `loc.` ref,
-    gate.py's own percept namespace) or is the beat's own subject/target (`scene_slice["event"]`'s
+    gate.py's own percept namespace) or is the beat's own subject/target (the slice's event's
     own `target`, else the slice's) — held elsewhere, off the page, stays off the page, the same
     rule presence.py already applies to a person who is neither present nor spoken of. No `grp.`
     percept exists (this gate's own OMISSION), so a group only ever qualifies through the second
@@ -603,7 +600,7 @@ def _build_holds(current, percepts, world, scene_slice):
     if not holds:
         return []
     refs = {str(p.get("ref", "")).strip().lower() for p in (percepts or [])}
-    subject = str(scene_slice["event"].get("target") or scene_slice.get("target") or "").strip().lower()
+    subject = str(s.event.get("target") or s.target or "").strip().lower()
     rows = []
     for entity, hold in holds.items():
         key = str(entity).strip().lower()

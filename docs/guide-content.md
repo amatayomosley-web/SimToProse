@@ -18,17 +18,21 @@ One `.db` file per book. Never hand-edit it — it is the chronicle (the product
 up like a save-file. Everything you AUTHOR lives in two JSON files; the db only ever holds what
 the simulation generates.
 
-## The machine's complete input contract
+## The machine's input contract
 
 1. **World JSON** — the book's place + its perception vocabulary (template: `world/ashford-slice.json`)
 2. **Character JSON(s)** — one per principal (template: `characters/maren-healer.json`;
    minimal alien example: `tests/test_portability.py` CHAR/WORLD)
 3. **Run config** — `{"catalog_version": 1, "models": {...}, "prompt_versions": {...}}` at create_run
-4. **Per turn, the scene_slice** — `{"event": {"text", "kind"}, "recent": [...], "location": str|None}`
-   (scripted for probes; circumstance-placed by the director later; built from the ledger fold at
-   full runtime)
+4. **Per turn, the scene slice** — the assembler's request, declared once in `src/engine/scene_slice.py`
+   (`SceneSlice`): every key a driver may pass, with its shape. An undeclared key is refused naming it,
+   and so is a declared key of the wrong shape (gate slice-contract, 2026-09-25). The drivers build it:
+   the scene driver from the scene file and the log, the chair from its circumstance.
 
-That is everything. The machine reads nothing else.
+Around these, a scene run reads its scene file (`docs/authoring/BLUEPRINT-scene.md`), and every model
+reply enters through its parser. This section used to end "The machine reads nothing else" while listing
+three of the twelve keys the drivers sent; the slice's keys are now listed only in the code that refuses
+the undeclared ones, and not here.
 
 ## Character JSON — what is LIVE (field → mechanism → effect → authoring rule)
 
