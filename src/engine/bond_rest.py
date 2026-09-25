@@ -54,9 +54,10 @@ def timeline_rows(con, run_id, perceiver, before=None, seeded_at=None):
     bonds AS OF each stretch of time.
 
     EVERY MINUTE OF STORY TIME (gate slow-tiers-run, 2026-09-24; docs/design.md, "State runs whether or not the
-    page is looking"). The time items are `clock.time_items`: each opening's gap plus what the last scene left
-    unspent, and each committed beat's own minutes - for every perceiver, in the scene or not. Until this gate the
-    only item was the declared gap between scenes, so an edge drifted nothing inside a scene that lasted a day.
+    page is looking"). The time items are the PERCEIVER'S OWN `clock.time_items` (gate own-timelines): their time
+    since they were last in a room at each opening they attend, and each beat they were in the room for. Until
+    gate slow-tiers-run the only item was the declared gap between scenes, so an edge drifted nothing inside a
+    scene that lasted a day; until gate own-timelines every perceiver took every stretch of the run.
 
     THE TIME ITEM IS IN DAYS (gate erosion-derived-at-replay, 2026-09-22): ("time", days, minutes). `drift` reads
     DAYS; the minutes ride beside them so the attitude fold erodes by the very float the live step used.
@@ -67,7 +68,7 @@ def timeline_rows(con, run_id, perceiver, before=None, seeded_at=None):
     the whole timeline.
     """
     rows = declared_rows(con, run_id, perceiver, seeded_at=seeded_at)
-    rows += [(t, s, ("time", m / _clock.MINUTES_PER_DAY, m)) for t, s, m in _clock.time_items(con, run_id)]
+    rows += [(t, s, ("time", m / _clock.MINUTES_PER_DAY, m)) for t, s, m in _clock.time_items(con, run_id, perceiver)]
     # BOTH ORDERS. Filtering to 'first' would silently drop the second-order tier (what the perceiver
     # believes the OTHER holds), which schema v8 exists to hold.
     rows += [(int(t), 4, ("edge", tgt, axis, float(d), o)) for t, tgt, axis, d, o in con.execute(

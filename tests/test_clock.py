@@ -54,7 +54,16 @@ def test_the_reading():
     check("day-2-09-00", clock.parse_at({"day": 2, "time": "09:00"}) == 24 * 60 + 9 * 60)
     check("format-round-trips", clock.format_at(clock.parse_at({"day": 3, "time": "17:45"})) == "day 3 17:45")
     check("at-not-an-object", _refuses(lambda: clock.parse_at("tuesday"), "CLOCK_AT_NOT_AN_OBJECT"))
-    check("day-zero-refused", _refuses(lambda: clock.parse_at({"day": 0, "time": "09:00"}), "CLOCK_AT_DAY_INVALID"))
+    # DAYS BEFORE DAY 1 (gate own-timelines): day 0 and below are read, printed and round-trip; a day that is not a
+    # whole number is still refused by name
+    check("day-zero-is-the-day-before-day-1", clock.parse_at({"day": 0, "time": "09:00"}) == -15 * 60.0,
+          clock.parse_at({"day": 0, "time": "09:00"}))
+    check("day-minus-3-midnight", clock.parse_at({"day": -3, "time": "00:00"}) == -4 * 1440.0)
+    check("...and-both-print-back-as-written", clock.format_at(clock.parse_at({"day": 0, "time": "09:00"})) == "day 0 09:00"
+          and clock.format_at(clock.parse_at({"day": -3, "time": "23:59"})) == "day -3 23:59",
+          clock.format_at(clock.parse_at({"day": -3, "time": "23:59"})))
+    check("a-fractional-day-refused", _refuses(lambda: clock.parse_at({"day": 1.5, "time": "09:00"}), "CLOCK_AT_DAY_INVALID"))
+    check("a-boolean-day-refused", _refuses(lambda: clock.parse_at({"day": True, "time": "09:00"}), "CLOCK_AT_DAY_INVALID"))
     check("time-25-00-refused", _refuses(lambda: clock.parse_at({"day": 1, "time": "25:00"}), "CLOCK_AT_TIME_INVALID"))
     check("span-minutes", clock.span_minutes(45) == 45.0 and clock.span_minutes("90m") == 90.0)
     check("span-hours-days", clock.span_minutes("2h") == 120.0 and clock.span_minutes("1.5d") == 2160.0)
@@ -82,9 +91,11 @@ def test_the_derivation(tmp):
     led.record_scene_clock("r1", 7, a2, None, 0.0)                    # the next scene's reading, as open_scene logs it
     check("story-time-since-beat-0-is-the-rest-of-the-scene-and-the-gap",   # gate story-clock: 20:06 -> 09:00
           led.elapsed_since("r1", 0) == 54.0 + 12 * 60.0, led.elapsed_since("r1", 0))
-    check("opening-before-the-last-end-is-refused",
-          _refuses(lambda: led.gap_before("r1", clock.parse_at({"day": 1, "time": "20:30"}), before_turn=7),
-                   "CLOCK_RUNS_BACKWARDS"))
+    # SIGNED since gate own-timelines: a scene set before the last one ended is legal when it shares no one with it
+    # (`clock.refuse_overlap` refuses one character in two places), and the gap reads below zero
+    check("an-opening-before-the-last-end-is-a-negative-gap",
+          led.gap_before("r1", clock.parse_at({"day": 1, "time": "20:30"}), before_turn=7) == -30.0,
+          led.gap_before("r1", clock.parse_at({"day": 1, "time": "20:30"}), before_turn=7))
     # a replay of the same reading is idempotent; a different one is refused (append-only)
     led.record_scene_clock("r1", 0, a1, 60.0, beat_minutes=6.0)
     check("same-reading-replays-silently", clock.last_scene_clock(led.con, "r1", 1)["at"] == a1)

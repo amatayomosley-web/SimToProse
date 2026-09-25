@@ -149,15 +149,24 @@ def test_a_lull_owes_its_unspent_remainder():
 
 
 def test_opening_before_the_prior_end_is_refused():
-    print("\n[3] BACKWARDS — an opening cannot precede the last one's END")
+    print("\n[3] ONE CHARACTER IN TWO PLACES, OR BEFORE THEIR OWN LATEST - refused by name; a cast that shares no one "
+          "may open inside the last scene (gate own-timelines; it was: no opening before the last one's END)")
     chars = _cast()
     led = _ledger(chars)
     led.record_scene_clock("r1", 0, 420.0, 15.0, 15.0)          # ends at 435
-    try:
-        passage.open_scene(led, "r1", 1, 430.0, None, 1, chars)   # opens at 430, before 435
-        check("opening-before-the-prior-end-RAISES", False, "did not raise")
-    except RecordError as exc:
-        check("opening-before-the-prior-end-RAISES", exc.code == "CLOCK_RUNS_BACKWARDS", exc.code)
+    _in_the_room(led, 0, "maren", ("maren",))                     # maren alone was in it
+    for at, code in ((430.0, "CLOCK_TWO_PLACES_AT_ONCE"), (400.0, "CLOCK_RUNS_BACKWARDS")):
+        try:
+            passage.open_scene(led, "r1", 1, at, None, 1, {"maren": chars["maren"]})
+            check("maren-opening-at-%d-is-refused-%s" % (at, code), False, "did not raise")
+        except RecordError as exc:
+            check("maren-opening-at-%d-is-refused-%s" % (at, code), exc.code == code, exc.code)
+    n = led.con.execute("SELECT COUNT(*) c FROM scene_clock WHERE run_id='r1'").fetchone()["c"]
+    check("a-refused-opening-logs-no-reading", n == 1, n)
+    result = passage.open_scene(led, "r1", 1, 430.0, None, 1, {"edda_elder": chars["edda_elder"]})
+    check("edda-shares-no-one-with-it-and-opens-inside-it", result["elapsed"] == -5.0, result)
+    n = led.con.execute("SELECT COUNT(*) c FROM time_declarations WHERE run_id='r1'").fetchone()["c"]
+    check("...declaring-nothing-for-a-gap-below-zero", n == 0, n)
 
 
 def test_the_first_opening_of_a_run_applies_nothing():
@@ -195,6 +204,7 @@ def test_the_attitude_tier_is_handed_MINUTES():
     chars = _cast()
     led = _ledger(chars)
     led.record_scene_clock("r1", 0, 420.0, 15.0, 15.0)                  # ends at 435
+    _in_the_room(led, 0, "maren", ("maren", "edda_elder"))               # both there, so both age by their own day
     # a stranger: `connection.for_target` is 0.0 with no edge, so nothing slows the decay
     start = 0.05                                                        # inside GOODWILL's rung 1
     for ch in chars.values():
@@ -353,8 +363,13 @@ def _opened():
                         led.timeline_for("r1", "maren"), attachments=maren["current"].setdefault("attachments", {}))
     chars["maren"] = maren
     before = copy.deepcopy(maren)
-    led.record_scene_clock("r1", 0, 420.0, 15.0, 15.0)                            # ends at 435
+    # the turn-0 beat's reading gives its beat no minutes (the live maren above aged none), and both were in the room
+    led.record_scene_clock("r1", 0, 435.0, None, 0.0)
+    _in_the_room(led, 0, "maren", ("maren", "edda_elder"))
     passage.open_scene(led, "r1", 1, 435.0 + _GAP, None, 1, chars)
+    # the scene's first beat, with her in the room: each character's opening reaches the folds with their first beat
+    # in it (gate own-timelines - `clock.time_items`)
+    _in_the_room(led, 1, "maren", ("maren", "edda_elder"))
     return led, chars["maren"], before
 
 
@@ -419,12 +434,14 @@ def test_a_declared_day_replays_as_one_day_of_bond_drift():
     chars = _stamped_cast()
     led = _ledger(chars)
     _log_beat(led, 0, [], [], trust=-0.25)                            # displaced from its rest
+    _in_the_room(led, 0, "maren", ("maren", "edda_elder"))
     maren = chars["maren"]
     rels = maren["current"]["relationships"]
     bond_rest.rehydrate(rels, maren["baseline"].get("relationship_priors", {}), led.timeline_for("r1", "maren"),
                         attachments=maren["current"].setdefault("attachments", {}))
-    led.record_scene_clock("r1", 0, 420.0, 15.0, 15.0)
+    led.record_scene_clock("r1", 0, 435.0, None, 0.0)                 # the beat took no minutes; she was there to 435
     passage.open_scene(led, "r1", 1, 435.0 + 1440.0, None, 1, chars)
+    _in_the_room(led, 1, "maren", ("maren", "edda_elder"))            # her opening reaches the fold with her first beat
     live = rels["edda_elder"]["trust"]
     replay = copy.deepcopy(maren["current"]["_authored_relationships"])
     items = led.timeline_for("r1", "maren")

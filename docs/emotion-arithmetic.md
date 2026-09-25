@@ -473,9 +473,13 @@ so its scene's whole cast counts) to this opening, plus the minutes of that scen
 in it. Someone who sat scenes out or walked out comes back cooled by all of it; someone in the last
 scene to its end gets exactly the gap plus its unspent minutes, as everyone did before; a first
 appearance keeps the sheet's mood. The attitude and the three older tiers run on the same story
-time (gate slow-tiers-run, 2026-09-24): every stretch of it - each opening's gap plus the last
-scene's unspent minutes, and every beat's own minutes - ages them for the whole cast, on the page or
-off, through one step (`passage.age`) that the folds replay item for item (`clock.time_items`).
+time (gate slow-tiers-run, 2026-09-24), through one step (`passage.age`) that the folds replay item
+for item (`clock.time_items`) - and since gate own-timelines (2026-09-25) on the SAME OWN TIME as the
+mood: at each opening a character attends, their own time since they were last in a room, and at
+each beat, its minutes for those in the room. A walk-out's slow tiers stop with the room and take the
+rest at their next opening; a first appearance arrives as the sheet describes them, bonds, scars and
+resting means untouched. Two scenes that share no one may overlap in story time and run in either
+order; only one character in two places at once, or before their own story's latest point, is refused.
 
 ---
 

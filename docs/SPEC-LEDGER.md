@@ -675,7 +675,7 @@ START values with falsifiers; `APPRAISER_INJURY_SHAPE`, `APPRAISER_INJURY_UNKNOW
 `APPRAISER_FACT_NOT_IN_ACTION`); the marks ride the event payload and are folded on demand through the one
 reading of live payloads (`scene_facts.payloads`, which `scene_facts.run_rows` now uses too); each beat
 `injuries.for_actor` ages every injury the speaker witnessed (`scene_facts.witnessed`) from the beat it was
-taken (`clock.at_turn`) and their own sheet's from page one (`clock.opening`) less `ago`; `direction.direct_injuries`
+taken (`clock.at_turn`) and their own sheet's from their own first scene (`clock.first_presence`, gate own-timelines; it was page one) less `ago`; `direction.direct_injuries`
 appends one sentence of words to the actor's "what has happened" section; each beat's manifest records
 `injuries: [who:stage]`. Off, the seat's prompt, every payload, manifest and prompt are byte-identical. The
 reader's lines were probed before shipping (two raters of one model family, public-domain novel passages chosen by
@@ -800,7 +800,7 @@ defect it is. Every stretch of story time now ages them, through ONE step, `pass
 own rest, untouched scars ease, resting means return toward what was authored, attitudes fade on the bonds as they
 have just drifted): at an opening by the gap plus the last scene's unspent minutes, and at every beat by the beat's
 own minutes for the WHOLE cast, in the room or out of it - both drivers, before the beat's own movements, and the
-mood replay at the same point. The log already held the cause: `clock.time_items` derives the stretches from
+mood replay at the same point (since gate own-timelines, below: for those in the room, each by their own time). The log already held the cause: `clock.time_items` derives the stretches from
 `scene_clock` (each opening's gap + unspent, each committed beat's `beat_minutes`; a declared gap with no reading is
 an opening, for logs before v25), and the folds (`fold_toward` / `fold_wounds` / `fold_arc`, `bond_rest.rehydrate`)
 replay exactly those. The bond timeline's slots are now rest 0, hold 1, the opening's time 2, the beat's own time 3,
@@ -822,8 +822,9 @@ every beat).
 `decay.calculate_effective_confidence` returns the stored confidence when its time is zero, so NO memory faded in
 any live run (measured: ten recall-gate calls over two stub scenes an hour and a half apart, all 0.0). Each memory
 now has its own story time: `elapsed` may be a callable, and both drivers pass `clock.days_since` - from the end
-of the beat that formed or last recalled the memory to the start of the beat that asks, or from page one
-(`clock.opening`) for a memory the sheet carries; no reading, no time. A learned memory now carries the turn it was
+of the beat that formed or last recalled the memory to the start of the beat that asks, or from page one for a
+memory the sheet carries (since gate own-timelines, from the character's own first scene, `clock.first_presence`);
+no reading, no time. A learned memory now carries the turn it was
 learned: `Ledger.append_acquisition` stamps `created_turn` on the belief in place (so the vault's copy has it too),
 the witness site stamps its two copies, and `Ledger.acquisitions_for` supplies it from the row for rows written
 before. The three layers between (`scene.assemble`, `gate.run_gate`, `associative`) pass it through unchanged; a
@@ -856,6 +857,40 @@ toward a floor of 0.35), because the only events that become memories are durabl
 `Ledger.acquisitions_for` files a row logged before as durable too. Found answering the owner's question about which
 memories fade. Suite: `tests/test_acquisition.py` [H]. NOT COVERED: a memory the sheet authors keeps the durability
 its author wrote.
+
+**2026-09-25 — each character on their own timeline (gate `own-timelines`):** the slow tiers aged every character by
+every stretch of the RUN - each opening's run gap plus the last scene's unspent minutes, and every committed beat, in
+the room or not - so a character who first walks on in a later scene arrived with bonds, scars and resting means
+already aged from the run's first opening (the recorded book brings one in at its third scene), a sheet memory or a
+sheet injury was dated from the run's first page, `clock.gap_before` refused any scene opening before the scene run
+LAST had ended whoever was in it, and `clock.parse_at` with schema v25's CHECK refused a day before day 1. The owner
+(plan step 3, approved 2026-09-25): each character ages by their own time; the sheet describes a character where they
+first walk on; days may be 0 or before; refuse only the same character in two overlapping scenes. Now
+`clock.time_items(con, run, char)` is ONE character's stretches: at each opening they are in the room for after an
+earlier presence, their own time since (`clock.since_presence` - the arithmetic `passage.own_minutes` applies live,
+so the fold and the opening cannot drift), and a beat's minutes only for the beats they were in the room for
+(`clock.presences`: the speaker, the manifest's room, or the scene's cast for a beat that recorded none - the rule
+`clock.last_present` had). `passage.apply_opening(chars, rest_rows, at, gaps, ...)` ages each character's slow tiers
+by that own time and a first appearance by nothing; both drivers and the mood replay age the ROOM at each beat, not
+the cast. `clock.first_presence` replaces page one (`clock.opening`, retired) for a sheet memory's age
+(`clock.days_since` now takes the character) and for a sheet injury's `ago`. `clock.refuse_overlap`, called by
+`passage.open_scene` before anything is logged (a refused opening used to leave its reading behind), replaces
+`gap_before`'s refusal - CLOCK_TWO_PLACES_AT_ONCE when the opening's span overlaps one its cast member was in (to that
+scene's DECLARED end if they were in the room at its last beat, since a lull ends the talk and not their being there;
+to the end of their last beat if they walked out; spans that only touch are allowed), CLOCK_RUNS_BACKWARDS when it
+opens before the latest point their own story reached (a scene in their past - the next gate's window). Scenes that
+share no one may overlap and run in either order: `gap_before` is a signed measurement (the operator line; declared
+only when positive) and `clock.story_now` is the furthest point any scene reached. Schema v32 lets
+`scene_clock.at_minutes` go below zero: `db._v32_scene_clock` rebuilds an older table around the schema script (rows
+copied as they are; an open interrupted part-way finishes on the next) - its detector matches the old CHECK on a word
+boundary, because `beat_minutes >= 0` contains the text `at_minutes >= 0` and a substring test found it everywhere.
+Suite: `tests/test_own_timelines.py` ([1] a walk-out stops ageing with the room and takes the rest at its next
+opening, live equal to the folds at every beat; [2] two overlapping scenes that share no one, run in either order,
+leave all four people identical; [3] a late first appearance walks on as the sheet says and dates its memories and
+injuries from there; [4] day -3 read, stored, printed, and a v31 database migrated, interrupted or not; [5] the
+refusals in both drivers, and a walk-out free inside the span it left). NOT COVERED: world-level state keeps run
+order (tensions cool against `clock.story_now`; `fold.project`'s deaths and knowers fold in turn order); a scene set in
+a character's past is refused until gate flashback-windows; the chair without `--at` declares no clock.
 
 **2026-09-19 — attitude decays per RUNG, in minutes (gate `attitude-staircase`):** `toward.erode` was the pre-redesign mechanism — one flat `toward._RETENTION[path]` per DAY for every rung, so a hatred and a flicker of annoyance faded alike — and now steps the ladder exactly as `state.decay_over` does, on the minute clock, at a per-path scale whose bottom rung is that same day rate converted (`toward._attitude_half_life`, anchored to 1e-9 in `tests/test_toward.py` block 16) and whose rung-to-rung ratio is the MOOD staircase's own, so the two tiers cannot disagree about the shape of forgetting; `src/engine/passage.py` hands it MINUTES while `bond_rest.drift` / `wound.erode` / `arc.erode` keep the day conversion. Spec: the redesign's "Decay — per path AND per rung" ("Two tables, one shape"), `docs/emotion-arithmetic.md` §4.
 

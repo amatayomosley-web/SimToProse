@@ -310,9 +310,10 @@ def run(book_dir, stub=False, model=None, beat_words=300, limit=None, seat=None,
             led.declare_time(run_id, turn, gap, "derived")
             affect = decay(affect, temp, profile, elapsed=gap, targets=targets)
         # THE SCARS AGE ON STORY TIME, NOT ON CHAPTERS (gate bench-clock; the owner: "chapters don't matter to fade
-        # mechanics"): the drivers' one step, over the gap plus what the last chapter left unspent - the stretch
-        # `clock.time_items` reads from this reading - and below, over every beat's own minutes.
-        _passage.age({pid: sheet}, gap + (_clock.unspent_before(led.con, run_id, turn) or 0.0), _rests)
+        # mechanics"): the drivers' one step, over the reader's own time since their last beat - the gap plus what
+        # the last chapter left unspent, by the arithmetic `clock.time_items` gives the folds (gate own-timelines)
+        # - and below, over every beat's own minutes.
+        _passage.age({pid: sheet}, _clock.own_time(led.con, run_id, pid, turn, at_eff) or 0.0, _rests)
         for b in cb:
             passage = b["text"]
             # THE SEAT

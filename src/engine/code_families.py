@@ -216,14 +216,15 @@ _CLOCK = {
     "CLOCK_SPAN_NOT_A_SPAN":      "a span is not minutes nor <n>m / <n>h / <n>d",
     "CLOCK_SPAN_NOT_POSITIVE":    "a span is <= 0 minutes",
     "CLOCK_AT_NOT_AN_OBJECT":     "a scene's `at` is not {day, time}",
-    "CLOCK_AT_DAY_INVALID":       "a scene's `at.day` is not an integer >= 1",
+    "CLOCK_AT_DAY_INVALID":       "a scene's `at.day` is not an integer (0 and below are the days before day 1)",
     "CLOCK_AT_TIME_INVALID":      "a scene's `at.time` is not HH:MM",
-    "CLOCK_RUNS_BACKWARDS":       "a scene opens before the previous scene ended",
+    "CLOCK_RUNS_BACKWARDS":       "a scene opens before the latest point one of its cast's own story has reached (gate own-timelines; it was: before the scene run last ended)",
+    "CLOCK_TWO_PLACES_AT_ONCE":   "a scene's span overlaps one its cast member was already in - one character in two places at once",
     "LEDGER_SCENE_CLOCK_REWRITE": "a scene's clock reading was declared twice with different values; scene_clock is append-only",
     # the fade derived at replay, 2026-09-22 (passage.fold_toward)
     "PASSAGE_FOLD_UNSTAMPED":     "the attitude fold met a declared gap on a sheet whose authored bonds were never stamped at load, so it cannot rebuild the bonds that opening read",
     # each character's own time, 2026-09-24 (passage.apply_opening, gate absent-age)
-    "PASSAGE_GAPS_MISSING":       "an opening after the run's first was applied with no presence for its cast, so no one's mood could age by their own time away - a silent skip would freeze every mood",
+    "PASSAGE_GAPS_MISSING":       "an opening was applied with no presence for its cast, so no one could age by their own time away - a silent skip would freeze every mood and every slow tier",
 }
 
 # ---- SYSTEMS_* — which engine systems a book runs (src/engine/systems.py, 2026-09-22) ----
@@ -255,7 +256,7 @@ _BODY = {
 _INJURY = {
     "INJURY_SHAPE":             "a sheet's current.condition.injuries is not a list of {what, severity, ago?}",
     "INJURY_SEVERITY_UNKNOWN":  "an injury's severity is not one of the words the engine heals by",
-    "INJURY_AGO_NOT_A_SPAN":    "a sheet injury's `ago` is not a span of time before page one (minutes, or <n>m / <n>h / <n>d)",
+    "INJURY_AGO_NOT_A_SPAN":    "a sheet injury's `ago` is not a span of time before the character's first scene (minutes, or <n>m / <n>h / <n>d)",
 }
 
 # ---- EDL_* — the cutting room's record (src/engine/edl.py) ----

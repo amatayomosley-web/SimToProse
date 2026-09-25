@@ -89,8 +89,7 @@ def test_arithmetic():
         chars = {"mira": ch}
         # her own gap (gate gap-day-and-night): her last scene ended at noon with 30 minutes it never spent; this
         # opening is at that same noon, so only the owed minutes - awake time - move her
-        passage.apply_opening(chars, 0.0, 30.0, lambda i: [], flow=True, body=on, at=720.0,
-                              gaps={"mira": {"end": 720.0, "owed": 30.0}})
+        passage.apply_opening(chars, lambda i: [], 720.0, {"mira": {"end": 720.0, "owed": 30.0}}, flow=True, body=on)
         return 1.0 - chars["mira"]["current"]["condition"]["energy"]
     check("an-opening-weighs-the-owed-minutes-against-strength-too",
           owed(False) > 0 and abs(owed(True) - 2 * owed(False)) < 1e-12, (owed(True), owed(False)))

@@ -213,12 +213,13 @@ def test_each_memory_its_own_story_time():
     led.record_scene_clock("r", 3, 1920.0, 30.0, 10.0)               # next morning at 08:00
     led.append_turn(TurnCommit(run_id="r", turn=3, actor="m", thought="-", action="-", tags={},
                                validation={"ok": True}, affect={p: 0.2 for p in PATHS}))
-    since = lambda t: clock.days_since(led.con, "r", t, 4)           # asked at the start of beat 4: 08:10, day 2
+    since = lambda t: clock.days_since(led.con, "r", "m", t, 4)      # asked at the start of beat 4: 08:10, day 2
     sheet = {"claim": "the relief boat was due at dawn", "confidence": 0.8, "durability": "transient", "bid": "b:boat"}
     learned = dict(sheet, bid="b:learned", created_turn=1)
     got = decay.calculate_effective_confidence(sheet, elapsed=since)
     want = relax(0.8, decay.FLOOR_TRANSIENT, decay.RETENTION_TRANSIENT, (1930.0 - 480.0) / 1440.0)
-    check("a-sheet's-memory-fades-from-page-one", abs(got - round(want, 4)) < 1e-12 and got < 0.8, repr((got, want)))
+    check("a-sheet's-memory-fades-from-where-their-story-began", abs(got - round(want, 4)) < 1e-12 and got < 0.8,
+          repr((got, want)))
     got = decay.calculate_effective_confidence(learned, elapsed=since)
     want = relax(0.8, decay.FLOOR_TRANSIENT, decay.RETENTION_TRANSIENT, (1930.0 - 520.0) / 1440.0)
     check("a-learned-one-from-the-end-of-the-beat-that-taught-it", abs(got - round(want, 4)) < 1e-12, repr((got, want)))
@@ -228,7 +229,7 @@ def test_each_memory_its_own_story_time():
     bare = Ledger(":memory:")
     bare.create_run("q", {"catalog_version": 1, "models": {"turn": "stub"}, "prompt_versions": {"turn": 1}})
     check("no-clock-no-time", decay.calculate_effective_confidence(
-        sheet, elapsed=lambda t: clock.days_since(bare.con, "q", t, 4)) == 0.8)
+        sheet, elapsed=lambda t: clock.days_since(bare.con, "q", "m", t, 4)) == 0.8)
     with led.con:                                                    # a memory logged before this gate: no turn in it
         led.con.execute("INSERT INTO acquisitions (run_id, char_id, turn, belief) VALUES ('r', 'm', 2, ?)",
                         (json.dumps({"claim": "the lamp oil was low"}),))
@@ -313,8 +314,9 @@ def test_a_live_run_forgets():
         boat = [(e, o) for b, e, o in seen if b.get("bid") == "b:boat"]
         start2 = con.execute("SELECT MAX(start_turn) FROM scenes").fetchone()[0]
         at2 = clock.at_turn(con, run_id, start2)
-        want = round(relax(0.8, decay.FLOOR_TRANSIENT, decay.RETENTION_TRANSIENT, (at2 - clock.opening(con, run_id)) / 1440.0), 4)
-        check("the-sheet's-memory-is-whole-at-page-one", boat and boat[0][1] == 0.8, repr(boat[:1]))
+        first_at = clock.last_scene_clock(con, run_id, 1)["at"]            # the cast's first scene: where the sheet stands
+        want = round(relax(0.8, decay.FLOOR_TRANSIENT, decay.RETENTION_TRANSIENT, (at2 - first_at) / 1440.0), 4)
+        check("the-sheet's-memory-is-whole-in-the-first-scene", boat and boat[0][1] == 0.8, repr(boat[:1]))
         check("...and-a-day-weaker-when-the-next-scene-opens", any(abs(o - want) < 1e-12 for _e, o in boat) and want < 0.8,
               repr((want, [o for _e, o in boat])))
         rows = [(int(r["turn"]), json.loads(r["belief"])) for r in con.execute("SELECT turn, belief FROM acquisitions")]

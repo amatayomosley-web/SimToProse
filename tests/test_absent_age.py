@@ -235,16 +235,16 @@ def test_a_log_that_records_no_room(tmp):
 
 
 def test_no_presence_is_refused():
-    print("\n[4] an opening after the run's first needs each character's presence")
+    print("\n[4] an opening needs each character's presence")
     ch = {"current": {"affect": {"WARINESS": 0.6}}, "baseline": {"temperament": {}}}
     try:
-        passage.apply_opening({"t": ch}, 5.0, 0.0, lambda i: [], at=100.0)
+        passage.apply_opening({"t": ch}, lambda i: [], 100.0, None)
         check("no-presence-is-refused", False, "did not raise")
     except RecordError as e:
         check("no-presence-is-refused", e.code == "PASSAGE_GAPS_MISSING", e.code)
     first = {"t": copy.deepcopy(ch)}
-    passage.apply_opening(first, None, 0.0, lambda i: [], at=100.0)
-    check("...while-the-run's-first-opening-ages-nothing", first["t"] == ch, first)
+    passage.apply_opening(first, lambda i: [], 100.0, {"t": None})
+    check("...while-a-first-appearance-ages-nothing", first["t"] == ch, first)
 
 
 def main():

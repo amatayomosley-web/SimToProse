@@ -457,8 +457,9 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
     # DRIFT (relationships.md: "without reinforcement, relationships slowly decay toward a resting
     # state ... affinity fades faster than trust"). It was applied here at scene START only, "because a
     # beat has no duration"; beats carry minutes since 2026-09-10, and since gate slow-tiers-run
-    # (2026-09-24) the opening ages the four older tiers by the gap PLUS the last scene's unspent
-    # minutes, and every beat below ages them again by its own minutes, for the whole cast.
+    # (2026-09-24) the opening ages the four older tiers too, and every beat below ages them again by
+    # its own minutes - since gate own-timelines (2026-09-25) each character by their OWN time at the
+    # opening (since they were last in a room; a first appearance, nothing) and the room at each beat.
     # ONE CLOCK, IN MINUTES (clock.py, 2026-09-10). Log this scene's reading, derive the gap since
     # the previous scene ENDED, and hand it to the four older tiers — plus emotion, the fifth. A
     # scene that lulled early last time owes its unspent `lasts` here.
@@ -495,17 +496,19 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
         actors[i]["profile"] = build_profile(actors[i]["char"])
         actors[i]["temperament"] = actors[i]["char"]["baseline"]["temperament"]
     per_beat = _clock_result["per_beat"]
-    if _clock_result["elapsed"]:
+    if (_clock_result["elapsed"] or 0) > 0:
         print("\n  %s minutes since the last scene ended%s — edges relaxed toward each character's"
               " resting disposition, feelings toward their rest" % (
                   int(_clock_result["elapsed"]),
                   " (+%d owed by the last scene)" % int(_clock_result["owed"]) if _clock_result["owed"] else ""))
-    # EACH MOOD AGED BY ITS OWN TIME AWAY (gate absent-age): name whoever was out of the room longer than the
-    # scene gap, and anyone appearing for the first time, so the operator can see why one mood cooled more.
+    elif (_clock_result["elapsed"] or 0) < 0:          # gate own-timelines: legal when the two share no one
+        print("\n  set %d minutes before the last scene run ended - it shares no one with it" % int(-_clock_result["elapsed"]))
+    # EACH CHARACTER AGED BY THEIR OWN TIME AWAY (gates absent-age, own-timelines): name whoever was out of the room
+    # longer than the scene gap, and anyone appearing for the first time, so the operator can see why one cooled more.
     if _clock_result["elapsed"] is not None:
         _gap = _clock_result["elapsed"] + _clock_result["owed"]
         _away = ["%s %d min" % (i, int(m)) for i, m in sorted(_clock_result["own"].items()) if abs(m - _gap) > 1e-9]
-        _away += ["%s first appears (the sheet's mood)" % i for i in ids if i not in _clock_result["own"]]
+        _away += ["%s first appears (as the sheet describes them)" % i for i in ids if i not in _clock_result["own"]]
         if _away:
             print("  own time away: %s" % "; ".join(_away))
     print("  opens %s%s" % (_clockmod.format_at(cfg["at_minutes"]),
@@ -594,8 +597,9 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
                               led.con, run_id, speaker),
                           # EACH MEMORY ITS OWN STORY TIME (gate memory-fades): since the beat that formed or last
                           # recalled it, to this beat's start - the time after the current beat, handed here before,
-                          # is zero at the head of the log, so no memory faded in a live run
-                          elapsed=lambda t, _now=turn_no: _clock.days_since(led.con, run_id, t, _now),
+                          # is zero at the head of the log, so no memory faded in a live run. A sheet memory's, since
+                          # this speaker's own story began (gate own-timelines: where they first walked on)
+                          elapsed=lambda t, _now=turn_no, _me=speaker: _clock.days_since(led.con, run_id, _me, t, _now),
                           # the room's subtle cues dim with the mind, as a speaker's tells do (gate tired-lexicon)
                           tired="condition_flow" in _sys)
         # name hygiene rides in build_turn_messages — mask every name this speaker never acquired;
@@ -764,11 +768,13 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
         # THE CHANGE, NOT THE MAP — see the twin comment in scripts/direct.py. A dropped bind rides
         # as a release row or un-binding is not replayable.
         target_binds = _targets.binds_from(_before_targets, a["targets"])
-        # THE BEAT'S MINUTES PASS FOR EVERY SLOW TIER OF THE WHOLE CAST, in the room or out of it (gate slow-tiers-run;
-        # docs/design.md, "State runs whether or not the page is looking"): edges drift, scars and resting means ease,
-        # attitudes fade - before the beat's own movements, where the folds put the beat's time, so the bond law, the
-        # wound trial and the attitude read the aged state. The actor already read the state the beat began in.
-        _passage.age({i: actors[i]["char"] for i in actors}, per_beat, lambda i: bond_rest.rows_for(led.con, run_id, i))
+        # THE BEAT'S MINUTES PASS FOR EVERY SLOW TIER OF EVERYONE IN THE ROOM (gate slow-tiers-run; docs/design.md,
+        # "State runs whether or not the page is looking"): edges drift, scars and resting means ease, attitudes fade -
+        # before the beat's own movements, where the folds put the beat's time, so the bond law, the wound trial and
+        # the attitude read the aged state. The actor already read the state the beat began in. The ROOM, not the
+        # cast (gate own-timelines): someone who walked out lives the rest of the scene elsewhere, and that time
+        # reaches them at their next opening, as the folds give it (`clock.time_items`).
+        _passage.age({i: actors[i]["char"] for i in present}, per_beat, lambda i: bond_rest.rows_for(led.con, run_id, i))
         # DECAY FIRST, THEN THE RECEIPT — the spec's beat order (docs/emotion-arithmetic.md
         # section 8; the twin comment in scripts/direct.py has the measurement). The beat's
         # minutes pass, then the reading lands on what is left.

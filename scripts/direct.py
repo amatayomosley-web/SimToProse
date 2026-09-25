@@ -566,7 +566,7 @@ def run_turn(led, run_id, char, world, groups_index, profile, temperament, affec
                       relationships=char["current"].get("relationships", {}),
                       recall_history=_decay.fold_recall_history(led.con, run_id, _actor),
                       # EACH MEMORY ITS OWN STORY TIME (gate memory-fades), as scripts/scene.py passes it
-                      elapsed=lambda t, _now=turn_no: _clock.days_since(led.con, run_id, t, _now),
+                      elapsed=lambda t, _now=turn_no, _me=_actor: _clock.days_since(led.con, run_id, _me, t, _now),
                       tired="condition_flow" in _sys)     # the room's subtle cues dim with the mind (gate tired-lexicon)
     record_faults(detect_world_faults(packet, scene_slice, event_text, world, turn_no), book_dir)
     if _systems.declared(world):
@@ -1289,7 +1289,7 @@ def main():
         # open_scene mutates `char["current"]["affect"]` and knows nothing of the cache, so it is
         # refreshed here or the first turn below reads the pre-decay value.
         affect = dict(char["current"]["affect"])
-        if _clock_result["elapsed"]:
+        if (_clock_result["elapsed"] or 0) > 0:
             print("\n  %s minutes since the last scene ended%s — edges relaxed toward each character's"
                   " resting disposition, feelings toward their rest" % (
                       int(_clock_result["elapsed"]),

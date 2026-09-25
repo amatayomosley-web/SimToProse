@@ -47,6 +47,15 @@ that lulled never spent - and a scene or a chapter is only where the clock is re
 `story_now` place any moment of the log on it; `elapsed_since` measures between them (gate story-clock).
   * `elapsed` must be > 0. Nothing passing is not a declaration; it is the absence of one, and
     accepting it would let a caller quietly reset an erosion clock while looking like bookkeeping.
+
+EACH CHARACTER LIVES ON THEIR OWN TIMELINE (gate own-timelines, 2026-09-25; the owner: "a chapter can be a time
+skip or a change pov"). A character ages by the time THEY lived: one item at each opening they attend, their own
+time since they were last in a room (`since_presence`), and one per beat they are in the room for - never a beat
+they sat out or walked out of, which reaches them at their next opening instead (`time_items`, `presences`). Their
+sheet describes them where they first walk on (`first_presence`), not on the run's first page. So two scenes that
+share no one may overlap in story time and run in either order; what is refused is one character in two places at
+once, or a scene set before their own story's latest point (`refuse_overlap`). Days may be 0 or negative - before
+day 1. The world's own state - tensions, the fold of deaths and knowers - still follows the order scenes were run.
 """
 import bisect as _bisect
 import json as _json
@@ -175,13 +184,15 @@ def span_minutes(value):
 
 def parse_at(at):
     """A cfg's `at` -> absolute minutes from the book's day 1, 00:00.
-    Shape: {"day": N (int >= 1), "time": "HH:MM"}. Refuses anything else by name."""
+    Shape: {"day": N (an integer; 0 and below are the days before day 1 - gate own-timelines), "time": "HH:MM"}.
+    Refuses anything else by name."""
     if not isinstance(at, dict):
         raise RecordError("CLOCK_AT_NOT_AN_OBJECT",
                           "`at` must be {day: N, time: HH:MM}, got %r" % (at,))
     day = at.get("day")
-    if isinstance(day, bool) or not isinstance(day, int) or day < 1:
-        raise RecordError("CLOCK_AT_DAY_INVALID", "`at.day` must be an integer >= 1, got %r" % (day,))
+    if isinstance(day, bool) or not isinstance(day, int):
+        raise RecordError("CLOCK_AT_DAY_INVALID", "`at.day` must be an integer (0 and below come before day 1), "
+                                                  "got %r" % (day,))
     t = at.get("time")
     try:
         hh, mm = str(t).strip().split(":")
@@ -194,7 +205,8 @@ def parse_at(at):
 
 
 def format_at(minutes):
-    """Absolute minutes -> "day N HH:MM", for operator prints; never reaches an actor."""
+    """Absolute minutes -> "day N HH:MM", for operator prints; never reaches an actor. A minute before day 1 prints
+    as day 0, day -1 and so on (divmod floors), the numbering `parse_at` reads."""
     m = int(round(float(minutes)))
     day, rem = divmod(m, MINUTES_PER_DAY)
     return "day %d %02d:%02d" % (day + 1, rem // 60, rem % 60)
@@ -264,15 +276,35 @@ def _span_beats(seg):
     return int(round(seg["lasts"] / seg["beat_minutes"]))
 
 
+def _beat_share(seg, turn):
+    """A beat's own minutes under the reading `seg`: its per-beat share while the declared span holds the beat."""
+    if not seg["beat_minutes"]:
+        return 0.0
+    held = _span_beats(seg)
+    return 0.0 if held is not None and int(turn) - seg["turn"] >= held else seg["beat_minutes"]
+
+
+def _beat_end_at(seg, turn):
+    """The minute a beat under the reading `seg` ended, never past the span the reading declared."""
+    beats, held = int(turn) - seg["turn"] + 1, _span_beats(seg)
+    return seg["at"] + (min(beats, held) if held is not None else beats) * seg["beat_minutes"]
+
+
+def _readings(con, run_id, before_turn=None):
+    """Every scene reading of a run (optionally before a turn), by turn -> [{turn, at, lasts, beat_minutes}]."""
+    bound = "" if before_turn is None else " AND turn < %d" % int(before_turn)
+    return [{"turn": int(r[0]), "at": float(r[1]), "lasts": None if r[2] is None else float(r[2]),
+             "beat_minutes": float(r[3] or 0.0)} for r in con.execute(
+        "SELECT turn, at_minutes, lasts_minutes, beat_minutes FROM scene_clock WHERE run_id = ?" + bound
+        + " ORDER BY turn", (run_id,))]
+
+
 def beat_minutes(con, run_id, turn):
     """The story minutes a beat itself took -> float (gate slow-tiers-run): its reading's per-beat share while the
     reading's declared span holds it, and nothing past that or with no reading. A scene's beats never outrun their
     budget; a chair session opens with a budget of one, so a second turn under the same `--at` adds no time."""
     seg = last_scene_clock(con, run_id, int(turn) + 1)
-    if seg is None or not seg["beat_minutes"]:
-        return 0.0
-    held = _span_beats(seg)
-    return 0.0 if held is not None and int(turn) - seg["turn"] >= held else seg["beat_minutes"]
+    return 0.0 if seg is None else _beat_share(seg, turn)
 
 
 def beat_end(con, run_id, turn):
@@ -280,68 +312,73 @@ def beat_end(con, run_id, turn):
     `at_turn`'s arithmetic, one beat on - the reading it ran under plus its minutes for every beat up to this one,
     never past the span the reading declared (gate slow-tiers-run)."""
     seg = last_scene_clock(con, run_id, int(turn) + 1)
-    if seg is None:
-        return None
-    beats, held = int(turn) - seg["turn"] + 1, _span_beats(seg)
-    return seg["at"] + (min(beats, held) if held is not None else beats) * seg["beat_minutes"]
+    return None if seg is None else _beat_end_at(seg, turn)
 
 
-def time_items(con, run_id, before_turn=None):
-    """Every stretch of story time the log holds -> [(turn, slot, minutes)], ascending (gate slow-tiers-run). At each
-    scene reading after the run's first, its OPENING (slot 2): the gap since the last reading ended plus what that
-    scene declared and did not spend - exactly the `elapsed + owed` its opening applied (`gap_before`'s and
-    `unspent_before`'s arithmetic); at every committed beat, the beat's own minutes (slot 3, `beat_minutes`). A gap
-    declared at a turn with no reading (a log from before schema v25) is that turn's opening. `before_turn` keeps
-    earlier turns only. The slow tiers age by exactly these, live and in every fold."""
+def time_items(con, run_id, char_id, before_turn=None):
+    """Every stretch of story time ONE CHARACTER lived -> [(turn, slot, minutes)], ascending (gate own-timelines).
+
+    At each opening they are in the room for, after an earlier presence: their own time since (`since_presence` - the
+    arithmetic the live opening applies, so the two cannot drift), at the reading's turn, slot 2. At every beat they
+    were in the room for (`presences`): the beat's own minutes, slot 3 (`beat_minutes`). Nothing before their first
+    appearance - the sheet is who they are then - and nothing for a beat they sat out or had walked out of: that time
+    reaches them at their next opening, in one item. A gap declared at a turn with no reading (a log from before
+    schema v25) is that turn's opening for everyone, as it always was. `before_turn` keeps earlier turns only. Until
+    this gate every character took every stretch of the run (gate slow-tiers-run), in the scene or not."""
+    reads = _readings(con, run_id, before_turn)
+    starts, out, prev = [r["turn"] for r in reads], [], None
+    for t in presences(con, run_id, char_id, before_turn):
+        k = _bisect.bisect_right(starts, t) - 1
+        if k >= 0:
+            if t == reads[k]["turn"] and prev is not None:          # they are in this opening, and were somewhere before
+                own = since_presence(_ended(con, run_id, prev), reads[k]["at"])
+                if own > 0:
+                    out.append((t, 2, own))
+            m = _beat_share(reads[k], t)
+            if m:
+                out.append((t, 3, m))
+        prev = t
+    opened = set(starts)
     bound = "" if before_turn is None else " AND turn < %d" % int(before_turn)
-    reads = [{"turn": int(r[0]), "at": float(r[1]), "lasts": None if r[2] is None else float(r[2]),
-              "beat_minutes": float(r[3] or 0.0)} for r in con.execute(
-        "SELECT turn, at_minutes, lasts_minutes, beat_minutes FROM scene_clock WHERE run_id = ?" + bound
-        + " ORDER BY turn", (run_id,))]
-    out = []
-    for prev, seg in zip(reads, reads[1:]):
-        gap = seg["at"] - (prev["at"] + (prev["lasts"] or 0.0))
-        owed = (max(0.0, prev["lasts"] - max(0, seg["turn"] - prev["turn"]) * prev["beat_minutes"])
-                if prev["lasts"] is not None else 0.0)
-        if gap + owed > 0:
-            out.append((seg["turn"], 2, gap + owed))
-    opened = {r["turn"] for r in reads}
     out += [(int(t), 2, float(e)) for t, e in con.execute(
         "SELECT turn, elapsed FROM time_declarations WHERE run_id = ?" + bound, (run_id,)) if int(t) not in opened]
-    starts = [r["turn"] for r in reads]
-    for (t,) in con.execute("SELECT DISTINCT turn FROM turns WHERE run_id = ?" + bound, (run_id,)):
-        k = _bisect.bisect_right(starts, int(t)) - 1
-        if k < 0 or not reads[k]["beat_minutes"]:
-            continue
-        held = _span_beats(reads[k])
-        if held is None or int(t) - reads[k]["turn"] < held:
-            out.append((int(t), 3, reads[k]["beat_minutes"]))
     return sorted(out)
 
 
 def story_now(con, run_id):
     """How far the story has reached -> minutes, or None for a run with no scene reading (gate story-clock): the
-    end of the last committed beat, or the latest reading's opening when a scene has opened since."""
-    last = con.execute("SELECT MAX(turn) FROM turns WHERE run_id = ?", (run_id,)).fetchone()[0]
-    reading = last_scene_clock(con, run_id)
-    points = [p for p in ((beat_end(con, run_id, last) if last is not None else None),
-                          (reading["at"] if reading else None)) if p is not None]
-    return max(points) if points else None
+    furthest point any scene or chair session reached - a reading's opening, or the end of the last beat committed
+    under it. Since gate own-timelines scenes that share no one may run out of story order, so the scene run last is
+    not always the furthest; until then this read the last committed beat and the latest reading only."""
+    reads = _readings(con, run_id)
+    if not reads:
+        return None
+    starts, last = [r["turn"] for r in reads], {}
+    for (t,) in con.execute("SELECT DISTINCT turn FROM turns WHERE run_id = ?", (run_id,)):
+        k = _bisect.bisect_right(starts, int(t)) - 1
+        if k >= 0:
+            last[k] = max(last.get(k, int(t)), int(t))
+    return max([r["at"] for r in reads] + [_beat_end_at(reads[k], t) for k, t in last.items()])
 
 
-def days_since(con, run_id, turn, now_turn):
+def days_since(con, run_id, char_id, turn, now_turn):
     """Story DAYS from the end of beat `turn` to the start of beat `now_turn` -> float (gate memory-fades): a
-    memory's own time since the beat that formed or last recalled it; `turn` None is page one (`opening`), for a
-    memory the sheet carries. 0.0 when either end has no scene reading - no clock, no time."""
+    memory's own time since the beat that formed or last recalled it; `turn` None is where `char_id`'s own story
+    began (`first_presence`, gate own-timelines - it was the run's first page), for a memory their sheet carries.
+    0.0 when either end has no reading - no clock, no time - and for a sheet memory in their first beat."""
     now = at_turn(con, run_id, now_turn)
-    then = opening(con, run_id) if turn is None else beat_end(con, run_id, turn)
+    then = first_presence(con, run_id, char_id) if turn is None else beat_end(con, run_id, turn)
     return 0.0 if now is None or then is None else max(0.0, now - then) / float(MINUTES_PER_DAY)
 
 
-def opening(con, run_id):
-    """When the run's first scene opened, in minutes -> float, or None: page one, the moment a sheet describes."""
-    row = con.execute("SELECT at_minutes FROM scene_clock WHERE run_id=? ORDER BY turn LIMIT 1", (run_id,)).fetchone()
-    return None if row is None else float(row["at_minutes"])
+def first_presence(con, run_id, char_id):
+    """Where one character's own story began -> minutes, or None before their first beat (gate own-timelines): the
+    opening of the reading their first beat in the room ran under - the moment their sheet describes them. It was
+    page one, the run's first opening, for everyone; a character who walks on in a later scene is met as their
+    sheet says, then, and their sheet's memories and injuries are dated from there."""
+    here = presences(con, run_id, char_id)
+    seg = last_scene_clock(con, run_id, here[0] + 1) if here else None
+    return None if seg is None else seg["at"]
 
 
 def unspent_before(con, run_id, start_turn):
@@ -369,30 +406,50 @@ def _scene_casts(con, run_id):
     return out
 
 
-def last_present(con, run_id, char_id, before_turn):
-    """The last turn before `before_turn` this character was bodily in the room -> int, or None (gate absent-age).
+def presences(con, run_id, char_id, before_turn=None):
+    """Every turn this character was bodily in the room, ascending -> [int] (gate own-timelines; the rule gate
+    absent-age wrote for `last_present`, over the whole log). ONE SOURCE for who was there, live and in every fold.
 
     The speaker (`turns.actor`), or one of the room a scene beat's manifest records under `decay.here` - written
     every beat since gate non-speaker-decay (2026-09-22). A beat logged before that records no room: the log
     cannot tell who listened from who had walked out, so its scene's whole cast counts, which is what every
-    opening before this gate assumed, and what keeps those runs replaying as they ran. A chair turn sits in no
-    scene, so only its speaker was there."""
-    casts = None
+    opening before gate absent-age assumed, and what keeps those runs replaying as they ran. A chair turn sits in
+    no scene, so only its speaker was there."""
+    bound = "" if before_turn is None else " AND t.turn < %d" % int(before_turn)
+    casts, out = None, []
     for t, actor, man in con.execute(
             "SELECT t.turn, t.actor, m.manifest FROM turns t LEFT JOIN decision_manifests m ON m.run_id = t.run_id "
-            "AND m.turn = t.turn WHERE t.run_id = ? AND t.turn < ? ORDER BY t.turn DESC", (run_id, int(before_turn))):
-        if actor == char_id:
-            return int(t)
-        room = ((_json.loads(man) if man else {}).get("decay") or {}).get("here")
-        if room is not None:
-            if char_id in room:
-                return int(t)
+            "AND m.turn = t.turn WHERE t.run_id = ?" + bound + " ORDER BY t.turn", (run_id,)):
+        t = int(t)
+        if out and out[-1] == t:
             continue
-        if casts is None:
-            casts = _scene_casts(con, run_id)
-        if any(s <= int(t) <= e and char_id in cast for s, e, cast in casts):
-            return int(t)
-    return None
+        room = ((_json.loads(man) if man else {}).get("decay") or {}).get("here")
+        if actor != char_id and room is None:
+            if casts is None:
+                casts = _scene_casts(con, run_id)
+            room = [char_id] if any(s <= t <= e and char_id in cast for s, e, cast in casts) else []
+        if actor == char_id or char_id in room:
+            out.append(t)
+    return out
+
+
+def last_present(con, run_id, char_id, before_turn):
+    """The last turn before `before_turn` this character was bodily in the room -> int, or None (gate absent-age):
+    the last of their `presences`."""
+    here = presences(con, run_id, char_id, before_turn)
+    return here[-1] if here else None
+
+
+def _ended(con, run_id, turn):
+    """{"end", "owed"} for a character whose last beat in the room was `turn`, or None when no reading covers it:
+    the declared end of the reading it ran under (opening + lasts), and the minutes of it they did not spend in the
+    room - `lasts` less the beats up to and including theirs."""
+    seg = last_scene_clock(con, run_id, int(turn) + 1)
+    if seg is None:
+        return None
+    beats = int(turn) + 1 - seg["turn"]
+    owed = max(0.0, seg["lasts"] - beats * seg["beat_minutes"]) if seg["lasts"] is not None else 0.0
+    return {"end": seg["at"] + (seg["lasts"] or 0.0), "owed": owed}
 
 
 def presence_end(con, run_id, char_id, before_turn):
@@ -404,25 +461,72 @@ def presence_end(con, run_id, char_id, before_turn):
     the minutes after a walk-out were no one's; now they are the walk-out's, as the rest of their absence is.
     None: never present before this turn, or no reading to measure from - the sheet is their state."""
     last = last_present(con, run_id, char_id, before_turn)
-    seg = None if last is None else last_scene_clock(con, run_id, last + 1)
-    if seg is None:
-        return None
-    beats = last + 1 - seg["turn"]
-    owed = max(0.0, seg["lasts"] - beats * seg["beat_minutes"]) if seg["lasts"] is not None else 0.0
-    return {"end": seg["at"] + (seg["lasts"] or 0.0), "owed": owed}
+    return None if last is None else _ended(con, run_id, last)
+
+
+def since_presence(ended, at):
+    """A character's own time between their last beat in a room and an opening at `at`, in minutes (gate
+    own-timelines): `ended` is `presence_end`'s {"end", "owed"}. THE ONE ARITHMETIC for the live opening
+    (`passage.own_minutes`) and the fold's opening item (`time_items`), so the two cannot drift."""
+    return (float(at) - ended["end"]) + ended["owed"]
+
+
+def own_time(con, run_id, char_id, start_turn, at_minutes):
+    """One character's own time before an opening at `start_turn` -> minutes, or None at their first appearance."""
+    ended = presence_end(con, run_id, char_id, start_turn)
+    return None if ended is None else since_presence(ended, at_minutes)
+
+
+def _intervals(con, run_id, char_id):
+    """[(start, end)] - the story time one character spent in each scene or chair session they were in, in run order
+    (gate own-timelines): from its opening to its DECLARED end when they were still in the room at its last beat
+    (a lull ends the talk, not their being there), else to the end of their last beat in it (they walked out)."""
+    reads = _readings(con, run_id)
+    starts, last_of, mine = [r["turn"] for r in reads], {}, {}
+    for (t,) in con.execute("SELECT DISTINCT turn FROM turns WHERE run_id = ?", (run_id,)):
+        k = _bisect.bisect_right(starts, int(t)) - 1
+        if k >= 0:
+            last_of[k] = max(last_of.get(k, int(t)), int(t))
+    for t in presences(con, run_id, char_id):
+        k = _bisect.bisect_right(starts, t) - 1
+        if k >= 0:
+            mine[k] = max(mine.get(k, t), t)
+    return [(reads[k]["at"], reads[k]["at"] + (reads[k]["lasts"] or 0.0) if p == last_of[k] else _beat_end_at(reads[k], p))
+            for k, p in sorted(mine.items())]
+
+
+def refuse_overlap(con, run_id, cast, at_minutes, lasts_minutes):
+    """Refuse an opening that puts one of its cast in two places at once, or before their own story's latest point
+    -> None (gate own-timelines). It replaces `gap_before`'s refusal, which compared the opening with the scene run
+    last, whoever was in it: scenes that share no one may now overlap in story time and run in either order.
+
+    CLOCK_TWO_PLACES_AT_ONCE: the opening's span (at to at + lasts) overlaps one of their `_intervals`; spans that
+    only touch are not two places. CLOCK_RUNS_BACKWARDS: it opens before the latest point their own story has
+    reached - a scene set in their past, which gate flashback-windows is to make a window for them."""
+    a = float(at_minutes)
+    b = a + float(lasts_minutes or 0.0)
+    for c in cast:
+        spans = _intervals(con, run_id, c)
+        for s, e in spans:
+            if s < b and a < e:
+                raise RecordError("CLOCK_TWO_PLACES_AT_ONCE",
+                                  "%s is in a scene from %s to %s; this one, %s to %s, would put them in two places "
+                                  "at once" % (c, format_at(s), format_at(e), format_at(a), format_at(b)))
+        reached = max((e for _s, e in spans), default=None)
+        if reached is not None and a < reached:
+            raise RecordError("CLOCK_RUNS_BACKWARDS",
+                              "%s's own story has reached %s and this scene opens at %s, before it: a scene set in "
+                              "a character's past is not built yet - open it at %s or later, or leave them out of it"
+                              % (c, format_at(reached), format_at(a), format_at(reached)))
 
 
 def gap_before(con, run_id, at_minutes, before_turn=None):
-    """Minutes between the previous scene's END and this scene's opening, or None for the first
-    scene of a run. Refuses a scene that opens before the previous one ended — the clock does not
-    run backwards, and a cfg that says otherwise is the author's to fix."""
+    """Minutes between the END of the scene run last and this opening -> float, or None for the run's first. SIGNED
+    since gate own-timelines: negative when this scene is set earlier, which is legal when it shares no one with
+    that scene (`refuse_overlap` refuses one character in two places, or before their own latest). It is what the
+    operator line prints and, when positive, what the log declares; no one ages by it - each character ages by
+    their own time (`since_presence`). Until that gate it refused any opening before the last scene's end."""
     prev = last_scene_clock(con, run_id, before_turn)
     if prev is None:
         return None
-    end = prev["at"] + (prev["lasts"] or 0.0)
-    gap = float(at_minutes) - end
-    if gap < 0:
-        raise RecordError("CLOCK_RUNS_BACKWARDS",
-                          "this scene opens at %s but the previous one ended at %s; a scene cannot open "
-                          "before the last one ended" % (format_at(at_minutes), format_at(end)))
-    return gap
+    return float(at_minutes) - (prev["at"] + (prev["lasts"] or 0.0))

@@ -12,8 +12,9 @@ WHAT IT IS - the props precedent (`scene_facts`), for bodies:
     `scene_facts.run_rows`: no new table, nothing to migrate, a `correction` supersedes it the same way;
   * each HEALS OVER STORY TIME, read off the one clock (`clock.at_turn`): `fresh` for the first part of its
     healing, then `healing`, then gone - except a grave one, which leaves a lasting MARK;
-  * a sheet's `current.condition.injuries` are the ones a character carries on page one (`clock.opening`),
-    `ago` before it; with no `ago`, long healed.
+  * a sheet's `current.condition.injuries` are the ones a character carries where their own story begins - the
+    opening of their first scene (`clock.first_presence`; page one until gate own-timelines) - `ago` before it; with
+    no `ago`, long healed.
 
 WHO IS TOLD: the one hurt, the one who acted, and whoever was PRESENT at that beat (`scene_facts.witnessed`, the
 same recorded presence). A sheet's injuries: that character alone.
@@ -108,7 +109,7 @@ def require(char):
     """Refuse, before the first beat, a sheet whose injuries the system cannot read -> the char.
 
     `current.condition.injuries`: a list (empty is the usual answer) of {what, severity, ago?} - `what` in the
-    author's words, `severity` one of the ladder's, `ago` an optional span before page one ("12h", "5d")."""
+    author's words, `severity` one of the ladder's, `ago` an optional span before their first scene ("12h", "5d")."""
     cond = ((char or {}).get("current") or {}).get("condition") or {}
     rows = cond.get("injuries", [])
     if not isinstance(rows, list):
@@ -180,7 +181,7 @@ def for_actor(con, run_id, actor, char, before_turn):
     """What `actor` knows of injuries still showing at the beat `before_turn` -> [{who, what, severity, stage}].
 
     The injuries of beats they witnessed (`scene_facts.witnessed`), aged from the beat they were taken; then
-    their own sheet's, aged from page one less `ago`. Healed ones are gone; a grave one stays as its mark. Most
+    their own sheet's, aged from their first scene less `ago`. Healed ones are gone; a grave one stays as its mark. Most
     recent first; the sheet's last."""
     now = _clock.at_turn(con, run_id, before_turn)
     present = _scene_facts.present_by_turn(con, run_id)
@@ -192,7 +193,8 @@ def for_actor(con, run_id, actor, char, before_turn):
         s = stage(r["severity"], (now - then) if (now is not None and then is not None) else 0.0)
         if s:
             out.append({"who": r["who"], "what": r["what"], "severity": r["severity"], "stage": s})
-    start = _clock.opening(con, run_id)
+    start = _clock.first_presence(con, run_id, actor)          # where their story began (gate own-timelines)
+    start = now if start is None else start                     # ...or begins, with this very beat
     for r in ((((char or {}).get("current") or {}).get("condition") or {}).get("injuries") or []):
         if r.get("ago") is None:
             s = stage(r["severity"], float("inf"))

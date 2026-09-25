@@ -549,11 +549,13 @@ END;
 -- scene is DERIVED from this row (clock.gap_before) and then logged in time_declarations as the
 -- cause the four older tiers already consume — so the derivation never has to read prose, and
 -- the declaration stays what it was. Append-only for the same reason time_declarations is.
+-- at_minutes may be NEGATIVE since schema v32 (gate own-timelines, 2026-09-25): a scene may be set on day 0 or
+-- before - before day 1 - and v31's CHECK (at_minutes >= 0) refused it; `db._migrate` rebuilds an older table.
 CREATE TABLE IF NOT EXISTS scene_clock (
     clock_id      INTEGER PRIMARY KEY AUTOINCREMENT,
     run_id        TEXT NOT NULL CHECK (run_id <> ''),
     turn          INTEGER NOT NULL,              -- the scene's start turn
-    at_minutes    REAL    NOT NULL CHECK (at_minutes >= 0),
+    at_minutes    REAL    NOT NULL,
     lasts_minutes REAL    CHECK (lasts_minutes IS NULL OR lasts_minutes > 0),
     beat_minutes  REAL    NOT NULL DEFAULT 0 CHECK (beat_minutes >= 0),   -- lasts / budget, or 0 (no lasts): what each beat was given
     UNIQUE (run_id, turn)

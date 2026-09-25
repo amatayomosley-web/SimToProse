@@ -218,8 +218,9 @@ def test_through_the_driver(tmp):
           and any("mira:fresh" in m["injuries"] for m in mans.values()), list(mans.values())[-1].get("injuries"))
     run_id = con.execute("SELECT run_id FROM runs").fetchone()[0]
     first = con.execute("SELECT MIN(turn) FROM turns").fetchone()[0]
+    opened = clock.last_scene_clock(con, run_id, first + 1)["at"]
     check("a-beat-s-time-is-its-scene-s-opening-plus-its-beats", clock.at_turn(con, run_id, first + 2)
-          == clock.opening(con, run_id) + 2 * 15.0, (clock.at_turn(con, run_id, first + 2), clock.opening(con, run_id)))
+          == opened + 2 * 15.0, (clock.at_turn(con, run_id, first + 2), opened))
     head = con.execute("SELECT MAX(turn) FROM turns").fetchone()[0] + 1
     check("someone-who-was-never-there-is-told-nothing", injuries.for_actor(con, run_id, "gull", {}, head) == [])
     burn_at = clock.at_turn(con, run_id, hurt_turns[0])
@@ -344,13 +345,15 @@ def test_weakens(tmp):
     check("...and-someone-else-s-never-does", injuries.weakening(con, run_id, "ada", {}, 1) == 0)
     import copy
     from src.engine import condition, passage
-    base = {"current": {"condition": condition.split({"energy": 0.9, "allostatic_load": 0.1}), "affect": {}},
-            "baseline": {"body": {"strength": "strong"}}}
+    from test_vault import CHAR_ENGINE             # a whole sheet: an opening with a presence ages the mood and the
+    base = copy.deepcopy(CHAR_ENGINE)              # slow tiers too (gate own-timelines), not the condition alone
+    base["current"]["condition"] = condition.split({"energy": 0.9, "allostatic_load": 0.1})
+    base["baseline"]["body"] = {"strength": "strong"}
     gap = {}
     for w in (None, {"mira": 2}):                  # two waking hours between scenes, weighed whole and a grave hurt down
         chs = {"mira": copy.deepcopy(base)}
-        passage.apply_opening(chs, None, 0.0, lambda i: [], flow=True, body=True, at=540.0,
-                              gaps={"mira": {"end": 420.0, "owed": 0.0}}, weakened=w)
+        passage.apply_opening(chs, lambda i: [], 540.0, {"mira": {"end": 420.0, "owed": 0.0}}, flow=True, body=True,
+                              weakened=w)
         gap[bool(w)] = chs["mira"]["current"]["condition"]["energy"]
     want = condition.TIME_SPEND * 120 * (1 / 0.75 - 1 / 1.3)
     check("the-gap-between-scenes-costs-the-weakened-body-the-priced-amount", abs((gap[False] - gap[True]) - want) < 1e-12,

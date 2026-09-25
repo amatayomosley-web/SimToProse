@@ -698,7 +698,9 @@ on its own salt so it never collides with `hit`/`hold` (`make_genotype.draw_rest
 
 **REQUIRED — all nine, again.**
 
-**What it is.** Their actual mood at the moment the book opens. **Unless your book opens
+**What it is.** Their actual mood at the moment the story first meets them - the book's opening, or, for
+someone who first walks on later, their own first scene. The whole sheet describes them THERE: nothing ages them
+before it, and the memories and injuries it lists are dated from it (gate own-timelines, 2026-09-25). **Unless your book opens
 mid-crisis, this should sit at or very near the resting face you authored in 3.1** — the difference
 between "she is an anxious person" and "she is frightened right now" is exactly this gap.
 
@@ -1683,7 +1685,7 @@ skip this section.**
 they have; `allostatic_load` is how much wear they are carrying. Together they set both how much the
 actor is told they can manage, and — this is the interesting part — **how much they can remember**.
 
-**YOUR JOB — one circle.** *How much has this person got left, on page one?*
+**YOUR JOB — one circle.** *How much has this person got left, when they first walk on?*
 
 ( ) they take the shortest path and will not do the thorough version of anything
 ( ) they do what is asked and none of the extra
@@ -1716,9 +1718,9 @@ readers assume different values for the other, and the pre-run check warns.
 sheets and no code anywhere reads either of them — searched the engine and the scripts. The owner
 ruled out health bars for now (2026-09-22); energy (above) is the book's fatigue.
 
-**`injuries` — ONLY IF YOUR BOOK RUNS `injuries` (Part Zero).** The hurts this character carries on
-page one: a list, usually empty, of `{"what": "<in your words>", "severity": "minor | serious | grave",
-"ago": "<optional: how long before page one, e.g. 12h or 5d>"}`. Leave `ago` out for something long
+**`injuries` — ONLY IF YOUR BOOK RUNS `injuries` (Part Zero).** The hurts this character carries when they
+first walk on: a list, usually empty, of `{"what": "<in your words>", "severity": "minor | serious | grave",
+"ago": "<optional: how long before their first scene, e.g. 12h or 5d>"}`. Leave `ago` out for something long
 healed - then only a grave one still shows, as the mark it left. The character is told their own; no
 one else notices an old injury they did not see happen (not built). Hurts taken during the story come
 from the reader of each beat, not from you (`src/engine/injuries.py`). A book that does not run the

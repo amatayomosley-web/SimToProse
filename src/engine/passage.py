@@ -63,17 +63,17 @@ each character's strength, `body.capacity`; gate body-exertion):
                     it. Optional because the chair has no scene cfg to draw one from: a chair-
                     declared gap carries no label, same as an unnamed scene always has.
   -> {"elapsed": minutes or None, "owed": minutes, "per_beat": minutes, "relaxed": [ids], "own": {id: minutes}}
-     `elapsed` is None for the first opening of a run (nothing to derive a gap from), and nothing is
-     applied; `owed` is the previous opening's unspent `lasts` (0.0 when it spent it all, or
-     declared none); `relaxed` is every id this call actually aged (sorted; empty when `elapsed`
-     was falsy — zero minutes is the absence of a declaration, not a declaration of zero, per
-     clock.py's own rule); `own` is how long each character had been out of the room, the minutes
-     their mood aged (`own_minutes`; a first appearance is absent from it, and so is everyone at a
-     run's first opening).
+     `elapsed` is the signed gap since the scene run last ended (`clock.gap_before`), None for the
+     run's first opening - what the operator line prints, and what the log declares when positive;
+     `owed` is the previous opening's unspent `lasts` (0.0 when it spent it all, or declared none);
+     `own` is how long each character had been out of the room - the minutes their mood and slow
+     tiers aged (`own_minutes`; a first appearance is absent from it, and so is everyone at a run's
+     first opening); `relaxed` is every id whose slow tiers this call aged (sorted).
 
-Raises `RecordError("CLOCK_RUNS_BACKWARDS", ...)` through `ledger.gap_before` when this opening's
-`at_minutes` falls before the previous opening's own end — the clock does not run backwards, in
-either driver.
+Raises `RecordError("CLOCK_TWO_PLACES_AT_ONCE" | "CLOCK_RUNS_BACKWARDS", ...)` through
+`clock.refuse_overlap`, before anything is logged, when the opening puts one of its cast in two places
+at once or before their own story's latest point (gate own-timelines) — in either driver. Scenes that
+share no one may overlap in story time and run in either order.
 
 Deterministic, stdlib + engine imports only, no LLM, no randomness. Fails loud through the modules
 it calls.
@@ -99,11 +99,14 @@ import json as _json
 
 def open_scene(led, run_id, start_turn, at_minutes, lasts_minutes, budget, chars, names=None, flow=False, body=False,
                stated=None, injuries=False):
+    # NO ONE IN TWO PLACES, NO ONE BEFORE THEIR OWN LATEST (gate own-timelines) - refused before the reading is logged,
+    # so a refused opening leaves no reading behind to block the corrected one at the same turn.
+    clock.refuse_overlap(led.con, run_id, list(chars), at_minutes, lasts_minutes)
     per_beat = (float(lasts_minutes) / float(budget)) if lasts_minutes and budget else 0.0
     led.record_scene_clock(run_id, start_turn, at_minutes, lasts_minutes, per_beat)
     elapsed = led.gap_before(run_id, at_minutes, before_turn=start_turn)
     owed = led.unspent_before(run_id, start_turn) or 0.0
-    if elapsed:
+    if elapsed and elapsed > 0:
         # DECLARED, THEN APPLIED. The declaration is the CAUSE and it is what gets logged; every
         # fade is DERIVED from it at replay - the drift by `bond_rest.rehydrate`, the wound, arc and
         # attitude fades by the folds at the foot of this module, the mood's by `mood_fold`. Until
@@ -112,59 +115,64 @@ def open_scene(led, run_id, start_turn, at_minutes, lasts_minutes, budget, chars
         # Before this line moved here, drift ran inline in the driver, mutated memory, and reached no
         # table — so a resumed cast lost every winter that passed. The declaration is MINUTES; the
         # three older tiers read it in DAYS (clock.elapsed_days_since), `toward.erode` as declared.
+        # Since gate own-timelines no one ages by it (each character by their own time), and a scene set earlier
+        # than the one run last - a negative gap, legal when they share no one - declares nothing.
         led.declare_time(run_id, start_turn, elapsed, str(names or ""))
-    # EACH CHARACTER'S OWN TIME, from the last beat they were in the room: the mood's (gate absent-age) and, in a
-    # book running `condition_flow`, the condition's (gate gap-day-and-night).
+    # EACH CHARACTER'S OWN TIME, from the last beat they were in the room: the mood's (gate absent-age), the slow
+    # tiers' (gate own-timelines) and, in a book running `condition_flow`, the condition's (gate gap-day-and-night).
     gaps = {i: clock.presence_end(led.con, run_id, i, start_turn) for i in chars}
     # AN INJURY WEAKENS THE BODY WHILE IT HEALS (gate injury-weakens): read at the opening, for the gap before it.
     weak = ({i: _injuries.weakening(led.con, run_id, i, chars[i], start_turn) for i in chars}
             if (injuries and body) else None)
-    relaxed = apply_opening(chars, elapsed, owed, lambda i: bond_rest.rows_for(led.con, run_id, i), flow=flow, body=body,
-                            at=at_minutes, gaps=gaps, stated=stated, weakened=weak)
+    relaxed = apply_opening(chars, lambda i: bond_rest.rows_for(led.con, run_id, i), at_minutes, gaps, flow=flow,
+                            body=body, stated=stated, weakened=weak)
     # keyword form, not a literal {"elapsed": ...} — this is the DERIVED result of gap_before, the
     # thing that retired an AUTHORED cfg `elapsed` field (2026-09-10, clock.py), not a reappearance
     # of it; tests/test_retired_vocabulary.py greps source text and cannot tell the two apart.
-    return dict(elapsed=elapsed, owed=owed, per_beat=per_beat, relaxed=relaxed,
-                own=own_minutes(chars, at_minutes, gaps) if elapsed is not None else {})
+    return dict(elapsed=elapsed, owed=owed, per_beat=per_beat, relaxed=relaxed, own=own_minutes(chars, at_minutes, gaps))
 
 
 def own_minutes(ids, at, gaps):
     """{id: minutes} - how long each character has been out of the room at an opening (gate absent-age): from the
     scene reading they were last in (`gaps`, {id: clock.presence_end(...)}) to `at`, plus what they owe of it (the
-    rest of a scene they walked out of, or one that lulled). An id with no earlier presence is left out: a first
-    appearance arrives with the mood on the sheet. For someone in the last scene to its end this is exactly the
-    run's gap plus that scene's unspent minutes - the old rule, which aged whoever was in the NEW scene by the
-    time since the LAST one ended, so a character who sat scenes out came back feeling as they did when they left."""
-    return {i: (float(at) - g["end"]) + g["owed"] for i in ids for g in [(gaps or {}).get(i)] if g is not None}
+    rest of a scene they walked out of, or one that lulled) - `clock.since_presence`, the arithmetic the folds' own
+    opening item uses (gate own-timelines). An id with no earlier presence is left out: a first appearance arrives
+    as the sheet describes them. For someone in the last scene to its end this is exactly the run's gap plus that
+    scene's unspent minutes - the old rule, which aged whoever was in the NEW scene by the time since the LAST one
+    ended, so a character who sat scenes out came back feeling as they did when they left."""
+    return {i: clock.since_presence(g, at) for i in ids for g in [(gaps or {}).get(i)] if g is not None}
 
 
-def apply_opening(chars, elapsed, owed, rest_rows, flow=False, body=False, at=None, gaps=None, stated=None,
-                  weakened=None):
-    """An opening's effects on every character, in memory -> the ids its declared gap aged (sorted).
+def apply_opening(chars, rest_rows, at, gaps, flow=False, body=False, stated=None, weakened=None):
+    """An opening's effects on every character, in memory -> the ids whose slow tiers it aged (sorted).
 
     THE APPLICATION HALF OF `open_scene`, split out verbatim (gate mood-from-readings, 2026-09-22) so the
     mood replay applies an opening with the very code the drivers ran, rather than a second copy of it.
-    Each character's mood decays over THEIR OWN time out of the room (`own_minutes`, from `gaps` {id:
-    clock.presence_end(...) or None} and `at`, this opening - gate absent-age): someone who sat scenes out
-    or walked out comes back cooled by all of it, a first appearance keeps the sheet's mood, and someone in
-    the last scene to its end gets the gap plus that scene's unspent minutes, as everyone did before. After
-    the run's first opening `gaps` is required (PASSAGE_GAPS_MISSING). A declared gap also drifts each edge
-    toward its rest, erodes the wounds, returns the temperament toward what was authored and fades the
-    attitude - on the run's clock, for everyone, as the replay folds do. `rest_rows(id)` -> that
-    character's rest rows as the opening reads them (`bond_rest.rows_for` at the time). `elapsed` None or 0
-    applies no gap to those tiers: [] is returned.
+    EVERY CHARACTER BY THEIR OWN TIME (`own_minutes`, from `gaps` {id: clock.presence_end(...) or None} and `at`,
+    this opening): the mood decays over it (gate absent-age), and the slow tiers age over it (`age`, gate
+    own-timelines) - each edge drifts toward its rest, the wounds erode, the temperament returns toward what was
+    authored and the attitude fades - exactly the opening item `clock.time_items` gives the folds. Someone who sat
+    scenes out or walked out comes back aged by all of it; someone in the last scene to its end, by the gap plus
+    that scene's unspent minutes, as before; a FIRST APPEARANCE is left as the sheet describes them - their story
+    begins here. Until gate own-timelines the slow tiers took the run's gap for everyone, first appearances too,
+    and the folds had already aged a late arrival from the run's first opening. `gaps` is required
+    (PASSAGE_GAPS_MISSING); at the run's first opening every entry is None and nothing moves. `rest_rows(id)` ->
+    that character's rest rows as the opening reads them (`bond_rest.rows_for` at the time).
 
     `flow` (the book runs `condition_flow`, gate condition-flow): the owed minutes cost energy and the
     gap restores it (`condition.opening`) - first, while the mood is still the one the last scene ended
     on, which is the one the owed minutes were lived in. `body` (the book runs `body`, gate body-exertion): the
     owed minutes are weighed against each character's strength, as a beat's are. The condition's gap is each
-    character's OWN (gate gap-day-and-night): `gaps` {id: clock.presence_end(...) or None} and `at` (this opening),
-    walked by `condition.between` - night rests, day is awake, `stated` {id: rested | awake} supersedes; an id
-    with no earlier presence keeps the sheet's condition. `weakened` {id: strength words down} (gate
-    injury-weakens): an injury not yet healed makes the gap cost that body more.
+    character's OWN (gate gap-day-and-night): walked by `condition.between` - night rests, day is awake, `stated`
+    {id: rested | awake} supersedes; an id with no earlier presence keeps the sheet's condition. `weakened` {id:
+    strength words down} (gate injury-weakens): an injury not yet healed makes the gap cost that body more.
     """
+    if gaps is None:
+        raise RecordError("PASSAGE_GAPS_MISSING",
+                          "passage: an opening needs each character's presence (gaps {id: clock.presence_end(...) or "
+                          "None}) to age them by their own time away")
     ids = list(chars)
-    if flow and gaps is not None:
+    if flow:
         for i in ids:
             g = gaps.get(i)
             if g is None:                  # first presence in this run: the sheet is their state
@@ -172,32 +180,31 @@ def apply_opening(chars, elapsed, owed, rest_rows, flow=False, body=False, at=No
             chars[i]["current"]["condition"] = _condition.between(
                 chars[i]["current"]["condition"], g["end"], at, g["owed"], chars[i]["current"].get("affect"),
                 1.0 / _body.capacity(chars[i], (weakened or {}).get(i, 0)) if body else 1.0, (stated or {}).get(i))
-    if elapsed is not None:                # the run's first opening has nothing before it to age from
-        if gaps is None:
-            raise RecordError("PASSAGE_GAPS_MISSING",
-                              "passage: an opening after the run's first needs each character's presence "
-                              "(gaps {id: clock.presence_end(...)}) to age their mood by their own time away")
-        for i, minutes in own_minutes(ids, at, gaps).items():
-            if minutes > 0:
-                ch = chars[i]
-                aged = decay(dict(ch["current"]["affect"]), ch["baseline"]["temperament"], build_profile(ch),
-                             elapsed=minutes)
-                ch["current"]["affect"] = dict(aged)
-    if elapsed is None:
-        return []
-    # THE OPENING'S STRETCH FOR THE SLOW TIERS is the gap AND what the last scene left unspent (gate slow-tiers-run):
-    # `clock.time_items`' opening item, to the float. Until then they took the gap alone.
-    return age(chars, elapsed + owed, rest_rows)
+    own = own_minutes(ids, at, gaps)
+    for i, minutes in own.items():
+        if minutes > 0:
+            ch = chars[i]
+            aged = decay(dict(ch["current"]["affect"]), ch["baseline"]["temperament"], build_profile(ch),
+                         elapsed=minutes)
+            ch["current"]["affect"] = dict(aged)
+    # THE SLOW TIERS, EACH BY THEIR OWN TIME, after the mood (the order the drivers always kept).
+    aged = []
+    for i, minutes in own.items():
+        if minutes > 0:
+            age({i: chars[i]}, minutes, rest_rows)
+            aged.append(i)
+    return sorted(aged)
 
 
 def age(chars, minutes, rest_rows):
     """Story time passing for the slow tiers of every character given -> the ids it aged, sorted (gate
     slow-tiers-run; docs/design.md, "State runs whether or not the page is looking").
 
-    THE ONE STEP every stretch of story time takes, live and in the folds: at an opening (`apply_opening`: the gap
-    plus the last scene's unspent minutes), at every beat for the whole cast, on the page or off (both drivers and
-    `mood_fold._beat`, before the beat's own movements), and item by item in `fold_toward` / `fold_wounds` /
-    `fold_arc` and `bond_rest.rehydrate` over `clock.time_items`. Each edge drifts toward its own rest, each untouched
+    THE ONE STEP every stretch of story time takes, live and in the folds: at an opening (`apply_opening`: each
+    character's own time since they were last in a room), at every beat for everyone in the room (both drivers and
+    `mood_fold._beat`, before the beat's own movements; gate own-timelines - it was the whole cast, walk-outs too),
+    and item by item in `fold_toward` / `fold_wounds` / `fold_arc` and `bond_rest.rehydrate` over each character's
+    own `clock.time_items`. Each edge drifts toward its own rest, each untouched
     scar eases toward its floor, the resting means return toward what was authored, and the attitudes fade toward
     zero on the bonds as they have just drifted - the order the folds keep. Until this gate only the gap between
     scenes did any of it. `rest_rows(id)` -> that character's rest rows as this moment reads them; `minutes` of 0
@@ -288,9 +295,10 @@ def bystanders(room, speaker, minutes, here):
 # stretches of story time the deltas stay ORDER-FREE - summed, then clamped once, exactly as
 # `toward.replay` and `levers.replay_wound_deltas` have always done - and each stretch's fade applies at
 # its place in the log: after every delta of the turns before it, before the deltas of its own turn. Since
-# gate slow-tiers-run (2026-09-24) the stretches are `clock.time_items`: each opening (the gap plus what the
-# last scene left unspent) and each committed beat's own minutes, the opening's first - so a scene that
-# lasts a day fades every tier across that day, for everyone, not only across the gaps between scenes.
+# gate slow-tiers-run (2026-09-24) the stretches are `clock.time_items`: each opening and each committed beat's
+# own minutes, the opening's first - so a scene that lasts a day fades every tier across that day, not only
+# across the gaps between scenes. Since gate own-timelines (2026-09-25) they are each CHARACTER'S own: their
+# time since they were last in a room at each opening they attend, and the beats they were in the room for.
 # With no stretch in the log each fold equals the old restorer exactly; tests/test_passage.py pins that.
 # ---------------------------------------------------------------------------------------------------
 
@@ -319,11 +327,12 @@ def _bound(before_turn):
     return "" if before_turn is None else " AND turn < %d" % int(before_turn)
 
 
-def _stretches(con, run_id, before_turn=None):
-    """{turn: [minutes, ...]} - every stretch of story time the log holds, a turn's opening before its beat's own
-    (`clock.time_items`, gate slow-tiers-run). Until that gate the only stretch was a declared gap between scenes."""
+def _stretches(con, run_id, char_id, before_turn=None):
+    """{turn: [minutes, ...]} - every stretch of story time one character lived, a turn's opening before its beat's
+    own (`clock.time_items`: gate slow-tiers-run, per character since gate own-timelines). Until gate slow-tiers-run
+    the only stretch was a declared gap between scenes."""
     out = {}
-    for t, _slot, m in clock.time_items(con, run_id, before_turn):
+    for t, _slot, m in clock.time_items(con, run_id, char_id, before_turn):
         out.setdefault(int(t), []).append(float(m))
     return out
 
@@ -411,7 +420,7 @@ def fold_wounds(con, run_id, char_id, char, before_turn=None):
             live.append(w)
     wounds[:] = live
     have = {str(w.get("id", "")) for w in wounds if isinstance(w, dict)}
-    stretches = _stretches(con, run_id, before_turn)
+    stretches = _stretches(con, run_id, char_id, before_turn)
     mints_at, deltas_at = {}, {}
     for t, m in minted:
         mints_at.setdefault(t, []).append(m)
@@ -455,7 +464,7 @@ def fold_arc(con, run_id, char_id, char, before_turn=None):
     """Replay the arc - each durable diff and every stretch of story time's fade of the resting means - in log
     order -> the char (a new dict when any diff applies, as `arc.apply` returns one). `before_turn` folds the
     log as it stood before that turn; None is the whole log."""
-    stretches = _stretches(con, run_id, before_turn)
+    stretches = _stretches(con, run_id, char_id, before_turn)
     diffs = {int(t): _json.loads(d) for t, d in con.execute(
         "SELECT turn, diff FROM arc_diffs WHERE run_id = ? AND char_id = ?" + _bound(before_turn) + " ORDER BY turn",
         (run_id, char_id))}

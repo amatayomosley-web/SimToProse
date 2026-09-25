@@ -154,8 +154,8 @@ def test_the_run_and_the_report(tmp):
     finally:
         _pas.age = real_age
     led3 = Ledger(os.path.join(dc, "runs", "%s.db" % run3))
-    stretches = [m for _t, _s, m in _ck.time_items(led3.con, run3)]
-    check("chapter-two's-beats-carry-minutes", any(s_ == 3 and t_ > 0 for t_, s_, _m in _ck.time_items(led3.con, run3)))
+    stretches = [m for _t, _s, m in _ck.time_items(led3.con, run3, "healer")]
+    check("chapter-two's-beats-carry-minutes", any(s_ == 3 and t_ > 0 for t_, s_, _m in _ck.time_items(led3.con, run3, "healer")))
     check("every-stretch-the-log-holds-is-a-step-the-bench-took-in-order", [m for m in steps if m > 0] == stretches,
           repr(([m for m in steps if m > 0], stretches)))
     folded = _pas.fold_wounds(led3.con, run3, "healer", RA.load_book(dc)[2])

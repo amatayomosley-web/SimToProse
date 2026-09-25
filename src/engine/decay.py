@@ -73,8 +73,8 @@ def calculate_effective_confidence(belief, current_turn=0, relationships=None,
       relationships  : dict of live character relationship edges {target: edge_dict}
       recall_history : dict derived from fold_recall_history {bid: {last_turn, count}}
       elapsed        : the story time this memory has had, in days: a callable (turn or None) -> days, asked
-                       with the turn that last recalled or formed it, or None for one the sheet carries (page
-                       one) - each memory its own time (gate memory-fades; both drivers pass
+                       with the turn that last recalled or formed it, or None for one the sheet carries (since
+                       the character's own first scene, gate own-timelines) - each memory its own time (gate memory-fades; both drivers pass
                        `clock.days_since`) - or one number for every memory (a caller with no clock)
     """
     if not isinstance(belief, dict):
@@ -105,7 +105,7 @@ def calculate_effective_confidence(belief, current_turn=0, relationships=None,
 
     if callable(elapsed):
         # EACH MEMORY ITS OWN STORY TIME (gate memory-fades): since it was last recalled, or formed - or, carried
-        # on the sheet with no turn of its own, since page one. The drivers handed this the time AFTER the current
+        # on the sheet with no turn of its own, since the character's first scene. The drivers handed this the time AFTER the current
         # beat, which is zero at the head of the log, so no memory ever faded in a live run.
         dated = (bool(bid and recall_history and bid in recall_history)
                  or "created_turn" in belief or "last_recalled_turn" in belief)

@@ -15,9 +15,9 @@ WHAT IT REPLAYS: a scene-driven run, scene by scene from the `scenes` rows, as s
            character's own wound refold or arc change: exactly when the drivers build it. Decay and the
            receipt read the profile's held map from that build and its relationships live (a profile
            keeps a reference to the sheet's edges), so each beat reads the bonds as they stood.
-  opening  `passage.apply_opening`, the very code `open_scene` runs, over the gap the clock logged and
-           each cast member's own time out of the room (`clock.presence_end`, gate absent-age).
-  beat     the beat's minutes age every cast member's slow tiers (`passage.age`, gate slow-tiers-run), then
+  opening  `passage.apply_opening`, the very code `open_scene` runs, over each cast member's own time out of
+           the room (`clock.presence_end`, gate absent-age; the slow tiers too since gate own-timelines).
+  beat     the beat's minutes age the slow tiers of everyone in the room (`passage.age`, gate slow-tiers-run), then
            decay first over the beat's minutes, then the receipt from the logged readings (or, with no
            readings, `appraise` on the logged tags); every other present character decays when the
            manifest records it (step 4, since gate non-speaker-decay); the binds follow rules 1-5.
@@ -134,10 +134,9 @@ def replay(con, run_id, sheets, notes=None, conditions=None):
             binds[c] = dict(chs[c]["current"].get("targets") or {})
         rests = {c: [r for r in bond_rest.rows_for(con, run_id, c) if r[0] < start or (r[0] == start and r[4] == "authored")]
                  for c in cast}
-        passage.apply_opening({c: chs[c] for c in cast}, clock.gap_before(con, run_id, float(at_m), before_turn=start),
-                              clock.unspent_before(con, run_id, start) or 0.0, rests.get, flow=flow, body=body_on,
-                              at=float(at_m), stated=_condition.stated_gaps(body.get("condition")),
-                              gaps={c: clock.presence_end(con, run_id, c, start) for c in cast},
+        passage.apply_opening({c: chs[c] for c in cast}, rests.get, float(at_m),
+                              {c: clock.presence_end(con, run_id, c, start) for c in cast}, flow=flow, body=body_on,
+                              stated=_condition.stated_gaps(body.get("condition")),
                               weakened=({c: _injuries.weakening(con, run_id, c, chs[c], start) for c in cast}
                                         if (inj_on and body_on) else None))
         _condition.apply_declared({c: chs[c] for c in cast}, body.get("condition"))     # the director's words, as run
@@ -174,9 +173,10 @@ def _beat(con, run_id, t, cast, per_beat, mood, chs, prof, temp, binds, out, not
     room = set(step4.get("here") or ()) or (set(cast) | ({str(target)} if _concepts.looks_like_concept(target) else set()))
     before = dict(binds[spk])
     mid = _targets.bind_readings(before, rs, me=spk) if rs else _targets.retarget(before, applied, me=spk)
-    # THE BEAT'S MINUTES FOR EVERY SLOW TIER OF THE CAST (gate slow-tiers-run), where the drivers age them: before
+    # THE BEAT'S MINUTES FOR EVERY SLOW TIER OF THOSE IN THE ROOM (gate slow-tiers-run; the room, not the cast, since
+    # gate own-timelines - a walk-out's time reaches them at their next opening), where the drivers age them: before
     # the decay, against the rests the live beat read
-    passage.age({c: chs[c] for c in cast}, clock.beat_minutes(con, run_id, t),
+    passage.age({c: chs[c] for c in cast if c in room}, clock.beat_minutes(con, run_id, t),
                 lambda c: bond_rest.rows_before(con, run_id, c, t))
     for c in cast:                                                   # the profile reads the edges live
         prof[c]["relationships"] = _bonds(con, run_id, c, chs[c], (t, 4))[0]

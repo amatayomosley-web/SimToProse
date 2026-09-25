@@ -186,6 +186,17 @@ def _beats_by_turn(con, steps, name):
     return {int(row[0]) + k: s for k, s in enumerate(beats)}, int(row[0]), int(row[1])
 
 
+def _openings(steps, name):
+    """{id: (minutes, slow state BEFORE)} - one scene's opening, which ages each character by their own time in a step
+    of its own (gate own-timelines)."""
+    out = {}
+    for s in steps:
+        if s[0] == name and s[1] == "opening":
+            for cid, state in s[3].items():
+                out[cid] = (s[2], state)
+    return out
+
+
 def test_a_long_scene(tmp):
     print("\n[1] a long scene: every beat's minutes age the slow tiers, and the folds rebuild what the drivers held")
     scenes = (("vigil-A", 1, "08:00", "12h", 3, {"cast": KEEPERS}), ("vigil-B", 2, "08:00", "6h", 2, {"cast": KEEPERS}))
@@ -220,7 +231,8 @@ def test_a_long_scene(tmp):
 
 
 def test_an_absent_character(tmp):
-    print("\n[2] a character who sat a scene out comes back aged through it")
+    print("\n[2] a character who sat a scene out comes back aged through it - in ONE item of her own time, at her next "
+          "opening (gate own-timelines; it was every item of B, item by item)")
     scenes = (("keep-A", 1, "08:00", "6h", 2, {"cast": KEEPERS}),
               ("boat-B", 1, "15:00", "8h", 2, {"cast": [KEEPERS[1], TOMAS]}),
               ("keep-A2", 2, "01:00", "4h", 2, {"cast": KEEPERS}))
@@ -229,17 +241,24 @@ def test_an_absent_character(tmp):
     con = _con(db)
     starts = [int(r[0]) for r in con.execute("SELECT start_turn FROM scenes ORDER BY start_turn")]
     at_b = _folded(con, run_id, "mira", starts[1])            # the end of A: what she carried out of the room
-    opening = next(s for s in steps if s[0] == "keep-A2" and s[1] == "opening")
-    held = opening[3]["mira"]                                 # what her resume rebuilt, before A2's own opening
-    want = dict(at_b["wounds"])
-    for t, _slot, m in clock.time_items(con, run_id, starts[2]):
-        if t >= starts[1]:                                    # B's opening and B's beats: time she was not in the room
-            want = {w: v + wound.erode({"intensity": v, "id": w}, m / 1440.0) for w, v in want.items()}
+    minutes, held = _openings(steps, "keep-A2")["mira"]       # what her resume rebuilt, before A2's own opening
     check("she-had-no-movement-of-her-own-in-B", not con.execute(
         "SELECT 1 FROM wound_deltas WHERE char_id = 'mira' AND turn >= ? AND turn < ?", (starts[1], starts[2])).fetchone())
-    check("her-scar-eased-over-every-minute-of-B", all(abs(held["wounds"][w] - want[w]) < 1e-15 for w in want)
-          and all(held["wounds"][w] < at_b["wounds"][w] for w in want), (held["wounds"], want, at_b["wounds"]))
-    check("...and-her-bond-drifted-through-it-too", held["edges"] != at_b["edges"], (held["edges"], at_b["edges"]))
+    check("her-resume-carries-nothing-of-B-she-was-not-in-the-room", held == at_b,
+          {k: (held[k], at_b[k]) for k in held if held[k] != at_b[k]})
+    a2 = clock.last_scene_clock(con, run_id, starts[2] + 1)["at"]
+    own = clock.own_time(con, run_id, "mira", starts[2], a2)
+    check("A2's-opening-aged-her-by-her-own-time:-the-end-of-A-to-A2", own == 1500.0 - 840.0 and minutes == own,
+          (own, minutes))
+    items = [it for it in clock.time_items(con, run_id, "mira", starts[2] + 1) if it[0] >= starts[1]]
+    check("...ONE-item-in-the-folds,-where-the-live-opening-put-it", items == [(starts[2], 2, own), (starts[2], 3, 120.0)],
+          items)
+    beats, _s, _e = _beats_by_turn(con, steps, "keep-A2")
+    after = beats[starts[2]][3]["mira"]                       # after the opening, before A2's first beat's minutes
+    want = {w: v + wound.erode({"intensity": v, "id": w}, own / 1440.0) for w, v in at_b["wounds"].items()}
+    check("her-scar-eased-by-exactly-that-one-stretch", all(abs(after["wounds"][w] - want[w]) < 1e-15 for w in want)
+          and all(after["wounds"][w] < at_b["wounds"][w] for w in want), (after["wounds"], want, at_b["wounds"]))
+    check("...and-her-bond-drifted-through-it-too", after["edges"] != at_b["edges"], (after["edges"], at_b["edges"]))
     _replay_ok(db, run_id, "absent")
 
 
@@ -250,10 +269,11 @@ def test_owed_minutes(tmp):
     con = _con(db)
     starts = [int(r[0]) for r in con.execute("SELECT start_turn FROM scenes ORDER BY start_turn")]
     check("A-ended-early-on-a-walk-out", starts[1] - starts[0] < 3, starts)
-    opening = next(s for s in steps if s[0] == "short-B" and s[1] == "opening")
+    opened = _openings(steps, "short-B")
     unspent = 360.0 - (starts[1] - starts[0]) * 120.0
     check("B's-opening-aged-the-slow-tiers-by-the-gap-AND-A's-unspent-minutes",
-          abs(opening[2] - ((960.0 - 840.0) + unspent)) < 1e-9 and unspent > 0, (opening[2], unspent))
+          sorted(opened) == ["ada", "mira"] and all(abs(m - ((960.0 - 840.0) + unspent)) < 1e-9 for m, _b in opened.values())
+          and unspent > 0, ({c: m for c, (m, _b) in opened.items()}, unspent))
     _replay_ok(db, run_id, "owed")
 
 
@@ -266,11 +286,11 @@ def test_an_aborted_launch(tmp):
     starts = [int(r[0]) for r in con.execute("SELECT start_turn FROM scenes ORDER BY start_turn")]
     check("...after-A-moved-a-resting-mean-BEFORE-the-relaunch-(so-a-second-fade-would-show)",   # arc.erode moves
           con.execute("SELECT COUNT(*) FROM arc_diffs WHERE turn < ?", (starts[1],)).fetchone()[0] > 0)   # only a moved mean
-    opening = next(s for s in steps if s[0] == "try-B" and s[1] == "opening")
+    opened = _openings(steps, "try-B")
     for cid in ("mira", "ada"):
-        got = _folded(con, run_id, cid, starts[1])
-        check("%s-resumed-from-the-log-before-the-opening-and-no-further" % cid, opening[3][cid] == got,
-              {k: (opening[3][cid][k], got[k]) for k in got if opening[3][cid][k] != got[k]})
+        got, held = _folded(con, run_id, cid, starts[1]), opened[cid][1]
+        check("%s-resumed-from-the-log-before-the-opening-and-no-further" % cid, held == got,
+              {k: (held[k], got[k]) for k in got if held[k] != got[k]})
     _replay_ok(db, run_id, "relaunch")
 
 
@@ -287,7 +307,7 @@ def test_a_chair_session():
     check("...the-second-takes-none", clock.beat_minutes(led.con, "r", 6) == 0.0)
     check("...and-the-story-stops-at-the-span's-end", clock.beat_end(led.con, "r", 6) == 630.0
           and clock.story_now(led.con, "r") == 630.0, (clock.beat_end(led.con, "r", 6), clock.story_now(led.con, "r")))
-    check("the-folds-see-one-stretch", clock.time_items(led.con, "r") == [(5, 3, 30.0)], clock.time_items(led.con, "r"))
+    check("the-folds-see-one-stretch", clock.time_items(led.con, "r", "m") == [(5, 3, 30.0)], clock.time_items(led.con, "r", "m"))
     # A BEAT'S OWN ROWS COME AFTER ITS MINUTES: a cliff the beat made must not be the rest its own drift ran toward
     from src.engine.records import RestDeclared
     led.register_character("r", "e", {"id": "e", "name": "E"}, {})

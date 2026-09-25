@@ -366,7 +366,7 @@ def test_the_gap_between(tmp):
           and condition.declaration_errors([{"char": "mira", "gap": "napped"}], ["mira"])[0][0] == "CONDITION_WORD_UNKNOWN")
     from src.engine import passage
     first_time = {"t": {"current": {"condition": dict(c)}}}
-    passage.apply_opening(first_time, 0.0, 0.0, lambda i: [], flow=True, at=600.0, gaps={"t": None})
+    passage.apply_opening(first_time, lambda i: [], 600.0, {"t": None}, flow=True)
     check("a-first-appearance-keeps-the-sheet-s-condition", first_time["t"]["current"]["condition"] == c, first_time)
     # B has ONE beat, so one of its two is present and SILENT - presence is the room, not only the speaker
     pov = (("keep-A", 1, "10:00", "30m", 2, None),

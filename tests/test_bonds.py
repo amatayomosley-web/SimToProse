@@ -537,7 +537,13 @@ def test_the_scene_wires_drift():
         start_turn = 0
         if elapsed:
             from src.engine import clock as _ck
+            from src.engine.records import PATHS, TurnCommit
             led.record_scene_clock("r", 0, _ck.parse_at({"day": 1, "time": "09:00"}), None, 0.0)
+            # ...with both of them in its room: since gate own-timelines a character ages by their OWN time since they
+            # were last in a room, and with no beat before this one both would first appear here, as their sheets say
+            led.append_turn(TurnCommit(run_id="r", turn=0, actor="a", thought="-", action="-", tags={},
+                                       validation={"ok": True}, affect={p: 0.2 for p in PATHS},
+                                       manifest={"decay": {"minutes": 0.0, "here": ["a", "b"], "bystanders": []}}))
             start_turn = 1                     # the drifting scene follows a prior reading
         with redirect_stdout(io.StringIO()):
             sc.run_scene(world, chars, cfg, led, "r", start_turn, "stub", True, 1, think=False, seed_base=0)
