@@ -410,6 +410,24 @@ def test_the_registry_is_two_way():
           "missing: %s" % sorted(c for c in registered if not codes.describe(c)))
 
 
+def test_no_code_is_registered_twice():
+    """A code named twice is one code with one description - the LAST one - and nothing says so: a repeated key in a
+    dict literal is overwritten silently, and codes.py merges the families with `update`, which does the same. Gate
+    seat-replies registered an existing code a second time and replaced another raise site's description unseen."""
+    seen, twice = {}, []
+    for rel in ("src/engine/code_families.py", "src/engine/codes.py"):
+        tree = ast.parse(open(os.path.join(REPO, rel), encoding="utf-8").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Dict):
+                for k in node.keys:
+                    if isinstance(k, ast.Constant) and isinstance(k.value, str) and k.value.isupper() and "_" in k.value:
+                        if k.value in seen:
+                            twice.append("%s at %s:%d and %s" % (k.value, rel, k.lineno, seen[k.value]))
+                        seen[k.value] = "%s:%d" % (rel, k.lineno)
+    check("no-code-is-registered-twice", not twice, "; ".join(twice))
+    check("...and-the-scan-saw-the-registry", len(seen) >= len(codes.CODES), "%d keys seen, %d codes" % (len(seen), len(codes.CODES)))
+
+
 def test_the_vault_codes_reach_a_real_book():
     """END TO END, on the loader every book hits first: a real authoring mistake produces its code."""
     import tempfile

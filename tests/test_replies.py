@@ -167,8 +167,8 @@ def drivers():
         if label == "extra":
             check("...and-reports-the-key-nothing-reads", "key(s) nothing reads: mood" in out, out[-500:])
         if label == "act":
-            check("...and-says-the-chair-keys-no-law-by-an-act", "the chair keys no law by an act" in out
-                  and "'steal'" in out, out[-500:])
+            check("...and-says-the-chair-keys-no-law-by-an-act", "the chair keys no law by an act, so it reads none: steal]"
+                  in out, out[-500:])     # printed as ASCII since gate seat-replies (it was %r, and crashed a cp1252 console)
     check("an-extra-key-is-recorded-in-the-committed-turn's-validation-record",
           validations.get("extra", {}).get("reply_extra") == ["mood"], validations.get("extra"))
     check("...and-a-reply-without-one-records-nothing-new",

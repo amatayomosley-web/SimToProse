@@ -60,10 +60,18 @@ Per beat, for the character who produced stream, the appraiser emits:
 - **`path`** — one of the nine. **`rung`** — a rung name from that path's ladder; the block text is
   the rubric. This is the judge this repo ran all week on its own rung tests: exact on most
   scenarios, ±1 rung on hinges (`docs/rungs/DEFLATION.md`, `SELF-REGARD.md`).
-- **`about`** — an entity id from the PerceptSet, or `""`. The target slot (§5 step 3).
+- **`about`** — an entity id from the PerceptSet, or `""`. The target slot (§5 step 3). Text or nothing: a
+  non-empty value that is not text is refused where a PerceptSet checks it - as its string form always was, unless
+  that string happened to sit inside a percept's text (7 in a fidelity 0.7) or equal the character's own id, which
+  bound targets like "7"; where no PerceptSet checks it (the read-along) it was stringified into a target like
+  `['ada']`, and is now read as unbound and named on the turn's record (`seat_extra`, gate seat-replies). An empty
+  one is unbound, as it always was.
 - **`lands_on`** — present characters this beat bears on. Feeds the floor (§5 step 5).
 - **`confidence`** — a word; gates escalation to the recorder; **never enters arithmetic**.
 - **No number leaves the appraiser** — hard rule 5's inbound twin, as `severity.py` states it.
+- **Any other key** — top-level, or a reading's (`about_missing` aside, which the read-along collects as the
+  registry's next edit) — is read by nothing: it is named on the committed turn's validation record as `seat_extra`
+  and reported, never refused (gate seat-replies; the keys are declared in `src/engine/replies.py`).
 
 **What it reads:** the character's own `{action, thought}` for this beat, both; the moment for
 context. Not narrated prose, which does not exist yet at appraisal time and is the narrator's

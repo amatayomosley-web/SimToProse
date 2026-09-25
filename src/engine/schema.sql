@@ -694,11 +694,13 @@ BEFORE DELETE ON readings BEGIN
 END;
 
 -- ---- lands_on: whom the emotion seat said a beat reached (gate lands-on-to-floor, 2026-09-19) ----
--- The seat's `lands_on` list, one row per present listener it named, in the order it named them
--- (`ord`). `floor.next_speaker` reads this to PRUNE the salience term of a listener the beat did
+-- The seat's `lands_on` list, one row per listener it named, in the order it named them (`ord`) -
+-- each checked against those present where the caller passes a present list (the scene driver, the
+-- read-along); the chair passes none, so its rows are the seat's names unchecked. `floor.next_speaker`
+-- reads this to PRUNE the salience term of a listener the beat did
 -- NOT reach (docs/emotion-arithmetic.md section 5 step 5) rather than running the counterfactual
 -- appraise for everyone regardless of what the seat said. Before this table the list was parsed
--- (readings.py:132-145, already checked against the PerceptSet) and carried on TurnCommit.lands_on,
+-- (readings.py:143-166) and carried on TurnCommit.lands_on,
 -- but nothing wrote it down and nothing read it back -- the seat's judgment of whom a beat reached
 -- was neither used nor kept. Sibling of `readings`: same beat, same actor, same append-only shape;
 -- its own table because a listener id is not a reading (readings rows are path/rung/about, with

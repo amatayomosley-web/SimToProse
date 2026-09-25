@@ -580,7 +580,8 @@ _REPLY_F = {
 
 # ---- TOWARD_* — the MICRO tier: what one specific person makes you feel (src/engine/toward.py) ----
 _TOWARD = {
-    "TAG_DIMENSION_VALUE_NOT_NUMERIC": "a dimension's magnitude is not a number",
+    # TAG_DIMENSION_VALUE_NOT_NUMERIC, which toward.observe also raises, is registered once, in _TAG above: a second
+    # entry here was a silent duplicate (tests/test_errors.py test_no_code_is_registered_twice)
     "TOWARD_CHAR_NOT_A_DICT":          "the character record handed to the micro-tier fold or decay is not a dict",
     "TOWARD_READING_PATH_UNKNOWN":   "toward.observe_readings was handed a reading whose path is not one of the engine's paths; the seat parser should have refused it upstream",
     "TOWARD_AFFECT_NOT_A_DICT":      "toward.balance was handed a mood that is not a dict of {path: float}; the driver reads it off current.affect",

@@ -103,7 +103,12 @@ def parse(obj, percepts=None, present=None, me=""):
         if not isinstance(row, dict):
             raise RecordError("READING_REPLY_NOT_AN_OBJECT",
                               "parse: each reading must be an object, got %r" % (row,))
-        about = str(row.get("about", "") or UNBOUND).strip()
+        # `about` IS TEXT OR NOTHING (gate seat-replies). A value that is not text was stringified - "['ada']" - and
+        # then refused where a PerceptSet checks it (below, unchanged), but bound as a target where none does (the
+        # read-along). There it is read as unbound now, and the reply's record names it (replies.emotion_extra). A
+        # falsy one was unbound before too.
+        raw_about = row.get("about")
+        about = raw_about.strip() if isinstance(raw_about, str) and raw_about.strip() else UNBOUND
         path = canonical_path(str(row.get("path", "")).strip())
         # A number where a rung name belongs is the seat leaking the scale it was never shown.
         rung = str(row.get("rung", "")).strip()
@@ -122,6 +127,13 @@ def parse(obj, percepts=None, present=None, me=""):
                                   "parse: a reading is about %r, which is not in the concept registry "
                                   "(src/engine/concepts.py). The list is closed; leave the reading "
                                   "unbound rather than name a category the engine has no name for." % about)
+        elif raw_about and not isinstance(raw_about, str) and percepts is not None:
+            # refused where it always was: its stringified form named no one perceived - bar the accidents, which
+            # bound targets like "7": a string form found inside a percept's text (7 in a fidelity 0.7, True in a
+            # flag) or equal to the character's own id. Those are refused now too.
+            raise RecordError("READING_ABOUT_NOT_PERCEIVED",
+                              "parse: a reading is about %r, which names no one in the PerceptSet. Section 1 "
+                              "binds `about` to what the character perceived." % (raw_about,))
         elif about and about.lower() != me_norm and percepts is not None:
             if not _perceived(about, percepts):
                 raise RecordError("READING_ABOUT_NOT_PERCEIVED",
@@ -133,7 +145,17 @@ def parse(obj, percepts=None, present=None, me=""):
     if not isinstance(lands, list):
         raise RecordError("READING_LANDS_ON_TYPE",
                           "parse: lands_on must be a list, got %r" % type(lands).__name__)
-    lands = [str(x).strip() for x in lands if str(x).strip()]
+    # NAMES ONLY (gate seat-replies). An entry that is not text - null, a list, a number - was stringified: where a
+    # present list checks the names (the scene, the read-along) that refused the reply - bar a string form equal to
+    # a present id, "None" for a character with that id - and still does, before the floor can read a list emptied
+    # of it as "reached no one"; where none does (the chair) it became a row of the append-only lands_on table
+    # ("None", "['ada']"). It is left out there now, and the reply's record names it (replies.emotion_extra).
+    odd = [x for x in lands if not isinstance(x, str)]
+    if odd and present is not None:
+        raise RecordError("READING_LANDS_ON_ABSENT",
+                          "parse: lands_on names %r, which are not names of anyone present. It decides who speaks "
+                          "next (floor.urge), so a name that is not one moves the wrong character." % (odd,))
+    lands = [x.strip() for x in lands if isinstance(x, str) and x.strip()]
     if present is not None:
         here = {str(x).strip().lower() for x in present}
         stray = sorted(x for x in lands if x.lower() not in here)
@@ -190,10 +212,12 @@ def write_lands_on(con, run_id, turn, actor, lands):
 
     One row per id, in the order the seat listed them (`ord`) — `floor.next_speaker` only tests
     membership, but a row that dropped the order would make a replay of this table a set where the
-    seat wrote a list. Ids are stored AS GIVEN after `str().strip()`; `readings.parse` (:132-145) is
-    the trust boundary — it already checked each one against the PerceptSet before it ever reached
-    a TurnCommit, so this write does not re-validate, the way `write` above trusts `r.validate()` to
-    have run before a Reading is handed to it.
+    seat wrote a list. Ids are stored AS GIVEN, stripped, and are text (gate seat-replies);
+    `readings.parse` (:143-166) is the trust boundary — it checked each one against the present list,
+    where the caller passes one (the chair passes none), before it ever reached a TurnCommit, so this
+    write does not re-validate, the way `write` above trusts `r.validate()` to have run before a
+    Reading is handed to it. NOT checked there: a repeated id - it fails this table's primary key and
+    rolls the beat back (found by the gate seat-replies review; its own gate).
     """
     n = 0
     for i, char_id in enumerate(lands or []):

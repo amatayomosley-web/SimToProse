@@ -56,6 +56,7 @@ from src.engine import bonds as _bonds                          # noqa: E402  (o
 from src.engine import body as _body                            # noqa: E402  (the exertion ladder, gate body-exertion)
 from src.engine import tells as _tells                          # noqa: E402  (the tells question, gate tells)
 from src.engine import injuries as _injuries                    # noqa: E402  (the injuries question, gate injuries)
+from src.engine import replies as _replies                      # noqa: E402  (what a reply carried beyond its contract)
 from src.engine.consolidation import ACTOR_TAG_TYPES           # noqa: E402  (the closed `type` vocabulary, derived beside CATALOG)
 from src.engine.state import _DIM_TO_PATH                         # noqa: E402
 
@@ -408,9 +409,10 @@ def build_thermometer_messages(passage, me=""):
             {"role": "user", "content": "\n\n".join(lines)}]
 
 
-def parse_thermometer_reply(raw):
+def parse_thermometer_reply(raw, extra=None):
     """A raw thermometer reply -> {path: rung NAME} for every path it named, each validated against
-    the live ladder (an invented rung raises by name). Missing paths are missing, not defaulted."""
+    the live ladder (an invented rung raises by name). Missing paths are missing, not defaulted.
+    `extra`, a list, collects the keys an accepted reply carried beyond its contract (gate seat-replies)."""
     obj = _json_object(raw)
     if not isinstance(obj, dict) or not isinstance(obj.get("levels"), dict):
         raise RecordError("APPRAISER_REPLY_NOT_JSON", "the thermometer's reply carried no `levels` object")
@@ -425,15 +427,17 @@ def parse_thermometer_reply(raw):
         except rungs.RungError as exc:
             raise RecordError("READING_RUNG_NOT_ON_PATH", "thermometer: %s" % exc)
         out[path] = rung
+    if isinstance(extra, list):
+        extra.extend(_replies.thermometer_extra(obj))
     return out
 
 
-def read_level(passage, model, led=None, run_id=None, turn=None, scene=None, me=""):
+def read_level(passage, model, led=None, run_id=None, turn=None, scene=None, me="", extra=None):
     """The THERMOMETER seat, live -> {path: rung name}. Raises RecordError on a refused reply."""
     import provider as _provider
     raw = _provider.call(build_thermometer_messages(passage, me=me), model, "thermometer",
                          led=led, run_id=run_id, turn=turn, scene=scene)
-    return parse_thermometer_reply(raw)
+    return parse_thermometer_reply(raw, extra=extra)
 
 
 def missing_concepts(raw):
@@ -445,25 +449,25 @@ def missing_concepts(raw):
         return []
     out = []
     for row in (obj.get("readings") or []) if isinstance(obj, dict) else []:
-        if isinstance(row, dict) and str(row.get("about_missing", "")).strip():
-            out.append(str(row["about_missing"]).strip())
+        if isinstance(row, dict) and isinstance(row.get("about_missing"), str) and row["about_missing"].strip():
+            out.append(row["about_missing"].strip())      # text only: a null was reported as a concept named "None"
     return out
 
 
 def read_emotion(action, thought, model, led=None, run_id=None, turn=None, scene=None,
-                 moment="", present=None, me="", percepts=None):
+                 moment="", present=None, me="", percepts=None, extra=None):
     """The EMOTION seat, live: prompt -> the frontier model (scripts/provider.py) -> parsed.
     -> (readings, lands_on, confidence, missing) ; raises RecordError on a refused reply."""
     import provider as _provider
     raw = _provider.call(build_emotion_messages(action, thought, moment=moment, present=present, me=me),
                          model, "appraise-emotion", led=led, run_id=run_id, turn=turn, scene=scene)
-    readings, lands, conf = parse_emotion_reply(raw, percepts=percepts, present=present, me=me)
+    readings, lands, conf = parse_emotion_reply(raw, percepts=percepts, present=present, me=me, extra=extra)
     return readings, lands, conf, missing_concepts(raw)
 
 
 def read_event(action, model, led=None, run_id=None, turn=None, scene=None,
                moment="", present=None, actor="", target="", referenced=None, attachments=None, exertion=False,
-               tells=False, injuries=False):
+               tells=False, injuries=False, extra=None):
     """The EVENT seat, live: prompt -> the frontier model -> the tags dict the twelve dimension
     consumers already read, plus the bond tier's `object` + `showed`. Raises RecordError on a
     refused reply. The object lists are what the prompt showed; the parser refuses anything else."""
@@ -474,21 +478,25 @@ def read_event(action, model, led=None, run_id=None, turn=None, scene=None,
                          model, "appraise-event", led=led, run_id=run_id, turn=turn, scene=scene)
     objects = list(present or []) + [r for r in (referenced or []) if r not in (present or [])] + list(attachments or [])
     return parse_event_reply(raw, objects=objects, action=action, exertion=exertion, tells=tells,
-                             injuries=injuries, present=present, actor=actor)
+                             injuries=injuries, present=present, actor=actor, extra=extra)
 
 
-def parse_emotion_reply(raw, percepts=None, present=None, me=""):
+def parse_emotion_reply(raw, percepts=None, present=None, me="", extra=None):
     """A raw emotion-seat reply -> (readings, lands_on, confidence). Raises RecordError on refusal.
 
     REFUSES RATHER THAN REPAIRS, which is the same rule `_compose_selection` follows and for the same
     reason: every refusal below names something this seat is structurally able to get wrong, and a
     repaired refusal makes the gate advisory. A caller that catches this records an idle beat.
+    `extra`, a list, collects the keys an accepted reply carried beyond its contract (gate seat-replies).
     """
     obj = _json_object(raw)
     if not isinstance(obj, dict):
         raise RecordError("APPRAISER_REPLY_NOT_JSON",
                           "the emotion seat's reply carried no JSON object")
-    return _readings.parse(obj, percepts=percepts, present=present, me=me)
+    out = _readings.parse(obj, percepts=percepts, present=present, me=me)
+    if isinstance(extra, list):
+        extra.extend(_replies.emotion_extra(obj))
+    return out
 
 
 def _norm_span(s):
@@ -497,7 +505,7 @@ def _norm_span(s):
 
 
 def parse_event_reply(raw, objects=None, action=None, exertion=False, tells=False, injuries=False, present=None,
-                      actor=""):
+                      actor="", extra=None):
     """A raw event-seat reply -> the tags dict the twelve dimension consumers already read.
 
     Emits the shape the twelve dimension consumers read ({type, dimensions, durability}) plus, since
@@ -515,6 +523,9 @@ def parse_event_reply(raw, objects=None, action=None, exertion=False, tells=Fals
     log can be audited word by word. Why: the boundary tests in the glosses were advice the seat
     could ignore (the .66 trust word on nearly every beat of one live scene, its test in the prompt); a
     span it has to copy is a claim the parser can hold it to.
+
+    `extra`, a list, collects the keys an accepted reply carried beyond the questions it was asked, entries'
+    included, by path (gate seat-replies); the returned tags never carry them.
     """
     obj = _json_object(raw)
     if not isinstance(obj, dict):
@@ -569,6 +580,9 @@ def parse_event_reply(raw, objects=None, action=None, exertion=False, tells=Fals
                               % (object_, ", ".join(sorted(allowed))))
         out["object"] = object_
     showed = obj.get("showed")
+    # A MAP, OR IT IS NOT READ (gate seat-replies): any other shape - a list of entries like its neighbours', a word -
+    # is skipped here as it always was, and now named on the record (replies.event_extra), not refused: a refusal
+    # would throw away the seat's whole reading over the one block it could not read.
     if isinstance(showed, dict) and showed:
         if not object_:
             raise RecordError("APPRAISER_SHOWED_WITHOUT_OBJECT",
@@ -692,7 +706,7 @@ def parse_event_reply(raw, objects=None, action=None, exertion=False, tells=Fals
         out["attribution"] = word
     # EXERTION (gate body-exertion) - read only when it was asked: one word from the body system's ladder
     # and, above `none`, a quote the action contains, checked as `showed` and `attribution` are. Omitted
-    # is `none`. When it was NOT asked, a stray key is dropped: the prompt said nothing of it.
+    # is `none`. When it was NOT asked, a stray key is never read (it goes to `extra`): the prompt said nothing of it.
     if exertion:
         ex = obj.get("exertion")
         if ex is None:
@@ -713,7 +727,7 @@ def parse_event_reply(raw, objects=None, action=None, exertion=False, tells=Fals
                                   "the event seat quoted %r for exertion, and the action does not contain it" % span)
             out["exertion"] = word
     # TELLS (gate tells) - read only when asked: at most three quotes of signs only a sharp eye catches, each
-    # found in the action as `showed` is. Omitted is none. Not asked, a stray key is dropped.
+    # found in the action as `showed` is. Omitted is none. Not asked, a stray key is never read (it goes to `extra`).
     if tells:
         raw_t = obj.get("tells") or []
         if not isinstance(raw_t, list) or len(raw_t) > _tells.MAX_PER_BEAT or not all(isinstance(t, dict) for t in raw_t):
@@ -730,9 +744,13 @@ def parse_event_reply(raw, objects=None, action=None, exertion=False, tells=Fals
             quotes.append(span)
         out["tells"] = quotes
     # INJURIES (gate injuries) - read only when asked: at most three {who, quote, severity}, the one hurt present
-    # or the one who acted, each quote found in the action as `showed` is. Omitted is none. Not asked, dropped.
+    # or the one who acted, each quote found in the action as `showed` is. Omitted is none. Not asked, never read.
     if injuries:
         out["injuries"] = _injuries.parse_seat(obj.get("injuries"), action, present, actor, _norm_span)
+    # WHAT THE REPLY CARRIED BEYOND ITS QUESTIONS (gate seat-replies) - named for the record, never read, never
+    # refused; reached only by a reply every check above accepted
+    if isinstance(extra, list):
+        extra.extend(_replies.event_extra(obj, exertion=exertion, tells=tells, injuries=injuries))
     return out
 
 

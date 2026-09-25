@@ -497,7 +497,9 @@ def validate_tags(tags, percepts, skills):
     # breaks a documented mechanism. Where a `betray` tag legitimately ORIGINATES (actor self-report
     # vs. the recorder role) is a design question, and the observed harm so far is a constructed
     # case rather than a production event. A soft flag naming the gap is the honest interim.
-    if tag_type not in CATALOG:
+    # A type that is not text (a list, an object) is unknown too - a membership test on it raised TypeError, a crash
+    # with no code where every other bad type is refused by name (gate seat-replies review).
+    if not isinstance(tag_type, str) or tag_type not in CATALOG:
         ok = False
         flags.append(_flag("TAG_TYPE_UNKNOWN",
                           "unknown type %r (not in CATALOG)" % tag_type))
@@ -559,7 +561,7 @@ def validate_tags(tags, percepts, skills):
                            "NOTE: older docs suggested 'marking'/'reshaping' — those were never a "
                            "third and fourth grade, every consumer reads durability as a boolean "
                            "(standard-vectors.md:144)."))
-    elif durability not in _VALID_DURABILITY:
+    elif not isinstance(durability, str) or durability not in _VALID_DURABILITY:   # a list raised TypeError, as `type` did
         ok = False
         flags.append(_flag("TAG_DURABILITY_INVALID",
                            "durability %r not in {transient, durable}" % durability))
@@ -587,7 +589,7 @@ def validate_tags(tags, percepts, skills):
     # consolidation-loop.md: "fail -> reject/flag; low-confidence -> escalate"
 
     # Short-circuit soft checks if the type is unknown (no catalog row to read)
-    row = CATALOG.get(tag_type)
+    row = CATALOG.get(tag_type) if isinstance(tag_type, str) else None
     soft_flags = []
 
     if row is not None:

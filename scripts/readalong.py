@@ -71,6 +71,7 @@ from src.engine import clock as _clock                              # noqa: E402
 from src.engine import concepts as _concepts                        # noqa: E402
 from src.engine import passage as _passage                          # noqa: E402
 from src.engine import readings as _readings                        # noqa: E402
+from src.engine import replies as _replies                          # noqa: E402
 from src.engine import rungs as _rungs                              # noqa: E402
 from src.engine import targets as _targets                          # noqa: E402
 from src.engine import wound as _wound                              # noqa: E402
@@ -283,6 +284,7 @@ def run(book_dir, stub=False, model=None, beat_words=300, limit=None, seat=None,
     _rests = lambda i: _bond_rest.rows_for(led.con, run_id, i)
     levels_path = os.path.join(runs_dir, "%s.levels.jsonl" % run_id)
     levels_out = io.open(levels_path, "w", encoding="utf-8") if thermometer else None
+    carried = {}                        # (seat, key) -> beats: what the seats' replies carried beyond their contracts
     profile = build_profile(sheet)
     temp = sheet["baseline"]["temperament"]
     affect = dict(sheet["current"]["affect"])
@@ -317,6 +319,7 @@ def run(book_dir, stub=False, model=None, beat_words=300, limit=None, seat=None,
         for b in cb:
             passage = b["text"]
             # THE SEAT
+            seat_extra = []                    # what its accepted reply carried beyond its contract (gate seat-replies)
             if stub:
                 obj = stub_seat(passage, cast_ids)
                 rs, lands, conf = _readings.parse(obj, percepts=None, present=None, me=pid)
@@ -325,11 +328,11 @@ def run(book_dir, stub=False, model=None, beat_words=300, limit=None, seat=None,
                 try:
                     rs, lands, conf, missing = seat(passage, model, led, run_id, turn) if seat else appraiser.read_emotion(
                         passage, "", model, led=led, run_id=run_id, turn=turn, scene="ch%d" % ch["index"],
-                        moment="", present=cast_ids, me=pid, percepts=None)
+                        moment="", present=cast_ids, me=pid, percepts=None, extra=seat_extra)
                 except (RecordError, _rungs.RungError) as exc:
                     # A REFUSED REPLY IS AN IDLE BEAT AND A DATA POINT: the seat's format failures
                     # are measured on the log, never repaired into a reading.
-                    rs, lands, conf, missing = [], [], None, []
+                    rs, lands, conf, missing, seat_extra = [], [], None, [], []
                     led.log_llm_call(run_id, turn, "seat-refused", str(exc)[:200], scene="ch%d" % ch["index"])
             # THE ENGINE, in the spec's order: the beat's minutes age the slow tiers (gate bench-clock), then the mood
             _passage.age({pid: sheet}, per_beat, _rests)
@@ -363,7 +366,8 @@ def run(book_dir, stub=False, model=None, beat_words=300, limit=None, seat=None,
                 tags["subject"] = about
             led.append_turn(TurnCommit(run_id=run_id, turn=turn, actor=pid, thought="", action=passage,
                                        tags=tags, affect=dict(affect), condition=dict(sheet["current"]["condition"]),
-                                       validation={"ok": True, "flags": []},
+                                       validation=dict({"ok": True, "flags": []},
+                                                       **({"seat_extra": {"emotion": seat_extra}} if seat_extra else {})),
                                        events=[Event(type="mundane", payload={"text": passage[:200], "chapter": ch["index"]}, actor=pid)],
                                        readings=list(rs), lands_on=list(lands), wound_mints=mints, wound_deltas=deltas,
                                        target_binds=_targets.binds_from(dict(sheet["current"].get("targets") or {}), targets)))
@@ -381,17 +385,27 @@ def run(book_dir, stub=False, model=None, beat_words=300, limit=None, seat=None,
             for m in mints:
                 log("  SCAR  ch%d turn %d: %s on %s at %.2f" % (ch["index"], turn, m["concept"], m["path"], m["intensity"]))
             if levels_out is not None and turn % int(thermometer) == 0:
+                lv_extra = []
                 try:
                     lv = stub_level(affect) if stub else appraiser.read_level(passage, model, led=led, run_id=run_id,
-                                                                                turn=turn, scene="ch%d" % ch["index"], me=pid)
+                                                                                turn=turn, scene="ch%d" % ch["index"], me=pid,
+                                                                                extra=lv_extra)
                 except (RecordError, _rungs.RungError) as exc:
                     led.log_llm_call(run_id, turn, "thermometer-refused", str(exc)[:200], scene="ch%d" % ch["index"])
                     lv = None
                 if lv is not None:
-                    levels_out.write(json.dumps({"turn": turn, "chapter": ch["index"], "levels": lv}) + "\n")
+                    levels_out.write(json.dumps(dict({"turn": turn, "chapter": ch["index"], "levels": lv},
+                                                     **({"extra": lv_extra} if lv_extra else {}))) + "\n")
+                    for k in lv_extra:
+                        carried[("thermometer", k)] = carried.get(("thermometer", k), 0) + 1
+            for k in seat_extra:
+                carried[("emotion", k)] = carried.get(("emotion", k), 0) + 1
             turn += 1
     if levels_out is not None:
         levels_out.close()
+    if carried:                         # recorded above AND reported (gate seat-replies), one line for the run
+        log("  the seats' replies carried key(s) nothing reads - %s" % "; ".join(
+            "%s %s x%d" % (seat, _replies.shown([k]), n) for (seat, k), n in sorted(carried.items())))
     log("read %d beats over %d chapters -> %s" % (turn, len(chapters), run_id))
     return run_id
 

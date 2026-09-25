@@ -1,4 +1,4 @@
-"""replies.py — a model's reply, read into a frozen record: the actor's first (the seats, keeper and composer follow).
+"""replies.py — a model's reply, read into a record: the actor's, and the keys each seat's reply may carry.
 
 WHY (gate actor-reply, 2026-09-25; G5 of the contracts plan the owner approved, agreed with Symphony on the shared
 board). Every place a model's reply entered the engine read it into a plain dict built from named `.get()`s and
@@ -18,12 +18,28 @@ The actor's reply: action, thought, exit, addressee, act, tags - the contract `p
 (`bool("false")` walked a character out), and a null action or thought is empty, not the word "None" (which was
 committed as the action).
 
+THE SEATS (gate seat-replies, the same day). Each seat's parser reads its fields by name, so every other key - an
+entry's too - was dropped unseen, and a declared key whose value the parser could not use was skipped (a `showed`
+that is not a map) or stringified: where a PerceptSet or a present list checks the value that refused the reply,
+and still does; where nothing checks it, it went into the record (a reading's non-text `about` bound as a target
+by the read-along, a non-text `about_missing` reported as a concept gap "None", a non-text `lands_on` entry written
+by the chair into the append-only lands_on table). THE PARSERS REFUSE WHAT THEY REFUSED BEFORE (bar the accidental
+matches noted in readings.parse) and nothing more; what they stringified unchecked they now leave out, and the
+record names it, as it names a `showed` they skip.
+`event_extra` / `emotion_extra` / `thermometer_extra` name what an ACCEPTED reply carried that nothing read; the
+drivers record that on the committed turn as `seat_extra`, and a seat that did not answer as `seat_refused` or
+`seat_unanswered` (`seat_failure`). The prompts that state these shapes live in `scripts/appraiser.py`;
+tests/test_seat_replies.py holds the two together, since the engine cannot import a script. `confidence` is asked of
+the event seat and the thermometer and read by nothing (`UNREAD`): removing the question would change the prompt bytes
+recorded runs replay by, so it is declared, not dropped.
+
 Pure, deterministic, stdlib. No LLM (rule 3), no randomness (rule 4).
 """
 from __future__ import annotations
 
 __layer__ = "engine"
 
+import json
 from dataclasses import dataclass, field
 
 from .records import RecordError
@@ -86,3 +102,114 @@ def actor_reply(obj, supplied=False):
     return ActorReply(action=_text(obj.get("action")), thought=_text(obj.get("thought")), exit=obj.get("exit") is True,
                       addressee=_text(obj.get("addressee")), act=_text(obj.get("act") or ""), tags=tags,
                       extra=tuple(sorted(str(k) for k in obj if k not in ACTOR_KEYS)))
+
+
+# THE SEATS' CONTRACTS (gate seat-replies): the top-level keys each prompt asks for, then each entry's fields. An
+# entry block is one object (attribution) or a list of them (told); a MAP block holds one entry per name the seat
+# chooses (showed: one per act ladder), so its names are the seat's answer and only its entries' keys are checked.
+EVENT_KEYS = ("type", "dimensions", "durability", "object", "showed", "transfers", "told", "attribution", "confidence")
+# Each asked only when its caller asks: the scene driver asks exertion when the book runs `body`, tells and injuries
+# when it runs those; the chair asks exertion alone. An unasked block in a reply is extra, whole.
+EVENT_ASKED = ("exertion", "tells", "injuries")
+EVENT_ENTRIES = {"transfers": ("what", "from", "to", "terms"), "told": ("what", "to", "cost"),
+                 "attribution": ("word", "quote"), "exertion": ("word", "quote"), "tells": ("quote",),
+                 "injuries": ("who", "quote", "severity")}
+EVENT_MAPS = {"showed": ("word", "quote")}
+LISTS = ("transfers", "told", "tells", "injuries", "readings")     # the entry blocks asked as a LIST; the rest, one object
+EMOTION_KEYS = ("readings", "lands_on", "confidence")
+EMOTION_ENTRIES = {"readings": ("path", "rung", "about", "about_missing")}
+THERMOMETER_KEYS = ("levels", "confidence")
+# Asked, and read by nothing: tests/test_seat_replies.py drives its invariance check from this table, so a key
+# listed here that some reader starts to use fails there
+UNREAD = {"event": ("confidence",), "thermometer": ("confidence",)}
+
+
+def _name(k):
+    """A key as a path segment: quoted when it holds a character paths use, so `told[].why` written as ONE top-level
+    key cannot read as the nested one."""
+    k = str(k)
+    return json.dumps(k) if any(c in k for c in '.[]"') else k
+
+
+def extra_keys(obj, known, entries=None, maps=None):
+    """A reply object -> the keys its contract does not name, sorted: a top-level key by name, an entry's by path
+    (`told[].why`, `attribution.note`, `showed.affinity.note`). Total - anything that is not an object carries no
+    keys, and a malformed block is its parser's to refuse (only an accepted reply is asked)."""
+    if not isinstance(obj, dict):
+        return ()
+    out = {_name(k) for k in obj if k not in known}
+    blocks = [(b, f, False) for b, f in (entries or {}).items()] + [(b, f, True) for b, f in (maps or {}).items()]
+    for blk, fields, is_map in blocks:
+        if blk not in known:
+            continue                                   # a block not asked is extra whole, above
+        v = obj.get(blk)
+        if is_map:
+            rows = [("%s.%s" % (blk, _name(n)), r) for n, r in v.items()] if isinstance(v, dict) else []
+        else:
+            rows = [(blk, v)] if isinstance(v, dict) else [("%s[]" % blk, r) for r in v] if isinstance(v, list) else []
+        out |= {"%s.%s" % (where, _name(k)) for where, r in rows if isinstance(r, dict) for k in r if k not in fields}
+    return tuple(sorted(out))
+
+
+def shown(keys):
+    """Key names for a console line, ASCII whatever they hold: a model's key is any text, and a piped Windows stdout
+    is cp1252 - one arrow in a key crashed the beat before its commit (gate seat-replies review)."""
+    return ", ".join(str(k).encode("ascii", "backslashreplace").decode("ascii") for k in keys)
+
+
+def seat_failure(exc):
+    """A seat's RecordError -> (the validation key, what it records). A reply its parser refused is `seat_refused`,
+    "[CODE] detail"; a reply that never came - the provider's own failures, PROVIDER_* (no key, HTTP, a replay with
+    no answer) - is `seat_unanswered`, the code alone: its detail names machine paths, and the log is append-only."""
+    code = str(getattr(exc, "code", "") or "")
+    return ("seat_unanswered", code) if code.startswith("PROVIDER_") else ("seat_refused", str(exc)[:200])
+
+
+SEAT_VERB = {"seat_refused": "refused", "seat_unanswered": "was never answered"}
+_BECAUSE = {"event": "\n  the actor's own tags were read because the event seat %s: %s",
+            "emotion": "\n  the emotion seat %s, so the beat carries no readings: %s"}
+
+
+def failure_note(failed):
+    """{seat_refused|seat_unanswered: {seat: what}} -> the lines a refused beat's error carries, the event seat first.
+    Only the EVENT seat's silence is why the actor's own tags were read; the emotion seat's leaves no readings - two
+    different fallbacks, named as such (the second review caught the first draft blaming the emotion seat for the tags).
+    Without these lines the operator is told only that the actor's tag is bad."""
+    by_seat = {seat: (key, what) for key, by in failed.items() for seat, what in by.items()}
+    return "".join(_BECAUSE[s] % (SEAT_VERB.get(by_seat[s][0], by_seat[s][0]), by_seat[s][1])
+                   for s in ("event", "emotion") if s in by_seat)
+
+
+def _not_text(v):
+    return bool(v) and not isinstance(v, str)
+
+
+def event_extra(obj, exertion=False, tells=False, injuries=False):
+    """The event seat's reply -> what it carried beyond the questions it was asked (an unasked block included), and
+    a declared key whose value the parser cannot read and leaves out: a `showed` that is not a map."""
+    asked = tuple(k for k, on in zip(EVENT_ASKED, (exertion, tells, injuries)) if on)
+    unread = {"showed"} if isinstance(obj, dict) and obj.get("showed") and not isinstance(obj["showed"], dict) else set()
+    return tuple(sorted(set(extra_keys(obj, EVENT_KEYS + asked, EVENT_ENTRIES, EVENT_MAPS)) | unread))
+
+
+def emotion_extra(obj):
+    """The emotion seat's reply -> what it carried beyond its contract (docs/emotion-arithmetic.md section 1), and a
+    declared value the parser now leaves out where it used to stringify it into the record: a reading's `about` that
+    is not text (a falsy one was unbound before too), an `about_missing` that is not text (a null became a concept
+    gap named "None"), a `lands_on` entry that is not text (a null became a row "None"). Asked only of an ACCEPTED
+    reply - where a PerceptSet or a present list checks those values, the reply is refused, as it was bar the
+    accidental matches readings.parse notes."""
+    if not isinstance(obj, dict):
+        return ()
+    rows = [r for r in (obj.get("readings") if isinstance(obj.get("readings"), list) else []) if isinstance(r, dict)]
+    unread = {"readings[].about" for r in rows if _not_text(r.get("about"))}
+    unread |= {"readings[].about_missing" for r in rows if "about_missing" in r and not isinstance(r["about_missing"], str)}
+    lands = obj.get("lands_on")
+    if isinstance(lands, list) and any(not isinstance(x, str) for x in lands):
+        unread.add("lands_on[]")
+    return tuple(sorted(set(extra_keys(obj, EMOTION_KEYS, EMOTION_ENTRIES)) | unread))
+
+
+def thermometer_extra(obj):
+    """The thermometer's reply -> what it carried beyond `levels` and `confidence`."""
+    return extra_keys(obj, THERMOMETER_KEYS)

@@ -145,7 +145,7 @@ build something listed SPEC-ONLY here, flip the row in the same commit. Line num
 | Perception-mode wall (PerceptSet whitelist; identity behind insight 0.55; subtle cues behind perception 0.60; acquaintance recognition) | `scene-assembly.md:17-21,74-97`, `relevancy-gate.md:28-32` | YES | `gate.py:90-210`; never-add structural (`test_scene` whitelist canary); known-entity bypass `gate.py:176` | BUILT-AS-SPEC'D |
 | Graph recall: weighted hops, pathfinding to hinges, degree-penalty, multi-hop chains | `relevancy-gate.md:60-97` | NO | vault is FLAT by design; single-hop cost 1−confidence (`guide-engine.md:171-173` declares the reduction) | **BUILT-DIFFERENTLY (deliberate)** — the entire hop/path/DC-from-distance apparatus is spec-only behind the same interface |
 | Authored hinges (director-planted checks that always surface + branch) | `relevancy-gate.md:39` (pipeline step 5) | NO | `must_surface` exists only as the event-anchor flag (`gate.py:24,144`); no hinge authoring surface, no branch mechanics | SPEC-ONLY |
-| Name masking + latent-leak regeneration ("recorded as-is" preserved) | `knowledge-model.md` wall; status log `driving-the-engine.md:104-111` | YES | `gate.scope_names` :543 (prompt wall), `faithfulness.py:16-35` (output detector), `direct.py` `faithful_turn` :385-417 (regenerate → reject) ; `tests/test_faithful_turn.py` | BUILT-AS-SPEC'D |
+| Name masking + latent-leak regeneration ("recorded as-is" preserved) | `knowledge-model.md` wall; status log `driving-the-engine.md:104-111` | YES | `gate.scope_names` :543 (prompt wall), `faithfulness.py:16-35` (output detector), `direct.py` `faithful_turn` :386-418 (regenerate → reject) ; `tests/test_faithful_turn.py` | BUILT-AS-SPEC'D |
 
 ### Scene assembly & the packet
 
@@ -1111,6 +1111,62 @@ one. No prompt builder changed, but the values fed to them did for those three s
 hash of the exact prompt messages (`provider.prompt_key`): none of the owner's saved replies carries one (1,122 reply
 files, 66 of them an actor's; no recorded turn holds the word "None"). Suite: `tests/test_replies.py`. NOT COVERED:
 the event seat, thermometer and injuries seat, the keeper's three and the composer - their own gates.
+
+**2026-09-25 — the seats' replies under the same policy (gate `seat-replies`):** G5 of the contracts plan, for the
+seats. The event, emotion and thermometer seats' parsers read their fields by name, so every other key - an entry's
+included - was dropped unseen (the tells and injuries blocks said so in comments); a declared key whose value a
+parser could not use was skipped unseen (a `showed` that is not a map, the beat's bond read lost) or stringified -
+refused where a PerceptSet or a present list checked it, but written into the record where nothing did (a
+reading's non-text `about`, bound as a target by the read-along; a non-text `about_missing`, reported as a concept
+gap named "None"; a `lands_on` entry that is not text, written into the append-only lands_on table as "None" or
+"['ada']" by the chair, which passes no present list). When the EVENT
+seat did not answer, the turn committed the actor's own self-tags in its place (an emotion seat that did not answer
+leaves no readings), the refusal printed after the commit and recorded nowhere, under a comment in `scene.run_scene`
+saying it was "recorded on the turn's validation". THE PARSERS REFUSE WHAT THEY REFUSED BEFORE, AND NOTHING MORE: a
+non-text `about` or `lands_on` entry is still refused wherever it was checked (an earlier cut of this gate left it
+out first, and a `lands_on` emptied that way read as "reached no one", pruned every listener and ended the scene). The
+differences are the accidents: a non-text value whose string form happened to pass - an `about` found inside a
+percept's text (7 in a fidelity 0.7, true in a flag; a scene on the fixture book bound both) or equal to the
+character's own id, a `lands_on` entry equal to a present id ("None") - bound targets like "7" and is refused like
+the rest. What the parsers stringified unchecked they now leave out, and the record names it, as it names a
+`showed` they skip. `src/engine/replies.py` declares each seat's contract beside the actor's (`EVENT_KEYS`; the
+three blocks asked only when their caller asks - the scene driver when the book runs `body` for exertion, `tells`,
+`injuries`, the chair exertion alone; `EMOTION_KEYS`, `THERMOMETER_KEYS`; each entry's fields and which blocks are
+lists) and names what an ACCEPTED reply carried that nothing read, by a path no key can fake (`told[].why`,
+`readings[].about`, `lands_on[]`; a key spelled like a path is quoted); an unasked block and an unknown key are extra
+whatever their value, while an empty `showed` or `about` is nothing, as it was. The drivers write it on the committed turn's validation record as `seat_extra`, a reply its parser
+refused as `seat_refused` ("[CODE] detail"), and one that never came as `seat_unanswered` (the provider's code alone -
+its detail names machine paths, and the log is append-only; the operator line says "was never answered" with the
+code alone too), each only when there is something to say. When the fallback tags then fail - at validation, or at
+their severity words before it - the error names the event seat whose silence made them the tags, and the emotion
+seat's as the loss of the readings, without the chain that printed the seat's own error; and an actor's tag type or
+durability that is not text is refused by `TAG_TYPE_UNKNOWN` / `TAG_DURABILITY_INVALID` where each crashed with a
+TypeError. Key names, the chair's note on
+an act it keys no law by, and the law check's failure line print as ASCII (an arrow in a model's text crashed a piped
+cp1252 console before the commit - the actor's `reply_extra` line included). The read-along writes its emotion
+seat's extras on its turn and its thermometer's on its levels row, and reports them once per run. An extra key is
+never the reason a reply is refused and never enters the tags - the retired `social` map and a non-empty `debt` stay
+refused by the parser as before, and any other form of them is named extra. `tests/test_seat_replies.py` parses each prompt's JSON shape and
+holds the declarations to it block by block - container kind and every example entry - since the engine cannot
+import `scripts/appraiser.py`; `tests/test_errors.py` now refuses a code registered twice (this gate registered an
+existing one again, overwriting its description unseen; the guard's first run found an older duplicate,
+`TAG_DIMENSION_VALUE_NOT_NUMERIC`, now registered once). No prompt changed (an independent review compared 60
+prompt keys against the last commit). Of the owner's saved replies, read-only: no key beyond a contract but the
+retired `social` (47) and `debt` (30) (`seat_extra_census`), every `social` a non-empty map and every `debt` a
+non-empty word, which the parser refuses as before (`seat_census2`); no exertion, tells or injuries block in any
+saved event reply; every saved
+`showed` a map (145, 4 of them empty) or absent (47); every saved `about` (663, and 403 empty), `about_missing` (207) and
+`lands_on` entry (709) text (`seat_census2`) - so a recorded scene replayed through a driver reads the same tags and
+readings, and its turns gain only the new validation keys. The P0 golden's seated run, whose fixture fakes an
+event-seat refusal on every beat, gained `seat_refused` on its 10 turns and nothing else (attributed row by row); the
+recorded-run mood replay cannot see this change at all, since it runs no parser. FOUND, NOT CHANGED: the event seat
+and the thermometer are asked for a `confidence` nothing reads (`UNREAD`, which drives the suite's invariance check;
+all 192 saved event replies and 122 thermometer replies carry it) - dropping the question would change the prompt
+bytes recorded runs replay by, and reading it would be new behaviour, so it is the owner's; the chair asks the
+emotion seat with no present list, so a `lands_on` name it returns is never checked against the room (passing one
+would change the prompt). NOT COVERED: no new container type for the seats' parsed output - the parsers are the
+validating boundary, and the event seat's dict is read as `tags` by every consumer downstream; the keeper's three and
+the composer (their own gates).
 
 **2026-09-19 — attitude decays per RUNG, in minutes (gate `attitude-staircase`):** `toward.erode` was the pre-redesign mechanism — one flat `toward._RETENTION[path]` per DAY for every rung, so a hatred and a flicker of annoyance faded alike — and now steps the ladder exactly as `state.decay_over` does, on the minute clock, at a per-path scale whose bottom rung is that same day rate converted (`toward._attitude_half_life`, anchored to 1e-9 in `tests/test_toward.py` block 16) and whose rung-to-rung ratio is the MOOD staircase's own, so the two tiers cannot disagree about the shape of forgetting; `src/engine/passage.py` hands it MINUTES while `bond_rest.drift` / `wound.erode` / `arc.erode` keep the day conversion. Spec: the redesign's "Decay — per path AND per rung" ("Two tables, one shape"), `docs/emotion-arithmetic.md` §4.
 

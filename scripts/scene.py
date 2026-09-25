@@ -42,6 +42,7 @@ import keeper as _keeper                                       # noqa: E402  (th
 from src.engine.state import build_profile, appraise, decay, receive   # noqa: E402
 from src.engine import rungs                                        # noqa: E402  (a reading's height)
 from src.engine.records import RecordError as _SeatRefusal          # noqa: E402
+from src.engine.errors import EngineError as _EngineError           # noqa: E402  (a failing fallback, re-raised naming the seat)
 import appraiser                                                   # noqa: E402  (the two seats)
 import provider as _provider                                       # noqa: E402  (the frontier-model seam)
 # NOT the `decay` above — that one is state.decay, the AFFECT relaxation. This is the
@@ -338,7 +339,7 @@ def _law_events(led, run_id, world, chars, turn, speaker, location=None, tick=No
         # A bare except around a safety gate is the same shape as the incident this whole effort
         # exists to end, one layer up. The check still does not abort the run (the beat already
         # happened and the log is append-only), but the failure is now NAMED and RECORDED.
-        print("   [!] LAW CHECK FAILED for %r: %s" % (act, exc))
+        print(_replies.shown(["   [!] LAW CHECK FAILED for %r: %s" % (act, exc)]))   # ASCII: an act is model text, pre-commit
         return [Event(type="law-violation", actor=speaker,
                       payload={"act": act, "modality": "CHECK-FAILED",
                                "laws": [], "teeth": "",
@@ -719,15 +720,20 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
             speaker = others[0]
             continue
         # THE SEATS (Phase 3, wired 2026-09-11 — docs/emotion-arithmetic.md section 5 steps 1-2).
-        # Live: the EVENT seat rates the act (dimensions, durability, subject, social) and the
-        # EMOTION seat reads the interior (readings, lands_on); the actor's own self-tags are the
-        # --stub double and the fallback when a seat refuses (recorded on the turn's validation).
+        # Live: the EVENT seat rates the act (type, dimensions, durability, its object and what it
+        # showed, transfers, told, attribution) and the EMOTION seat reads the interior (readings,
+        # lands_on); the actor's own self-tags are the --stub double and the fallback when the EVENT
+        # seat does not answer (an emotion seat that does not answer leaves no readings). Why a seat
+        # did not (refused, or never came), and what an accepted reply carried that nothing read, go
+        # on the turn's validation record (gate seat-replies: until then this comment said so, and the
+        # refusal was only printed after the commit).
         # Both run on the frontier model through scripts/provider.py — owner: no local models here.
         # `_lands` is None until the emotion seat ANSWERS: None means no seat (--stub, or a refusal)
         # and keeps the floor's counterfactual salience whole; a real list -- even [] -- is the seat's
         # judgment and prunes whoever it left out (gate lands-on-to-floor, 2026-09-19).
         _readings, _lands, _seat_notes = [], None, []
         _seat_answered = False
+        _seat_extra, _seat_failed, _ev_extra, _em_extra = {}, {}, [], []
         if not stub:
             try:
                 # ATTRIBUTION PRECEDENCE (2026-09-19, gate seat-attribution): the seat's word, when it
@@ -738,24 +744,33 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
                     scene=cfg.get("name"), moment=event_text, present=list(present),
                     actor=names.get(speaker, speaker), target=str(turn.get("addressee", "") or ""),
                     attachments=attachments.names_for(world), exertion="body" in _sys,
-                    tells="tells" in _sys, injuries="injuries" in _sys))
+                    tells="tells" in _sys, injuries="injuries" in _sys, extra=_ev_extra))
                 _seat_answered = True
                 # THE SUMMARY IS THE ACTOR'S (gate wounds-and-memory-inputs, 2026-09-22): the seat rates
                 # and never writes one, and lived memory is built from it.
                 tags = acquisition.with_actor_summary(tags, turn.get("tags"))
             except _SeatRefusal as _e:
-                _seat_notes.append("event seat refused: %s" % str(_e)[:120])
-                tags = normalise_dimensions(turn["tags"] if isinstance(turn.get("tags"), dict) else {"dimensions": {}})
+                _k, _v = _replies.seat_failure(_e)
+                _seat_failed.setdefault(_k, {})["event"] = _v
+                _seat_notes.append("event seat %s: %s" % (_replies.SEAT_VERB[_k], _v[:120]))
+                try:
+                    tags = normalise_dimensions(turn["tags"] if isinstance(turn.get("tags"), dict) else {"dimensions": {}})
+                except _EngineError as _ne:       # the fallback fails too: name the seat whose silence made it the tags
+                    # `from None`: the chain would print the seat's own error, whose detail can name a machine path
+                    raise type(_ne)(_ne.code, _ne.detail + _replies.failure_note(_seat_failed)) from None
             try:
                 _readings, _lands, _conf, _missing = appraiser.read_emotion(
                     str(turn.get("action", "")), str(turn.get("thought", "")), _provider.seat_model(),
                     led=led, run_id=run_id, turn=turn_no, scene=cfg.get("name"), moment=event_text,
-                    present=list(present), me=speaker, percepts=packet["volatile"]["percepts"])
+                    present=list(present), me=speaker, percepts=packet["volatile"]["percepts"], extra=_em_extra)
                 if _missing:
                     _seat_notes.append("concepts the registry lacks: %s" % ", ".join(_missing))
             except _SeatRefusal as _e:
-                _seat_notes.append("emotion seat refused: %s" % str(_e)[:120])
+                _k, _v = _replies.seat_failure(_e)
+                _seat_failed.setdefault(_k, {})["emotion"] = _v
+                _seat_notes.append("emotion seat %s: %s" % (_replies.SEAT_VERB[_k], _v[:120]))
                 _readings = []
+            _seat_extra = {k: v for k, v in (("event", _ev_extra), ("emotion", _em_extra)) if v}
         else:
             tags = normalise_dimensions(
                 turn["tags"] if isinstance(turn.get("tags"), dict) else {"dimensions": {}})
@@ -780,7 +795,10 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
         if not validation["ok"]:
             # FAIL-FAST (2026-08-30). This branch used to read `applied = {"dimensions": {}}`,
             # discarding the WHOLE self-report over one invalid field. See consolidation.tag_refusal.
-            raise TagError(*tag_refusal(validation, names.get(speaker, speaker), turn_no))
+            # An EVENT seat that did not answer is WHY these were the actor's own tags: the refusal names
+            # it, or the operator hunts the actor's tag and never learns the seat failed (gate seat-replies).
+            _code, _detail = tag_refusal(validation, names.get(speaker, speaker), turn_no)
+            raise TagError(_code, _detail + _replies.failure_note(_seat_failed))
         elif validation["flags"]:
             legit = CATALOG.get(tags.get("type", ""), {}).get("appraisal_map", [])
             applied = dict(tags, dimensions={d: v for d, v in tags.get("dimensions", {}).items() if d in legit})
@@ -790,7 +808,14 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
         # and reported, never refused - a model adds keys, and dropped unseen they hid it drifting from its contract
         if turn.get("extra"):
             validation["reply_extra"] = list(turn["extra"])
-            print("   [the reply carries key(s) nothing reads: %s]" % ", ".join(turn["extra"]))
+            print("   [the reply carries key(s) nothing reads: %s]" % _replies.shown(turn["extra"]))
+        # ...AND THE SEATS' (gate seat-replies): what an accepted seat reply carried beyond its questions, and a seat
+        # that did not answer - the beat whose tags are the actor's own fallback is told apart from a seated one
+        if _seat_extra:
+            validation["seat_extra"] = _seat_extra
+            print("   [a seat's reply carries key(s) nothing reads - %s]"
+                  % "; ".join("%s: %s" % (k, _replies.shown(v)) for k, v in _seat_extra.items()))
+        validation.update(_seat_failed)
         if target:
             applied = dict(applied, target=target)
             if tgroup:
