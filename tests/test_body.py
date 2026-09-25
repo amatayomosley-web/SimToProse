@@ -187,8 +187,10 @@ def _run(tmp, decl, strengths=None, refuse=False, stray=None):
             argv = ["scene.py", "--book", book, "--scene", _cfg(tmp, name, day, time, lasts), "--budget", str(budget),
                     "--model", "fake/model", "--no-keeper"]
             if i:
-                db = glob.glob(os.path.join(book, "runs", "*.db"))[0]
-                argv += ["--resume", sqlite3.connect(db).execute("SELECT run_id FROM runs").fetchone()[0]]
+                found = glob.glob(os.path.join(book, "runs", "*.db"))
+                if not found:               # the first scene was refused before its chronicle was opened
+                    break                   # (gate run-start-refusal): there is nothing to resume
+                argv += ["--resume", sqlite3.connect(found[0]).execute("SELECT run_id FROM runs").fetchone()[0]]
             sys.argv = argv
             out = io.StringIO()
             try:

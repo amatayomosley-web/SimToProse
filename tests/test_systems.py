@@ -174,7 +174,7 @@ def _book(tmp, decl=None):
         eng["fixed"]["name"] = name
         eng["current"]["relationships"] = {other: {"trust": 0.7, "affinity": 0.65, "respect": 0.6, "debt": 0.0}}
         eng["current"]["affect"]["WARINESS"] = 0.75
-        eng["baseline"]["wounds"] = [wound.make("drowning", "DEFLATION", 0.7, "formative", text="the boat that went down",
+        eng["baseline"]["wounds"] = [wound.make("drowning", "DEFLATION", 0.7, "profile:fixture-drowning", text="the boat that went down",
                                                 triggers=["the sea"])]
         with open(os.path.join(book, "characters", "%s.md" % name), "w", encoding="utf-8") as fh:
             fh.write("---\ntype: character\nid: %s\n---\n# %s\n\n```json\n%s\n```\n" % (name, name, json.dumps(eng, indent=1)))

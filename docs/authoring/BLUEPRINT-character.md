@@ -32,9 +32,11 @@ Only five, and then we stop.
 - **The packet** — everything the engine hands the actor for one beat. Built fresh each time.
 - **Live / inert** — a *live* field changes what happens. An *inert* field is read by nothing. This
   document tells you which is which and never asks you to fill in an inert one.
-- **A primitive** — one of the engine's eight named feelings. There are exactly eight and you cannot
-  add a ninth: `SEEKING, FEAR, RAGE, LUST, CARE, PANIC_GRIEF, PLAY, DISGUST`
-  (`src/engine/records.py:19`).
+- **A path** — one of the engine's nine named feelings (the older word was *primitive*). There are
+  exactly nine and you cannot add a tenth: `STIRRING, WARINESS, DISPLEASURE, GOODWILL, DEFLATION,
+  DISTASTE, RECEPTIVITY, SELF-REGARD, LEVITY` (`src/engine/records.py`, `PATHS`). The eight older names
+  (`SEEKING`, `FEAR` and the rest) are retired: a run refuses a sheet still keyed by them, and its refusal
+  names the path that took each one's place.
 
 ---
 
@@ -81,8 +83,10 @@ the scene cfg's is **BLUEPRINT-scene.md**. You need both, but not yet.
 The table below is **generated** from the engine's own declaration of the sheet
 (`src/engine/contracts_sheet.py`, gate sheet-contract 2026-09-25) by `scripts/gen_contracts.py`, and the
 suite fails when the two disagree. The pre-run check (`scripts/lint_book.py`) walks your sheet against the
-same declarations. Where this document's prose and the table disagree, **the table is right**, and the
-prose is a defect.
+same declarations, and so does every run before it starts (gate run-start-refusal): for a character who plays
+in it, an error, a key the table does not name, or a retired field to move or refused stops the run by name,
+before anything is written. Where this document's prose and the table disagree, **the table is right**, and
+the prose is a defect.
 
 - **status** — `active`: the engine reads it. `retired`: it was read, and something replaced it (the table
   names what). `unread`: nothing reads it, so it reaches no prompt and computes nothing. `runtime`: the
@@ -118,6 +122,7 @@ prose is a defect.
 | `baseline.temperament.<PATH>` | map | no | active | heritable |  |
 | `baseline.temperament.<PATH>.rest` | word or unit (heritable.REST_WORDS) | no | active | heritable.ensure_temperament | where the path rests - a word, or a number in [0,1] |
 | `baseline.temperament.<PATH>.mean` | unit | no | runtime | state.decay | the resting mean, seeded from the rest word; the arc moves it |
+| `baseline.temperament.<PATH>.variability` | any | no | retired | replaced by nothing - cut on the owner's "cut what doesn't align" (heritable); read by nothing (prune) |  |
 | `baseline.temperament.<PRIMITIVE>` | any | no | retired | replaced by the path that took its place (the one records.RETIRED_PRIMITIVES names); the owner ruled replaced, not translated (refuse) |  |
 | `baseline.traits` | map | no | active | identity_view.direct_identity | personality facets |
 | `baseline.traits.<name>` | map | no | active | identity_view.direct_identity |  |
@@ -135,10 +140,17 @@ prose is a defect.
 | `baseline.model.resolution_priority` | any | no | unread | - |  |
 | `baseline.drives` | map | no | active | scene._manner_drives |  |
 | `baseline.drives.goals` | list | no | active | scene._manner_drives; connection |  |
+| `baseline.drives.goals[]` | map | no | active | scene._manner_drives | {goal, priority} - an object, never a bare string |
 | `baseline.drives.goals[].goal` | text | no | active | scene._manner_drives | told to the actor |
 | `baseline.drives.goals[].priority` | unit | no | active | connection |  |
 | `baseline.drives.goals[].satisfaction` | any | no | unread | - |  |
 | `baseline.drives.goals[].urgency` | any | no | unread | - | urgency is read on current.active_goals |
+| `baseline.drives.goals[].kind` | any | no | unread | - | the actor is told only the goal (scene._manner_drives) |
+| `baseline.drives.goals[].serves` | any | no | unread | - |  |
+| `baseline.drives.goals[].status` | any | no | unread | - |  |
+| `baseline.drives.goals[].origin` | any | no | unread | - |  |
+| `baseline.drives.goals[].triggers` | any | no | unread | - |  |
+| `baseline.drives.goals[].view` | any | no | unread | - |  |
 | `baseline.drives.orientation` | any | no | unread | - | cut from what the actor sees (scene._manner_drives) |
 | `baseline.drives.fears_wounds` | any | no | retired | replaced by baseline.wounds - a wound is engine state, keyed by a concept and a path (move) |  |
 | `baseline.voice` | prose | no | active | identity_view.direct_identity; narrate | how they sound - told to the actor verbatim |
@@ -147,7 +159,7 @@ prose is a defect.
 | `baseline.provenance` | any | no | unread | - | where the numbers came from - kept out of the prompt |
 | `baseline.catalog` | delegated | no | active | levers.active_rows | tier-3 rows: a standing fact multiplies a path |
 | `baseline.wounds` | list | no | active | wound; connection; levers; passage | engine state, minted - never hand-written |
-| `baseline.wounds[]` | delegated | no | active | wound._check |  |
+| `baseline.wounds[]` | delegated | no | active | wound._check (with the wounds system on) |  |
 | `baseline.relationship_priors` | map | no | active | bond_rest; bonds |  |
 | `baseline.relationship_priors.default_trust` | unit | no | active | bond_rest | where a stranger's trust rests |
 | `baseline.relationship_priors.update` | delegated | no | active | bonds.rates_of | how fast trust is granted and withdrawn, in words |
@@ -175,6 +187,7 @@ prose is a defect.
 | `current.relationships.<id>.their_view.<name>` | unit | no | runtime | direction |  |
 | `current.attachments` | delegated | no | active | attachments; connection; scene._build_holds | what they hold that is not a person: loc.<id> / grp.<tag> -> {hold, sign} |
 | `current.active_goals` | list | no | active | gate.run_gate; identity_view |  |
+| `current.active_goals[]` | map | no | active | gate.run_gate | {goal, urgency} |
 | `current.active_goals[].goal` | text | no | active | gate.run_gate |  |
 | `current.active_goals[].urgency` | unit | no | active | identity_view |  |
 | `current.location` | text | no | active | gate.perception_scope | a world.locations id |
@@ -212,6 +225,10 @@ prose is a defect.
 | `formative.<name>` | any | no | unread | - | class, culture, history: fold what matters into fixed.position |
 | `backstory` | text | no | active | composition_pass |  |
 | `formative_picks` | list | no | active | composition_pass | the formative profiles picked, {profile, weight} |
+| `formative_picks[]` | map | no | active | composition_pass |  |
+| `formative_picks[].profile` | text | no | active | composition_pass | a formative library profile id |
+| `formative_picks[].weight` | number | no | active | composition_pass |  |
+| `formative_picks[].why` | text | no | active | composition_pass | the classification's reason for the pick |
 <!-- END GENERATED -->
 
 ---
@@ -978,10 +995,8 @@ is for, and it will invent something plausible and different every beat.
 
 **LEAVE BLANK — nothing reads these.** The drives design document lists six more keys on a goal:
 `kind`, `serves`, `status`, `origin`, `triggers`, `view` (`docs/drives-schema.md:16-27`). No engine
-code reads any of them; they are carried into the identity prefix as extra text if you write them,
-and computed with nowhere. Skip them. **The exception:** if a phrase like `"view": "self"` genuinely
-tells the actor something useful about the character, it will reach the actor as words — but it will
-not *do* anything, and you should not fill it in expecting a mechanism.
+code reads any of them, and none of them reaches the actor: it is told only the goal itself
+(`scene._manner_drives`). A run counts them as read by nothing and goes on. Skip them.
 
 ---
 
@@ -2299,8 +2314,9 @@ her is so hard to bear.
     ]
   },
   "current": {
-    "affect": {"SEEKING": 0.55, "FEAR": 0.36, "RAGE": 0.28, "LUST": 0.30,
-               "CARE": 0.72, "PANIC_GRIEF": 0.42, "PLAY": 0.30, "DISGUST": 0.24},
+    "affect": {"STIRRING": 0.55, "WARINESS": 0.36, "DISPLEASURE": 0.28, "GOODWILL": 0.72,
+               "DEFLATION": 0.42, "DISTASTE": 0.24, "RECEPTIVITY": 0.125, "SELF-REGARD": 0.16,
+               "LEVITY": 0.30},
     "condition": {"energy": 0.62, "allostatic_load": 0.40},
     "location": "mill",
     "active_goals": [{"goal": "get another pair of hands to the fold before dark",
@@ -2435,8 +2451,9 @@ id: <lowercase-first-name>
   },
   "current": {
     "affect": {
-      "SEEKING": <sizer>, "FEAR": <sizer>, "RAGE": <sizer>, "LUST": <sizer>,
-      "CARE": <sizer>, "PANIC_GRIEF": <sizer>, "PLAY": <sizer>, "DISGUST": <sizer>
+      "STIRRING": <sizer>, "WARINESS": <sizer>, "DISPLEASURE": <sizer>, "GOODWILL": <sizer>,
+      "DEFLATION": <sizer>, "DISTASTE": <sizer>, "RECEPTIVITY": <sizer>, "SELF-REGARD": <sizer>,
+      "LEVITY": <sizer>
     },
     "condition": {"energy": <sizer>, "allostatic_load": <sizer>},
     "location": "<an id from the world note's locations>",

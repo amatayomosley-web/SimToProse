@@ -275,14 +275,17 @@ def test_refusals(tmp):
         open(p, "w", encoding="utf-8").write(txt)
     db, _r, seen, outs = _run(os.path.join(tmp, "half"), FLOW, TWO_SCENES[:1], sheet_edit=half)
     turns = sqlite3.connect(db).execute("SELECT COUNT(*) FROM turns").fetchone()[0] if db else 0
+    # refused at the run's start by the sheet's contract (gate run-start-refusal), before the chronicle is opened -
+    # the driver's own CONDITION_KEYS_MISSING stays behind it for a caller that hands run_scene a sheet directly
     check("a-sheet-the-flow-cannot-move-is-refused-before-any-beat",
-          "SYSTEMEXIT condition flow" in outs[0] and "CONDITION_KEYS_MISSING" in outs[0] and turns == 0 and not seen,
-          (turns, len(seen), outs[0][-300:]))
+          "CONTRACT_RUN_REFUSED" in outs[0] and "mira: current.condition.allostatic_load is required" in outs[0]
+          and turns == 0 and not seen, (turns, len(seen), outs[0][-300:]))
     off = (("gale-1", 1, "21:00", "1h", 2, {"condition": [{"char": "mira", "energy": "spent"}]}),)
     db, _r, seen, outs = _run(os.path.join(tmp, "nocond"), {"condition": False}, off)
     turns = sqlite3.connect(db).execute("SELECT COUNT(*) FROM turns").fetchone()[0] if db else 0
     check("a-cfg-stating-a-condition-for-a-book-with-none-is-refused",
-          "runs no condition system" in outs[0] and turns == 0 and not seen, (turns, len(seen), outs[0][-300:]))
+          "CONTRACT_RUN_REFUSED" in outs[0] and "switches the condition system off" in outs[0] and turns == 0 and not seen,
+          (turns, len(seen), outs[0][-300:]))
     chair = _chair_seated(os.path.join(tmp, "chair"), FLOW)
     row = [json.loads(c) for (c,) in sqlite3.connect(chair).execute("SELECT condition FROM current_state WHERE char_id='mira'")]
     check("the-chair-s-turn-costs-energy-too", row and row[-1]["energy"] < 0.8, row)

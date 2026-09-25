@@ -14,6 +14,13 @@ from __future__ import annotations
 __layer__ = "engine"
 
 from .contracts import Field as F
+from .records import RecordError
+
+
+def _cue_word(w, world, ctx):
+    """A word perception searches the event for: blank, it is found in every event (gate tests `word in text`)."""
+    if not w.strip():
+        raise RecordError("CONTRACT_FIELD_TYPE", "an empty cue word is found in every event, so its class tags all of them")
 
 
 def _person(p, world, ctx):
@@ -48,8 +55,10 @@ def _laws(rows, world, ctx):
 
 
 def _cue_classes(names, world, ctx):
-    have = set(((world.get("lexicon") or {}).get("attribute_classes") or {}) if isinstance(world.get("lexicon"), dict) else ())
-    unknown = [n for n in (names or []) if isinstance(n, str) and n not in have]
+    lex = world.get("lexicon")
+    classes = lex.get("attribute_classes") if isinstance(lex, dict) else None
+    have = set(classes) if isinstance(classes, dict) else set()      # a malformed map is its own field's finding
+    unknown = [n for n in (names if isinstance(names, list) else []) if isinstance(n, str) and n not in have]
     if unknown:
         return ("names %s, which lexicon.attribute_classes does not define - it matches nothing, silently"
                 % ", ".join(repr(n) for n in unknown))
@@ -96,10 +105,10 @@ WORLD = (
     F("lexicon.attribute_classes", "map", reader="gate._extract_event_attributes; facets.topics_in"),
     F("lexicon.attribute_classes.<name>", "list", reader="gate._extract_event_attributes",
       doc="the words that mark the class - a LIST (a string is scanned letter by letter, so almost anything matches)"),
-    F("lexicon.attribute_classes.<name>[]", "text", reader="gate._extract_event_attributes"),
+    F("lexicon.attribute_classes.<name>[]", "text", blank=False, check=_cue_word, reader="gate._extract_event_attributes"),
     F("lexicon.subtle_cues", "map", reader="gate._extract_subtle_attributes"),
     F("lexicon.subtle_cues.<name>", "list", reader="gate._extract_subtle_attributes", doc="the fine signs a sharp eye catches"),
-    F("lexicon.subtle_cues.<name>[]", "text", reader="gate._extract_subtle_attributes"),
+    F("lexicon.subtle_cues.<name>[]", "text", blank=False, check=_cue_word, reader="gate._extract_subtle_attributes"),
     F("lexicon.subtle_cue_classes", "list", check=_cue_classes, reader="gate._has_subtle_cues",
       doc="which attribute classes count as subtle; each must be an attribute_classes key"),
     F("lexicon.subtle_cue_classes[]", "text", reader="gate._has_subtle_cues"),

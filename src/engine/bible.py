@@ -89,8 +89,10 @@ def _project_entities(world, characters):
     """
     out = []
     for cid in sorted(characters):
-        sheet = characters[cid] or {}
-        fixed = sheet.get("fixed") or {}
+        # every sheet in the book is pinned, and a run's start checks only those who play (gate run-start-refusal):
+        # a malformed sheet of someone in no scene is pinned under its id, never a crash
+        sheet = characters[cid] if isinstance(characters[cid], dict) else {}
+        fixed = sheet.get("fixed") if isinstance(sheet.get("fixed"), dict) else {}
         out.append(("character", str(cid), str(fixed.get("name") or cid)))
     for p in (world.get("people") or []):
         if not isinstance(p, dict) or not p.get("id"):

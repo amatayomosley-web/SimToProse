@@ -172,8 +172,12 @@ def load_book(book_dir):
     # one only the writer can settle, and guessing it would fire the belief in the wrong scenes.
     from .facets import stamp as _stamp_facets
     for _ch in chars.values():
-        for _b in (_ch.get("current", {}).get("vault") or []):
-            _stamp_facets(_b, world)
+        # a DRAFT LOADS whatever its shape (gate run-start-refusal): a `current` that is not an object is the sheet
+        # contract's finding at lint and at a run's start, never a crash here
+        _cur = _ch.get("current") if isinstance(_ch, dict) else None
+        for _b in ((_cur.get("vault") if isinstance(_cur, dict) else None) or []):
+            if isinstance(_b, dict):
+                _stamp_facets(_b, world)
     return world, chars
 
 

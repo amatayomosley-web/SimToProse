@@ -38,8 +38,9 @@ CHAR_ENGINE = {
         "traits": {"emotionality": {"mean": 0.5}, "agreeableness": {"mean": 0.6}, "extraversion": {"mean": 0.4}},
         "model": {"schwartz": {"security": 0.6, "benevolence": 0.7}, "moral_foundations": {"care_harm": 0.7},
                   "needs": {"relatedness": 0.6, "competence": 0.5}},
+        # no `fears_wounds`: retired 2026-09-11 for baseline.wounds, and a run refuses a sheet still carrying it
+        # (gate run-start-refusal) - the suites that test the retired block add it themselves
         "drives": {"goals": [{"goal": "tend the lighthouse lamp", "urgency": 0.7}],
-                   "fears_wounds": [{"wound": "the wreck she watched from the gallery"}],
                    "orientation": "the lamp must never go dark"},
         "skills": {"perception": 0.8, "insight": 0.7, "lamp_craft": 0.9, "combat": 0.1},
         "voice": {"register": "spare, weather-worn", "tic": "names the wind before speaking"},

@@ -324,13 +324,14 @@ Everyone you list here must be two things at once:
 > and a drive (`scripts/scene.py:109-112`).
 
 > **A common mistake — three of them, all caught by the linter:**
-> - An id that names nobody: *"cast X is not a character in this book and not in world.people — no
->   one can perceive them and the engine has no sheet to act from"* (`scripts/lint_scene.py:74-77`).
-> - Listing the same person twice: *"one seat per character per scene"*
->   (`scripts/lint_scene.py:78-81`).
+> - An id that names nobody: *"cast X is not a character in this book — the run refuses a cast member
+>   with no sheet to act from"* (`scripts/lint_scene.py`, `lint_cfg`).
+> - Listing the same person twice: *"cast [CONTRACT_FIELD_TYPE] names 'X' more than once - one
+>   character, one place in the room"* (`src/engine/contracts_scene.py`, `_cast`) - and a run refuses it
+>   before anything is written.
 > - Only one person in the room. This is a warning, not an error, but it is a real one: a scene with
 >   no second party cannot produce the collision that makes people talk
->   (`scripts/lint_scene.py:82-84`).
+>   (`scripts/lint_scene.py`, `lint_cfg`).
 
 **Your answer:**
 
@@ -995,7 +996,7 @@ listed here so you know to skip them rather than wondering what you missed.
 |---|---|
 | `opening_tags.type` | A word like `mundane`, `care`, `threat` sitting beside your dimensions. The engine's appraisal reads the dimensions and the subject and never looks at this (`src/engine/state.py:423`, `437` — no read of `type` anywhere in the appraisal). Beck Hollow writes one for human legibility; it changes nothing. If you write one anyway, write something real rather than inventing a word. |
 | `opening_tags.durability` | `transient` or `durable`. The two-value vocabulary is genuinely real — it is a frozen set of exactly those two words at `src/engine/consolidation.py:34`, and elsewhere in the engine it decides whether a moment becomes a lasting memory (`src/engine/acquisition.py:36` and `129`) or moves a character permanently (`src/engine/arc.py:78`). **But that is the value the acting character reports about their own action, beat by beat — not the one you write here** — and on THAT value the vocabulary is now enforced by name: an actor's turn with no durability at all raises `TAG_DURABILITY_MISSING`, and one with anything other than `transient`/`durable` raises `TAG_DURABILITY_INVALID` (`src/engine/consolidation.py:568-580`). The only thing the scene's opening tags are used for is choosing the first speaker (`scripts/scene.py:341-342`), and that calculation never reads durability.[^5] |
-| anything else you invent | The engine carries unknown keys and reads none of them. A note-to-self in the cfg is harmless and inert. |
+| anything else you invent | Nothing reads it, and a run refuses to start from a file carrying a key its table does not name (gate run-start-refusal) - a typo would lose what it held. A note-to-self goes under a key that begins with `_` (`"_note": "..."`): those are ignored everywhere. |
 
 **And these belong to other forms, not this one.** If you find yourself wanting to write a
 character's fears, skills, health, or standing goals into a scene cfg, stop — those live in the
@@ -1249,12 +1250,16 @@ before the loader turns words into numbers. Where this form's prose and the tabl
 right**. `active` is read. `unread` reaches nothing. `runtime` is written by the loader, and an author's
 value is overwritten. `retired` is refused. `[]` is a list's entries.
 
+A run reads the scene file against this table as you wrote it, before the loader touches it (gate
+run-start-refusal): an error, a key the table does not name, or `elapsed` stops the run by name, before
+anything is written.
+
 <!-- GENERATED: contracts_scene -->
 | field | shape | must author | status | read by | what it is |
 |---|---|---|---|---|---|
-| `name` | text | no | active | scene (the clock's source label, the scene row, the resume drift check) | the scene's name; the file's own name when absent |
+| `name` | text | no | active | scene (the clock's source label, the scene row, the resume drift check) | the scene's name; the file's own name when absent (never blank: the loader keeps a blank as the label) |
 | `situation` | text | yes | active | scene.run_scene | the moment, told to every actor each beat |
-| `cast` | list | yes | active | scene.run_scene; clock._scene_casts; mood_fold.replay | who is in the room, each with what they want |
+| `cast` | list | yes | active | scene.run_scene; clock._scene_casts; mood_fold.replay | who is in the room, each with what they want - each character once |
 | `cast[]` | map | no | active | scene.run_scene |  |
 | `cast[].id` | text | no | active | scene.main (must be a character of the book) |  |
 | `cast[].drive` | text | no | active | scene.run_scene | what they want from the others here - replaces their goals |
@@ -1265,7 +1270,7 @@ value is overwritten. `retired` is refused. `[]` is a list's entries.
 | `at_minutes` | any | no | runtime | scene (derived from at; an author's value is overwritten) |  |
 | `lasts_minutes` | any | no | runtime | scene (derived from lasts; an author's value is overwritten) |  |
 | `elapsed` | any | no | retired | replaced by at (when the scene opens) and lasts (how long it runs) - the loader refuses elapsed (refuse) |  |
-| `subject` | any | no | active | scene.run_scene (the first beat's target; regard) | [id, group] - whom the moment is about |
+| `subject` | any | no | active | scene.run_scene (the first beat's target; regard) | [id, group] - whom the moment is about; left blank, no one (the loader reads a blank as absent) |
 | `opening_tags` | map | no | active | scene._salience (the opener) | how hard the opening lands |
 | `opening_tags.dimensions` | delegated | no | active | floor; state.appraise | the seven appraisal dimensions, each a severity word or a number in [0,1] |
 | `opening_tags.type` | any | no | unread | - |  |
@@ -1273,7 +1278,7 @@ value is overwritten. `retired` is refused. `[]` is a list's entries.
 | `opening_tags.act` | any | no | unread | - | the law check reads the scene's own `act` |
 | `act` | text | no | active | scene.law_preflight | the act the world's laws are asked about before the run |
 | `location` | text | no | active | scene.law_preflight; gate._lookup_location | a world.locations id |
-| `props` | list | no | active | gate.perception_scope | the room's objects, plainly present - three to five |
+| `props` | list | no | active | gate.perception_scope | the room's objects, plainly present - three to five; left blank, none (the loader reads a blank as absent) |
 | `props[]` | text | no | active | gate.perception_scope |  |
 | `pov` | text | no | active | scene.record_boundary; narrate | whose eyes the narrator uses; the first cast id when absent |
 | `voice` | text | no | active | narrate | close-third \| first \| distant-third \| second |

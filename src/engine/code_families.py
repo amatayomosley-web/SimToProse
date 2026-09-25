@@ -553,7 +553,8 @@ _COMPOSITION_F = {
 }
 
 # ---- CONTRACT_* — an author file walked against its declarations (src/engine/contracts.py, gate sheet-contract) ----
-# Findings, not refusals, until run-start refusal lands: `contracts.check` REPORTS each under one of these.
+# `contracts.check` REPORTS each finding under one of these; CONTRACT_RUN_REFUSED is the run's refusal of those that
+# stop it (`contracts.require_at_start`, gate run-start-refusal).
 _CONTRACT_F = {
     "CONTRACT_FIELD_UNKNOWN":         "a key the file's contract does not declare - nothing reads it; an annotation begins with `_`",
     "CONTRACT_FIELD_RETIRED":         "a field that was read and was replaced - the finding names what took its place and whether to prune, move or refuse it",
@@ -565,6 +566,7 @@ _CONTRACT_F = {
     "CONTRACT_FIELD_ADVICE":          "a well-shaped field the contract has something to say about (a half-authored pair, a belief with no claim)",
     "CONTRACT_WOUND_SOURCE":          "a wound row's source is neither profile:<id> nor run:<turn> - a wound is minted, never hand-written",
     "CONTRACT_CATALOG_WOUND_UNKNOWN": "a catalog row names a wound this sheet does not carry, so it would fire at full magnitude whatever happens to that wound",
+    "CONTRACT_RUN_REFUSED":           "a run's files break their contracts where the engine would misread or silently drop them (an error, an undeclared key, a retired field to move or refused) - the run stops before its chronicle is opened",
 }
 
 # ---- TOWARD_* — the MICRO tier: what one specific person makes you feel (src/engine/toward.py) ----

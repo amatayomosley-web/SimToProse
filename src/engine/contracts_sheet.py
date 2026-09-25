@@ -1,8 +1,8 @@
 """contracts_sheet.py — the character sheet, declared once: every field, its shape, and where it stands.
 
 The table the checker (`contracts.check`) walks a sheet against, the rows BLUEPRINT-character carries between its
-GENERATED markers (`scripts/gen_contracts.py`), and - at run start, in a later gate - what refuses a sheet
-(gate sheet-contract, 2026-09-25). Built from an inventory of every path the engine and its drivers read from a
+GENERATED markers (`scripts/gen_contracts.py`), and what refuses a sheet at a run's start (`contracts.require_at_start`,
+gate run-start-refusal) (gate sheet-contract, 2026-09-25). Built from an inventory of every path the engine and its drivers read from a
 sheet (file:line per path) and from the paths the owner's books and the fixtures actually carry. A field the
 blueprint names and nothing reads is declared `unread`, so a sheet is told it reaches nothing; a field an engine
 module already validates is handed to that module (`check`), so there is one rule per thing.
@@ -22,6 +22,12 @@ def _wound(row, sheet, ctx):
     from . import wound
     if isinstance(row, dict) and row and all(str(k).startswith("_") for k in row):
         return None                                        # an author's _note row
+    _numbers(row)
+    if "wounds" not in ctx.get("systems", ("wounds",)):
+        # WOUNDS OFF: the run empties this list before a reader, but a resume's fold reads each dict row first
+        # (passage.fold_wounds -> wound.erode: its intensity and its permanence) - _numbers above; the rest is the wound
+        # module's, and it is off
+        return None
     wound._check(row)
     src = str(row.get("source", ""))
     if not (src.startswith("profile:") or src.startswith("run:")):
@@ -29,15 +35,31 @@ def _wound(row, sheet, ctx):
                           "never hand-written" % src)
 
 
+def _numbers(row):
+    """The numbers the wound fold reads off a row, wherever the book runs wounds or not: an intensity and a permanence
+    (wound.erode -> _floor_of: float(permanence)) - wound._check reads neither the permanence nor, with wounds off, the
+    intensity, and a word in either raises at a beat or a resume, after the run row is written."""
+    for key in ("intensity", "permanence"):
+        v = row.get(key) if isinstance(row, dict) else None
+        if isinstance(row, dict) and key in row and (isinstance(v, bool) or not isinstance(v, (int, float))):
+            raise RecordError("CONTRACT_FIELD_TYPE", "a wound's %s must be a number - the wound fold reads it; got %r"
+                              % (key, v))
+
+
 def _catalog(cat, sheet, ctx):
     """The tier-3 rows: the lever module's own check per row, and a row naming a wound must name one this sheet has."""
     from .levers import _check_row
+    if not isinstance(cat, (dict, list)) or (isinstance(cat, dict) and not isinstance(cat.get("rows") or [], list)):
+        raise RecordError("CONTRACT_FIELD_TYPE", "must be a list of rows, or {rows: [...]} - levers.active_rows reads it "
+                          "at every beat and refuses anything else; got %r" % (cat,))
     rows = (cat.get("rows") if isinstance(cat, dict) else cat) or []
-    have = {str(w.get("id")) for w in ((sheet.get("baseline") or {}).get("wounds") or []) if isinstance(w, dict)}
+    wounds = (sheet.get("baseline") or {}).get("wounds")
+    have = {str(w.get("id")) for w in (wounds if isinstance(wounds, list) else []) if isinstance(w, dict)}
+    wounds_on = "wounds" in ctx.get("systems", ("wounds",))   # off, the run empties every sheet's wounds alike
     for i, row in enumerate(rows if isinstance(rows, list) else []):
         _check_row(row, i)
         named = str((row or {}).get("wound", "") or "").strip() if isinstance(row, dict) else ""
-        if named and named not in have:
+        if named and wounds_on and named not in have:
             raise RecordError("CONTRACT_CATALOG_WOUND_UNKNOWN", "row %d names wound %r, which baseline.wounds does not "
                               "carry - it would fire at full magnitude whatever happens to that wound" % (i, named))
 
@@ -113,6 +135,8 @@ SHEET = (
       doc="where the path rests - a word, or a number in [0,1]"),
     F("baseline.temperament.<PATH>.mean", "unit", status="runtime", reader="state.decay",
       doc="the resting mean, seeded from the rest word; the arc moves it"),
+    F("baseline.temperament.<PATH>.variability", "any", status="retired", policy="prune",
+      replaced_by="nothing - cut on the owner's \"cut what doesn't align\" (heritable); read by nothing"),
     F("baseline.temperament.<PRIMITIVE>", "any", status="retired", policy="refuse", replaced_by=_MOVED),
     F("baseline.traits", "map", reader="identity_view.direct_identity", doc="personality facets"),
     F("baseline.traits.<name>", "map", reader="identity_view.direct_identity"),
@@ -132,22 +156,31 @@ SHEET = (
     # ---- baseline: drives, voice, skills ---------------------------------------------------------------------------
     F("baseline.drives", "map", reader="scene._manner_drives"),
     F("baseline.drives.goals", "list", reader="scene._manner_drives; connection"),
+    F("baseline.drives.goals[]", "map", reader="scene._manner_drives", doc="{goal, priority} - an object, never a bare string"),
     F("baseline.drives.goals[].goal", "text", reader="scene._manner_drives", doc="told to the actor"),
     F("baseline.drives.goals[].priority", "unit", reader="connection"),
     F("baseline.drives.goals[].satisfaction", "any", status="unread"),
     F("baseline.drives.goals[].urgency", "any", status="unread", doc="urgency is read on current.active_goals"),
+    # drives-schema.md's six design keys (BLUEPRINT-character "LEAVE BLANK"): the actor is told only the goal itself
+    F("baseline.drives.goals[].kind", "any", status="unread", doc="the actor is told only the goal (scene._manner_drives)"),
+    F("baseline.drives.goals[].serves", "any", status="unread"),
+    F("baseline.drives.goals[].status", "any", status="unread"),
+    F("baseline.drives.goals[].origin", "any", status="unread"),
+    F("baseline.drives.goals[].triggers", "any", status="unread"),
+    F("baseline.drives.goals[].view", "any", status="unread"),
     F("baseline.drives.orientation", "any", status="unread", doc="cut from what the actor sees (scene._manner_drives)"),
     F("baseline.drives.fears_wounds", "any", status="retired", policy="move",
       replaced_by="baseline.wounds - a wound is engine state, keyed by a concept and a path"),
     F("baseline.voice", "prose", reader="identity_view.direct_identity; narrate", doc="how they sound - told to the actor verbatim"),
     F("baseline.skills", "map", required="always", reader="gate.perception_scope; bonds; tells; consolidation",
-      doc="both drivers index it directly: absent, a run crashes"),
+      doc="both drivers index it directly: absent, a run crashes",
+      absent="EMPTY - every skill is treated as exactly average"),
     F("baseline.skills.<name>", "unit", reader="gate.perception_scope (perception, insight); consolidation (combat)"),
     F("baseline.provenance", "any", status="unread", doc="where the numbers came from - kept out of the prompt"),
     # ---- baseline: engine state and its gates ---------------------------------------------------------------------
     F("baseline.catalog", "delegated", check=_catalog, reader="levers.active_rows", doc="tier-3 rows: a standing fact multiplies a path"),
     F("baseline.wounds", "list", reader="wound; connection; levers; passage", doc="engine state, minted - never hand-written"),
-    F("baseline.wounds[]", "delegated", check=_wound, reader="wound._check"),
+    F("baseline.wounds[]", "delegated", check=_wound, reader="wound._check (with the wounds system on)"),
     F("baseline.relationship_priors", "map", reader="bond_rest; bonds"),
     F("baseline.relationship_priors.default_trust", "unit", reader="bond_rest", doc="where a stranger's trust rests"),
     F("baseline.relationship_priors.update", "delegated", check=_rates, reader="bonds.rates_of",
@@ -163,9 +196,12 @@ SHEET = (
     F("current.affect.<PATH>", "unit", required="always", reader="state.appraise"),
     F("current.affect.<PRIMITIVE>", "any", status="retired", policy="refuse", replaced_by=_MOVED),
     F("current.condition", "map", required="always", system="condition", check=_condition, reader="condition; gate; direction",
-      doc="how worn they arrive"),
-    F("current.condition.energy", "unit", required="always", system="condition_flow", reader="condition; gate._energy_budget"),
-    F("current.condition.allostatic_load", "unit", required="always", system="condition_flow", reader="gate._energy_budget; arc"),
+      doc="how worn they arrive",
+      absent="EMPTY - the actor is told nothing of energy, and memory runs on the full budget"),
+    F("current.condition.energy", "unit", required="condition_flow", system="condition",
+      reader="condition; gate._energy_budget"),
+    F("current.condition.allostatic_load", "unit", required="condition_flow", system="condition",
+      reader="gate._energy_budget; arc"),
     F("current.condition.injuries", "delegated", system="injuries", check=_injuries, reader="injuries.require",
       doc="page-one injuries: {what, severity, ago}"),
     F("current.condition.<name>", "number", reader="levers (a catalog row's condition_at_most)"),
@@ -186,6 +222,7 @@ SHEET = (
       absent="absent - nothing but a person can move this character's bonds; the composition pass fills it"),
     F("current.active_goals", "list", reader="gate.run_gate; identity_view",
       absent="EMPTY - nothing weights goal-salience for recall"),
+    F("current.active_goals[]", "map", reader="gate.run_gate", doc="{goal, urgency}"),
     F("current.active_goals[].goal", "text", reader="gate.run_gate"),
     F("current.active_goals[].urgency", "unit", reader="identity_view"),
     F("current.location", "text", reader="gate.perception_scope", doc="a world.locations id"),
@@ -225,4 +262,8 @@ SHEET = (
     F("formative.<name>", "any", status="unread", doc="class, culture, history: fold what matters into fixed.position"),
     F("backstory", "text", reader="composition_pass"),
     F("formative_picks", "list", reader="composition_pass", doc="the formative profiles picked, {profile, weight}"),
+    F("formative_picks[]", "map", reader="composition_pass"),
+    F("formative_picks[].profile", "text", reader="composition_pass", doc="a formative library profile id"),
+    F("formative_picks[].weight", "number", reader="composition_pass"),
+    F("formative_picks[].why", "text", reader="composition_pass", doc="the classification's reason for the pick"),
 )

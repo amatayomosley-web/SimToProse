@@ -55,16 +55,21 @@ _META_GOAL = (r"\bthe reader\b", r"\bintroduce\b", r"\bestablish\b", r"\bexposit
               r"\bset ?up\b", r"\bshowcase\b", r"\bdemonstrate\b")
 
 
+def _list(v):
+    """A world list as the engine walks it - anything else is lint_book's finding, never a crash here."""
+    return v if isinstance(v, list) else []
+
+
 def _people(world):
-    return {str(p.get("id")) for p in (world.get("people") or []) if isinstance(p, dict) and p.get("id")}
+    return {str(p.get("id")) for p in _list(world.get("people")) if isinstance(p, dict) and p.get("id")}
 
 
 def _locations(world):
-    return {str(l.get("id")) for l in (world.get("locations") or []) if isinstance(l, dict) and l.get("id")}
+    return {str(l.get("id")) for l in _list(world.get("locations")) if isinstance(l, dict) and l.get("id")}
 
 
 def _law_acts(world):
-    return {str(l.get("act")) for l in (world.get("laws") or []) if isinstance(l, dict) and l.get("act")}
+    return {str(l.get("act")) for l in _list(world.get("laws")) if isinstance(l, dict) and l.get("act")}
 
 
 def lint_cfg(cfg, world, chars):
@@ -81,9 +86,10 @@ def lint_cfg(cfg, world, chars):
     except RecordError:
         _sys = _systems.defaults()                   # lint_book reports a bad declaration; this cfg is not the place
     for f in _contracts.check(cfg, _scene_contract.SCENE, _sys):
-        (errors if f["severity"] in ("error", "retired") else warnings).append("%s %s" % (f["path"] or "the file", f["message"]))
+        # an ERROR is exactly what refuses the run (contracts.refuses, gate run-start-refusal): a file that lints clean starts
+        (errors if _contracts.refuses(f) else warnings).append(" ".join(x for x in (f["path"], f["message"]) if x))
 
-    cast = cfg.get("cast") or []
+    cast = _list(cfg.get("cast"))
     ids = [str(c.get("id")) for c in cast if isinstance(c, dict)]
 
     for cid in ids:
@@ -91,10 +97,6 @@ def lint_cfg(cfg, world, chars):
             errors.append("cast %r is not a character in this book — the run refuses a cast member with no sheet "
                           "to act from%s" % (cid, " (world.people names them, but a person is not a character)"
                                              if cid in people else ""))
-    dupes = {i for i in ids if ids.count(i) > 1}
-    if dupes:
-        errors.append("cast lists %s more than once — one seat per character per scene"
-                      % ", ".join(sorted(dupes)))
     if len(ids) < 2:
         warnings.append("cast has %d member(s): a scene with no second party cannot produce the "
                         "wound collision rule 4 calls the dynamic engine" % len(ids))
@@ -138,8 +140,11 @@ def lint_cfg(cfg, world, chars):
 
     # THE DIRECTOR'S HOLDS against the book (the contract has checked each declaration's shape and relation word): a
     # cast member of this scene, and a place or group the world registers.
-    _names = set(_attachments.names_for(world))
-    for d in cfg.get("attachments") or []:
+    try:
+        _names = set(_attachments.names_for(world))
+    except (RecordError, TypeError):                 # lint_book names the bad locations or groups
+        _names = set()
+    for d in _list(cfg.get("attachments")):
         if not isinstance(d, dict):
             continue
         if str(d.get("char")) not in ids:
@@ -157,7 +162,7 @@ def lint_cfg(cfg, world, chars):
     # RULE 5 — now enforceable. It named `props` for months while the engine read no such field;
     # since 2026-08-24 props reach the actor as percepts (gate.perception_scope), so the count is a
     # real constraint rather than advice about a field that went nowhere.
-    props = cfg.get("props") or []
+    props = _list(cfg.get("props"))                  # anything else is the contract's finding, above
     if not props:
         warnings.append("no props declared — rule 5 wants 3-5 concrete objects that can be held, "
                         "counted or slid; without affordances the actors have nothing to do with "

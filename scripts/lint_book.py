@@ -80,24 +80,40 @@ def _identity_strings(fixed, baseline):
 # 57 errors on the owner's four books. The per-character structural checks below are now `contracts.check`; what
 # stays here is what one sheet cannot answer alone (the world's ids, the other sheets) and the prose and resting-face
 # advisories.
-_SEVERITY = {"error": "errors", "retired": "errors", "unread": "warnings", "unknown": "warnings", "advice": "warnings"}
+def _list(v):
+    """A world list as the engine walks it - anything else is the world contract's finding, never a crash here."""
+    return v if isinstance(v, list) else []
+
+
+def _id(entry):
+    """An entry's id when it is one (text) - anything else is the contract's finding, never an unhashable crash."""
+    return entry.get("id") if isinstance(entry.get("id"), str) and entry.get("id") else None
+
+
+def _rels(ch):
+    """A sheet's relationship keys when they are a map - anything else is the sheet contract's finding."""
+    cur = ch.get("current") if isinstance(ch, dict) else None
+    rels = cur.get("relationships") if isinstance(cur, dict) else None
+    return rels if isinstance(rels, dict) else {}
 
 
 def _grouped(findings, fields):
-    """-> [(severity, where, what)]: findings saying the same thing about the same declared field, one line naming
-    each key - a sheet still on the old basis reads as nine missing paths in one line, not nine lines."""
+    """-> [(stops, where, what)]: findings saying the same thing about the same declared field, one line naming
+    each key - a sheet still on the old basis reads as nine missing paths in one line, not nine lines. `stops` is
+    the run's own verdict (`contracts.refuses`, gate run-start-refusal): an ERROR here is exactly a finding that
+    refuses the run, and a WARNING one that does not, so a book that lints clean starts."""
     groups = {}
     for f in findings:
         segs = tuple(f["path"].split(".")) if f["path"] else ()
         decl = _contracts.match(segs, fields) if segs else None
         pattern = decl.path if decl and "<" in decl.path else f["path"]
-        groups.setdefault((f["severity"], f["code"], pattern, f["message"]), []).append(f["path"])
+        groups.setdefault((_contracts.refuses(f), f["code"], pattern, f["message"]), []).append(f["path"])
     out = []
-    for (sev, _code, pattern, msg), paths in groups.items():
+    for (stops, _code, pattern, msg), paths in groups.items():
         if len(paths) == 1:
-            out.append((sev, paths[0], msg))
+            out.append((stops, paths[0], msg))
         else:
-            out.append((sev, pattern, "%s: %s" % (msg, ", ".join(p.rsplit(".", 1)[-1] for p in paths))))
+            out.append((stops, pattern, "%s: %s" % (msg, ", ".join(p.rsplit(".", 1)[-1] for p in paths))))
     return out
 
 
@@ -108,9 +124,12 @@ def lint(world, chars):
     if not isinstance(world, dict):
         return {"errors": ["world is not a dict"], "warnings": []}
 
-    people_ids = {p.get("id") for p in (world.get("people") or []) if isinstance(p, dict) and p.get("id")}
-    _registered = attachments.names_for(world)
-    location_ids = {l.get("id") for l in (world.get("locations") or []) if isinstance(l, dict) and l.get("id")}
+    people_ids = {p.get("id") for p in _list(world.get("people")) if isinstance(p, dict) and _id(p)}
+    try:
+        _registered = attachments.names_for(world)
+    except (RecordError, TypeError):                  # the world's contract names the bad locations or groups
+        _registered = None
+    location_ids = {l.get("id") for l in _list(world.get("locations")) if isinstance(l, dict) and _id(l)}
     # WHICH SYSTEMS THE BOOK RUNS (gate systems-registry, 2026-09-22): the systems it switches off stop being demanded
     # of the sheets below. A declaration the engine cannot honour is reported once, by the world's contract.
     try:
@@ -119,13 +138,13 @@ def lint(world, chars):
         _enabled = _systems.defaults()
     # THE WORLD'S CONTRACT (src/engine/contracts_world.py, gate world-contract): every field's shape and whether anything
     # reads it; the laws, the tensions and the systems in their own modules' words
-    for sev, where, what in _grouped(_contracts.check(world, _world_contract.WORLD, _enabled), _world_contract.WORLD):
-        (errors if _SEVERITY[sev] == "errors" else warnings).append("world.%s: %s" % (where or "note", what))
+    for stops, where, what in _grouped(_contracts.check(world, _world_contract.WORLD, _enabled), _world_contract.WORLD):
+        (errors if stops else warnings).append("world.%s: %s" % (where or "note", what))
     # LAWS REACHABILITY. src/engine/bible.py:_applies narrows a law by its `act` ONLY when the
     # CALLER supplies one, so a law carrying an act fires only if some scene cfg declares that
     # act (scripts/scene.py pre-flight). A law nothing can key is a rule the world states and
     # never applies -- verdict_for had no caller at all until 2026-08-22.
-    _acts = sorted({str(l.get("act")) for l in (world.get("laws") or []) if isinstance(l, dict) and l.get("act")})
+    _acts = sorted({str(l.get("act")) for l in _list(world.get("laws")) if isinstance(l, dict) and l.get("act")})
     if _acts:
         warnings.append("world.laws: %d law(s) are keyed by an `act`; a scene cfg must declare the "
                         "matching act or the law never fires. Acts: %s%s"
@@ -135,9 +154,9 @@ def lint(world, chars):
     try:
         from src.engine.tensions import from_world as _tensions_from_world
         _tensions = _tensions_from_world(world)
-    except (RecordError, ValueError):
+    except (RecordError, ValueError, TypeError):
         _tensions = []
-    _people_ids = {p.get("id") for p in (world.get("people") or []) if isinstance(p, dict)}
+    _people_ids = {p.get("id") for p in _list(world.get("people")) if isinstance(p, dict) and _id(p)}
     for _t in _tensions:
         _w = _t.get("watches") or {}
         for _loc in (_w.get("locations") or []):
@@ -162,9 +181,9 @@ def lint(world, chars):
     for cid, ch in sorted((chars or {}).items()):
         if not isinstance(ch, dict):
             continue
-        for target in ((ch.get("current") or {}).get("relationships") or {}):
+        for target in _rels(ch):
             if target in (chars or {}):
-                back = ((chars[target].get("current") or {}).get("relationships") or {})
+                back = _rels(chars[target])
                 if cid not in back:
                     warnings.append("char %r -> %r is ONE-WAY: %r has no relationship record back to "
                                     "%r, so %r gets no edge for %r in any scene they share"
@@ -177,11 +196,15 @@ def lint(world, chars):
             continue
         # THE CONTRACT (src/engine/contracts_sheet.py): every field's shape, whether this book must author it, and
         # whether anything reads it - one declaration, the engine's own validators for the blocks they own
-        for sev, where, what in _grouped(_contracts.check(ch, _sheet_contract.SHEET, _enabled, {"registered": _registered}),
-                                         _sheet_contract.SHEET):
-            (errors if _SEVERITY[sev] == "errors" else warnings).append("%s: %s %s" % (tag, where or "the sheet", what))
+        for stops, where, what in _grouped(_contracts.check(ch, _sheet_contract.SHEET, _enabled, {"registered": _registered}),
+                                           _sheet_contract.SHEET):
+            (errors if stops else warnings).append("%s: %s %s" % (tag, where or "the sheet", what))
         fixed, baseline, current = ({} if not isinstance(ch.get(k), dict) else ch[k] for k in ("fixed", "baseline", "current"))
-        for _off in _systems.authored_for_off(ch, _enabled):
+        try:                                          # a section that is not an object is the contract's finding above
+            _offs = _systems.authored_for_off(ch, _enabled)
+        except (AttributeError, TypeError):
+            _offs = []
+        for _off in _offs:
             warnings.append("%s: a %s block is authored, but this book switches the %s system off - it does "
                             "nothing" % (tag, _off, _off))
 
@@ -201,7 +224,7 @@ def lint(world, chars):
                     % (tag, path, ", ".join(hits[:4])))
 
         # content-guide rule: a relationship key must be a world.people id or the edge never surfaces
-        for k in (current.get("relationships") or {}):
+        for k in _rels(ch):
             if people_ids and k not in people_ids:
                 warnings.append("%s: relationship %r is not a world.people id — its edge will never surface in a scene" % (tag, k))
         # THE RESTING FACE'S RECEIPTS - a rest above the cap is honoured and named, so it is a decision and never an
@@ -233,7 +256,7 @@ def lint(world, chars):
             except (RecordError, ValueError, TypeError):
                 pass
         loc = current.get("location")
-        if loc and location_ids and loc not in location_ids:
+        if isinstance(loc, str) and loc and location_ids and loc not in location_ids:
             warnings.append("%s: current.location %r is not a world.locations id — no location percept "
                             "will be produced there" % (tag, loc))
 

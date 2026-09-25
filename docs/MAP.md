@@ -1,7 +1,7 @@
 # MAP — what is in this project and what owns what
 
 **Why this file exists.** `docs/` holds 126 design docs, `src/engine/` 70 modules,
-`tests/` 119 suites. Nobody — human or agent — can hold that in their head, and reading it all every
+`tests/` 120 suites. Nobody — human or agent — can hold that in their head, and reading it all every
 session is not practical. **The failure this prevents is real and happened:** a session spent hours
 reasoning about the decision layer from four docs and inference, invented a parallel vocabulary
 ("vectors"), and rebuilt a worse version of the buff/debuff registry that `decision-engine.md`
@@ -319,7 +319,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `narrate` | 232 | the narrator (design.md layer 7, narration.md): a canonized scene -> POV-bound prose. |
 | `scene` | 393 | the multi-agent scene runner (the director sets the scene; the agents push it). |
 
-## tests/ — 119 suites (each is a PROOF of the gate it names)
+## tests/ — 120 suites (each is a PROOF of the gate it names)
 
 | tests | lines | owns |
 |---|---|---|
@@ -417,6 +417,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `test_receive` | Phase 3: the receipt from READINGS, and what follows from a reading. |
 | `test_reserves` | one shared pool, with a reserve for the mind and one for the body (gate energy-reserves). |
 | `test_retired_vocabulary` | a migration's old words may not stay alive anywhere in the tree. |
+| `test_run_start` |  |
 | `test_rung_delivery` | the rung block actually reaches the actor, and nothing else moved. |
 | `test_rung_seam_coverage` |  |
 | `test_rung_vectors` | what a rung is WORTH, and that the table cannot rot. |

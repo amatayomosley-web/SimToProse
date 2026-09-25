@@ -29,6 +29,7 @@ sys.path.insert(0, REPO)
 
 from src.engine.scene import assemble, resolve_subject, subject_groups, referenced_ids  # noqa: E402
 from src.engine import books   # module scope: BOTH the --book and --fixture branches use it
+from src.engine import contracts as _contracts   # the author files, refused at run start (gate run-start-refusal)
 from src.engine import decay as _decay   # recall history fold — see run_turn's assemble call
 from src.engine import clock as _clock
 from src.engine import presence as _presence   # a name means one person (gate one-person-per-name)
@@ -1136,7 +1137,6 @@ def main():
         key = args.char.lower().replace(" ", "_")
         try:
             char = vault.character_or_raise(chars, key)
-            passage.stamp_authored(char)             # before anything moves it (gate erosion-derived-at-replay)
         except vault.VaultError as e:
             raise SystemExit(str(e))
         book_name = books.slug(book_dir)
@@ -1153,7 +1153,6 @@ def main():
                 raise SystemExit(str(e))
         world = _load(find("world", args.fixture))
         char = _load(find("characters", args.char))
-        passage.stamp_authored(char)             # before anything moves it (gate erosion-derived-at-replay)
         book_name = args.fixture
         default_db = os.path.join(REPO, "runs", "%s.db" % args.fixture)
     # THE BOOK'S OWN ID FOR THEM, never their name (gate one-person-per-name): two characters can share a name - a
@@ -1161,6 +1160,17 @@ def main():
     # book key: its name, as before.
     char_id = key if book_spec else char["fixed"]["name"].lower()
     _own = set(chars) if book_spec else {char_id}
+    # THE CONTRACTS, AT RUN START (gate run-start-refusal, G4): the world and the one character the chair plays, each
+    # against its contract, before the chronicle is opened - the scene driver's check, with no scene file to read.
+    try:
+        _note = _contracts.require_at_start(world, {char_id: char})
+    except RecordError as e:
+        raise SystemExit(str(e))
+    if _note:
+        print(_note)
+    # WHAT THE SHEET AUTHORED, before anything moves it (gate erosion-derived-at-replay) - after the check, so a sheet
+    # the stamp cannot read is refused by name first, as the scene driver does
+    passage.stamp_authored(char)
     led = Ledger(args.db or default_db)
 
     if args.resume:

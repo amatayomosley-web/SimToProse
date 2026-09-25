@@ -319,15 +319,25 @@ def stamp_authored(char):
     would record the faded value as the authored one. `_authored_relationships` and
     `_authored_attachments` let the attitude fold rebuild the bonds as they stood at each opening.
     Underscored `current` keys never reach a prompt: assembly selects its volatile keys explicitly.
+
+    A MALFORMED SHEET IS STAMPED ONLY WHERE IT CAN BE, never a crash: the driver stamps every sheet in the book, and
+    the run's start checks only the sheets of those who play (gate run-start-refusal) - a sheet that plays and is
+    malformed was refused before this; one that does not play is pinned, and read by no beat.
     """
     cur = char.setdefault("current", {})
+    if not isinstance(cur, dict):
+        return char
     cur.setdefault("_authored_relationships", _copy.deepcopy(cur.get("relationships") or {}))
     cur.setdefault("_authored_attachments", _copy.deepcopy(cur.get("attachments") or {}))
-    cur.setdefault("_authored_toward", {w: dict(v) for w, v in (cur.get("toward") or {}).items()
+    toward = cur.get("toward")
+    cur.setdefault("_authored_toward", {w: dict(v) for w, v in (toward.items() if isinstance(toward, dict) else ())
                                         if isinstance(v, dict)})
-    for w in ((char.get("baseline") or {}).get("wounds") or []):
-        if isinstance(w, dict) and "intensity" in w:
-            w.setdefault("_authored_intensity", float(w["intensity"]))
+    base = char.get("baseline")
+    wounds = base.get("wounds") if isinstance(base, dict) else None
+    for w in (wounds if isinstance(wounds, list) else []):
+        v = w.get("intensity") if isinstance(w, dict) else None
+        if isinstance(v, (int, float)) and not isinstance(v, bool):
+            w.setdefault("_authored_intensity", float(v))
     return char
 
 

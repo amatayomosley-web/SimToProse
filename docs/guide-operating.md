@@ -92,16 +92,32 @@ per turn: slice → `assemble` → `build_turn_messages` → LLM → `validate_t
 
 ## Recipe: lint before you run
 
-Catch authoring errors before they crash a run (or silently degrade it):
+The linters read each author file against its contract - `src/engine/contracts_sheet.py`,
+`contracts_world.py`, `contracts_scene.py`, whose field tables the three blueprints carry, generated - and
+REPORT:
 ```bash
-python scripts/lint_book.py --vault "<book>"             # a real book
+python scripts/lint_book.py --vault "<book>"             # a real book: the world and every sheet
 python scripts/lint_book.py --book ashford --char maren  # a fixture
+python scripts/lint_scene.py --book "<book>" --scene <file>.json
 ```
-ERRORS would break a run (missing `fixed`/`baseline`/`current`, a `baseline.temperament` or
-`current.affect` missing any of the 8 primaries, an affect value out of [0,1], `current.condition`
-not a dict) — exit 1. WARNINGS flag thin or silently-degrading authoring (no lexicon; a relationship
-key that is not a `world.people` id, so its edge will never surface; a vault belief missing a claim
-or provenance). Report-only — fix the JSON, the linter never edits.
+A draft always loads and always lints, and the linter never edits. Each finding says what it is: a field
+the engine would misread, or a required one absent; a key nothing declares (nothing reads it; an annotation
+begins with `_`); a RETIRED field (it names what took its place, and whether to prune, move or refuse it); a
+field nothing reads; advice. Every finding that refuses a run (below) is an ERROR - exit 1 - so a book that
+lints clean starts. The linters also run the checks that span files (a relationship key that is not a
+`world.people` id, a cast id that is not a character), and lint_scene calls errors some facts and craft rules a run
+does not check (a subject that names nobody, a location or a hold's place the world does not register, a hold for
+someone outside the scene, an act no law keys, a drive that copies the situation, a prop count outside three to
+five).
+
+**The run itself refuses what would break it** (gate run-start-refusal, 2026-09-25). Before either driver
+opens the chronicle - `scene.py` reads the world, the scene's cast and the scene file as written; the chair
+(`direct.py`) the world and its one character - an error, an undeclared key, or a retired field whose content
+must move or which was refused stops the run with `CONTRACT_RUN_REFUSED`, naming each file and path, and
+nothing is written. What loses nothing - a pruned field, one nothing reads, advice - is counted in one line
+(`contract: nothing refused; ...`) and the run goes on. Only the sheets of those who play are checked; every
+sheet in the book is still pinned with the run, so lint the whole book first - it lists the same, and what
+reaches nothing too.
 
 ## Recipe: run a burst (the production rhythm)
 
@@ -380,6 +396,7 @@ Park a run you're leaving: `led.set_status(run_id, "parked")` — appends are re
 | `[turn-error, degraded: ...]` + turn-skipped event | LLM call/parse failed after retries | normal at ~1/25 on haiku; re-run the turn next burst if it matters |
 | escalate=1 on a turn | self-report incoherent with percepts/skills | inspect; the action/thought are usually fine — the TAGS are suspect |
 | detector FLAG (probe) | state-sanity breach (saturation/oscillation/drift) | real coupling problem; check recent tag dims vs hints; `--corrupt` proves the detectors themselves |
+| `CONTRACT_RUN_REFUSED` before the first beat | a file the run starts from breaks its contract | fix each named path (`lint_book` / `lint_scene` list them); nothing was written, so re-run as it was |
 | `RESUME DIVERGENCE` | cache ≠ replay | never disable the CHECK; discard the CACHE — see "If a run refuses to resume" below |
 | OpenRouter nulls/throttle | burst rate limit (~250 calls observed) | backoff; for judging, the fallback is an opus subagent on blinded transcript files (the 2026-06-10/11 pattern) |
 

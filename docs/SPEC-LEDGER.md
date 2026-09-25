@@ -145,7 +145,7 @@ build something listed SPEC-ONLY here, flip the row in the same commit. Line num
 | Perception-mode wall (PerceptSet whitelist; identity behind insight 0.55; subtle cues behind perception 0.60; acquaintance recognition) | `scene-assembly.md:17-21,74-97`, `relevancy-gate.md:28-32` | YES | `gate.py:90-210`; never-add structural (`test_scene` whitelist canary); known-entity bypass `gate.py:176` | BUILT-AS-SPEC'D |
 | Graph recall: weighted hops, pathfinding to hinges, degree-penalty, multi-hop chains | `relevancy-gate.md:60-97` | NO | vault is FLAT by design; single-hop cost 1−confidence (`guide-engine.md:171-173` declares the reduction) | **BUILT-DIFFERENTLY (deliberate)** — the entire hop/path/DC-from-distance apparatus is spec-only behind the same interface |
 | Authored hinges (director-planted checks that always surface + branch) | `relevancy-gate.md:39` (pipeline step 5) | NO | `must_surface` exists only as the event-anchor flag (`gate.py:24,144`); no hinge authoring surface, no branch mechanics | SPEC-ONLY |
-| Name masking + latent-leak regeneration ("recorded as-is" preserved) | `knowledge-model.md` wall; status log `driving-the-engine.md:104-111` | YES | `gate.scope_names` :543 (prompt wall), `faithfulness.py:16-35` (output detector), `direct.py` `faithful_turn` :384-416 (regenerate → reject) ; `tests/test_faithful_turn.py` | BUILT-AS-SPEC'D |
+| Name masking + latent-leak regeneration ("recorded as-is" preserved) | `knowledge-model.md` wall; status log `driving-the-engine.md:104-111` | YES | `gate.scope_names` :543 (prompt wall), `faithfulness.py:16-35` (output detector), `direct.py` `faithful_turn` :385-417 (regenerate → reject) ; `tests/test_faithful_turn.py` | BUILT-AS-SPEC'D |
 
 ### Scene assembly & the packet
 
@@ -204,7 +204,7 @@ build something listed SPEC-ONLY here, flip the row in the same commit. Line num
 | Future-dated consequences (`effective_at > caused_at`) | `world-dynamics.md:17` | YES (mechanism) | `records.py:34-46`, fold orders by `effective_at` (`schema.sql:28`) | BUILT-AS-SPEC'D structurally; **no producer ever emits one** — delayed pushback never actually happens |
 | **`fold_forward(Δt)`** — lazy time, recurrence rates, standing processes | `world-dynamics.md:18-19,29-33` | NO | grep: does not exist | **SPEC-ONLY** — time does not pass off-screen; the world is a recorder, not yet a system |
 | **Plausible-response envelope** (factions as collective characters; director chooses within engine bounds) | `world-dynamics.md:20-24`, `present-systems.md` §Factions | NO | no faction store, no envelope computation (the `capability` lore table of `orchestrator-design.md:180` also unbuilt) | **SPEC-ONLY** — world channel 2 entirely on paper |
-| Laws: typed store, modality IMPOSSIBLE/FORBIDS/REQUIRES/PERMITS(+excepts), 3-value epistemic, blueprint defaults, completeness/strict | `orchestrator-design.md:154-205`, `guide-content.md:120-224`, `universal-law.md:12,18-19` | YES | `law.py` (`_BLUEPRINT_DEFAULTS` :77, `completeness` :218, `laws_bearing_on` :324, `verdict_for` :340), `bible.py` (`build` :105, strict); `schema.sql:200-223`; `tests/test_laws.py` | BUILT-AS-SPEC'D — the lore-store GATE half. Serve half (shard corpus) and the other typed tables (`locations`/`chronicle`/`capability`/`relations`) SPEC-ONLY; `chronicle:` citations resolve UNVERIFIABLE (`citation.py:145-148`) |
+| Laws: typed store, modality IMPOSSIBLE/FORBIDS/REQUIRES/PERMITS(+excepts), 3-value epistemic, blueprint defaults, completeness/strict | `orchestrator-design.md:154-205`, `guide-content.md:120-224`, `universal-law.md:12,18-19` | YES | `law.py` (`_BLUEPRINT_DEFAULTS` :77, `completeness` :218, `laws_bearing_on` :324, `verdict_for` :340), `bible.py` (`build` :107, strict); `schema.sql:200-223`; `tests/test_laws.py` | BUILT-AS-SPEC'D — the lore-store GATE half. Serve half (shard corpus) and the other typed tables (`locations`/`chronicle`/`capability`/`relations`) SPEC-ONLY; `chronicle:` citations resolve UNVERIFIABLE (`citation.py:145-148`) |
 | **Laws consulted while a scene RUNS** | `design.md` layer 6 floor; the store exists to refuse | **YES (built 2026-08-22)** | PRE-FLIGHT: `scripts/scene.py:run_scene` calls `verdict_for` before the beat loop when the scene cfg declares an `act`, and REFUSES a scene an IMPOSSIBLE law denies. POST-ACTION: the turn contract gained an optional `act` from the world's own vocabulary (`prompt.py`, injected only when the world declares laws), and `scripts/scene.py:_law_events` appends a `law-violation` Event carrying the FORBIDS teeth. Suite `tests/test_laws_preflight.py` | **BUILT-AS-SPEC'D** — with two scoped omissions: post-action NEVER retracts (append-only log), and teeth are RECORDED not APPLIED (a consequence is the director's judgment). The act is AUTHORED, not inferred: measured on a real book, `act=None` makes every law bear and nearly all of them deny, so a blanket call would refuse every scene |
 | Bible pinning + drift detection (run records what it ran against) | `orchestrator-design.md` §7 spirit | YES | `bibles`/`bible_entities` tables; `bible.for_run` :484, `drifted` :182; `tests/test_bible.py` | BUILT (beyond the docs — code-first addition) |
 | Citation grammar, resolver, 3-state verdict (resolved/unresolved/UNVERIFIABLE), corrupt control | `grounding.md:41-62`, `orchestrator-design.md:301-307` | YES | `citation.py` (`_RESOLVERS` :135-143; entity/law resolve via bible :175); `tests/test_citation.py` incl. sabotage control | BUILT-AS-SPEC'D — `law:` now RESOLVES (store built), superseding the design's "unverifiable until lore store exists" |
@@ -1046,6 +1046,51 @@ carries the declarations as a generated table (section 16b). Suite: `tests/test_
 range check, first survived on a substring that also sat in the list of legal dimension names - each part is now
 matched on its own finding's words). NOT COVERED: run-start refusal against the contract (G4);
 `mood_fold.replay` on a scene with no pinned cfg (TypeError - flagged as its own task).
+
+**2026-09-25 — a run refuses to start from files the engine would misread (gate `run-start-refusal`):** G4 of the
+contracts plan. Both drivers started a run from any file the loaders accepted: an undeclared key was dropped
+silently, a retired field's content ignored (`baseline.drives.fears_wounds`), a malformed scene `subject` turned into
+no one, and a scene with no `situation` died in `load_scene_cfg` with a traceback. `contracts.require_at_start`
+reads the world, the characters who PLAY (the scene's cast; the chair's one character) and the scene file AS
+WRITTEN, before the chronicle is opened - opening it migrates the schema, one way - and `contracts.refuses` stops
+the run on an error, an undeclared key, or a retired field whose policy is move or refuse, with
+`CONTRACT_RUN_REFUSED` naming every file and path. What loses nothing - a pruned field, an unread one, advice - is
+counted in one line and never refused. `baseline.temperament.<PATH>.variability` is now declared RETIRED (prune):
+heritable cut it on the owner's "cut what doesn't align", and every engine fixture still carries it. No override:
+the three older books are already refused by heritable (their retired genotype basis), so one would buy nothing.
+The shared test fixture lost the retired `fears_wounds`; `test_systems`' wound got the documented `profile:`
+source. Suite: `tests/test_run_start.py`. On the owner's books: the live one is refused until its undeclared
+keys and its two three-item scene subjects are resolved (G3, after shipping, per the owner).
+AN INDEPENDENT REVIEW (static, fifteen findings) found what refusal would have done wrong, and each confirmed one is
+fixed and held by a check: every sheet the composition pass writes was refused (`formative_picks[]` items were
+undeclared); `{}` for a block whose readers default each key (a blank skills block, a condition block with neither
+key - both documented) was refused as absent, so `{}` is now present unless the field holds keys a book must author
+(an empty mood is still refused, once); the six goal keys the blueprint calls inert refused instead of being counted;
+the blueprint's own copy-out form and worked example were keyed by the retired eight; the check CHANGED the world it
+was handed (tensions turn a temperature word into its number) before the bible was pinned, so `check` now works on a
+copy; a cast naming someone twice ran into a registration traceback after the run row was written; a block of a
+switched-off system was held to that system's rules (`Field.system` now owns a field: off, it is not demanded and its
+module's rules are not applied, and `required` may name the system that demands it - energy and stress while the
+flow runs); malformed shapes raised
+tracebacks out of the check; the cast-in-book check, the loader's own refusal and a director's hold for a stranger
+all came after the chronicle was opened. A SECOND and a THIRD review of those fixes each found what the previous
+round broke - a FOURTH found none that crash a run - and the final rules are these, each held by a check: a blank
+counts as unwritten where its reader reads it as absent (a word field's any blank; a text field's "", but never a
+scene's `name`, which the loader keeps as the label; a scene's subject and props, which the loader reads as none) - a
+blank number, map or list reached readers that raise mid-run, and an empty cue word matched every event, so those are
+refused (a blank world list or `opening_tags` too, by its shape, though its reader would read it as none); a null
+ITEM in a list is a bad item, not an absence; only a block nothing reads while its system is off carries a `system`
+(strip empties condition and body; every injuries reader is gated on its system), so wounds and attitude - stamped
+and folded first - are checked in every book, and a wound's intensity and permanence must be numbers wherever the
+fold reads them; a retired key stops the run by its presence whatever it holds, because the engine refuses some on
+sight (the third round's "an empty one is only counted" let three of them through to a crash); every finding that
+refuses a run is a linter error, and neither linter nor loader crashes on a shape the run refuses by name;
+`passage.stamp_authored` and the bible's pin read only what they can, since both take every sheet and the check
+reads only the cast's; a catalog that is not a list of rows, and a goal written as a bare string, are refused; in a
+wounds-off book the catalog is not cross-read against wounds the run empties alike; an empty block that must carry
+keys names the system that asks for them. NOT COVERED: the read-along bench's own sheets (`scripts/readalong.py`);
+person-note findings labelled `world` and list items unindexed; a sheet nobody plays is pinned unchecked, and a later
+scene's replay reads that pin.
 
 **2026-09-19 — attitude decays per RUNG, in minutes (gate `attitude-staircase`):** `toward.erode` was the pre-redesign mechanism — one flat `toward._RETENTION[path]` per DAY for every rung, so a hatred and a flicker of annoyance faded alike — and now steps the ladder exactly as `state.decay_over` does, on the minute clock, at a per-path scale whose bottom rung is that same day rate converted (`toward._attitude_half_life`, anchored to 1e-9 in `tests/test_toward.py` block 16) and whose rung-to-rung ratio is the MOOD staircase's own, so the two tiers cannot disagree about the shape of forgetting; `src/engine/passage.py` hands it MINUTES while `bond_rest.drift` / `wound.erode` / `arc.erode` keep the day conversion. Spec: the redesign's "Decay — per path AND per rung" ("Two tables, one shape"), `docs/emotion-arithmetic.md` §4.
 

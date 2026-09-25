@@ -68,6 +68,7 @@ from src.engine import condition as _condition                    # noqa: E402  
 from src.engine import body as _body                              # noqa: E402  (strength and exertion)
 from src.engine import tells as _tells                            # noqa: E402  (the signs a sharp eye catches)
 from src.engine import injuries as _injuries                      # noqa: E402  (bodily injuries, healing over time)
+from src.engine import contracts as _contracts                    # noqa: E402  (the author files, refused at run start)
 from src.engine import levers                                      # noqa: E402  (the wound refold on resume)
 from src.engine import wound                                       # noqa: E402  (the wound tier's mover)
 from src.engine import toward                                      # noqa: E402  (the MICRO tier)
@@ -195,6 +196,15 @@ def law_preflight(led, cfg, world, chars, run_id=None, fp=None):
     if verdict.get("undecidable"):
         print("  LAW: %r is contested-unknowable; the world declines to rule." % act)
     return verdict
+
+
+def _as_written(path):
+    """The scene file exactly as its author wrote it - what its contract reads (`load_scene_cfg` rewrites it)."""
+    try:
+        with open(path, encoding="utf-8") as fh:
+            return json.load(fh)
+    except (OSError, ValueError) as e:
+        raise SystemExit("scene file %s cannot be read as JSON: %s" % (path, e))
 
 
 def load_scene_cfg(path):
@@ -1375,17 +1385,28 @@ def main():
     except books.BookError as e:
         raise SystemExit(str(e))
     world, chars = load_book(book_dir)
-    # WHAT THE SHEETS AUTHORED, stamped before anything moves it: the fade folds rebuild from it
-    # (gate erosion-derived-at-replay, 2026-09-22).
-    for _ch in chars.values():
-        _passage.stamp_authored(_ch)
-    book_name = books.slug(book_dir)
-    try:                                          # the chronicle lives WITH the book — enforced,
-        default_db = books.assert_db_for_book(book_dir, args.db)   # not merely defaulted
-    except books.BookError as e:
+    # THE CONTRACTS, AT RUN START (gate run-start-refusal, G4): the world, the scene's cast and the scene file AS
+    # WRITTEN - `load_scene_cfg` rewrites it - each against its contract, before a sheet is stamped and before the
+    # chronicle is opened (opening it migrates the schema, one way). What the engine would misread or silently drop
+    # stops the run here, named; what reaches nothing and loses nothing is counted in one line. A draft still loads
+    # and lints: refusing is the run's job, not the loader's.
+    _raw = _as_written(args.scene) if args.scene else DEFAULT_SCENE
+    _cast = _raw.get("cast") if isinstance(_raw, dict) and isinstance(_raw.get("cast"), list) else []
+    _plays = {c["id"] for c in _cast if isinstance(c, dict) and isinstance(c.get("id"), str) and c["id"] in chars}
+    try:
+        _note = _contracts.require_at_start(world, {c: chars[c] for c in _plays}, _raw,
+                                            os.path.basename(args.scene) if args.scene else "the built-in scene")
+    except RecordError as e:
         raise SystemExit(str(e))
-    led = Ledger(default_db)
-    scene_cfg = load_scene_cfg(args.scene) if args.scene else DEFAULT_SCENE    # director-authored scene, or the default fixture
+    if _note:
+        print(_note)
+    # THE LOADER, AND WHAT SPANS FILES, BEFORE THE CHRONICLE TOO (gate run-start-refusal): the loader's own refusal, a
+    # cast id that is not a character of this book, a director's hold for someone who is not in it. Each was refused
+    # after the chronicle was opened - the hold after the run row was written, leaving an empty run behind.
+    try:
+        scene_cfg = load_scene_cfg(args.scene) if args.scene else DEFAULT_SCENE    # director-authored, or the fixture
+    except ValueError as e:
+        raise SystemExit("scene file %s: %s" % (args.scene, e))
     cast_ids = [c["id"] for c in scene_cfg["cast"]]
 
     # THE CAST MUST BE IN THE BOOK, and this refuses instead of dying nine lines later on a KeyError.
@@ -1411,6 +1432,20 @@ def main():
             % (", ".join(repr(c) for c in _absent),
                "" if args.scene else "  (no --scene given, so the built-in fixture scene was used)",
                ", ".join(sorted(chars)) or "none"))
+    _strangers = sorted({str(d.get("char")) for d in scene_cfg.get("attachments") or [] if d.get("char") not in chars})
+    if _strangers:
+        raise SystemExit("scene %r declares a hold for %s, who is not in this book"
+                         % (scene_cfg.get("name"), ", ".join(repr(c) for c in _strangers)))
+    # WHAT THE SHEETS AUTHORED, stamped before anything moves it: the fade folds rebuild from it
+    # (gate erosion-derived-at-replay, 2026-09-22).
+    for _ch in chars.values():
+        _passage.stamp_authored(_ch)
+    book_name = books.slug(book_dir)
+    try:                                          # the chronicle lives WITH the book — enforced,
+        default_db = books.assert_db_for_book(book_dir, args.db)   # not merely defaulted
+    except books.BookError as e:
+        raise SystemExit(str(e))
+    led = Ledger(default_db)
 
     if args.resume:
         run_id = args.resume
