@@ -219,7 +219,6 @@ _CLOCK = {
     "CLOCK_AT_DAY_INVALID":       "a scene's `at.day` is not an integer (0 and below are the days before day 1)",
     "CLOCK_AT_TIME_INVALID":      "a scene's `at.time` is not HH:MM",
     "CLOCK_RUNS_BACKWARDS":       "the chair opens before the latest point its character's own story has reached - a scene may, as a window (gate flashback-windows); it was: any opening before the scene run last ended",
-    "CLOCK_WINDOW_BEFORE_FIRST_SCENE": "a scene set in a character's past opens before their first scene, where no state of theirs exists to play them from (gate flashback-windows)",
     "CLOCK_CHAIR_IN_A_WINDOW":    "a chair session with no --at while the story's latest scene is a window for its character - its turns would silently join the window (gate flashback-windows)",
     "CLOCK_TWO_PLACES_AT_ONCE":   "a scene's span overlaps one its cast member was already in - one character in two places at once",
     "LEDGER_SCENE_CLOCK_REWRITE": "a scene's clock reading was declared twice with different values; scene_clock is append-only",

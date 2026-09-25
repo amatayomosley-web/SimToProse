@@ -11,8 +11,9 @@ these effects?"
       who was not in it, ends identical; inside it she plays from her state as of that time; the newcomer carries it;
       a second window does not see the first; the notice, the report, and the mood replay, exact
   [2] a scar minted in a window can be minted again in the present (schema v33), and an older store migrates
-  [3] the refusals: two places at once, a window before a first scene, the chair in a character's past, and a chair
-      with no clock after a window
+  [3] the refusals: two places at once, the chair in a character's past, and a chair with no clock after a window
+  [5] a window before a character's first scene plays them from their sheet (gate window-before-first-scene - it was
+      refused), their bonds resting where the sheet puts them, and advises a sheet for then when the gap is long
 
 Scenes run through scripts/scene.py main IN PROCESS with the seats faked and nothing turn-dependent in the fakes
 (test_own_timelines._run), so the two runs can be compared beat for beat. Script-style: check(), main(), exit code.
@@ -35,7 +36,7 @@ from src.engine import bible, clock, passage, window, wound                     
 from src.engine.ledger import Ledger                                                # noqa: E402
 from src.engine.records import RecordError                                          # noqa: E402
 from test_own_timelines import ADA, MIRA, TOMAS, WREN, _four, _run, _starts         # noqa: E402  (one fixture)
-from test_story_time import _con, _folded, _openings                                # noqa: E402
+from test_story_time import _con, _folded, _openings, _slow                         # noqa: E402
 
 FAILS = []
 S1 = ("lamp-1", 1, "08:00", "2h", 2, [MIRA, ADA])
@@ -297,9 +298,7 @@ def test_the_refusals(tmp):
     sheets = bible.for_run(led.con, run_id)[2]
     head = led.con.execute("SELECT MAX(turn) FROM turns").fetchone()[0] + 1
     for label, at, who, code in (("mira-inside-lamp-1", clock.parse_at({"day": 1, "time": "09:00"}), "mira", "CLOCK_TWO_PLACES_AT_ONCE"),
-                                 ("mira-inside-her-own-window", clock.parse_at({"day": 1, "time": "11:00"}), "mira", "CLOCK_TWO_PLACES_AT_ONCE"),
-                                 ("tomas-before-his-first-scene", clock.parse_at({"day": 1, "time": "09:00"}), "tomas",
-                                  "CLOCK_WINDOW_BEFORE_FIRST_SCENE")):
+                                 ("mira-inside-her-own-window", clock.parse_at({"day": 1, "time": "11:00"}), "mira", "CLOCK_TWO_PLACES_AT_ONCE")):
         try:
             passage.open_scene(led, run_id, head, at, 30.0, 1, {who: copy.deepcopy(sheets[who])}, windows=True)
             check("%s-is-refused-%s" % (label, code), False, "opened")
@@ -321,6 +320,54 @@ def test_the_refusals(tmp):
     led.con.close()
 
 
+def test_before_a_first_scene(tmp):
+    """The owner (2026-09-25): "Play the character sheet, if there is a large gap in time advise generating a
+    character sheet". Ada first walks on in lamp-1 (day 1 08:00) and tomas in the boat (day 60); a dawn scene at day 1
+    06:00 is a window for both, set two hours before ada's first scene and two months before tomas's; a prologue at
+    day -400 is a window for mira, and wren's first scene."""
+    print("\n[5] a window before a character's first scene plays them from their sheet")
+    boat = ("boat", 60, "08:00", "2h", 2, [TOMAS, ADA])
+    dawn = ("dawn-window", 1, "06:00", "1h", 2, [ADA, TOMAS])
+    prologue = ("prologue-window", -400, "09:00", "1h", 2, [MIRA, WREN])
+    book = _four(os.path.join(tmp, "first"))
+    db, run_id, outs, steps = _run(book, os.path.join(tmp, "first"), (S1, boat, dawn, prologue))
+    check("all-four-ran-(nothing-refused)", all("SYSTEMEXIT" not in o for o in outs), [o[-300:] for o in outs])
+    notice = lambda out, who: next((ln for ln in out.splitlines() if ln.strip().startswith("WINDOW : %s plays" % who)), "")
+    advised = lambda out, who: "consider generating a character sheet for %s as they were then" % who in out
+    check("ada-plays-from-her-sheet,-two-hours-before-it", "from their sheet, which describes them 2 hours later"
+          in notice(outs[2], "Ada") and not advised(outs[2], "Ada"), notice(outs[2], "Ada"))
+    check("tomas-plays-from-his-sheet,-two-months-before-it,-and-the-notice-advises-a-sheet-for-then",
+          "from their sheet, which describes them 2 months later" in notice(outs[2], "Tomas") and advised(outs[2], "Tomas"),
+          outs[2][:1500])
+    check("mira-a-year-before:-advised-too", "from their sheet, which describes them 1 year later" in notice(outs[3], "Mira")
+          and advised(outs[3], "Mira"), notice(outs[3], "Mira"))
+    check("wren's-first-scene-is-no-window-for-him", "WINDOW : Wren" not in outs[3], outs[3][:1200])
+    con = _con(db)
+    starts = _starts(con)
+    d0, d1 = starts[2]
+    sheets = bible.for_run(con, run_id)[2]
+    from src.engine import bond_rest, heritable
+    for cid in ("ada", "tomas"):
+        sheet = copy.deepcopy(sheets[cid])
+        heritable.ensure_temperament(sheet)
+        passage.stamp_authored(sheet)
+        per_beat = [s[3][cid] for s in steps if s[0] == "dawn-window" and s[1] == "beat" and cid in s[3]]
+        check("%s-opens-as-the-sheet-says-and-no-opening-ages-them" % cid, per_beat and per_beat[0] == _slow(sheet)
+              and cid not in _openings(steps, "dawn-window"), (per_beat[:1], _slow(sheet)))
+        authored = _slow(sheet)["edges"]                   # a bond born in the window is the window's; these are the sheet's
+        check("%s's-authored-bonds-rest-where-the-sheet-puts-them-through-every-beat" % cid, per_beat and authored
+              and all(b["edges"].get(t) == e for b in per_beat for t, e in authored.items()), [b["edges"] for b in per_beat])
+        v = window.view(con, run_id, cid, reading=d0)
+        rests = [r for r in bond_rest.rows_for(con, run_id, cid, v) if r[4] == "authored"]
+        timeline = [it for _t, _s, it in bond_rest.timeline_rows(con, run_id, cid, view=v) if it[0] == "rest"]
+        check("%s's-window-sees-the-sheet's-own-rests,-seeded-at-their-first-scene-after-it" % cid,
+              window.is_window(v) and rests and all(r[0] >= v.cut for r in rests) and len(timeline) == len(rests),
+              (v, rests, timeline))
+    check("a-short-gap-is-not-long", window.sheet_gap(con, run_id, "ada", clock.parse_at({"day": 1, "time": "06:00"}))
+          == 120.0 and window.sheet_gap(con, run_id, "ada", clock.parse_at({"day": 2, "time": "06:00"})) is None)
+    _replay_ok(db, run_id, "before-a-first-scene")
+
+
 def main():
     print("test_windows.py — a scene set in a character's past is a window for them (gate flashback-windows)\n")
     tmp = tempfile.mkdtemp(prefix="swe_win_")
@@ -328,6 +375,7 @@ def main():
         test_each_reader_holds_to_the_view(*test_the_differential(tmp))
         test_the_scar_table(tmp)
         test_the_refusals(tmp)
+        test_before_a_first_scene(tmp)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     print("\n%s" % ("test_windows: OK" if not FAILS else "FAILED:"))

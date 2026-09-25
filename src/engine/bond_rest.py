@@ -43,10 +43,13 @@ def write(con, run_id, turn, rows):
 def rows_for(con, run_id, perceiver, view=None):
     """[(turn, target, axis, rest, source)] for one perceiver, in log order - the rows their `view` keeps (gate
     flashback-windows: a cliff in a scene set in their past does not lower a rest in their present, nor one of their
-    present a window's). None is their present (`window.current`); `window.ALL` every row."""
+    present a window's). None is their present (`window.current`); `window.ALL` every row. The SHEET'S OWN rows
+    (source `authored`) are in every view (gate window-before-first-scene): they are the sheet, not something that
+    happened at a time, and a window set before the first scene they were seeded at would otherwise lose them."""
+    view = _window.of(con, run_id, perceiver, view)
     return [(int(r[0]), r[1], r[2], float(r[3]), r[4]) for r in con.execute(
-        "SELECT turn, target, axis, rest, source FROM rest_declared WHERE run_id = ? AND perceiver = ?"
-        + _window.clause(_window.of(con, run_id, perceiver, view)) + " ORDER BY turn, rest_id", (run_id, perceiver))]
+        "SELECT turn, target, axis, rest, source FROM rest_declared WHERE run_id = ? AND perceiver = ? "
+        "ORDER BY turn, rest_id", (run_id, perceiver)) if r[4] == "authored" or _window.keeps(view, r[0])]
 
 
 def timeline_rows(con, run_id, perceiver, before=None, seeded_at=None, view=None):
@@ -72,7 +75,7 @@ def timeline_rows(con, run_id, perceiver, before=None, seeded_at=None, view=None
     perceiver's rows it keeps - their present leaves their windows out, a window sees their past and itself.
     """
     view = _window.of(con, run_id, perceiver, view)
-    rows = [r for r in declared_rows(con, run_id, perceiver, seeded_at=seeded_at) if _window.keeps(view, r[0])]
+    rows = declared_rows(con, run_id, perceiver, seeded_at=seeded_at, view=view)
     rows += [(t, s, ("time", m / _clock.MINUTES_PER_DAY, m)) for t, s, m in _clock.time_items(con, run_id, perceiver,
                                                                                                view=view)]
     # BOTH ORDERS. Filtering to 'first' would silently drop the second-order tier (what the perceiver
@@ -85,7 +88,7 @@ def timeline_rows(con, run_id, perceiver, before=None, seeded_at=None, view=None
     return sorted(rows, key=lambda r: (r[0], r[1]))
 
 
-def declared_rows(con, run_id, perceiver, seeded_at=None):
+def declared_rows(con, run_id, perceiver, seeded_at=None, view=None):
     """The DECLARATIONS half of the timeline: rest rows at slot 0, hold rows at slot 1 (a beat's own at 4) ->
     [(turn, slot, item)]. Lives beside the fold that reads them; ledger.timeline_for adds the turn's
     time (slots 2 and 3) and edge (slot 4) items and sorts. Moved here 2026-09-18 (gate 5) because ledger.py
@@ -94,8 +97,11 @@ def declared_rows(con, run_id, perceiver, seeded_at=None):
     `seeded_at` (a turn): keep that turn's rows only when written BEFORE its opening - a resume's
     `authored` seeds and the scene's `director` holds - and drop a cliff or keeper row the turn's own
     beat wrote after it. That is the log as the scene's characters were built from it (gate
-    mood-from-readings; the director's holds added by gate systems-registry, 2026-09-22)."""
-    keep = (lambda t, src: t != seeded_at or src in _BEFORE_THE_OPENING) if seeded_at is not None else (lambda t, src: True)
+    mood-from-readings; the director's holds added by gate systems-registry, 2026-09-22). `view` (gate
+    flashback-windows): the rows it keeps, and the sheet's own (`authored`) in every view, as `rows_for` keeps them."""
+    at = (lambda t, src: t != seeded_at or src in _BEFORE_THE_OPENING) if seeded_at is not None else (lambda t, src: True)
+    view = _window.ALL if view is None else view
+    keep = lambda t, src: at(t, src) and (src == "authored" or _window.keeps(view, t))
     # EVERY ROW HERE (`window.ALL`): `timeline_rows` keeps what its view keeps, and a present view taken here would drop a
     # window's own cliffs before a window's view could keep them (gate flashback-windows)
     rows = [(t, _slot(0, _s), ("rest", tg, ax, v)) for t, tg, ax, v, _s in rows_for(con, run_id, perceiver, _window.ALL)

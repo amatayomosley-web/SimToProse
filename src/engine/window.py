@@ -19,9 +19,15 @@ one), the drivers' resume the view of the scene about to open, and the mood repl
 A default cannot be read off the log inside a window: before its first beat commits, nothing in the log says who
 is in it.
 
+BEFORE A CHARACTER'S FIRST SCENE (the owner, 2026-09-25: "Play the character sheet, if there is a large gap in time
+advise generating a character sheet"): the engine holds nothing of them before the moment their sheet describes, so a
+window set earlier plays them from the sheet as it stands, and the notice says how much later the sheet describes
+them, advising a sheet for them as they were then past `SHEET_ADVICE_DAYS` (`sheet_gap`). The sheet's own rows - the
+rests and holds seeded from it - belong to every view (`bond_rest.rows_for`), or such a window would play their
+friendships as a stranger's.
+
 WHAT IT DOES NOT COVER. The world's own state - tensions, the fold of deaths and knowers, the keeper's canon - still
-follows the order scenes were run. A window before a character's first scene is refused this round
-(CLOCK_WINDOW_BEFORE_FIRST_SCENE): the engine holds no state for them before the moment their sheet describes.
+follows the order scenes were run.
 
 Deterministic, stdlib + engine imports only, no LLM, no randomness.
 """
@@ -42,6 +48,10 @@ from .records import RecordError
 # at:       the story minute the view stands at (the opening's), for the notice
 View = namedtuple("View", "excluded cut since at")
 ALL = View((), None, None, None)       # every row: what a writer checks against, never what a reader sees
+# How long before a character's first scene a window may be set before the notice advises a sheet for them as they
+# were then [START - the owner named no line; FALSIFIER: an author advised to write a new sheet for a flashback a
+# month back finds the old one still describes that person, or one not advised finds it plainly does not].
+SHEET_ADVICE_DAYS = 30.0
 
 
 def _groups(con, run_id, char_id, reads, before_turn):
@@ -142,8 +152,9 @@ def admit(con, run_id, cast, at_minutes, lasts_minutes, start, windows=False):
     CLOCK_TWO_PLACES_AT_ONCE: its span (at to at + lasts) overlaps one a cast member was in - any scene of theirs,
     windows included; spans that only touch are not two places. Set before the latest point their main line has
     reached, the opening is a window for them (a scene, `windows`), else CLOCK_RUNS_BACKWARDS (the chair, which
-    stays in the present). CLOCK_WINDOW_BEFORE_FIRST_SCENE: a window before their first scene has no state to play
-    them from. Until this gate the clock's own refusal (gate own-timelines) refused every opening in a character's past."""
+    stays in the present). A window before their first scene plays them from their sheet (`sheet_gap`; gate
+    window-before-first-scene - it was refused). Until gate flashback-windows the clock's own refusal (gate
+    own-timelines) refused every opening in a character's past."""
     a = float(at_minutes)
     b = a + float(lasts_minutes or 0.0)
     reads = [r for r in _clock._readings(con, run_id) if r["turn"] < int(start)]
@@ -165,13 +176,28 @@ def admit(con, run_id, cast, at_minutes, lasts_minutes, start, windows=False):
                               "%s's own story has reached %s and this opens at %s, before it: the chair stays in the "
                               "present - open it at %s or later (a scene may be set in their past, as a window)"
                               % (c, _clock.format_at(reached), _clock.format_at(a), _clock.format_at(reached)))
-        if min(reads[k]["at"] for k, _f, _l, main, _e in groups if main) > a:
-            raise RecordError("CLOCK_WINDOW_BEFORE_FIRST_SCENE",
-                              "%s first walks on at %s and this scene is set at %s, before it: their sheet describes "
-                              "them from their first scene, so there is no one to play them from before it"
-                              % (c, _clock.format_at(min(reads[k]["at"] for k, *_r in groups)), _clock.format_at(a)))
         out[c] = v
     return out
+
+
+def sheet_gap(con, run_id, char_id, at_minutes):
+    """How long before a character's first scene a window at `at_minutes` is set -> minutes, or None when it is not
+    before it (gate window-before-first-scene): they play from their sheet, which describes them that much later."""
+    # EVERY ROW: a character's first scene in run order is always their main line's first (nothing is a window before
+    # it), so the question reads no view of their history - asking their present would read one needlessly
+    first = _clock.first_presence(con, run_id, char_id, ALL)
+    return None if first is None or float(at_minutes) >= first else first - float(at_minutes)
+
+
+def span_words(minutes):
+    """A span for the operator's line -> "3 hours", "2 months", "11 years" (rounded to its largest unit)."""
+    m = float(minutes)
+    for unit, size in (("year", 365.25 * 1440), ("month", 30.4375 * 1440), ("day", 1440.0), ("hour", 60.0)):
+        if m >= size:
+            n = int(round(m / size))
+            return "%d %s%s" % (n, unit, "" if n == 1 else "s")
+    n = int(round(m))
+    return "%d minute%s" % (n, "" if n == 1 else "s")
 
 
 def report(con, run_id, char_id, first, last):

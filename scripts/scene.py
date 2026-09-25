@@ -484,10 +484,19 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
     # through it - for whom the scene is a window, their past before its time and the scene itself.
     for i in ids:
         actors[i]["view"] = _clock_result["views"][i]
-    # THE NOTICE, BEFORE A BEAT IS PAID FOR: whom this scene is a window for.
+    # THE NOTICE, BEFORE A BEAT IS PAID FOR: whom this scene is a window for - and, set before someone's first scene,
+    # that they play from their sheet, with advice to write them a sheet for then when the gap is long (gate
+    # window-before-first-scene; the owner: "Play the character sheet, if there is a large gap in time advise
+    # generating a character sheet").
+    from src.engine import window as _win
     for i, _v in sorted(_clock_result["windows"].items()):
-        print("   WINDOW : %s plays as of %s, from their own story then - nothing this scene does reaches their "
-              "present (a report follows the scene)" % (names.get(i, i), _clockmod.format_at(_v.at)))
+        _gap = _win.sheet_gap(led.con, run_id, i, _v.at)
+        print("   WINDOW : %s plays as of %s, %s - nothing this scene does reaches their present (a report follows the "
+              "scene)%s" % (names.get(i, i), _clockmod.format_at(_v.at), "from their own story then" if _gap is None
+                            else "from their sheet, which describes them %s later" % _win.span_words(_gap),
+                            "" if _gap is None or _gap <= _win.SHEET_ADVICE_DAYS * _clockmod.MINUTES_PER_DAY else
+                            "\n            that is a long way back: consider generating a character sheet for %s as they "
+                            "were then" % names.get(i, i)))
     # THE DIRECTOR STATES HOW THEY ARRIVE (owner ruling C3a): words, priced by the engine, applied AFTER the
     # opening's rest - the state AT the opening. The cfg is pinned whole, so the replay reads it back.
     for _c in _condition.apply_declared({i: actors[i]["char"] for i in ids}, cfg.get("condition")):

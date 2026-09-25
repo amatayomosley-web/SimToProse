@@ -912,9 +912,13 @@ suddenly change them in chapter 44.
   and carries on into their later scenes.
 - Two windows for the same person do not see each other: each plays them from their own story as of
   its time, whatever order you run them in.
-- **Not yet:** a window before a character's very first scene is refused
-  (`CLOCK_WINDOW_BEFORE_FIRST_SCENE`), because the engine has no state for them before the moment their
-  sheet describes. How such a flashback should play is a decision still to be made.
+- **Before a character's first scene** — a prologue, a childhood — the engine has nothing of them
+  earlier than the moment their sheet describes, so they **play from their sheet as it stands**, and the
+  notice says how much later the sheet describes them: `WINDOW : Mira plays as of day -400 09:00, from
+  their sheet, which describes them 1 year later`. When that gap is **more than 30 days**, it adds the
+  advice to generate a character sheet for them as they were then — a girl of ten is not the keeper her
+  sheet describes. (The owner, 2026-09-25: *"Play the character sheet, if there is a
+  large gap in time advise generating a character sheet."*)
 
 **What still follows the order you run scenes:** the world's own record — who is dead, who knows
 which fact, the tensions between groups, the keeper's canon — follows the order in which you RUN

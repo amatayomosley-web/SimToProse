@@ -929,6 +929,22 @@ the report, the replay exact; [2] the scar table; [3] the refusals). NOT COVERED
 inside `run_scene` comes after the director's holds for that opening are written, as every refusal there did before;
 the operator's resume counts of refolded movements count windows too.
 
+**2026-09-25 — a window before a character's first scene plays their sheet (gate `window-before-first-scene`):** the
+owner, on how such a flashback should play (it was refused, CLOCK_WINDOW_BEFORE_FIRST_SCENE): *"Play the character
+sheet, if there is a large gap in time advise generating a character sheet."* `window.admit` admits it as any window;
+the character's view of their log then holds nothing before the cut (their first scene), so they play exactly as
+their sheet describes them - mood, condition, bonds, scars, memories, injuries. The notice before the first beat says
+how much later the sheet describes them (`window.sheet_gap`, `window.span_words`) and, past `window.SHEET_ADVICE_DAYS`
+(30 days, a starting value), advises generating a character sheet for them as they were then. FOUND BUILDING IT: the
+sheet's own rows - the rests and holds seeded from it (source `authored`) at the character's first scene - sat after
+such a window's cut, so the window would have played their friendships as a stranger's (drift toward a stranger's
+rest); `bond_rest.rows_for` and `declared_rows` now keep `authored` rows in every view, the sheet not being something
+that happened at a time. Suite: `tests/test_windows.py` [5] (a dawn scene two hours before one character's first scene
+and two months before another's; a prologue a year before a third's and a newcomer's first scene: each plays exactly
+as the sheet says, the sheet's bonds resting where it puts them through every beat, the advice for the long gaps and
+not the short one, the replay exact). NOT COVERED: a way for a scene to name the sheet a character plays from in such
+a window - the advice has nowhere to plug the generated sheet in yet.
+
 **2026-09-19 — attitude decays per RUNG, in minutes (gate `attitude-staircase`):** `toward.erode` was the pre-redesign mechanism — one flat `toward._RETENTION[path]` per DAY for every rung, so a hatred and a flicker of annoyance faded alike — and now steps the ladder exactly as `state.decay_over` does, on the minute clock, at a per-path scale whose bottom rung is that same day rate converted (`toward._attitude_half_life`, anchored to 1e-9 in `tests/test_toward.py` block 16) and whose rung-to-rung ratio is the MOOD staircase's own, so the two tiers cannot disagree about the shape of forgetting; `src/engine/passage.py` hands it MINUTES while `bond_rest.drift` / `wound.erode` / `arc.erode` keep the day conversion. Spec: the redesign's "Decay — per path AND per rung" ("Two tables, one shape"), `docs/emotion-arithmetic.md` §4.
 
 **2026-09-19 — the actor's reply contract drops `social`:** `src/engine/prompt.py`'s JSON reply skeleton and its `tags.social` paragraph still asked for a block bond-arithmetic.md §2 retired 2026-09-17 (`APPRAISER_SOCIAL_RETIRED`) and nothing read; removed (gate `actor-contract-cleanup`), `attribution` kept.
