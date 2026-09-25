@@ -66,8 +66,10 @@ sys.path.insert(0, REPO)
 sys.path.insert(0, os.path.join(REPO, "scripts"))
 
 from src.engine import arc as _arc                                  # noqa: E402
+from src.engine import bond_rest as _bond_rest                      # noqa: E402
 from src.engine import clock as _clock                              # noqa: E402
 from src.engine import concepts as _concepts                        # noqa: E402
+from src.engine import passage as _passage                          # noqa: E402
 from src.engine import readings as _readings                        # noqa: E402
 from src.engine import rungs as _rungs                              # noqa: E402
 from src.engine import targets as _targets                          # noqa: E402
@@ -277,6 +279,8 @@ def run(book_dir, stub=False, model=None, beat_words=300, limit=None, seat=None,
                             "readalong": {"beats": len(beats), "beat_words": beat_words, "thermometer": int(thermometer or 0),
                                           "replies": os.path.basename(replies.rstrip("/\\")) if replies else None}})
     led.register_character(run_id, pid, sheet["fixed"], sheet["baseline"])
+    _bond_rest.seed(led.con, run_id, 0, pid, sheet["current"].get("relationships") or {})   # where its bonds rest, as the drivers seed
+    _rests = lambda i: _bond_rest.rows_for(led.con, run_id, i)
     levels_path = os.path.join(runs_dir, "%s.levels.jsonl" % run_id)
     levels_out = io.open(levels_path, "w", encoding="utf-8") if thermometer else None
     profile = build_profile(sheet)
@@ -305,6 +309,10 @@ def run(book_dir, stub=False, model=None, beat_words=300, limit=None, seat=None,
         if gap > 0:
             led.declare_time(run_id, turn, gap, "derived")
             affect = decay(affect, temp, profile, elapsed=gap, targets=targets)
+        # THE SCARS AGE ON STORY TIME, NOT ON CHAPTERS (gate bench-clock; the owner: "chapters don't matter to fade
+        # mechanics"): the drivers' one step, over the gap plus what the last chapter left unspent - the stretch
+        # `clock.time_items` reads from this reading - and below, over every beat's own minutes.
+        _passage.age({pid: sheet}, gap + (_clock.unspent_before(led.con, run_id, turn) or 0.0), _rests)
         for b in cb:
             passage = b["text"]
             # THE SEAT
@@ -322,7 +330,8 @@ def run(book_dir, stub=False, model=None, beat_words=300, limit=None, seat=None,
                     # are measured on the log, never repaired into a reading.
                     rs, lands, conf, missing = [], [], None, []
                     led.log_llm_call(run_id, turn, "seat-refused", str(exc)[:200], scene="ch%d" % ch["index"])
-            # THE ENGINE, in the spec's order
+            # THE ENGINE, in the spec's order: the beat's minutes age the slow tiers (gate bench-clock), then the mood
+            _passage.age({pid: sheet}, per_beat, _rests)
             here = {r.about for r in rs if r.about}
             rested = decay(affect, temp, profile, elapsed=per_beat, targets=targets, present=here)
             targets = _targets.bind_readings(targets, rs, me=pid)              # rules 1, 3, 4
@@ -360,7 +369,9 @@ def run(book_dir, stub=False, model=None, beat_words=300, limit=None, seat=None,
             sheet["current"]["targets"] = dict(targets)
             sheet["current"]["affect"] = dict(affect)
             if mints or deltas:
-                _wound.fold(sheet, _wound.mints_for(led.con, run_id, pid), led.wound_deltas_for(run_id, pid))
+                # THE FOLD WITH TIME IN IT (gate bench-clock): `wound.fold` rebuilt the scars from mints and deltas
+                # alone, so a scar never faded here however many story days passed
+                _passage.fold_wounds(led.con, run_id, pid, sheet)
                 profile = build_profile(sheet)
             if missing:
                 led.con.execute("INSERT INTO llm_calls (run_id, turn, purpose, model, tokens_in, tokens_out, scene) VALUES (?, ?, ?, ?, ?, ?, ?)",

@@ -60,6 +60,11 @@ EXEMPT = {
     # tests/test_passage.py [7] pins the fold EQUAL to it on a log with no time declaration, so a
     # change to either one's sum-then-clamp arithmetic goes red there. Delete both together or neither.
     ("toward.py", "replay"):         "the no-declaration reference passage.fold_toward is pinned equal to (tests/test_passage.py [7])",
+    # THE SAME FOR THE WOUNDS (gate bench-clock, 2026-09-24): the read-along bench was their last caller and now folds
+    # through `passage.fold_wounds`, which carries story time; tests/test_passage.py [7] pins that fold EQUAL to these
+    # on a log with no stretch of time, and tests/test_readalong.py [3] reads them as the timeless comparison.
+    ("wound.py", "fold"):            "the no-stretch reference passage.fold_wounds is pinned equal to (tests/test_passage.py [7], tests/test_readalong.py [3])",
+    ("wound.py", "mints_for"):       "reads the mints for that same reference, wound.fold (tests/test_passage.py [7], tests/test_readalong.py [3])",
 
     # `state.py:zone_of` LEFT THIS LIST 2026-09-19 (gate emotion-tier-tidy), and not by being
     # wired: it was deleted along with `_ZONE_EPISODE`/`_ZONE_DISPOSITION`, the retired two-zone

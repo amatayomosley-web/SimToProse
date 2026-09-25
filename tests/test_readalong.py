@@ -58,7 +58,7 @@ _CH2 = "CHAPTER II\n\n" + "\n\n".join([
 ])
 
 
-def _book(tmp, slug="synthetic"):
+def _book(tmp, slug="synthetic", ch2_lasts=None, bonds=None):
     d = os.path.join(tmp, "readalong", slug)
     os.makedirs(os.path.join(d, "characters"))
     text = _CH1 + "\n\n\n" + _CH2 + "\n"
@@ -66,11 +66,11 @@ def _book(tmp, slug="synthetic"):
     s1 = text.index("CHAPTER I")
     s2 = text.index("CHAPTER II")
     chapters = [{"index": 1, "title": "CHAPTER I", "start": s1, "end": s2, "at": {"day": 1, "time": "18:00"}, "lasts": 60},
-                {"index": 2, "title": "CHAPTER II", "start": s2, "end": len(text), "at": {"day": 2, "time": "08:00"}, "lasts": None}]
+                {"index": 2, "title": "CHAPTER II", "start": s2, "end": len(text), "at": {"day": 2, "time": "08:00"}, "lasts": ch2_lasts}]
     io.open(os.path.join(d, "chapters.json"), "w", encoding="utf-8").write(json.dumps(chapters))
     sheet = {"fixed": {"id": "healer", "name": "Healer", "genotype": {}},
              "baseline": {"temperament": {"WARINESS": {"rest": "raised"}}},
-             "current": {}}
+             "current": {"relationships": bonds} if bonds else {}}
     io.open(os.path.join(d, "characters", "healer.json"), "w", encoding="utf-8").write(json.dumps(sheet))
     io.open(os.path.join(d, "cast.json"), "w", encoding="utf-8").write(json.dumps({"protagonist": "healer", "people": {"boy": {"name": "the boy"}}}))
     return d
@@ -139,6 +139,36 @@ def test_the_run_and_the_report(tmp):
     check("the-thermometer-was-logged", pat["thermometer_points"] == n_turns, pat["thermometer_points"])
     check("a-half-life-slot-exists-per-read-path", set(pat["half_life_from_thermometer"]) == set(pat["per_path"]))
     check("the-scar-table-is-a-list", isinstance(pat["scars"], list))
+    # THE SCARS RUN ON STORY TIME, NOT ON CHAPTERS (gate bench-clock, 2026-09-24). The bench aged only the mood and
+    # refolded its scars with no time in the fold, so the fever's scar stood at full strength through the night
+    # before chapter two. It now takes the drivers' one step (`passage.age`) and their fold (`passage.fold_wounds`).
+    from src.engine import clock as _ck, passage as _pas, wound as _wd
+    from src.engine.ledger import Ledger
+    bond = {"trust": 0.8, "affinity": 0.9, "respect": 0.7, "debt": 0.0}
+    dc = _book(tmp, slug="synthetic-clock", ch2_lasts=120, bonds={"boy": dict(bond)})   # chapter two takes two hours
+    held, steps, real_age = [], [], _pas.age
+    _pas.age = lambda chars, minutes, rest_rows: (held.append(chars), steps.append(float(minutes or 0.0)),
+                                                  real_age(chars, minutes, rest_rows))[2]
+    try:
+        run3 = RA.run(dc, stub=True, beat_words=40, log=lambda *_a: None)
+    finally:
+        _pas.age = real_age
+    led3 = Ledger(os.path.join(dc, "runs", "%s.db" % run3))
+    stretches = [m for _t, _s, m in _ck.time_items(led3.con, run3)]
+    check("chapter-two's-beats-carry-minutes", any(s_ == 3 and t_ > 0 for t_, s_, _m in _ck.time_items(led3.con, run3)))
+    check("every-stretch-the-log-holds-is-a-step-the-bench-took-in-order", [m for m in steps if m > 0] == stretches,
+          repr(([m for m in steps if m > 0], stretches)))
+    folded = _pas.fold_wounds(led3.con, run3, "healer", RA.load_book(dc)[2])
+    timeless = RA.load_book(dc)[2]
+    _wd.fold(timeless, _wd.mints_for(led3.con, run3, "healer"), led3.wound_deltas_for(run3, "healer"))
+    scar = lambda ws: [w["intensity"] for w in ws if w.get("concept") == "sickness"]
+    check("the-bench's-own-scar-is-the-fold-of-its-log", held and scar(held[-1]["healer"]["baseline"]["wounds"]) == scar(folded)
+          and scar(folded), repr((scar(held[-1]["healer"]["baseline"]["wounds"]) if held else None, scar(folded))))
+    check("...and-the-night-before-chapter-two-eased-it", scar(folded) and scar(folded)[0] < scar(timeless["baseline"]["wounds"])[0],
+          repr((scar(folded), scar(timeless["baseline"]["wounds"]))))
+    check("an-unreinforced-bond-rests-where-the-sheet-put-it", held and held[-1]["healer"]["current"]["relationships"]["boy"] == bond,
+          held[-1]["healer"]["current"]["relationships"]["boy"] if held else None)
+    led3.con.close()
     svt = pat["state_vs_thermometer"]
     check("the-state-is-compared-with-the-thermometer-at-every-point",
           svt["points"] == pat["thermometer_points"] and svt["compared"] == svt["points"] * len(PATHS)

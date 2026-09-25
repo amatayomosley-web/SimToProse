@@ -834,6 +834,19 @@ scene opens, exactly; every learned memory in the vault and in the log carries i
 without `--at` declares no clock, so its memories do not fade; stored confidence is never rewritten (derived at
 read, as before).
 
+**2026-09-24 — the read-along bench runs on the same story time (gate `bench-clock`):** `scripts/readalong.py` aged
+only the mood across a chapter gap and refolded its scars with `wound.fold`, which carries no time, so no scar the
+bench minted ever faded - measured on the recorded read-along runs, one book's scars sat at full strength through
+about 3,250 story days of chapter gaps. The owner: *"Chapters don't matter to fade mechanics, a chapter can be a
+time skip or a change pov."* The bench now takes the drivers' one step, `passage.age`, over each chapter's opening
+(the gap plus what the last chapter left unspent) and over every beat's own minutes, folds its scars with
+`passage.fold_wounds` (the fold with time in it), and seeds its bonds' rests as the drivers do. A chapter is only
+where the clock is read: a change of point of view that skips no time ages nothing. Suite:
+`tests/test_readalong.py` [3] (every stretch the log holds is a step the bench took, in order; the bench's own scar
+equals the fold of its log; the night before chapter two eased the fever's scar, where the timeless fold did not; an
+unreinforced bond rests where the sheet put it). 4 of 4 mutants red. NOT COVERED: the recorded read-along runs are
+not re-run (each costs the seat's model calls); `patterns` reads them as recorded.
+
 **2026-09-19 — attitude decays per RUNG, in minutes (gate `attitude-staircase`):** `toward.erode` was the pre-redesign mechanism — one flat `toward._RETENTION[path]` per DAY for every rung, so a hatred and a flicker of annoyance faded alike — and now steps the ladder exactly as `state.decay_over` does, on the minute clock, at a per-path scale whose bottom rung is that same day rate converted (`toward._attitude_half_life`, anchored to 1e-9 in `tests/test_toward.py` block 16) and whose rung-to-rung ratio is the MOOD staircase's own, so the two tiers cannot disagree about the shape of forgetting; `src/engine/passage.py` hands it MINUTES while `bond_rest.drift` / `wound.erode` / `arc.erode` keep the day conversion. Spec: the redesign's "Decay — per path AND per rung" ("Two tables, one shape"), `docs/emotion-arithmetic.md` §4.
 
 **2026-09-19 — the actor's reply contract drops `social`:** `src/engine/prompt.py`'s JSON reply skeleton and its `tags.social` paragraph still asked for a block bond-arithmetic.md §2 retired 2026-09-17 (`APPRAISER_SOCIAL_RETIRED`) and nothing read; removed (gate `actor-contract-cleanup`), `attribution` kept.
