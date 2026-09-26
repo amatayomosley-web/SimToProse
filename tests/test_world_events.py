@@ -229,6 +229,27 @@ def test_an_EMPTY_required_key_is_refused_for_every_type():
                 % (t, k, field_of(t)))
 
 
+def test_a_required_key_of_the_WRONG_TYPE_is_refused_for_every_type():
+    """TYPE IS NOT VALUE EITHER (gate keeper-replies). Measured 2026-09-25: a reveal's text `to` made each letter a
+    knower, a numeric fact or asset bricked every later resume, a terminal "false" killed. DERIVED like the test above:
+    every required key of every type has a declared type, and a number where none is wanted is refused by code."""
+    from src.engine.world_events import _TYPED
+    for t in TYPES:
+        untyped = set(required_keys(t)) - set(_TYPED.get(t, {}))
+        assert not untyped, "%s's required key(s) %s carry no declared type" % (t, sorted(untyped))
+        for k in required_keys(t):
+            payload = {key: {"reveal": {"to": ["someone"]}, "harm": {"terminal": True},
+                             "threaten": {"dimensions": {}}}.get(t, {}).get(key, "x") for key in required_keys(t)}
+            validate_payload(t, dict(payload))                   # the control: the right types pass
+            payload[k] = 5
+            try:
+                validate_payload(t, payload)
+            except WorldEventError as e:
+                assert e.code == "WORLD_EVENT_PAYLOAD_VALUE_TYPE", "%s/%s refused with %r" % (t, k, e.code)
+                continue
+            raise AssertionError("%r accepted a number as %r" % (t, k))
+
+
 def test_a_present_and_NON_empty_payload_still_passes():
     """The control. A guard that refuses everything would pass the test above and break the book."""
     validate_payload("reveal", {"fact": "the levy was doubled", "to": ["edda"]})

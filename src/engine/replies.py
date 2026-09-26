@@ -33,6 +33,22 @@ tests/test_seat_replies.py holds the two together, since the engine cannot impor
 the event seat and the thermometer and read by nothing (`UNREAD`): removing the question would change the prompt bytes
 recorded runs replay by, so it is declared, not dropped.
 
+THE KEEPER'S THREE (gate keeper-replies, the same day). Its noticing reply is a list of reports, each a world change
+or a claim; its ruling reply a list of rulings; and it prices the attachment classifier's reply one kept sentence at a
+time. A keeper refusal drops one REPORT and nothing retries it, and no keeper reply had ever been recorded, so here
+board #258 holds as written: a key nothing reads is named, never the reason a report is refused (a claim that also
+carries a `type` naming no world type is read as the claim it is - unless it carries a change's own fields, when it is
+a world change with a wrong type; severity words are resolved only where the fold reads them) - save where a contract
+states its own rule about it (the attach reply's shared parser forbids a number anywhere, a `hold`, and a malformed
+`gaps`), and save a value the log cannot hold wherever it sits in what is written (a NaN, a value nested too deep to
+walk); a known field of the wrong type is refused by code (scripts/keeper.py) where it would reach an append-only
+table or the fold as it was, or crash the pass, and left out and named where it is optional. What a world change's
+payload carries beyond the keys the fold reads for its type (`world_events.payload_keys`) is left out of the event
+written and named, since readers that take every event's payload read it as a beat's own - and the keeper checks
+each such strip against the fold itself, in the world the report is judged in. `change_extra` / `claim_extra` /
+`ruling_extra` / `attach_extra` name what a report the keeper kept carried beyond what was written;
+tests/test_keeper_replies.py holds these tables to the prompts that state them.
+
 Pure, deterministic, stdlib. No LLM (rule 3), no randomness (rule 4).
 """
 from __future__ import annotations
@@ -126,7 +142,8 @@ UNREAD = {"event": ("confidence",), "thermometer": ("confidence",)}
 
 def _name(k):
     """A key as a path segment: quoted when it holds a character paths use, so `told[].why` written as ONE top-level
-    key cannot read as the nested one."""
+    key cannot read as the nested one. (What a name looks like on a CONSOLE line - an empty one, one holding the ", "
+    names are joined with - is `listed`'s concern, not the record's: these names are written on committed turns.)"""
     k = str(k)
     return json.dumps(k) if any(c in k for c in '.[]"') else k
 
@@ -151,10 +168,38 @@ def extra_keys(obj, known, entries=None, maps=None):
     return tuple(sorted(out))
 
 
+def _esc(c):
+    o = ord(c)
+    return c if 32 <= o < 127 else "\\x%02x" % o if o < 256 else "\\u%04x" % o if o < 0x10000 else "\\U%08x" % o
+
+
 def shown(keys):
-    """Key names for a console line, ASCII whatever they hold: a model's key is any text, and a piped Windows stdout
-    is cp1252 - one arrow in a key crashed the beat before its commit (gate seat-replies review)."""
-    return ", ".join(str(k).encode("ascii", "backslashreplace").decode("ascii") for k in keys)
+    """Key names - or any model text - for a console line: printable ASCII whatever they hold. A model's text is any
+    text, and a piped Windows stdout is cp1252 - one arrow in a key crashed the beat before its commit (gate
+    seat-replies review); a raw newline or ESC let a model forge a report line or reset the terminal (gate
+    keeper-replies review), so control characters are escaped too."""
+    return ", ".join("".join(_esc(c) for c in str(k)) for k in keys)
+
+
+def listed(names):
+    """A list of key names for a console line: `shown`, with a name that is empty, holds the ", " they are joined with,
+    or begins or ends with whitespace quoted - "a, b" and "" printed as three names (gate keeper-replies review), and
+    "actor " never read as the id `actor` (fourth review). Display only: the record keeps each name as it is, in a
+    list, where nothing is ambiguous."""
+    return shown(json.dumps(str(n)) if not str(n) or ", " in str(n) or str(n) != str(n).strip() else n for n in names)
+
+
+def text_ok(v):
+    """Text the record can hold -> bool: a str that encodes as UTF-8. JSON can carry a lone surrogate ("\\ud800") that
+    Python reads as a str and sqlite cannot bind - an id holding one crashed the keeper's pass at the write, and a
+    fact or asset holding one bricked every later park and resume (gate keeper-replies review)."""
+    if not isinstance(v, str):
+        return False
+    try:
+        v.encode("utf-8")
+    except UnicodeEncodeError:
+        return False
+    return True
 
 
 def seat_failure(exc):
@@ -213,3 +258,50 @@ def emotion_extra(obj):
 def thermometer_extra(obj):
     """The thermometer's reply -> what it carried beyond `levels` and `confidence`."""
     return extra_keys(obj, THERMOMETER_KEYS)
+
+
+# THE KEEPER'S CONTRACTS (gate keeper-replies): scripts/keeper.py build_keeper_prompt states a world change and a
+# claim, its ruling system prompt a ruling, scripts/composition_pass.py build_attach_classify_prompt the attach reply.
+# `location` is read and never asked (a threat's scope, keeper.apply_proposals); an attach reply's `gaps` is asked,
+# checked by the shared parser, and used by nothing at the keeper's call.
+CHANGE_KEYS = ("turn", "type", "payload", "actor", "target", "location")
+CLAIM_KEYS = ("turn", "speaker", "said", "extracts")
+CLAIM_ENTRIES = {"extracts": ("subject", "predicate", "object")}
+RULING_KEYS = ("utterance_id", "verdict", "rationale")
+ATTACH_KEYS = ("holds", "gaps")
+ATTACH_ENTRIES = {"holds": ("entity", "relation", "because"), "gaps": ("named", "because")}
+
+
+def change_extra(obj, left_out=(), ids=()):
+    """A world change the keeper kept -> what it carried beyond what was written: a top-level key nothing reads; each
+    payload key the fold does not read for its type (`left_out`: a key, or a (key, inner key) pair for a dimension the
+    seven do not name), which the keeper leaves out of the event it writes; and each id (`ids`: actor, target,
+    location) it wrote as null because the value was not text naming something and the fold did not read it for this
+    report (scripts/keeper.py `_strip_check` projects both ways)."""
+    paths = {"payload." + ".".join(_name(p) for p in (k if isinstance(k, tuple) else (k,))) for k in left_out}
+    return tuple(sorted(set(extra_keys(obj, CHANGE_KEYS)) | paths | set(ids)))
+
+
+def claim_extra(obj):
+    """A claim the keeper recorded -> what it carried beyond its contract (an extract's too, `extracts[].note`), and an
+    extract `object` it left out: null or not text (HEAD wrote a null as "none", anything else as its string; an extract
+    is stored normalised, so any text is storable there)."""
+    rows = obj.get("extracts") if isinstance(obj, dict) and isinstance(obj.get("extracts"), list) else []
+    unread = {"extracts[].object" for r in rows if isinstance(r, dict) and "object" in r
+              and not isinstance(r["object"], str)}
+    return tuple(sorted(set(extra_keys(obj, CLAIM_KEYS, CLAIM_ENTRIES)) | unread))
+
+
+def ruling_extra(obj):
+    """A ruling the keeper applied or left -> what it carried beyond its contract, and a `rationale` that is not
+    storable text, written as "" (HEAD wrote its string form; a falsy one was "" then too, so it is not named)."""
+    r = obj.get("rationale") if isinstance(obj, dict) else None
+    unread = {"rationale"} if r and not text_ok(r) else set()
+    return tuple(sorted(set(extra_keys(obj, RULING_KEYS)) | unread))
+
+
+def attach_extra(obj):
+    """An attach reply the keeper accepted -> what it carried beyond {holds, gaps} and their entries' fields. (Not
+    every extra key reaches here: that contract forbids a number anywhere and a `hold` - the price the model must never
+    write - so the shared parser refuses those, by its own stated rule, before anything is named.)"""
+    return extra_keys(obj, ATTACH_KEYS, ATTACH_ENTRIES)

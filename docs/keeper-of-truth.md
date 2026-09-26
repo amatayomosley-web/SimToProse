@@ -36,6 +36,32 @@ single invocation out; `--keeper` is kept as an accepted, now-redundant flag. Se
 `docs/guide-operating.md` "the lore licence's debt" for the four message forms and how to run the
 keeper directly against the backlog.
 
+**The keeper's replies are read to a contract since 2026-09-25 (gate `keeper-replies`), so nothing a
+keeper writes collapses silently either.** Each of its three replies — the noticing list, the rulings,
+the attach classifier's — is read against the keys its prompt states (`src/engine/replies.py`). A key
+nothing reads is never the reason a report is refused — save where a contract states its own rule
+about it (the attach reply's shared parser forbids a number anywhere, a `hold`, and a malformed `gaps`):
+it is named on the report and in the pass's printed lines. A report is routed by what it is: a world
+change names a world type, or carries a world change's own fields (a payload, an actor, a target, a
+location — holding something, not null or empty) under a wrong type, and is refused by that type; a
+claim that also carries some other `type` ("claim") is still the claim it is. A world change's payload keeps only the keys the fold reads for its type, since
+the log stores a payload whole and readers that take every event's payload would read the rest as a
+beat's own; a severity word in a key the type never reads is left out with it, and an id that names
+nothing is written as null. Both judgements are checked per report against the fold itself — the event
+written and the event given are projected side by side, in the world as the log stands when the report
+is judged, the ids on the report as given and the left-out keys one by one — so an id the fold reads
+for THIS report, or a key the table wrongly called unread, refuses the report instead of being left
+out, and the refusal names that id or key. A read that fires only in a world the log reaches later (a
+report written afterwards at an earlier turn, a correction) is beyond that check, as it is beyond the
+warrant test; the suite holds the table to the fold in three worlds under a grid of ids, through every
+read its recorder sees. A value the fold reads, of
+the wrong type — a payload that is not an object, a numeric fact, a text `terminal`, a dimension that is
+not a finite number — refuses that one report by a registered code, because the log it would enter
+cannot shed it; an optional one (an extract's object, a ruling's rationale) is left out and named. A
+reply the keeper cannot read at all is named, not taken for a keeper that chose to say nothing, and
+every pass prints each refusal with its code. The pass's report is its record: it runs after the last
+committed turn and has no row of its own.
+
 ## The problem, in the author's words
 
 > "Every world fact isn't created when the book is started. The actors create truth as they speak

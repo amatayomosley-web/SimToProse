@@ -121,6 +121,90 @@ def required_keys(etype):
     return _WORLD[etype][1]
 
 
+# THE KEYS THE FOLD READS BEYOND THE REQUIRED ONES (gate keeper-replies), per FORM where a type has two: the tension
+# chassis reads the seed's structure for a seed and `heat` for a delta (tensions.fold_seed / validate_seed,
+# fold_delta / validate_delta; `tensions.is_seed` tells them apart). `required_keys` is what `rubric` renders into
+# the keeper's prompt - bytes a recorded run replays by - so it stays as it is, and this table carries the rest.
+# tests/test_keeper_replies.py folds every type and form through the real fold in three worlds, recording what it reads;
+# and the keeper checks every strip against the fold itself, per report (`projected`), in the world the report is
+# judged in - so a table that falls behind refuses loudly wherever its read fires in either.
+_ALSO_READ = {"tension": {"seed": ("interests", "temperature", "factions", "watches", "cooling"), "delta": ("heat",)}}
+
+
+def payload_keys(etype, payload=None):
+    """Every payload key the fold reads for this type - for this FORM of it, given the payload - -> tuple: the required
+    keys, then the rest.
+
+    A keeper's world change keeps these and nothing else. The log stores a payload whole, and a reader that takes
+    every event's payload whatever its type (`scene_facts.payloads`, which `injuries.run_rows` reads through) would
+    read any other key as a beat's own - measured 2026-09-25, a keeper move carrying `injuries` was an injury."""
+    _known(etype, "payload_keys")
+    forms = _ALSO_READ.get(etype)
+    if not forms:
+        return _WORLD[etype][1]
+    from .tensions import is_seed                  # the chassis's own test of its form; lazily, as fold.py does
+    return _WORLD[etype][1] + forms["seed" if is_seed(payload if isinstance(payload, dict) else {}) else "delta"]
+
+
+# THE TYPE EACH KEY THE FOLD READS MUST HOLD, for the fold to write what it means. Measured at HEAD 2026-09-25 (gate
+# keeper-replies): a reveal whose `to` was one name as text made each of its letters a knower (set.update walks a
+# string); a numeric fact or asset folded to an int key that the persisted snapshot stores as text, so every later
+# resume refused with LEDGER_RESUME_DIVERGENCE; a move `to` a list parked a list as a location; a harm with terminal
+# "false" killed. A tension's id is text because an identity is (HEAD wrote a number's string form - no brick, a name
+# nobody chose). The review found it one level down too: a dimension valued true, NaN or Infinity folded as heat, and
+# NaN reached the log as a token JSON does not have. "Text" is text the record can HOLD (`replies.text_ok`): a lone
+# surrogate passed `isinstance(v, str)`, then crashed the write or bricked every later park and resume.
+_TEXT, _NAMES, _TRUTH, _DIMS, _FINITE = "text", "a list of names", "true or false", "a map of the seven dimensions " \
+    "to numbers in [0,1]", "a finite number"
+_TYPED = {"move": {"to": _TEXT}, "harm": {"terminal": _TRUTH}, "reveal": {"fact": _TEXT, "to": _NAMES},
+          "seize": {"asset": _TEXT}, "destroy-asset": {"asset": _TEXT}, "threaten": {"dimensions": _DIMS},
+          "tension": {"id": _TEXT, "heat": _FINITE}}
+
+
+def _finite(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and v == v and v not in (float("inf"), float("-inf"))
+
+
+def _dims(v):
+    from .world_appraisal import DIMENSIONS
+    return isinstance(v, dict) and all(k in DIMENSIONS and _finite(x) and 0.0 <= x <= 1.0 for k, x in v.items())
+
+
+def _text(v):
+    from .replies import text_ok
+    return text_ok(v)
+
+
+_HOLDS = {_TEXT: _text, _TRUTH: lambda v: isinstance(v, bool), _NAMES: lambda v: isinstance(v, list) and all(
+    _text(x) for x in v), _DIMS: _dims, _FINITE: _finite}
+
+
+def _not_finite_anywhere(v):
+    """Does a payload hold a NaN or an infinity at any depth? -> bool. The log is JSON, which has neither."""
+    if isinstance(v, float):
+        return not _finite(v)
+    if isinstance(v, dict):
+        return any(_not_finite_anywhere(x) for x in v.values())
+    if isinstance(v, list):
+        return any(_not_finite_anywhere(x) for x in v)
+    return False
+
+
+def _walked(etype, walk, value):
+    """`walk(value)`, a value NESTED TOO DEEP TO WALK refused by code wherever the depth sits - a key nothing reads
+    inside a kept map included: the log stores a kept map whole and every later fold parses it, and a value HEAD wrote
+    about 950 levels deep bricked every fold after it (gate keeper-replies, third review: it was refused, uncoded). The
+    walk's own limit is the bound - a few hundred levels, moving with the caller's stack - and values 400-800 deep
+    that HEAD wrote were survived by later folds: the margin is a declared choice (fourth review)."""
+    try:
+        return walk(value)
+    except RecursionError:
+        raise WorldEventError(
+            "WORLD_EVENT_PAYLOAD_VALUE_TYPE",
+            "world_events.validate_payload: %r carries a value nested too deep to walk - the log stores it whole, and "
+            "every later fold would parse it" % (etype,)) from None
+
+
 def _empty_strings(value):
     """Does this payload value carry an empty string anywhere the fold will read one? -> bool.
 
@@ -155,6 +239,10 @@ def validate_payload(etype, payload):
     never guarded at all, so `fact: ""` and `asset: ""` wrote a blank snapshot key. Checking that a
     key is present and never what it carries is the same defect one level down, and it is the level
     where the log — which cannot be edited — is what holds the damage.
+
+    TYPE, the same defect one level further (gate keeper-replies): a present, non-blank key of the wrong type folds
+    into a world nobody meant - see `_TYPED`. Checked AFTER the blanks, so every payload refused before is refused by
+    the same code (a blank `terminal` is still an empty one, as tests/test_world_events.py derives for every key).
     """
     _known(etype, "validate_payload")
     payload = payload if isinstance(payload, dict) else {}
@@ -175,6 +263,14 @@ def validate_payload(etype, payload):
             "`key <> ''`. There is no correction event that removes it. Name the thing or emit "
             "nothing: an act on nothing was a beat, and the appraisal tier already recorded it."
             % (etype, " and an empty ".join(blank), _WORLD[etype][0]))
+    wrong = ["%r as %s" % (k, kind) for k, kind in _TYPED.get(etype, {}).items()
+             if k in payload and not _HOLDS[kind](payload[k])]           # a required key is present by now
+    if wrong or _walked(etype, _not_finite_anywhere, payload):
+        raise WorldEventError(
+            "WORLD_EVENT_PAYLOAD_VALUE_TYPE",
+            "world_events.validate_payload: %r needs payload key %s - the fold writes what the value is, and the log "
+            "that holds it cannot be edited" % (etype, ", ".join(wrong) or "values that are finite numbers (the log "
+                                                "is JSON, which has no NaN or Infinity)"))
     return True
 
 
@@ -277,9 +373,20 @@ def would_change(led, run_id, as_of_turn, event, at_turn=None):
     """
     at = as_of_turn if at_turn is None else at_turn
     snap = led.fold(run_id, at)
+    return would_move(snap, projected(led, snap, event, at))
+
+
+def projected(led, snap, event, turn):
+    """`snap` with this event projected onto a COPY, as committing it at `turn` would -> dict. WRITES NOTHING.
+
+    The warrant test's arithmetic, and - since gate keeper-replies' second review - the keeper's check on its own strip:
+    the event it writes (keys and ids it judged unread left out) must project exactly as the event it was given, or
+    what it left out was read after all. Per report, so a read the fold makes only for some values (`target or actor`)
+    is decided for the values in hand, not by a table - and in the world `snap` is, which is the log as it stands when
+    the report is judged, not the one a later backdated append or correction replays it into (third review)."""
     after = copy.deepcopy(snap)
-    led._project(after, _candidate_row(event, at))
-    return would_move(snap, after)
+    led._project(after, _candidate_row(event, turn))
+    return after
 
 
 def _reaches_back_to(led, run_id, event, eff):

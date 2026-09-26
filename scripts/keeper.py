@@ -49,6 +49,7 @@ sys.path.insert(0, os.path.join(REPO, "scripts"))
 
 from src.engine import books                                     # noqa: E402
 from src.engine import claims                                    # noqa: E402
+from src.engine import replies as _replies                       # noqa: E402  (the keeper's three replies' contracts)
 from src.engine import attachments                               # noqa: E402  (bond gate 5: the third writer of a hold)
 from src.engine.severity import normalise_dimensions, gloss      # noqa: E402
 from src.engine import tensions as _tensions                     # noqa: E402
@@ -164,35 +165,318 @@ def build_keeper_prompt(turns, snapshot, world=None, led=None, run_id=None):
     return [{"role": "system", "content": sys_msg}, {"role": "user", "content": user_msg}]
 
 
+# ---------------------------------------------------------------------------------------------
+# THE KEEPER'S REPLIES, READ TO A CONTRACT (gate keeper-replies, G5 of the contracts plan). The three
+# replies were read by named gets: what else a report carried was dropped unseen or written whole into
+# the append-only log, a field of the wrong type crashed the pass (a list turn, a text payload, a list
+# id at the sqlite bind - before the scene was parked) or was written as its string form, and every
+# refusal built here was prose. Now: each refusal opens with its registered code and is printed; a
+# field of the wrong type refuses its ONE report (nothing retries a keeper, and no keeper reply had ever
+# been recorded - board #258 as written); what a kept report carried beyond what was written is named on it
+# (`extra`), and a payload keeps only the keys the fold reads for its type.
+# ---------------------------------------------------------------------------------------------
+
+
+def _refusal(code, detail):
+    """One reason a report is refused -> "[CODE] detail", as every coded refusal in the engine prints."""
+    return str(RecordError(code, detail))
+
+
+def _why(exc, context=""):
+    """A caught error -> the reason it refuses a report, opening with its code: a coded error's own, `context` before
+    its detail; an uncoded one (a TypeError out of the fold, a database error) as KEEPER_UNCODED_ERROR, its type named."""
+    lead = context + ": " if context else ""
+    if getattr(exc, "code", None):
+        return "[%s] %s%s" % (exc.code, lead, getattr(exc, "detail", exc))
+    return _refusal("KEEPER_UNCODED_ERROR", "%s%s: %s" % (lead, type(exc).__name__, exc))
+
+
+def _is_turn(turn, known):
+    """Does a report's turn name a recorded turn? A number in the run - a true is not one (it named turn 1 at HEAD),
+    and a list is not either (HEAD crashed hashing it)."""
+    return isinstance(turn, (int, float)) and not isinstance(turn, bool) and turn in known
+
+
+def _wrong_text(obj, keys):
+    """The keys whose value is there (a null is absent) and is not text the record can hold (`replies.text_ok`)."""
+    return [k for k in keys if obj.get(k) is not None and not _replies.text_ok(obj[k])]
+
+
+def _is_world(t):
+    return isinstance(t, str) and t in world_events.TYPES
+
+
+def _worldish(t):
+    """A type that names a world type, give or take its case and spaces ("Move", " seize")."""
+    return isinstance(t, str) and t.strip().lower() in world_events.TYPES
+
+
+# A world change's own fields: a claim has none of them (replies.CHANGE_KEYS less replies.CLAIM_KEYS and `type`).
+_CHANGE_ONLY = ("payload", "actor", "target", "location")
+
+
+def _carries(v):
+    """Does a report's field hold something - not null, an empty map or list, or blank text? A model filling one shape
+    for both kinds writes `"target": null` on a claim, and that carries no world change (fourth review)."""
+    return v is not None and v != {} and v != [] and not (isinstance(v, str) and not v.strip())
+
+
+def _kind(r):
+    """What a report is -> "change", "claim" or None (neither). THE ROUTING RULE, one function for `_route` and
+    `_label`, so the console cannot name a report as a kind it was not read as.
+
+    A report whose `type` names a world type - give or take case and spaces - is a world change, as at HEAD, whatever
+    else it carries; so is one whose type names none but which carries a change's own fields (a payload, an actor, a
+    target, a location, holding something - `_carries`; a null carries nothing, fourth review): "killed" or "moved"
+    with a victim and a payload is a world change with a wrong type, refused
+    by it as at HEAD, never a claim that loses its world half unrefused (third review). A `said` on either is named
+    when the change applies and noted when it is refused. A report with a `said` key and neither is a claim: a `type`
+    naming no world type ("claim") is then a key nothing reads, and at HEAD it refused the claim as an unknown world
+    change - the likeliest drift of a model labelling its reports lost every claim; an empty `said` is refused as one
+    (CLAIM_SAID_EMPTY), where HEAD dropped it unnamed. With no type at all a `said` makes a claim whatever else the
+    report carries, as at HEAD. Any other type is a world change still, refused by its type."""
+    t = r.get("type")
+    if _worldish(t) or (t and any(_carries(r.get(k)) for k in _CHANGE_ONLY)):
+        return "change"
+    if "said" in r:
+        return "claim"
+    return "change" if t else None
+
+
+def _route(reports):
+    """A reply's reports -> (world changes, claims, how many are neither), by `_kind`."""
+    changes, said, neither = [], [], 0
+    for p in reports:
+        kind = _kind(p)
+        if kind == "change":
+            changes.append(p)
+        elif kind == "claim":
+            said.append(p)
+        else:
+            neither += 1
+    return changes, said, neither
+
+
+def _lost_claims(rejected):
+    """The note for each refused world change that also carried a claim - a `said` that is text: an empty one is no
+    claim (fourth review) - lost with it, since a report is one kind, as at HEAD."""
+    return ["%s also carried a claim (said), not recorded" % _label(p, "change") for p, _w in rejected
+            if _replies.text_ok(p.get("said")) and p["said"].strip()]
+
+
+def _unknown_turn(turn):
+    return _refusal("KEEPER_TURN_UNKNOWN", "turn %r is not in this run - a report about an unrecorded turn is "
+                                           "invention" % (turn,))
+
+
+def _label(r, kind=None):
+    """A report, named for a console line: a world change by its turn and type, a claim - recorded or not - by its turn
+    and speaker, a ruling by its utterance; the reply itself when there is no report. `kind` is the pass's own knowledge
+    of what it read ("change", "claim", "ruling"); without it the kind is read as `_route` would."""
+    if not isinstance(r, dict) or not r:
+        return "the reply"
+    if kind is None:
+        kind = _kind(r) or ("ruling" if "verdict" in r or "utterance_id" in r else "claim")
+    if kind == "change":
+        return "t%s %s" % (r.get("turn"), r.get("type"))
+    if kind == "ruling":
+        return "ruling on %s" % (r.get("utterance_id"),)
+    return "t%s claim by %s" % (r.get("turn"), r.get("speaker"))
+
+
+def _extra_lines(names, kind):
+    """A kept report's `extra` -> [(what became of them, names)], each true of what was WRITTEN. A payload key left out
+    is left out because no world rule reads it, and it is still read by the type-blind readers it is left out FOR
+    (third review: "nothing reads" was false of it); an id the keeper wrote as null, and an optional value it wrote as
+    "", say so; everything else is a key nothing reads."""
+    how = {"change": lambda n: ("left out of the event (no world rule reads it)" if n.startswith("payload.")
+                                else "written as null (it names nothing)" if n in _CHANGE_ONLY[1:] else None),
+           "claim": lambda n: "written as empty (not text)" if n == "extracts[].object" else None,
+           "ruling": lambda n: "not kept (not text the record can hold)" if n == "rationale" else None
+           }.get(kind, lambda n: None)
+    groups = {}
+    for n in names:
+        groups.setdefault(how(n) or "carried what nothing reads", []).append(n)
+    return sorted(groups.items())
+
+
+def _report(log, rejected=(), kept=(), notes=(), kind=None, dry=False):
+    """The lines a keeper pass adds, printable ASCII whatever a model wrote (a piped Windows stdout is cp1252, and the
+    canon gate runs before the scene is parked): each refusal with its code, what each report it kept carried beyond
+    what was written, by what became of it (`_extra_lines`; a name that is empty or holds ", " quoted,
+    `replies.listed`), and what of the reply could not be read. On a dry run nothing was written, and its lines say so
+    (fourth review)."""
+    for r, why in rejected:
+        log("    refused: %s: %s" % (_replies.shown([_label(r, kind)]), _replies.shown([why[:200]])))
+    for r in kept:
+        if isinstance(r, dict) and r.get("extra"):
+            for how, names in _extra_lines(r["extra"], kind):
+                log("    %s %s%s: %s" % (_replies.shown([_label(r, kind)]), "(dry run, nothing written) " if dry
+                                      else "", how, _replies.listed(names)))
+    for n in notes:
+        log("    unread: %s" % _replies.shown([n]))
+
+
+def _strip_check(led, run_id, turn, etype, payload, ids, given, given_ids, junk, left_out):
+    """-> a refusal reason, or None. THE STRIP CHECKS ITSELF (gate keeper-replies, second to fourth reviews).
+
+    The event written leaves out what the keeper judged the fold does not read: the payload keys `payload_keys` does
+    not name for this type and form (a threat's dimensions the seven do not name), and an id that is not text it could
+    name (junk). Both judgements are checked here, per report, against the fold itself, projecting onto copies of the
+    world at the report's turn.
+
+    THE IDS, on the report AS GIVEN (fourth review): the written payload with every junk id as given is projected; if
+    that changes nothing against the written event, no junk id is read and each is written as null. If it does, the
+    ids named are those whose removal from the report as given changes it - a harm with junk in both ids reads its
+    target, not its actor; a betrayal reads its two together, and the first is named "together with" the other. A
+    projection that raises on an id has read it (a RecursionError too: the fold formatting a deep id).
+
+    THE PAYLOAD, key by key (fourth review): the written event plus ONE left-out key, with the ids as written and as
+    given, is projected; a key that changes it, or whose projection raises, is read - the table has fallen behind the
+    fold, and the report is refused naming only those keys, never written without them. A RecursionError exempts only
+    the key that raised it: a value too deep to fold was never read, and leaving it out keeps it from bricking every
+    later fold. A read that only two left-out keys make together is caught by projecting the report as given, whole.
+
+    WHAT THIS CANNOT SEE (third review): the world it projects onto is the log as it stands when the report is judged.
+    The event replays into the world the log holds THEN - after a report the same pass writes at an earlier turn, after
+    a critic correction - and a read that fires only in such a world is invisible here, as the warrant test's own
+    judgement is. That is the suite's to catch, for the states its grid enumerates (tests/test_keeper_replies.py
+    `_worlds`, `_ID_VARIANTS`) through the reads its recorder sees."""
+    try:
+        snap = led.fold(run_id, turn)
+        base = world_events.projected(led, snap, Event(type=etype, payload=dict(payload), **ids), turn)
+    except Exception:                                # noqa: BLE001 — the warrant test below reports what cannot be judged
+        return None
+
+    def project(p, i):
+        """-> the projected world, or the exception projecting raised."""
+        try:
+            return world_events.projected(led, snap, Event(type=etype, payload=p, **i), turn)
+        except Exception as e:                       # noqa: BLE001 — a fold that raises on it has read it
+            return e
+
+    def changed(a, b):
+        return isinstance(a, Exception) or isinstance(b, Exception) or world_events.would_move(a, b)
+    as_given = dict(ids, **{f: given_ids[f] for f in junk})
+    if junk:
+        whole = project(dict(payload), as_given)
+        if changed(base, whole):
+            def removal_matters(f):
+                without = project(dict(payload), dict(as_given, **{f: None}))
+                if isinstance(whole, Exception):
+                    return not isinstance(without, Exception)    # removing it cures the raise: it is the one read
+                return changed(whole, without)
+            read = [f for f in junk if removal_matters(f)] or junk
+            g, others = read[0], "" if len(read) == 1 else " together with %s" % ", ".join(read[1:])
+            if _replies.text_ok(given_ids[g]):
+                return _refusal("KEEPER_REPORT_ID_EMPTY", "%s: blank - the fold reads it for this %s%s, and a blank "
+                                "names nobody; leave it out or name it" % (g, etype, others))
+            return _refusal("KEEPER_REPORT_FIELD_TYPE", "%s: the wrong type - the fold reads it for this %s%s, and it "
+                            "is not text the record can hold" % (g, etype, others))
+    read, raised = [], []
+    for k in left_out:
+        if isinstance(k, tuple):                     # ("dimensions", name): put back into the kept map
+            one = dict(payload, **{k[0]: dict(payload.get(k[0]) or {}, **{k[1]: given[k[0]][k[1]]})})
+        else:
+            one = dict(payload, **{k: given[k]})
+        for i in ([ids, as_given] if junk else [ids]):
+            got = project(one, i)
+            if isinstance(got, RecursionError):
+                break                                # too deep to fold: this key was never read
+            if changed(base, got):
+                read.append(k)
+                if isinstance(got, Exception):
+                    raised.append(got)
+                break
+    if left_out and not read:
+        whole = [project(given, i) for i in ([ids, as_given] if junk else [ids])]
+        if any(not isinstance(w, RecursionError) and changed(base, w) for w in whole):
+            read = list(left_out)                    # read only together: every one of them named
+    if read:
+        dims = [k for k in read if isinstance(k, tuple)]
+        tables = " and ".join(t for t in ("world_events.payload_keys" if len(dims) < len(read) else "",
+                                          "the seven dimensions" if dims else "") if t)
+        return _refusal("KEEPER_TABLE_STALE", "%s: the fold reads what %s says it never reads for a %s, so leaving it "
+                        "out would change the world - the table must be brought up to the fold%s" % (
+                            ", ".join(".".join(k) if isinstance(k, tuple) else k for k in read), tables, etype,
+                            "" if not raised else " (projecting it raised %s: %s)" % (type(raised[-1]).__name__,
+                                                                                       raised[-1])))
+    return None
+
+
 def apply_proposals(led, run_id, proposals, dry_run=False):
     """Validate, test warrant by folding, and append what genuinely moves the world.
 
     -> (applied, rejected) where each rejected entry is (proposal, reason). Reasons are the
-    rejection, not a summary of it, so a keeper's operator can see WHICH rule refused a report.
+    rejection, not a summary of it, so a keeper's operator can see WHICH rule refused a report;
+    each opens with its registered code. An applied report echoes what was WRITTEN, and carries
+    `extra` when it held something that was not written as given - a key nothing reads, a payload key left out, an
+    id written as null (gate keeper-replies).
 
-    Three gates in order, cheapest first:
+    Four gates in order, cheapest first:
       1. the turn must exist in the run — a proposal about a turn nobody recorded is invention
-      2. the payload must carry the keys `_project` reads — `world_events.validate_payload`
-      3. folding it must CHANGE the snapshot — `world_events.would_change`, writing nothing
+      2. each field must be what the log will hold — a payload an object; the type a world type
+         (KEEPER_REPORT_FIELD_TYPE, WORLD_EVENT_TYPE_UNKNOWN); an id that is not text naming
+         something is written as null and named, unless the fold reads it for this report
+      3. the payload keeps ONLY the keys the fold reads for this type (`world_events.payload_keys`;
+         a threat's dimensions only the seven), the rest named, never refused; then it must carry
+         the keys `_project` reads, of the types it reads them as — `world_events.validate_payload`;
+         and what was left out must change nothing the fold writes (`_strip_check`)
+      4. folding it must CHANGE the snapshot — `world_events.would_change`, writing nothing
 
-    Gate 3 is the one that cannot be reasoned around, and it is why a plausible report gets
+    Gate 4 is the one that cannot be reasoned around, and it is why a plausible report gets
     refused: if the world already said what the proposal says, nothing moved.
     """
     known_turns = {t["turn"] for t in scene_turns(led, run_id)}
     applied, rejected = [], []
     for p in proposals:
         turn = p.get("turn")
-        if turn not in known_turns:
-            rejected.append((p, "turn %r is not in this run — a report about an unrecorded turn "
-                                "is invention" % (turn,)))
+        if not _is_turn(turn, known_turns):
+            rejected.append((p, _unknown_turn(turn)))
+            continue
+        # THE FIELDS AS THE LOG WILL HOLD THEM. At HEAD a text or number payload crashed the pass here, a list of
+        # pairs was read as one, and an id that was a list or a map crashed it at the sqlite bind - after earlier
+        # reports had committed, before the scene was parked - while a number went in as its string ("5").
+        if p.get("payload") and not isinstance(p["payload"], dict):
+            rejected.append((p, _refusal("KEEPER_REPORT_FIELD_TYPE", "payload: the wrong type - a payload is an "
+                                                                     "object")))
             continue
         etype = p.get("type")
+        if not _is_world(etype):
+            rejected.append((p, _refusal("WORLD_EVENT_TYPE_UNKNOWN", "type %r moves no snapshot field; the world "
+                                         "types are: %s" % (etype, ", ".join(world_events.TYPES)))))
+            continue
+        # AN ID IS WRITTEN AS IT CAME WHEN IT IS TEXT THAT NAMES SOMETHING. Junk - not text the record can hold, or
+        # blank - is written as null and named, unless the fold reads it for THIS report, when the report is refused
+        # (`_strip_check` projects both ways). A table of "the ids the fold reads per type" was wrong per report
+        # (second review): `victim = target or actor` reads a harm's actor only when it has no target, so a death with
+        # a named victim and a blank killer was refused for a field that decided nothing.
+        given_ids = {f: p.get(f) for f in ("actor", "target", "location")}
+        junk = [f for f in given_ids if given_ids[f] is not None
+                and not (_replies.text_ok(given_ids[f]) and given_ids[f].strip())]
+        ids = dict(given_ids, **{f: None for f in junk})
+        # ONLY WHAT THE FOLD READS IS WRITTEN - for this type, and for this form of it (a tension seed or delta). The
+        # log stores a payload whole, and readers that take every event's payload whatever its type
+        # (`scene_facts.payloads`, which `injuries.run_rows` reads through) read a keeper move's `injuries`,
+        # `transfers` or `told` as the beat's own - measured 2026-09-25 (`mood_fold`'s `subject_group` likewise;
+        # scripts/canon_digest.py shows a `text`, `summary` or `subject` of any event, and so loses a keeper's
+        # stray one - third review; the price of keeping the log to what the world reads). Left out FIRST, before
+        # the severity words below are resolved: a key nothing reads is never the reason a report is refused, so an
+        # off-ladder word in one no longer refuses it (at HEAD it did). The event judged below is the event written,
+        # and `_strip_check` holds what was left out to the fold itself.
+        raw = dict(p.get("payload") or {})
+        keep = world_events.payload_keys(etype, raw)
+        left_out = [k for k in raw if k not in keep]
+        payload = {k: v for k, v in raw.items() if k in keep}
+        if etype == "threaten" and isinstance(payload.get("dimensions"), dict):
+            from src.engine.world_appraisal import DIMENSIONS      # relevance reads the seven, nothing else
+            left_out += [("dimensions", k) for k in payload["dimensions"] if k not in DIMENSIONS]
+            payload["dimensions"] = {k: v for k, v in payload["dimensions"].items() if k in DIMENSIONS}
         # THE SEVERITY SEAM. `tensions.rubric()` asks the keeper to grade "in the severity words"
         # and `severity.rubric()` names this seat as its consumer — and until 2026-09-02 no seam
         # resolved them here, so every conforming reply died in the fold with a type error. The
         # drivers have had this seam since the ladder landed; the seat that grades world events did
         # not, because every test graded in floats.
-        payload = dict(p.get("payload") or {})
         # THE LOG STORES FLOATS. WORDS DIE AT THIS BOUNDARY.
         #
         # A severity word is an AUTHORING convenience; a logged word is a hostage to the ladder.
@@ -209,8 +493,8 @@ def apply_proposals(led, run_id, proposals, dry_run=False):
             from src.engine.severity import WORDS, value_of
             word = payload["temperature"].strip().lower()
             if word not in WORDS:
-                rejected.append((p, "temperature %r is not a severity word; expected one of: %s"
-                                    % (payload["temperature"], ", ".join(WORDS))))
+                rejected.append((p, _refusal("SEVERITY_WORD_UNKNOWN", "temperature %r is not a severity word; "
+                                             "expected one of: %s" % (payload["temperature"], ", ".join(WORDS)))))
                 continue
             payload["temperature"] = value_of(word)
             p = dict(p, payload=payload)     # so the applied report echoes what was WRITTEN
@@ -218,13 +502,13 @@ def apply_proposals(led, run_id, proposals, dry_run=False):
             try:
                 payload = normalise_dimensions(payload)
             except Exception as e:                   # noqa: BLE001 — the seat reports, never crashes
-                rejected.append((p, "a severity word could not be resolved: %s" % e))
+                rejected.append((p, _why(e, "a severity word could not be resolved")))
                 continue
             p = dict(p, payload=payload)
         try:
             world_events.validate_payload(etype, payload)
         except Exception as e:                       # noqa: BLE001 — the seat reports, never crashes
-            rejected.append((p, str(e)))
+            rejected.append((p, _why(e)))
             continue
 
         # VISIBILITY IS NOT THE KEEPER'S TO SET, and it takes records.py's "public" default. A
@@ -234,12 +518,11 @@ def apply_proposals(led, run_id, proposals, dry_run=False):
         # not a plumbing one". Accepting it here would have made that decision by accident — and
         # the guard caught the attempt, because a `.get("visibility")` is exactly how it detects a
         # reader of that column.
-        ev = Event(type=etype, payload=dict(payload),
-                   actor=p.get("actor"), target=p.get("target"), location=p.get("location"))
+        ev = Event(type=etype, payload=dict(payload), **ids)
         try:
             ev.validate()
         except RecordError as e:
-            rejected.append((p, str(e)))
+            rejected.append((p, _why(e)))
             continue
 
         # A DELTA NAMING NO LIVE TENSION is a REFERENCE error, not a warrant failure. The fold
@@ -249,9 +532,19 @@ def apply_proposals(led, run_id, proposals, dry_run=False):
         if etype == "tension" and payload.get("id") and not _tensions.is_seed(payload):
             _live = (led.fold(run_id, turn) or {}).get("tensions") or {}
             if payload["id"] not in _live:
-                rejected.append((p, "names no live tension %r — live here: %s. A tension is "
-                                    "authored by the room; the keeper heats one, never mints it."
-                                    % (payload["id"], ", ".join(sorted(_live)) or "(none)")))
+                rejected.append((p, _refusal("KEEPER_TENSION_UNKNOWN", "names no live tension %r - live here: %s. "
+                                             "A tension is authored by the room; the keeper heats one, never mints it."
+                                             % (payload["id"], ", ".join(sorted(_live)) or "(none)"))))
+                continue
+        if junk or left_out:
+            # THE REPORT AS GIVEN, the words the fold reads resolved: each kept value as written, each left-out one as it
+            # came, and a kept map (a threat's dimensions) with what was left out of it put back - ONE expression, so no
+            # step of it can go missing alone (third review: the dimension merge was a separate line no test pinned)
+            given = {k: dict(v, **payload[k]) if isinstance(v, dict) and isinstance(payload.get(k), dict)
+                     else payload.get(k, v) for k, v in raw.items()}
+            why = _strip_check(led, run_id, turn, etype, payload, ids, given, given_ids, junk, left_out)
+            if why:
+                rejected.append((p, why))
                 continue
 
         # THE WARRANT TEST, asked BEFORE the write. The first draft appended, folded, diffed and
@@ -265,15 +558,22 @@ def apply_proposals(led, run_id, proposals, dry_run=False):
         try:
             moved = world_events.would_change(led, run_id, turn, ev, at_turn=turn)
         except Exception as e:                       # noqa: BLE001 — the seat reports, never crashes
-            rejected.append((p, "the fold could not judge it: %s: %s" % (type(e).__name__, e)))
+            rejected.append((p, _why(e, "the fold could not judge it")))
             continue
         if not moved:
-            rejected.append((p, "folding it would not change the snapshot — it is a beat, not a "
-                                "world event (%s)" % world_events.field_of(etype)))
+            rejected.append((p, _refusal("KEEPER_NOT_A_WORLD_EVENT", "folding it would not change the snapshot - it "
+                                         "is a beat, not a world event (%s)" % world_events.field_of(etype))))
             continue
         if not dry_run:
-            world_events.append(led, run_id, turn, [ev])
-        applied.append(p)
+            # WRAPPED like every gate above: a write the database refuses refuses this one report, not the pass - the
+            # canon gate runs before the scene is parked (gate keeper-replies review)
+            try:
+                world_events.append(led, run_id, turn, [ev])
+            except Exception as e:                   # noqa: BLE001 — the seat reports, never crashes
+                rejected.append((p, _why(e, "the log refused the write")))
+                continue
+        extra = _replies.change_extra(p, left_out, junk)
+        applied.append(dict(p, payload=payload, **{f: None for f in junk}, **({"extra": extra} if extra else {})))
     return applied, rejected
 
 
@@ -333,54 +633,103 @@ def build_ruling_prompt(led, run_id, first_turn, last_turn):
     return [{"role": "system", "content": _RULING_SYSTEM}, {"role": "user", "content": user}]
 
 
-def parse_rulings(raw):
+def parse_rulings(raw, notes=None):
     """A raw reply -> the list of ruling dicts, or [] when no JSON list is there. Refuses nothing
-    here; `apply_rulings` names what is wrong with each ruling."""
+    here; `apply_rulings` names what is wrong with each ruling.
+
+    `notes`, when a list is passed, collects what of the reply could not be read (gate keeper-replies): no list at
+    all, a first bracketed span that is not JSON (a bracket before the list included - nothing after it is read, as
+    before), a list that never closes, one nested too deep to read, entries that are not objects, and more JSON after
+    the first list (a second list, or the real one after an empty or bracketed aside). Each was indistinguishable from
+    a keeper that chose to report nothing.
+
+    THE BRACKETS ARE COUNTED OUTSIDE JSON STRINGS. The first reader counted every `[` and `]`, and a `said` is verbatim
+    speech: a VALID list whose sentence held a bracket was cut short and dropped as "not JSON" (review of gate
+    keeper-replies). The first JSON list is what this reads, now as then; it just finds its end correctly."""
+    note = notes.append if notes is not None else (lambda _m: None)
     text = str(raw or "")
     start = text.find("[")
     if start < 0:
+        note("the reply held no JSON list")
         return []
-    depth = 0
+    end = _list_end(text, start)
+    if end is None:
+        note("its first list never closes")
+        return []
+    try:
+        out = json.loads(text[start:end + 1])
+    except RecursionError:
+        note("its first list is nested too deep to read")
+        return []
+    except ValueError:
+        note("its first bracketed span is not JSON, and nothing after it was read")
+        return []
+    kept = [r for r in out if isinstance(r, dict)] if isinstance(out, list) else []
+    if isinstance(out, list) and len(kept) < len(out):
+        note("%d of its %d entries are not objects" % (len(out) - len(kept), len(out)))
+    if any(c in text[end + 1:] for c in "[{"):
+        note("it went on after its first list, and what followed was not read")
+    return kept
+
+
+def _list_end(text, start):
+    """The index of the `]` that closes the list opening at `start`, counting brackets outside JSON strings -> int, or
+    None when it never closes."""
+    depth, in_str, esc = 0, False, False
     for i in range(start, len(text)):
-        if text[i] == "[":
+        c = text[i]
+        if in_str:
+            if esc:
+                esc = False
+            elif c == "\\":
+                esc = True
+            elif c == '"':
+                in_str = False
+        elif c == '"':
+            in_str = True
+        elif c == "[":
             depth += 1
-        elif text[i] == "]":
+        elif c == "]":
             depth -= 1
             if depth == 0:
-                try:
-                    out = json.loads(text[start:i + 1])
-                except ValueError:
-                    return []
-                return [r for r in out if isinstance(r, dict)] if isinstance(out, list) else []
-    return []
+                return i
+    return None
 
 
 def apply_rulings(led, run_id, rulings, at_turn, dry_run=False):
     """Write the keeper's verdicts -> (applied, left, rejected). ESTABLISHED and FICTION append a
     resolution (`claims.resolve`, append-only; the tier folds from it); SUPERPOSED writes nothing
     and is reported as left; an unknown utterance id is invention and an unknown verdict is
-    refused, each with its reason."""
+    refused, each with its reason, opening with its code. A ruling applied or left carries `extra`
+    when it held what was not written as given - a `rationale` that is not text among it, written as ""
+    rather than as its string form (gate keeper-replies)."""
     known = {u["id"] for u in claims.for_run(led.con, run_id)}
     applied, left, rejected = [], [], []
     for r in rulings:
         uid = r.get("utterance_id")
         verdict = str(r.get("verdict") or "").strip().lower()
         if not isinstance(uid, int) or isinstance(uid, bool) or uid not in known:
-            rejected.append((r, "utterance %r is not in this run — a ruling on what nobody said is invention" % (uid,)))
+            rejected.append((r, _refusal("KEEPER_RULING_UNKNOWN", "utterance %r is not in this run - a ruling on what "
+                                         "nobody said is invention" % (uid,))))
             continue
+        extra = _replies.ruling_extra(r)
+        kept = dict(r, extra=extra) if extra else r
         if verdict == claims.SUPERPOSED:
-            left.append(r)
+            left.append(kept)
             continue
         if verdict not in (claims.ESTABLISHED, claims.FICTION):
-            rejected.append((r, "verdict %r is not one of established / fiction / superposed" % (verdict,)))
+            rejected.append((r, _refusal("KEEPER_VERDICT_UNKNOWN", "verdict %r is not one of established / fiction / "
+                                         "superposed" % (verdict,))))
             continue
+        rationale = r.get("rationale")
         if not dry_run:
             try:
-                claims.resolve(led.con, run_id, uid, int(at_turn), verdict, str(r.get("rationale") or "")[:500])
+                claims.resolve(led.con, run_id, uid, int(at_turn), verdict,
+                               rationale[:500] if _replies.text_ok(rationale) else "")
             except Exception as e:                       # noqa: BLE001 — the seat reports, never crashes
-                rejected.append((r, str(e)))
+                rejected.append((r, _why(e)))
                 continue
-        applied.append(r)
+        applied.append(kept)
     return applied, left, rejected
 
 
@@ -391,30 +740,30 @@ def rule_scene(led, run_id, first_turn, last_turn, model, stub, log=print):
     utts = claims.for_run(led.con, run_id, as_of=last_turn)
     scene = [u for u in utts if first_turn <= int(u["turn"]) <= last_turn]
     if not scene:
-        log("  KEEPER: no claims in turns %d-%d — nothing to rule on" % (first_turn, last_turn))
-        return {"applied": [], "left": [], "rejected": [], "contested": 0}
+        log("  KEEPER: no claims in turns %d-%d - nothing to rule on" % (first_turn, last_turn))
+        return {"applied": [], "left": [], "rejected": [], "contested": 0, "notes": []}
     resolutions = claims.resolutions_for(led.con, run_id, as_of=last_turn)
     ids = {u["id"] for u in scene}
     contested = [(a, b, k) for a, b, k in claims.contradictions(utts, resolutions) if a["id"] in ids or b["id"] in ids]
     if stub:
         log("  KEEPER (stub): %d claim(s) this scene stay superposed; %d contested pair(s)" % (len(scene), len(contested)))
         for a, b, k in contested:
-            log("    contested (%s %s): \"%s\" / \"%s\"" % (k[0], k[1], a["text"], b["text"]))
-        return {"applied": [], "left": scene, "rejected": [], "contested": len(contested)}
+            log("    contested (%s %s): %s" % (k[0], k[1], _replies.shown(['"%s" / "%s"' % (a["text"], b["text"])])))
+        return {"applied": [], "left": scene, "rejected": [], "contested": len(contested), "notes": []}
     import provider as _provider
     messages = build_ruling_prompt(led, run_id, first_turn, last_turn)
     try:
         raw = _provider.call(messages, model, "keeper-rule", led=led, run_id=run_id, turn=last_turn)
     except RecordError as exc:
-        log("  KEEPER refused: %s" % str(exc)[:160])
-        return {"applied": [], "left": scene, "rejected": [({}, str(exc))], "contested": len(contested)}
-    applied, left, rejected = apply_rulings(led, run_id, parse_rulings(raw), at_turn=last_turn)
+        log("  KEEPER refused: %s" % _replies.shown([str(exc)[:160]]))
+        return {"applied": [], "left": scene, "rejected": [({}, str(exc))], "contested": len(contested), "notes": []}
+    notes = []
+    applied, left, rejected = apply_rulings(led, run_id, parse_rulings(raw, notes), at_turn=last_turn)
     log("  KEEPER: %d ruled (%s), %d left superposed, %d refused, %d contested pair(s)"
-        % (len(applied), ", ".join("%s->%s" % (r["utterance_id"], r["verdict"]) for r in applied) or "none",
+        % (len(applied), _replies.shown(["%s->%s" % (r["utterance_id"], r["verdict"]) for r in applied]) or "none",
            len(scene) - len(applied), len(rejected), len(contested)))
-    for r, why in rejected:
-        log("    refused: %s" % why[:140])
-    return {"applied": applied, "left": left, "rejected": rejected, "contested": len(contested)}
+    _report(log, rejected, applied + left, notes, kind="ruling")
+    return {"applied": applied, "left": left, "rejected": rejected, "contested": len(contested), "notes": notes}
 
 
 def notice_scene(led, run_id, first_turn, last_turn, model, stub, log=print, world=None):
@@ -431,22 +780,31 @@ def notice_scene(led, run_id, first_turn, last_turn, model, stub, log=print, wor
     turns = [t for t in scene_turns(led, run_id) if first_turn <= t["turn"] <= last_turn]
     if stub or not turns:
         log("  KEEPER (%s): noticing pass skipped for turns %d-%d" % ("stub" if stub else "no turns", first_turn, last_turn))
-        return {"applied": [], "recorded": [], "rejected": []}
+        return {"applied": [], "recorded": [], "rejected": [], "notes": []}
     import provider as _provider
     snap = led.fold(run_id, last_turn)
     try:
         raw = _provider.call(build_keeper_prompt(turns, snap, world=world, led=led, run_id=run_id), model, "keeper-notice",
                              led=led, run_id=run_id, turn=last_turn, max_tokens=1400)
     except RecordError as exc:
-        log("  KEEPER noticing refused: %s" % str(exc)[:160])
-        return {"applied": [], "recorded": [], "rejected": [({}, str(exc))]}
-    reports = parse_rulings(raw)                       # the same "first JSON list" reader
-    events = [p for p in reports if p.get("type")]
-    said = [p for p in reports if not p.get("type") and p.get("said")]
+        log("  KEEPER noticing refused: %s" % _replies.shown([str(exc)[:160]]))
+        return {"applied": [], "recorded": [], "rejected": [({}, str(exc))], "notes": []}
+    notes = []
+    reports = parse_rulings(raw, notes)                # the same "first JSON list" reader
+    events, said, neither = _route(reports)
+    if neither:
+        notes.append("%d of its reports are neither a world change (no type) nor a claim (no said)" % neither)
     applied, rej_e = apply_proposals(led, run_id, events)
+    # A REFUSED WORLD CHANGE THAT ALSO CARRIED A CLAIM loses the claim with it (a report is one kind, as at HEAD) -
+    # said so, where an applied one names its `said` as a key nothing read (gate keeper-replies review)
+    notes += _lost_claims(rej_e)
     recorded, rej_u = record_utterances(led, run_id, said)
     log("  KEEPER: %d world change(s) applied, %d saying(s) recorded, %d refused" % (len(applied), len(recorded), len(rej_e) + len(rej_u)))
-    return {"applied": applied, "recorded": recorded, "rejected": rej_e + rej_u}
+    # EACH REFUSAL PRINTED (gate keeper-replies): this line printed only how many, and canon_gate's callers discard
+    # the result, so a noticing refusal's reason reached nobody.
+    _report(log, rej_e, applied, kind="change")
+    _report(log, rej_u, recorded, notes, kind="claim")
+    return {"applied": applied, "recorded": recorded, "rejected": rej_e + rej_u, "notes": notes}
 
 
 # ---------------------------------------------------------------------------------------------
@@ -597,13 +955,13 @@ def attach_scene(led, run_id, ruled_applied, first_turn, last_turn, world, model
     """
     if world is None:
         log("  KEEPER: attachment rubric skipped (no world)")
-        return {"attached": [], "refused": [], "candidates": 0, "skipped": 0}
+        return {"attached": [], "refused": [], "candidates": 0, "skipped": 0, "unread": []}
     candidates = attach_candidates(led, run_id, ruled_applied, first_turn, last_turn, world)
     if stub:
         log("  KEEPER (stub): %d attachment candidate(s), nothing asked" % len(candidates))
-        return {"attached": [], "refused": [], "candidates": len(candidates), "skipped": 0}
+        return {"attached": [], "refused": [], "candidates": len(candidates), "skipped": 0, "unread": []}
     import provider as _provider
-    attached, refused, skipped = [], [], 0
+    attached, refused, skipped, unread, uncoded = [], [], 0, [], {}
     for speaker_id, entity, sentence, _utterance_id in candidates:
         existing = attachments.rows_for(led.con, run_id, speaker_id)
         try:
@@ -612,7 +970,22 @@ def attach_scene(led, run_id, ruled_applied, first_turn, last_turn, world, model
         except RecordError as exc:
             refused.append((speaker_id, entity, exc.code))
             continue
-        row, code = attach_price(speaker_id, entity, _json_object(raw), sentence, world, existing)
+        # NEVER CRASHES (gate keeper-replies review): a reply nested past the reader's depth raised RecursionError out
+        # of json - it is no object, and refused as one; anything else the pricing raises refuses this candidate alone
+        try:
+            reply = _json_object(raw)
+        except RecursionError:
+            reply = None
+        try:
+            row, code = attach_price(speaker_id, entity, reply, sentence, world, existing)
+        except Exception as e:                       # noqa: BLE001 — the seat reports, never crashes
+            refused.append((speaker_id, entity, "KEEPER_UNCODED_ERROR"))
+            uncoded[(speaker_id, entity)] = "%s: %s" % (type(e).__name__, e)     # named, as the code says
+            continue
+        if code is None:                             # the reply was read - priced, or a skip (gate keeper-replies)
+            extra = _replies.attach_extra(reply)
+            if extra:
+                unread.append((speaker_id, entity, extra))
         if row is not None:
             attached.append(row)
         elif code is not None:
@@ -621,11 +994,17 @@ def attach_scene(led, run_id, ruled_applied, first_turn, last_turn, world, model
             skipped += 1
     written = attachments.declare(led.con, run_id, last_turn, attached) if attached else 0
     log("  KEEPER: %d attachment(s) priced (%s), %d refused, %d skipped of %d candidate(s)"
-        % (written, ", ".join("%s:%s" % (r.char_id, r.entity) for r in attached) or "none",
+        % (written, _replies.shown(["%s:%s" % (r.char_id, r.entity) for r in attached]) or "none",
            len(refused), skipped, len(candidates)))
     for speaker_id, entity, code in refused:
-        log("    refused: %s %s -> %s" % (speaker_id, entity, code))
-    return {"attached": attached, "refused": refused, "candidates": len(candidates), "skipped": skipped}
+        log("    refused: %s -> %s%s" % (_replies.shown(["%s %s" % (speaker_id, entity)]), code,
+                                    " (%s)" % _replies.shown([uncoded[(speaker_id, entity)][:160]])
+                                    if (speaker_id, entity) in uncoded else ""))
+    for speaker_id, entity, extra in unread:
+        log("    %s carried what nothing reads: %s" % (_replies.shown(["%s %s" % (speaker_id, entity)]),
+                                                        _replies.listed(extra)))
+    return {"attached": attached, "refused": refused, "candidates": len(candidates), "skipped": skipped,
+            "unread": unread}
 
 
 def canon_gate(led, run_id, first_turn, last_turn, model, stub, log=print, world=None):
@@ -669,36 +1048,87 @@ def record_utterances(led, run_id, reports):
     always true that they said it.
 
     -> (recorded, rejected). Refuses a report about a turn the run does not have, for the same
-    reason `apply_proposals` does: a report with no source is invention.
+    reason `apply_proposals` does: a report with no source is invention. Each reason opens with its
+    code; a speaker, said or extract field that is not text refuses the claim (KEEPER_REPORT_FIELD_TYPE
+    - HEAD wrote its string form, "5" or "['...']", into tables no correction reaches), and a recorded
+    claim carries `extra` when it held what was not written as given (gate keeper-replies).
     """
     known_turns = {t["turn"] for t in scene_turns(led, run_id)}
     recorded, rejected = [], []
     for r in reports:
         turn = r.get("turn")
-        if turn not in known_turns:
-            rejected.append((r, "turn %r is not in this run — a report about an unrecorded turn "
-                                "is invention" % (turn,)))
+        if not _is_turn(turn, known_turns):
+            rejected.append((r, _unknown_turn(turn)))
             continue
         if not str(r.get("speaker") or "").strip():
             # NAMED HERE AS WELL AS IN `claims.record`, and that is not a duplicate guard: this seat
             # reports to an operator, and before this the blank speaker reached the database and came
             # back through the blanket except below as `CHECK constraint failed: speaker <> ''` —
             # true, and useless to whoever has to fix the report.
-            rejected.append((r, "an utterance needs a SPEAKER — an unattributed quote binds nobody, "
-                                "and no keeper can rule on what nobody said"))
+            rejected.append((r, _refusal("CLAIM_SPEAKER_EMPTY", "an utterance needs a SPEAKER - an unattributed quote "
+                                         "binds nobody, and no keeper can rule on what nobody said")))
             continue
         if not str(r.get("said") or "").strip():
-            rejected.append((r, "an utterance needs its VERBATIM text — the extract is an index "
-                                "into what was said, never a substitute for it"))
+            rejected.append((r, _refusal("CLAIM_SAID_EMPTY", "an utterance needs its VERBATIM text - the extract is an "
+                                         "index into what was said, never a substitute for it")))
+            continue
+        extracts, wrong, blank = _extracts(r.get("extracts"))
+        wrong = _wrong_text(r, ("speaker", "said")) + wrong
+        if wrong:
+            rejected.append((r, _refusal("KEEPER_REPORT_FIELD_TYPE", "%s: the wrong type - a speaker, a said and an "
+                                         "extract's subject and predicate are text the record can hold; extracts "
+                                         "are a list of objects" % ", ".join(wrong))))
+            continue
+        if blank:
+            rejected.append((r, _refusal("CLAIM_EXTRACT_INCOMPLETE", "%s: nothing the claims index can compare "
+                                         "(it keeps a-z, 0-9 and hyphens), so it would index nothing"
+                                         % ", ".join(blank))))
             continue
         try:
-            uid = claims.record(led.con, run_id, turn, r["speaker"],
-                                r["said"], r.get("extracts") or [])
+            uid = claims.record(led.con, run_id, turn, r["speaker"], r["said"], extracts)
         except Exception as e:                       # noqa: BLE001 — the seat reports, never crashes
-            rejected.append((r, str(e)))
+            rejected.append((r, _why(e)))
             continue
-        recorded.append(dict(r, utterance_id=uid))
+        extra = _replies.claim_extra(r)
+        recorded.append(dict(r, utterance_id=uid, **({"extra": extra} if extra else {})))
     return recorded, rejected
+
+
+def _extracts(value):
+    """A claim's extracts as they are written -> (rows, the fields of the wrong type, the fields that index nothing).
+    Nothing (null, empty) is none; otherwise a list of objects. A subject or predicate is text: a null one is missing,
+    which `claims` refuses as incomplete (HEAD wrote it as "none"), and one that normalises to nothing (a non-Latin
+    script, punctuation alone) is refused as incomplete here, by name, where the database's CHECK refused it as an
+    uncoded IntegrityError (review of gate keeper-replies). An `object` that is null or not text is left out - written
+    as "" and named by `replies.claim_extra` - since the claim stands without it. TEXT, NOT STORABLE TEXT: an extract
+    is stored as `claims.normalise` leaves it (a-z, 0-9, hyphens), so a lone surrogate in one never reaches the table,
+    and HEAD recorded such a claim correctly (the second review)."""
+    if not value:
+        return [], [], []
+    if not isinstance(value, list) or not all(isinstance(x, dict) for x in value):
+        return [], ["extracts"], []
+    rows, wrong, blank = [], set(), []
+    for i, x in enumerate(value):
+        wrong |= {"extracts[].%s" % f for f in ("subject", "predicate")
+                  if x.get(f) is not None and not isinstance(x[f], str)}
+        blank += ["extract %d's %s %r" % (i, f, x[f]) for f in ("subject", "predicate")
+                  if isinstance(x.get(f), str) and x[f].strip() and not claims.normalise(x[f])]
+        rows.append({"subject": x.get("subject") or "", "predicate": x.get("predicate") or "",
+                     "object": x["object"] if isinstance(x.get("object"), str) else ""})
+    return rows, sorted(wrong), blank
+
+
+def _load_list(path, flag):
+    """A keeper file the CLI is handed -> its parsed JSON. It is a JSON file, not a model's reply text, so it is read
+    strictly - and one that is not JSON, or is nested past the reader's depth, is refused by code where it raised a
+    traceback (gate keeper-replies, second review). Whether it is a LIST is the caller's next check."""
+    try:
+        with open(path, encoding="utf-8") as fh:
+            return json.load(fh)
+    except RecursionError:
+        raise SystemExit(_refusal("KEEPER_REPLY_NOT_A_LIST", "%s file is nested too deep to read" % flag))
+    except ValueError as e:
+        raise SystemExit(_refusal("KEEPER_REPLY_NOT_A_LIST", "%s file is not JSON: %s" % (flag, e)))
 
 
 def main():
@@ -736,12 +1166,18 @@ def main():
             return 0
         if not args.rulings:
             raise SystemExit("--rule needs --prompt-only (emit) or --rulings FILE (apply)")
-        with open(args.rulings, encoding="utf-8") as fh:
-            rulings = json.load(fh)
-        applied, left, rejected = apply_rulings(led, args.run, rulings, at_turn=last, dry_run=args.dry_run)
+        rulings = _load_list(args.rulings, "--rulings")
+        # A LIST OF OBJECTS, as the reply is read (gate keeper-replies): a map here was walked key by key and crashed
+        # on the first `.get`; an entry that is not an object is named and skipped, as parse_rulings does.
+        if not isinstance(rulings, list):
+            raise SystemExit(_refusal("KEEPER_REPLY_NOT_A_LIST", "--rulings file must hold a LIST of rulings, got %s"
+                                      % type(rulings).__name__))
+        notes = ["%d of its %d entries are not objects" % (sum(not isinstance(r, dict) for r in rulings), len(rulings))
+                 ] if not all(isinstance(r, dict) for r in rulings) else []
+        applied, left, rejected = apply_rulings(led, args.run, [r for r in rulings if isinstance(r, dict)],
+                                                at_turn=last, dry_run=args.dry_run)
         print("ruled %d, left superposed %d, refused %d%s" % (len(applied), len(left), len(rejected), " (dry run)" if args.dry_run else ""))
-        for r, why in rejected:
-            print("  refused: %s" % why)
+        _report(print, rejected, applied + left, notes, kind="ruling")
         return 0
     if args.prompt_only:
         # world STAYS None HERE: this standalone CLI path opens only the chronicle db
@@ -755,16 +1191,26 @@ def main():
     if not args.propose:
         raise SystemExit("pass --prompt-only to emit the prompt, or --propose FILE to apply reports")
 
-    with open(args.propose, encoding="utf-8") as fh:
-        proposals = json.load(fh)
+    proposals = _load_list(args.propose, "--propose")
     if not isinstance(proposals, list):
-        raise SystemExit("--propose file must hold a LIST, got %s" % type(proposals).__name__)
+        raise SystemExit(_refusal("KEEPER_REPLY_NOT_A_LIST", "--propose file must hold a LIST of reports, got %s"
+                                  % type(proposals).__name__))
+    # An entry that is not an object is named and skipped, as notice_scene's reader does (gate keeper-replies): the
+    # first `.get` below crashed on one.
+    notes = ["%d of its %d entries are not objects" % (sum(not isinstance(p, dict) for p in proposals), len(proposals))
+             ] if not all(isinstance(p, dict) for p in proposals) else []
+    proposals = [p for p in proposals if isinstance(p, dict)]
 
     # A proposal file may carry BOTH world events and utterances; they are different reports with
     # different rules (an event must move the world; an utterance binds nothing and always counts).
-    events = [p for p in proposals if p.get("type")]
-    saids  = [p for p in proposals if p.get("said")]
+    # ROUTED AS THE PASS ROUTES A REPLY (`_route`, gate keeper-replies review): this read a report with a type AND a
+    # said as both - applied the change, recorded the claim - and printed each as carrying what the other read.
+    events, saids, neither = _route(proposals)
+    if neither:
+        notes.append("%d of its reports are neither a world change (no type) nor a claim (no said)" % neither)
     applied, rejected = apply_proposals(led, args.run, events, args.dry_run)
+    notes += _lost_claims(rejected)
+    rec = []
     if saids:
         if args.dry_run:
             # A dry run that silently skipped half the file reported "would apply N of M" against a
@@ -775,15 +1221,19 @@ def main():
             rec, rej = record_utterances(led, args.run, saids)
             print("recorded %d of %d utterances" % (len(rec), len(saids)))
             for r, why in rej:
-                print("  -  t%-4s utterance     %s" % (r.get("turn"), why))
+                print("  -  t%-4s utterance     %s" % (_replies.shown([r.get("turn")]), _replies.shown([why])))
     # The denominator is the WORLD-EVENT proposals, not the whole file: utterances are a different
     # report with a different rule, and counting them here made the ratio meaningless.
     print("%s %d of %d world-event reports" % ("would apply" if args.dry_run else "applied",
                                                len(applied), len(events)))
     for p in applied:
-        print("  +  t%-4s %-14s %s" % (p.get("turn"), p.get("type"), p.get("payload")))
+        print("  +  t%-4s %-14s %s" % (_replies.shown([p.get("turn")]), _replies.shown([p.get("type")]),
+                                       _replies.shown([p.get("payload")])))
     for p, why in rejected:
-        print("  -  t%-4s %-14s %s" % (p.get("turn"), p.get("type"), why))
+        print("  -  t%-4s %-14s %s" % (_replies.shown([p.get("turn")]), _replies.shown([p.get("type")]),
+                                       _replies.shown([why])))
+    _report(print, (), applied, kind="change", dry=args.dry_run)
+    _report(print, (), rec, notes, kind="claim", dry=args.dry_run)
     return 0
 
 

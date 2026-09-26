@@ -534,11 +534,23 @@ _ATTACH_F = {
 
 # ---- KEEPER_* — the keeper's own refusals, distinct from the shared classifier parser it reuses
 # (scripts/keeper.py, bond gate 5's third writer) ----
-# One code: the shared parser (COMPOSITION_ATTACH_*, below) validates the REPLY'S shape; this is the
+# The first: the shared parser (COMPOSITION_ATTACH_*, below) validates the REPLY'S shape; this is the
 # one thing only the keeper's caller can know — whether the reply answered about the ONE entity this
 # candidate's single-sentence prompt ever asked about.
+# The rest (gate keeper-replies): the refusals scripts/keeper.py built in prose until then, one per report, never
+# the whole reply - a keeper refusal drops that report and nothing is retried.
 _KEEPER_F = {
     "KEEPER_ATTACH_OFF_TARGET": "the attachment classifier's reply named no entry for the one candidate entity its prompt asked about — a reply about a different entity is not evidence for this one",
+    "KEEPER_TURN_UNKNOWN":      "a keeper report names a turn the run does not have (or a turn that is not a number, a true or false included) - a report with no recorded source is invention",
+    "KEEPER_REPORT_FIELD_TYPE": "a keeper report's field is the wrong type for what it becomes in the append-only record: a payload that is not an object, an id the fold reads or a said that is not text the record can hold, extracts that are not a list of objects",
+    "KEEPER_REPORT_ID_EMPTY":   "a keeper report names a blank actor, target or location where the fold reads it for that report - an identity nothing can name (a harm whose target is only spaces, which would kill a phantom; a betrayal whose two ids are only spaces); leave it out, or name it",
+    "KEEPER_REPLY_NOT_A_LIST":  "a keeper reply handed over as a file is not a JSON list of reports",
+    "KEEPER_TABLE_STALE":       "a payload key the keeper's table says the fold never reads for this type changed what the fold writes, for this report in the world it is judged in - the table has fallen behind the fold, so the report is refused rather than written without it",
+    "KEEPER_TENSION_UNKNOWN":   "a keeper's heat delta names no live tension - a reference error, not a warrant failure; the keeper heats a tension the room authored",
+    "KEEPER_UNCODED_ERROR":     "an uncoded error (a TypeError out of the fold, a database error) stopped a keeper report being judged or written - it was not written, and its type and message are named",
+    "KEEPER_NOT_A_WORLD_EVENT": "folding a keeper's world change would not change the snapshot - it was a beat, and the appraisal tier already recorded it",
+    "KEEPER_RULING_UNKNOWN":    "a keeper's ruling names an utterance this run does not have (or an id that is not a whole number) - a ruling on what nobody said is invention",
+    "KEEPER_VERDICT_UNKNOWN":   "a keeper's ruling is not one of established / fiction / superposed",
 }
 
 # ---- COMPOSITION_* — the composition pass's attachment classifier (scripts/composition_pass.py) ----
@@ -693,6 +705,7 @@ _WORLD_EVENT = {
     "WORLD_EVENT_TYPE_UNKNOWN":         "a proposed event type moves no snapshot field",
     "WORLD_EVENT_PAYLOAD_KEY_MISSING":  "a payload omits a key the fold reads, so the branch would not fire",
     "WORLD_EVENT_PAYLOAD_VALUE_EMPTY":  "a payload key the fold reads carries an empty string, which would write an identity nothing can name",
+    "WORLD_EVENT_PAYLOAD_VALUE_TYPE":   "a payload key the fold reads carries the wrong type - a numeric fact or asset bricks every later resume, a text `to` on a reveal makes each letter a knower, a terminal 'false' kills",
 }
 
 _CLAIM = {

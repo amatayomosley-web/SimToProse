@@ -285,7 +285,7 @@ def correct_run(led, run_id, review, source="critic"):
 
     THE TICK. Every correction from one review lands at the run's NEXT tick — `latest_turn + 1` —
     passed to `world_events.append` as the turn, with `caused_at`/`effective_at` left to the
-    writer's own defaults, which is the convention `scripts/keeper.py:275` already uses for a row
+    writer's own defaults, which is the convention `scripts/keeper.py` `apply_proposals` already uses for a row
     appended outside a turn commit. Two consequences, both wanted: a fold `as_of` any turn already
     recorded does NOT yet see the correction (the record is not rewritten behind the reader's
     back), and the cache drop `append` performs at that tick invalidates nothing that was right.

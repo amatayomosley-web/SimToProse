@@ -89,7 +89,9 @@ def validate_seed(row, where="tension"):
     _wa.validate_interests(row.get("interests"), "%s[%s].interests" % (where, name))
     _wa.validate_watches(row.get("watches"), "%s[%s].watches" % (where, name))
     rate = row.get("cooling", _wa.DEFAULT_COOLING)
-    _require(rate in _wa.COOLING, "TENSION_COOLING_UNKNOWN",
+    # isinstance first: a list or a map here raised TypeError hashing it into COOLING - uncoded, where every other bad
+    # field of a seed is refused by name (gate keeper-replies review)
+    _require(isinstance(rate, str) and rate in _wa.COOLING, "TENSION_COOLING_UNKNOWN",
              "%s[%s].cooling is %r; expected one of: %s"
              % (where, name, rate, ", ".join(sorted(_wa.COOLING))))
     temp = row.get("temperature", 0.0)
