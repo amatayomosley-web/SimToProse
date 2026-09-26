@@ -235,6 +235,18 @@ class RecordError(EngineError):
     """A record failed boundary validation. The write that carried it must not happen."""
 
 
+def member(value, members, code, msg):
+    """-> the element of `members` that `value` names: the vocabulary's OWN string, never `value` (gate
+    canonical-members), or refused by `code` with `msg`. The one place a guarded field is matched to its vocabulary:
+    each validator keeps what this returns, and every writer stores the validated record's field, so a looser match
+    here - case, spacing, an alias - can only ever store the vocabulary's spelling, which the database's insert guard
+    accepts. Exact today, and text only: a str subclass whose str() differs from its value comes back plain."""
+    for m in members:
+        if isinstance(value, str) and value == m:
+            return m
+    raise RecordError(code, msg)
+
+
 def _check_affect(affect, label):
     """A committed mood: exactly the nine paths, each in [0, 1] - the actor's and every bystander's."""
     _require(isinstance(affect, dict), "RECORD_FIELD_TYPE", "%s must be dict" % label)
@@ -333,7 +345,7 @@ class RestDeclared:
     def validate(self):
         _require(isinstance(self.perceiver, str) and self.perceiver.strip(), "RECORD_PERCEIVER_EMPTY", "RestDeclared.perceiver must be non-empty")
         _require(isinstance(self.target, str) and self.target.strip(), "RECORD_TARGET_EMPTY", "RestDeclared.target must be non-empty")
-        _require(self.axis in RELATIONSHIP_AXES, "RECORD_AXIS_UNKNOWN", "RestDeclared.axis must be one of %s" % (RELATIONSHIP_AXES,))
+        self.axis = member(self.axis, RELATIONSHIP_AXES, "RECORD_AXIS_UNKNOWN", "RestDeclared.axis must be one of %s" % (RELATIONSHIP_AXES,))
         _require(isinstance(self.rest, (int, float)) and not isinstance(self.rest, bool) and 0.0 <= float(self.rest) <= 1.0,
                  "RECORD_REST_RANGE", "RestDeclared.rest must be a float in [0, 1], got %r" % (self.rest,))
         _require(self.source in REST_SOURCES, "RECORD_REST_SOURCE_UNKNOWN", "RestDeclared.source must be one of %s, got %r" % (REST_SOURCES, self.source))
@@ -383,13 +395,13 @@ class RelationshipDelta:
     def validate(self):
         _require(isinstance(self.perceiver, str) and self.perceiver.strip(), "RECORD_PERCEIVER_EMPTY", "RelationshipDelta.perceiver must be non-empty")
         _require(isinstance(self.target, str) and self.target.strip(), "RECORD_TARGET_EMPTY", "RelationshipDelta.target must be non-empty")
-        _require(self.axis in RELATIONSHIP_AXES, "RECORD_AXIS_UNKNOWN", "RelationshipDelta.axis %r not in %s" % (self.axis, list(RELATIONSHIP_AXES)))
+        self.axis = member(self.axis, RELATIONSHIP_AXES, "RECORD_AXIS_UNKNOWN", "RelationshipDelta.axis %r not in %s" % (self.axis, list(RELATIONSHIP_AXES)))
         _require(in_range(self.delta, DELTA_RANGE),
                  "RECORD_DELTA_RANGE",
                  "RelationshipDelta.delta must be a number in [%g, %g], got %r" % (DELTA_RANGE + (self.delta,)))
-        _require(self.order in RELATIONSHIP_ORDERS,
-                 "RECORD_ORDER_UNKNOWN",
-                 "RelationshipDelta.order must be 'first' or 'second', got %r" % (self.order,))
+        self.order = member(self.order, RELATIONSHIP_ORDERS,
+                            "RECORD_ORDER_UNKNOWN",
+                            "RelationshipDelta.order must be 'first' or 'second', got %r" % (self.order,))
 
 
 @dataclass
@@ -442,7 +454,7 @@ class TowardDelta:
     def validate(self):
         _require(isinstance(self.perceiver, str) and self.perceiver.strip(), "RECORD_PERCEIVER_EMPTY", "TowardDelta.perceiver must be non-empty")
         _require(isinstance(self.target, str) and self.target.strip(), "RECORD_TARGET_EMPTY", "TowardDelta.target must be non-empty")
-        _require(self.primary in PATHS,
+        self.primary = member(self.primary, PATHS,
                  "RECORD_PRIMARY_UNKNOWN",
                  "TowardDelta.primary %r not in %s — the MICRO tier is priced on the affective "
                  "primitives, not the relationship axes" % (self.primary, list(PATHS)))
@@ -490,12 +502,16 @@ class Reading:
         # guard holds `readings.confidence` to them, so a Reading built past the parser must meet the same wall here,
         # by the parser's own code, before any write - never as a rolled-back beat.
         from .readings import CONFIDENCE_WORDS as _words
-        _require(self.confidence in _words, "READING_CONFIDENCE_UNKNOWN",
-                 "Reading.confidence %r is not one of %s" % (self.confidence, list(_words)))
+        self.confidence = member(self.confidence, _words, "READING_CONFIDENCE_UNKNOWN",
+                                 "Reading.confidence %r is not one of %s" % (self.confidence, list(_words)))
         # THE LADDER IS THE AUTHORITY, not a list kept here. Importing at call time keeps
         # records.py free of an engine import at module scope, and means this can never disagree
         # with rung_blocks.BANDS -- the duplicate class CLAUDE.md tabulates seven instances of.
         from . import rungs as _rungs
+        try:                                   # the one match first, so a looser one hands the ladder the vocabulary's path
+            self.path = member(self.path, _rungs.BANDS, "READING_RUNG_NOT_ON_PATH", "")
+        except RecordError:
+            pass                               # no ladder by that name: the ladder check below refuses it, in its words
         try:
             _rungs.index_of(self.path, self.rung)
         except Exception as exc:
@@ -595,16 +611,22 @@ class TurnCommit:
         # (consolidation.validate_tags plus their named additions).
         _require(isinstance(self.wound_mints, list), "RECORD_FIELD_TYPE", "TurnCommit.wound_mints must be a list")
         from . import wound as _wound
-        for _w in self.wound_mints:
-            _wound.check_mint(_w)
+        self.wound_mints = [_wound.check_mint(_w) for _w in self.wound_mints]   # each with the vocabulary's strings
         _check_validation(self.validation)
+        binds, spelt = [], {}
         for _tb in self.target_binds:
             _require(isinstance(_tb, (list, tuple)) and len(_tb) == 2, "RECORD_LIST_ITEM_TYPE",
                      "TurnCommit.target_binds items must be (primary, target) pairs, got %r" % (_tb,))
-            _require(_tb[0] in PATHS, "RECORD_LIST_ITEM_TYPE",
-                     "TurnCommit.target_binds names %r, which is not one of the primaries" % (_tb[0],))
+            primary = member(_tb[0], PATHS, "RECORD_LIST_ITEM_TYPE",
+                             "TurnCommit.target_binds names %r, which is not one of the primaries" % (_tb[0],))
             _require(isinstance(_tb[1], str), "RECORD_LIST_ITEM_TYPE",
                      "TurnCommit.target_binds target must be a str ('' is the release), got %r" % type(_tb[1]).__name__)
+            # two spellings of one primary would become one key - `target_binds` is UNIQUE on it - and which target wins
+            # is not the record layer's to guess: refused by name, as a raw repeat is left to the database (review 1)
+            _require(spelt.setdefault(primary, _tb[0]) == _tb[0], "RECORD_LIST_ITEM_TYPE",
+                     "TurnCommit.target_binds spells %r two ways (%r, %r)" % (primary, spelt[primary], _tb[0]))
+            binds.append([primary, _tb[1]] if isinstance(_tb, list) else (primary, _tb[1]))
+        self.target_binds = binds                      # each primary the vocabulary's own (gate canonical-members)
         for td in self.toward_deltas:
             _require(isinstance(td, TowardDelta), "RECORD_LIST_ITEM_TYPE", "TurnCommit.toward_deltas items must be TowardDelta")
             td.validate()

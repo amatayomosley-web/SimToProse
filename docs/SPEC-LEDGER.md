@@ -1225,6 +1225,29 @@ a record-layer constant (wound_deltas.kind, rest_declared.source, claim_resoluti
 gate and move only by a rebuild - the suite pins each to its constant, so a changed constant fails until its CHECK and a
 rebuild step move with it; a migration step that drops a guarded column must drop that table's guard first.
 
+**2026-09-26 — a guarded field is stored in its vocabulary's own spelling (gate `canonical-members`):** the residual
+G6 declared. The database's insert guards hold each vocabulary exactly, and the record layer matched its fields exactly
+too - but by `in`, keeping the caller's object - so a check loosened later (case, spacing, an alias: "tolerate the
+model's spelling" is this codebase's habit, `rungs.index_of` and `readings.canonical_path`) would have accepted a word
+the guard then refuses, rolling a validated beat back mid-scene with one engine (DB_GUARD_REFUSED). Two coercions
+already split: `targets.write_binds` stored `str()` of an exactly-checked primary, and `wound._check` tested `str()` of
+a value `write_mints` then stored as itself - measured at HEAD with a text subclass, both ended in DB_GUARD_REFUSED. Now
+one match, `records.member`, returns the vocabulary's own element: `RelationshipDelta` (axis, order), `RestDeclared`
+(axis), `TowardDelta` (primary), a target bind's primary (`TurnCommit.validate`), `Reading` (path, confidence) and a
+minted wound (`check_mint`: concept, path, kept by `TurnCommit.validate`; `wound._check` matches the same way) each
+keep what it returns, and the writers - unchanged, since each already stores the validated record (`ledger.append_turn`
+is at its code bound) - store the vocabulary's spelling. Two spellings of one path in one beat, which would become one
+UNIQUE key, are merged on the vocabulary's element (`toward.coalesce`) or refused by name (a bind primary spelled two ways).
+The match is still exact at every check, so no stored value moves - a path with no ladder is still refused in the
+ladder's own words. Evidence: `tests/test_canonical_members.py` - with `records.member`
+replaced by a case- and space-blind match, a variant of every field is written through its real writer in the
+vocabulary's spelling and no guard refuses it. Not changed: the claim tier (checked exactly; `claims.write` stores only
+the SUPERPOSED default its callers pass), the law statement (stored as `law._normalise_law` strips it), the rung
+(already stored in the ladder's spelling), the ranges (bound as `float()` of the checked number - the numeric twin,
+reachable only with a numeric subclass), a mint's id (it carries its producer's spelling, so a loosened match must
+re-derive it), and the other exact walls in these tables (`WoundDelta` kind, `RestDeclared` source, a law's domain,
+modality and epistemic).
+
 **2026-09-26 — the composer's reply, read to its contract (gate `composer-replies`):** G5 of the contracts plan, for
 the composer. `scripts/composer.py` `verify` read the composer's reply by named gets and raised a bare `ComposerError`,
 so every refusal - and the `fell_back` the direction record keeps (`scripts/direct.py` `_compose_selection`) - was prose

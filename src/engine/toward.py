@@ -279,9 +279,14 @@ def coalesce(deltas):
     Order of first appearance is kept; distinct sources are joined so the row still says what moved
     it. Called by both drivers on the same line, immediately before the commit.
     """
+    from . import records as _records          # the one match, looked up at call time (gate canonical-members)
     merged = {}
     for td in (deltas or []):
-        key = (td.perceiver, td.target, td.primary)
+        try:                                   # merged on the vocabulary's element: two spellings of one path are ONE
+            p = _records.member(td.primary, PATHS, "RECORD_PRIMARY_UNKNOWN", "")   # row before the UNIQUE sees them
+        except RecordError:
+            p = td.primary                     # not a path: TowardDelta.validate refuses it by name
+        key = (td.perceiver, td.target, p)
         if key in merged:
             prev = merged[key]
             src = prev.source if td.source in ("", prev.source) else (

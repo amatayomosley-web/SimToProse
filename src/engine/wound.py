@@ -87,6 +87,7 @@ from .facets import _mentions, _normalize   # ONE word-boundary matcher; a secon
 from .records import RecordError, PATHS, INTENSITY_RANGE, in_range   # rule 6's bad-input type; the one intensity range
 from .state import _DIM_TO_PATH       # the one table _PATH_CLASS is derived from (2026-09-19)
 from . import concepts as _concepts
+from . import records as _records       # `_records.member` at call time: the one match (gate canonical-members)
 
 # The two learning rates ARE `bonds._ALPHA_NEG` and `_ALPHA_POS`, restated here rather than imported
 # because they mean something different in this tier and should be free to diverge under probe.
@@ -340,10 +341,9 @@ def _check(w):
     """Refuse a malformed engine wound by name. Returns the dict."""
     if not isinstance(w, dict):
         raise RecordError("WOUND_NOT_A_DICT", "wound: expected a wound dict, got %r" % type(w).__name__)
-    if str(w.get("concept", "")) not in _concepts.REGISTRY:
-        raise RecordError("WOUND_CONCEPT_UNKNOWN", "wound %r names concept %r, not in the registry" % (w.get("id"), w.get("concept")))
-    if str(w.get("path", "")) not in PATHS:
-        raise RecordError("WOUND_PATH_UNKNOWN", "wound %r names path %r" % (w.get("id"), w.get("path")))
+    _records.member(w.get("concept"), _concepts.REGISTRY, "WOUND_CONCEPT_UNKNOWN",   # the one match (canonical-members)
+                    "wound %r names concept %r, not in the registry" % (w.get("id"), w.get("concept")))
+    _records.member(w.get("path"), PATHS, "WOUND_PATH_UNKNOWN", "wound %r names path %r" % (w.get("id"), w.get("path")))
     v = w.get("intensity")
     if isinstance(v, bool) or not in_range(v, INTENSITY_RANGE):
         raise RecordError("WOUND_INTENSITY_RANGE", "wound %r intensity %r is not a number in [%g, %g]"
@@ -359,6 +359,12 @@ def check_mint(w):
     uncoded, and an id that disagreed with its (concept, path) was written. Not `_check` itself: that one also reads a
     sheet's authored wounds (contracts_sheet), whose ids are authored."""
     _check(w)
+    # THE VOCABULARY'S OWN STRINGS are what write_mints stores (gate canonical-members): `_check` once tested str() of
+    # each while the write bound the value itself, so a value whose text differs from its str() passed one and not the
+    # other; both now match through `member`, and this copy carries the strings it returns
+    w = dict(w, concept=_records.member(w["concept"], _concepts.REGISTRY, "WOUND_CONCEPT_UNKNOWN",
+                                        "wound %r names concept %r, not in the registry" % (w.get("id"), w["concept"])),
+             path=_records.member(w["path"], PATHS, "WOUND_PATH_UNKNOWN", "wound %r names path %r" % (w.get("id"), w["path"])))
     want = wound_id(w["concept"], w["path"])
     if w.get("id") != want:
         raise RecordError("WOUND_MINT_ID_MISMATCH", "minted wound %r: a minted wound's id is %r, the id of its "
