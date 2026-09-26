@@ -140,8 +140,15 @@ def seed(con, run_id, turn, perceiver, relationships):
     transaction: the callers are drivers between beats, not inside append_turn."""
     rows = seed_rows(perceiver, relationships, existing=rows_for(con, run_id, perceiver, _window.ALL))
     if rows:
-        with con:
-            write(con, run_id, turn, rows)
+        try:
+            with con:
+                write(con, run_id, turn, rows)
+        except Exception as exc:
+            # A RECORD GUARD'S REFUSAL is named here as append_turn names it (gate record-guards review): this is the
+            # same engine's other writer into a guarded table, and its own transaction.
+            from . import db as _db                    # at call time: db's guards import the modules this one does
+            _db.refuse_if_guarded(exc, "bond_rest.seed (run=%s turn=%s perceiver=%s)" % (run_id, turn, perceiver))
+            raise
     return len(rows)
 
 # DRIFT (relationships.md:30): retention per elapsed DAY, toward the edge's rest. "affinity fades

@@ -84,7 +84,7 @@ from __future__ import annotations
 
 from .decay_law import relax          # the one law; see its header
 from .facets import _mentions, _normalize   # ONE word-boundary matcher; a second copy is the duplicate defect
-from .records import RecordError, PATHS   # rule 6's bad-input type
+from .records import RecordError, PATHS, INTENSITY_RANGE, in_range   # rule 6's bad-input type; the one intensity range
 from .state import _DIM_TO_PATH       # the one table _PATH_CLASS is derived from (2026-09-19)
 from . import concepts as _concepts
 
@@ -345,8 +345,32 @@ def _check(w):
     if str(w.get("path", "")) not in PATHS:
         raise RecordError("WOUND_PATH_UNKNOWN", "wound %r names path %r" % (w.get("id"), w.get("path")))
     v = w.get("intensity")
-    if not isinstance(v, (int, float)) or isinstance(v, bool) or not (0.0 <= float(v) <= 1.0):
-        raise RecordError("WOUND_INTENSITY_RANGE", "wound %r intensity %r is not a number in [0,1]" % (w.get("id"), v))
+    if isinstance(v, bool) or not in_range(v, INTENSITY_RANGE):
+        raise RecordError("WOUND_INTENSITY_RANGE", "wound %r intensity %r is not a number in [%g, %g]"
+                          % ((w.get("id"), v) + INTENSITY_RANGE))
+    return w
+
+
+def check_mint(w):
+    """A wound as a turn MINTS it -> the dict, or refused by name (gate record-guards review): `_check`'s concept, path
+    and intensity, and every other field `write_mints` keeps - its id the one `wound_id` of its (concept, path), its
+    source and text text, its triggers a list of text (each may be absent: the write takes "" and []). The write read
+    them inside the turn's transaction, where a missing id, a list as source or a set of triggers rolled the beat back
+    uncoded, and an id that disagreed with its (concept, path) was written. Not `_check` itself: that one also reads a
+    sheet's authored wounds (contracts_sheet), whose ids are authored."""
+    _check(w)
+    want = wound_id(w["concept"], w["path"])
+    if w.get("id") != want:
+        raise RecordError("WOUND_MINT_ID_MISMATCH", "minted wound %r: a minted wound's id is %r, the id of its "
+                          "(concept, path)" % (w.get("id"), want))
+    for f in ("source", "text"):
+        if not isinstance(w.get(f, ""), str):
+            raise RecordError("WOUND_MINT_FIELD_TYPE", "minted wound %r: its %s must be text, got %s"
+                              % (want, f, type(w.get(f)).__name__))
+    trig = w.get("trigger", [])
+    if not isinstance(trig, list) or not all(isinstance(t, str) for t in trig):
+        raise RecordError("WOUND_MINT_FIELD_TYPE", "minted wound %r: its trigger must be a list of text, got %s"
+                          % (want, type(trig).__name__))
     return w
 
 
@@ -430,7 +454,7 @@ def write_mints(con, run_id, turn, char_id, mints):
     import json as _json
     n = 0
     for w in (mints or []):
-        w = _check(w)
+        w = check_mint(w)
         con.execute("INSERT INTO wound_minted (run_id, turn, char_id, wound_id, concept, path, intensity, "
                     "source, text, triggers) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     (run_id, int(turn), str(char_id), w["id"], w["concept"], w["path"], float(w["intensity"]),

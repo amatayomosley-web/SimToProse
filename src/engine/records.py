@@ -4,6 +4,7 @@ Validation lives at the boundary: a record validates completely or the write ref
 no coercion, no partial acceptance. Downstream read-requirements ARE upstream write-requirements,
 so each record here names the consumer that needs it.
 """
+import json
 from dataclasses import dataclass, field
 from typing import Optional
 from .errors import EngineError
@@ -213,6 +214,21 @@ def direction_changes(primitive):
     return bool(row["direction_changes"]) if row else False
 VISIBILITIES = ("public", "private-to-actor")
 RELATIONSHIP_AXES = ("trust", "affinity", "respect", "debt")
+# first = what the perceiver makes of the target; second = what they believe the target makes of them (bonds.reflect).
+# Named (gate record-guards) because the database's insert guard is built from it (guards.py), not from a second copy.
+RELATIONSHIP_ORDERS = ("first", "second")
+# THE RANGES, named once for the same reason (gate record-guards review: the guards first held their own copies of
+# these bounds, and widening a validator alone passed every suite while the database refused its beats): every delta
+# on every tier, and a scar's intensity.
+DELTA_RANGE = (-1.0, 1.0)
+INTENSITY_RANGE = (0.0, 1.0)
+
+
+def in_range(v, bounds):
+    """A number within `bounds`, inclusive - the one reading of a range the validators and guards.py share. A bool is a
+    number here, as it always was for a delta (True is 1). The number itself is compared, never float() of it: Python
+    compares an int with a float exactly, and an int past a float's range is out of range, not an OverflowError."""
+    return isinstance(v, (int, float)) and bounds[0] <= v <= bounds[1]
 
 
 class RecordError(EngineError):
@@ -229,6 +245,34 @@ def _check_affect(affect, label):
     for p, v in affect.items():
         _require(isinstance(v, (int, float)) and 0.0 <= float(v) <= 1.0,
                  "RECORD_AFFECT_VALUE_RANGE", "%s[%s] must be in [0, 1], got %r" % (label, p, v))
+
+
+def _check_validation(v):
+    """A committed turn's mechanical validation (gate record-guards): a map - {} when none ran, else
+    consolidation.validate_tags' {ok, flags, confidence, escalate}, which the drivers extend with their own named keys.
+    Each of those four is held to its type WHERE GIVEN, not required: every reader of the record takes them with a
+    default (consolidation's flag check, faults.scan_run, mood_fold), and a `flags` that is not a list is what they
+    would iterate wrongly. And storable by the serialiser the ledger uses: it wrote this inside the turn's transaction,
+    where a value json cannot write rolled the beat back uncoded."""
+    _require(isinstance(v, dict), "RECORD_FIELD_TYPE", "TurnCommit.validation must be a dict")
+    if "ok" in v:
+        _require(isinstance(v["ok"], bool), "RECORD_VALIDATION_SHAPE",
+                 "TurnCommit.validation's ok must be true or false, got %r" % (v["ok"],))
+    if "flags" in v:
+        _require(isinstance(v["flags"], list), "RECORD_VALIDATION_SHAPE",
+                 "TurnCommit.validation's flags must be a list, got %s" % type(v["flags"]).__name__)
+    if "confidence" in v:
+        c = v["confidence"]
+        _require(isinstance(c, (int, float)) and not isinstance(c, bool) and 0.0 <= c <= 1.0,
+                 "RECORD_VALIDATION_SHAPE", "TurnCommit.validation's confidence must be a number in [0, 1], got %r" % (c,))
+    if "escalate" in v:
+        _require(isinstance(v["escalate"], bool), "RECORD_VALIDATION_SHAPE",
+                 "TurnCommit.validation's escalate must be true or false, got %r" % (v["escalate"],))
+    try:
+        json.dumps(v)
+    except (TypeError, ValueError, RecursionError) as exc:
+        raise RecordError("RECORD_VALIDATION_SHAPE", "TurnCommit.validation cannot be stored as JSON: %s"
+                          % str(exc)[:120])
 
 
 def _require(cond, code, msg):
@@ -340,10 +384,10 @@ class RelationshipDelta:
         _require(isinstance(self.perceiver, str) and self.perceiver.strip(), "RECORD_PERCEIVER_EMPTY", "RelationshipDelta.perceiver must be non-empty")
         _require(isinstance(self.target, str) and self.target.strip(), "RECORD_TARGET_EMPTY", "RelationshipDelta.target must be non-empty")
         _require(self.axis in RELATIONSHIP_AXES, "RECORD_AXIS_UNKNOWN", "RelationshipDelta.axis %r not in %s" % (self.axis, list(RELATIONSHIP_AXES)))
-        _require(isinstance(self.delta, (int, float)) and -1.0 <= float(self.delta) <= 1.0,
+        _require(in_range(self.delta, DELTA_RANGE),
                  "RECORD_DELTA_RANGE",
-                 "RelationshipDelta.delta must be a number in [-1, 1], got %r" % (self.delta,))
-        _require(self.order in ("first", "second"),
+                 "RelationshipDelta.delta must be a number in [%g, %g], got %r" % (DELTA_RANGE + (self.delta,)))
+        _require(self.order in RELATIONSHIP_ORDERS,
                  "RECORD_ORDER_UNKNOWN",
                  "RelationshipDelta.order must be 'first' or 'second', got %r" % (self.order,))
 
@@ -371,9 +415,9 @@ class WoundDelta:
         _require(isinstance(self.wound_id, str) and self.wound_id.strip(),
                  "RECORD_WOUND_ID_EMPTY",
                  "WoundDelta.wound_id must be non-empty — a wound with no id can never be folded back")
-        _require(isinstance(self.delta, (int, float)) and -1.0 <= float(self.delta) <= 1.0,
+        _require(in_range(self.delta, DELTA_RANGE),
                  "RECORD_DELTA_RANGE",
-                 "WoundDelta.delta must be a number in [-1, 1], got %r" % (self.delta,))
+                 "WoundDelta.delta must be a number in [%g, %g], got %r" % (DELTA_RANGE + (self.delta,)))
         _require(self.kind in WOUND_DELTA_KINDS,
                  "RECORD_WOUND_KIND_UNKNOWN",
                  "WoundDelta.kind %r not in %s — the kind names the CAUSE; the sign of `delta` "
@@ -402,9 +446,9 @@ class TowardDelta:
                  "RECORD_PRIMARY_UNKNOWN",
                  "TowardDelta.primary %r not in %s — the MICRO tier is priced on the affective "
                  "primitives, not the relationship axes" % (self.primary, list(PATHS)))
-        _require(isinstance(self.delta, (int, float)) and -1.0 <= float(self.delta) <= 1.0,
+        _require(in_range(self.delta, DELTA_RANGE),
                  "RECORD_DELTA_RANGE",
-                 "TowardDelta.delta must be a number in [-1, 1], got %r" % (self.delta,))
+                 "TowardDelta.delta must be a number in [%g, %g], got %r" % (DELTA_RANGE + (self.delta,)))
         _require(isinstance(self.source, str), "RECORD_SOURCE_TYPE", "TowardDelta.source must be str")
 
 
@@ -442,6 +486,12 @@ class Reading:
                  % type(self.about).__name__)
         _require(isinstance(self.confidence, str) and self.confidence.strip(),
                  "READING_CONFIDENCE_EMPTY", "Reading.confidence must be a non-empty word")
+        # ONE OF THE THREE WORDS, here and not only in `readings.parse` (gate record-guards): the database's insert
+        # guard holds `readings.confidence` to them, so a Reading built past the parser must meet the same wall here,
+        # by the parser's own code, before any write - never as a rolled-back beat.
+        from .readings import CONFIDENCE_WORDS as _words
+        _require(self.confidence in _words, "READING_CONFIDENCE_UNKNOWN",
+                 "Reading.confidence %r is not one of %s" % (self.confidence, list(_words)))
         # THE LADDER IS THE AUTHORITY, not a list kept here. Importing at call time keeps
         # records.py free of an engine import at module scope, and means this can never disagree
         # with rung_blocks.BANDS -- the duplicate class CLAUDE.md tabulates seven instances of.
@@ -534,6 +584,20 @@ class TurnCommit:
                      "TurnCommit.readings items must be Reading, got %r" % type(_r).__name__)
             _r.validate()
         _require(isinstance(self.lands_on, list), "RECORD_FIELD_TYPE", "TurnCommit.lands_on must be a list")
+        for _l in self.lands_on:
+            _require(isinstance(_l, str) and _l.strip(), "RECORD_LIST_ITEM_TYPE",
+                     "TurnCommit.lands_on items must be non-empty character ids, got %r" % (_l,))
+        # THE TWO FIELDS NOTHING HERE CHECKED (gate record-guards). A mint was checked only inside the turn's
+        # transaction (wound.write_mints), after the turn row was written: a bad concept, path or intensity was refused
+        # there by its WOUND_* code and rolled back, and a missing id, or a source, text or trigger of the wrong type, was
+        # not checked at all and rolled back uncoded. The whole-mint check (wound.check_mint) runs here, before any write.
+        # `validation` is the committed turn's mechanical record: {} when none ran, else what the drivers build
+        # (consolidation.validate_tags plus their named additions).
+        _require(isinstance(self.wound_mints, list), "RECORD_FIELD_TYPE", "TurnCommit.wound_mints must be a list")
+        from . import wound as _wound
+        for _w in self.wound_mints:
+            _wound.check_mint(_w)
+        _check_validation(self.validation)
         for _tb in self.target_binds:
             _require(isinstance(_tb, (list, tuple)) and len(_tb) == 2, "RECORD_LIST_ITEM_TYPE",
                      "TurnCommit.target_binds items must be (primary, target) pairs, got %r" % (_tb,))

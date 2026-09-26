@@ -42,6 +42,8 @@ import os
 import re
 import sqlite3
 
+from . import guards as _guards
+
 _SCHEMA_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "schema.sql")
 
 #: kind -> tier. RED is state that is wrong; AMBER is a wall this file does not carry.
@@ -54,6 +56,10 @@ TIERS = {
     "SCHEMA-TABLE-MISSING":        "amber",
     "APPEND-ONLY-TRIGGER-MISSING": "amber",
     "SCHEMA-GUARD-MISSING":        "amber",
+    "INSERT-GUARD-MISSING":        "amber",
+    "LEGACY-ROWS":                 "amber",
+    "BOOK-REFUSED":                "red",
+    "INSERT-GUARD-UNOWNED":        "amber",
 }
 
 #: printed by `render` on EVERY run, green included. A guard reports on what it READS, so a clean
@@ -63,7 +69,8 @@ NOT_COVERED = (
     "  * whether a PYTHON writer stands behind a missing wall — `ledger.append_scene` guards",
     "    `scenes.voice` and this cannot see that, so an ALTER-migrated column reports as a hole",
     "    forever even though nothing can write through it",
-    "  * repair. Every missing guard needs a table REBUILD; SQLite cannot ALTER a CHECK in",
+    "  * repair. Every missing per-column CHECK needs a table REBUILD; SQLite cannot ALTER a CHECK in",
+    "    (the record's insert guards are the engine's own: installed on open, unless it refuses the book)",
     "  * a write that left no trace. `PRAGMA recursive_triggers=ON` is set only in `db.connect`,",
     "    so any other opener has hard rule 2 disabled. The three that existed now open `mode=ro`",
     "    and `tests/test_integrity.py` refuses a new one, but a write that ALREADY happened leaves",
@@ -241,6 +248,51 @@ def _per_run(con, findings, fold_check=None, known_cast=None):
                                          len(gaps)))
 
 
+def _insert_guards(con, findings):
+    """The record's insert guards (gate record-guards) - built by guards.py from the record layer's constants and
+    installed by `db.connect`, so schema.sql's reference cannot hold them. Read through `guards.survey`, the reading
+    `guards.install` acts on, so this report and the engine's open cannot disagree about a book (review 3: a book the
+    engine refused to open was reported amber, "the engine installs it on open"). RED, BOOK-REFUSED, when the engine
+    refuses the book - a newer book, another engine's guard set at this version, a trigger holding a guard's name -
+    each naming the code the open raises. AMBER for a guard the engine installs, replaces or drops on open, and for
+    rows today's guard would refuse: history written under another vocabulary - read as it was, never rewritten (hard
+    rule 2) - so it can never be repaired, and a red that can only stay red is the one this module was written not to
+    print."""
+    s = _guards.survey(con)
+    book = con.execute("PRAGMA user_version").fetchone()[0]
+    if book > s["version"]:
+        refused = [("user_version", "this book is schema v%d and this engine knows v%d: the engine refuses to open it "
+                    "(DB_SCHEMA_TOO_NEW); its guards are the newer engine's" % (book, s["version"]))]
+    else:
+        refused = [(name, "stamped v%d by an engine with another guard set (wall %s; this engine's %s): the engine "
+                    "refuses to open this book (DB_GUARD_VOCABULARY_SKEW) - if that engine is gone, release it %s"
+                    % (got[0], got[2] or "unreadable", s["wall"], _guards.release_hint(con))) for name, got in s["skew"]]
+        refused += [(name, "a trigger that is not the engine's, %r, holds this guard's name: the engine refuses to open "
+                     "this book (DB_GUARD_NAME_TAKEN)" % (holder,)) for name, holder in s["taken"]]
+    for subject, detail in refused:
+        findings.append(_finding("BOOK-REFUSED", subject, detail))
+    for name in ([] if refused else s["changed"]):
+        got = _guards.stamp(s["have"].get(name))
+        findings.append(_finding("INSERT-GUARD-MISSING", name, "this database %s; the engine %s it on open" % (
+            "does not carry it" if name not in s["have"]
+            else "carries a different, unstamped one (edited, or pre-stamp)" if not got
+            else "carries one stamped v%d, older than this engine's v%d" % (got[0], s["version"]) if got[0] < s["version"]
+            else "carries one stamped v%d with this engine's guard set but another body (edited, or reworded)" % got[0],
+            "installs" if name not in s["have"] else "replaces")))
+    for name in ([] if refused else s["stale"]):
+        findings.append(_finding("INSERT-GUARD-MISSING", name, "this database carries a guard this engine retired; the "
+                                 "engine drops it on open"))
+    for name, got in s["unowned"]:
+        findings.append(_finding("INSERT-GUARD-UNOWNED", name, "a record guard this engine does not own, stamped v%d by "
+                                 "an older engine (a table no longer guarded, never listed in guards.RETIRED): the "
+                                 "engine leaves it on open, and it still refuses what it was built to" % got[0]))
+    for subject, n in sorted(_guards.legacy_counts(con).items()):
+        findings.append(_finding("LEGACY-ROWS", subject,
+                                 "%d row(s) hold a value today's guard would refuse - written under another vocabulary "
+                                 "or spelling (an older one, or a newer one read by an older engine), read as it was and "
+                                 "never rewritten" % n, n))
+
+
 def sweep(con, schema_path=None, fold_check=None, known_cast=None):
     """Everything wrong with this database -> [finding]. Reads only. Raises nothing.
 
@@ -252,6 +304,7 @@ def sweep(con, schema_path=None, fold_check=None, known_cast=None):
     ref = reference(schema_path)
     try:
         declared, missing = _schema_tier(con, ref, findings)
+        _insert_guards(con, findings)
         _orphans(con, findings)
         _per_run(con, findings, fold_check=fold_check, known_cast=known_cast)
     finally:
@@ -315,7 +368,8 @@ def render(findings, brief=False, label="", summary=None):
                    % (head["declared"], head["missing"]))
         if head["missing"]:
             out.append("     (SQLite cannot ALTER a CHECK in, so a MIGRATED database keeps its "
-                       "original columns — the Python writers are its only wall)")
+                       "original columns — for these the Python writers are the wall; the engine's "
+                       "insert guards cover the record's vocabularies and ranges)")
     if not brief:
         for kind in sorted(k for k in by_kind if TIERS[k] == "amber"):
             out.append("  %-30s %d" % (kind, by_kind[kind]))

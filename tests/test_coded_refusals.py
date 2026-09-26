@@ -34,6 +34,7 @@ from src.engine import systems as _systems                         # noqa: E402 
 from src.engine import condition as _condition                     # noqa: E402  (gate condition-flow)
 from src.engine import body as _body                               # noqa: E402  (gate body-exertion)
 from src.engine import injuries as _injuries                       # noqa: E402  (gate injuries)
+from src.engine import guards as _guards, records as _records       # noqa: E402  (gate record-guards)
 
 FAILS = []
 
@@ -172,6 +173,11 @@ RECORD_CASES = {
     "RECORD_HOLD_RANGE":             lambda: AttachmentDeclared("a", "loc.mill", 1.5).validate(),
     "RECORD_SIGN_UNKNOWN":           lambda: AttachmentDeclared("a", "loc.mill", 0.5, sign="*").validate(),
     "RECORD_ATTACHMENT_SOURCE_UNKNOWN": lambda: AttachmentDeclared("a", "loc.mill", 0.5, source="speech").validate(),
+    # gate record-guards: the committed turn's validation, and a guard the builder cannot read
+    "RECORD_VALIDATION_SHAPE":       lambda: _records.TurnCommit(run_id="r", turn=0, actor="maren", thought="", action="",
+                                                                 tags={}, affect={p: 0.0 for p in PATHS},
+                                                                 validation={"ok": "yes"}).validate(),
+    "RECORD_GUARD_KIND_UNKNOWN":     lambda: _guards.refused(("mill", "wheel", "spoked", lambda: None, "X", "-")),
     "RECORD_EVENT_TYPE_EMPTY":       lambda: _event(type="").validate(),
     "RECORD_EVENT_PAYLOAD_TYPE":     lambda: _event(payload="nope").validate(),
     "RECORD_EVENT_VISIBILITY_UNKNOWN": lambda: _event(visibility="secret").validate(),

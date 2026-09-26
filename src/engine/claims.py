@@ -238,8 +238,15 @@ def record(con, run_id, turn, speaker, said, extracts=None, tier=SUPERPOSED):
                          "claims.record: %r's utterance at turn %r carries no verbatim text. The "
                          "extract is an index INTO what was said, never a substitute for it."
                          % (speaker, turn))
-    with con:
-        return write(con, run_id, turn, speaker, said, extracts, tier)
+    try:
+        with con:
+            return write(con, run_id, turn, speaker, said, extracts, tier)
+    except Exception as exc:
+        # A RECORD GUARD'S REFUSAL is named here as append_turn names it (gate record-guards review): the keeper's
+        # writer into a guarded table, in its own transaction.
+        from . import db as _db                        # at call time: db imports guards, which imports this module
+        _db.refuse_if_guarded(exc, "claims.record (run=%s turn=%s speaker=%s)" % (run_id, turn, speaker))
+        raise
 
 
 def write(con, run_id, turn, speaker, said, extracts=None, tier=SUPERPOSED):

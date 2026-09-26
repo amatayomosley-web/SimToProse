@@ -84,13 +84,22 @@ def examine(path, fold=False):
     check; the lore debt (`_lore_debt`) and the correction count (`_corrections`) are read the same
     way regardless — both are counts over rows, not migration-coverage questions."""
     if fold:
+        from src.engine.errors import EngineError
         from src.engine.ledger import Ledger           # migrates on open — the documented trade
-        led = Ledger(path)
         try:
-            return (integrity.sweep(led.con, fold_check=lambda r: led.divergence(r)[:2]),
-                    integrity.schema_summary(led.con), _lore_debt(led.con), _corrections(led.con))
-        finally:
-            led.con.close()
+            led = Ledger(path)
+        except EngineError as exc:
+            # A BOOK THE ENGINE REFUSES TO OPEN (gate record-guards, review 4): the fold needs the engine's own open,
+            # and the refusal is a code, not a crash - the read-only sweep below reports it red (BOOK-REFUSED).
+            print("  -- --fold skipped: the engine refuses to open this book (%s); the read-only sweep follows"
+                  % exc.code)
+            led = None
+        if led is not None:
+            try:
+                return (integrity.sweep(led.con, fold_check=lambda r: led.divergence(r)[:2]),
+                        integrity.schema_summary(led.con), _lore_debt(led.con), _corrections(led.con))
+            finally:
+                led.con.close()
     con = open_readonly(path)
     try:
         return (integrity.sweep(con), integrity.schema_summary(con),
@@ -103,8 +112,9 @@ def main():
     ap = argparse.ArgumentParser(
         description="report what is wrong with a chronicle database — reads, never repairs",
         epilog="A MIGRATED database keeps its original columns: SQLite cannot ALTER a CHECK in, so "
-               "every guard added after that database was created is absent from it and the Python "
-               "writers are its only wall. That is what the amber tier counts.")
+               "every CHECK added after that database was created is absent from it, and for those the "
+               "Python writers are the only wall (the engine's insert guards, installed on open, cover "
+               "the record's vocabularies and ranges). That is what the amber tier counts.")
     ap.add_argument("db", nargs="+", help="path(s) to a chronicle .db")
     ap.add_argument("--fold", action="store_true",
                     help="also compare each run's cached snapshot against a from-zero fold. Opens "

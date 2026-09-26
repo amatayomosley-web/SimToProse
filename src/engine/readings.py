@@ -195,10 +195,15 @@ def write(con, run_id, turn, actor, readings):
     n = 0
     for r in (readings or []):
         r.validate()
+        # THE LADDER'S OWN SPELLING is what the log keeps (gate record-guards). `rungs.index_of` reads a rung name
+        # case- and space-blind, so "Anger" validated and was stored as written; the database's insert guard holds the
+        # column to the ladder's names exactly, and it must never refuse what the record layer accepted. Every one of
+        # the 21,346 readings recorded before this line already held the ladder's spelling (measured 2026-09-26).
+        spelled = rungs.names_on(r.path)[rungs.index_of(r.path, r.rung) - 1]
         con.execute(
             "INSERT INTO readings (run_id, turn, actor, path, rung, about, confidence) "
             "VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (run_id, int(turn), str(actor), r.path, r.rung, r.about or UNBOUND, r.confidence))
+            (run_id, int(turn), str(actor), r.path, spelled, r.about or UNBOUND, r.confidence))
         n += 1
     return n
 

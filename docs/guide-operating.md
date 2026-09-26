@@ -398,6 +398,9 @@ Park a run you're leaving: `led.set_status(run_id, "parked")` — appends are re
 | detector FLAG (probe) | state-sanity breach (saturation/oscillation/drift) | real coupling problem; check recent tag dims vs hints; `--corrupt` proves the detectors themselves |
 | `CONTRACT_RUN_REFUSED` before the first beat | a file the run starts from breaks its contract | fix each named path (`lint_book` / `lint_scene` list them); nothing was written, so re-run as it was |
 | `RESUME DIVERGENCE` | cache ≠ replay | never disable the CHECK; discard the CACHE — see "If a run refuses to resume" below |
+| `DB_GUARD_VOCABULARY_SKEW` when a tool opens a book | another engine at this schema version, with another guard set (other words, bounds, rungs, tests or guarded tables, or a stamp this engine cannot read), installed the book's record guards; replacing them would refuse that engine's running beats | if that engine is still in use, step `db.SCHEMA_VERSION` where the guards moved. If it is gone (an old branch, a scratch build), drop the book's record guards and open it again — the engine installs its own, and no row is touched: see "If a book is refused for another engine's guards" below. `scripts/doctor.py` reports the book red (BOOK-REFUSED) until then |
+| `DB_GUARD_NAME_TAKEN` when a tool opens a book | a trigger that is not the engine's holds a record guard's name (SQLite reads trigger names case-blind) | that trigger is yours: drop it (SQLite cannot rename a trigger; re-create it under another name if you still need it), and the next open installs the guard |
+| `DB_GUARD_REFUSED` on a beat | a record guard refused a value this engine's record layer accepted — another engine's guard (a newer version that stepped the book while this one ran), or a writer storing a spelling its validator normalised | the beat rolled back whole; re-open the book with the engine whose guards it holds and run the beat again |
 | OpenRouter nulls/throttle | burst rate limit (~250 calls observed) | backoff; for judging, the fallback is an opus subagent on blinded transcript files (the 2026-06-10/11 pattern) |
 
 ## What the system does NOT do (don't look for it)
@@ -422,6 +425,22 @@ prompt (numbers → direction).
   until move/harm/reveal events populate it).
 
 The `runs/*.db` files are runtime artifacts, gitignored — back them up like save-files, not like code.
+
+### If a book is refused for another engine's guards (DB_GUARD_VOCABULARY_SKEW)
+
+The record guards hold no data: they are triggers the engine builds from its own constants and installs on every
+open. When the engine that stamped a book's guards is gone (an old branch, a scratch build), drop them, and the next
+open installs this engine's own. Nothing in the book's rows changes; a trigger without a record-guards stamp is yours
+and stays. One command, run from the engine's folder (the repo root), the same in PowerShell and in Git Bash - the
+refusal and `scripts/doctor.py` print it with the book's own path:
+
+```bash
+python scripts/release_guards.py <book.db>
+```
+
+Then open the book with the engine as usual; `scripts/doctor.py <book.db>` reports it clean. While developing the engine
+itself, this is also the release for a test book an earlier build of the same version stamped: iterate on copies of real
+books, and step `db.SCHEMA_VERSION` when a guarded word, bound or test moves.
 
 ### If a run refuses to resume with RESUME DIVERGENCE
 

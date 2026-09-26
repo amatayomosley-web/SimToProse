@@ -208,6 +208,9 @@ class Ledger:
             # connection whose transaction had just died, for every unrelated fault.
             if isinstance(exc, sqlite3.IntegrityError):
                 refuse_if_duplicate()
+            # A RECORD GUARD REFUSED what this record layer accepted (commit.validate ran above): another engine's words,
+            # or a writer storing a spelling its validator normalised (gate record-guards). Named, as the lock below is.
+            db.refuse_if_guarded(exc, "append_turn (run=%s turn=%s actor=%s)" % (commit.run_id, commit.turn, commit.actor))
             # THE SAME LOCK, THE SAME CODE. This branch used to call a busy timeout
             # LEDGER_TURN_COMMIT_ROLLED_BACK while `write_once` let the identical condition out
             # raw — one module answering one condition two ways, which is why neither was noticed.

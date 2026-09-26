@@ -92,6 +92,8 @@ _RECORD = {
     "RECORD_SOURCE_TYPE":                   "a delta's source is not a string",
     "RECORD_TARGET_EMPTY":                  "a delta names no target, so there is nobody the regard is about",
     "RECORD_TURN_INVALID":                  "a turn commit's turn index is not an int >= 0",
+    "RECORD_VALIDATION_SHAPE":              "a turn commit's validation carries ok, flags, confidence or escalate of the wrong type, or cannot be stored as JSON",
+    "RECORD_GUARD_KIND_UNKNOWN":            "a database insert guard (guards.GUARDS) names a kind guards.py has no builder for - the table and the builder disagree",
     "RECORD_WOUND_ID_EMPTY":                "a wound delta names no wound, and one with no id can never be folded back",
     "RECORD_WOUND_KIND_UNKNOWN":            "a wound delta's kind is not one of the authored causes",
     "RECORD_REST_RANGE":            "a rest row carries a value outside [0, 1] — an edge axis can rest nowhere else",
@@ -370,10 +372,13 @@ _DECAY_F = {
 }
 
 _DB_F = {
-    "DB_PATH_INVALID":   "connect was given something that is not a filesystem path, so there is no database file to open or create",
+    "DB_PATH_INVALID":   "connect was given something that is not a filesystem path, so there is no database file to open or create - or release_guards a path with no file, where there is nothing to release and it creates none",
     "DB_SCHEMA_TOO_NEW": "the database's on-disk schema version is newer than this engine understands, so opening it risks silently misreading rows a newer migration wrote",
+    "DB_GUARD_REFUSED":   "a record guard in the database refused a value this engine's record layer accepted - another engine's guard (a newer version that stepped the book while this one ran), or a writer storing a spelling its validator normalised (gate record-guards)",
+    "DB_GUARD_VOCABULARY_SKEW": "a book's record guards were installed at this schema version, or a later one, by an engine with another guard set - other words, bounds, rungs or tests, a guard retired or a table added, or a stamp this engine cannot read - so two engines at one version disagree, and replacing them would refuse the other's running beats (gate record-guards)",
+    "DB_GUARD_NAME_TAKEN": "a trigger that is not the engine's holds a record guard's name (SQLite compares trigger names case-blind), so the guard cannot be installed without destroying it (gate record-guards)",
     "DB_BUSY_TIMEOUT":    "another writer held the database past the busy timeout — a TIMEOUT, not a refusal: the same call succeeds unchanged once the lock clears, which is why it is not folded into any _EXISTS or ROLLED_BACK code",
-    "DB_TRANSACTION_OPEN": "a write-once writer was handed a connection with uncommitted DML on it, where its pre-check would read a stale snapshot and its rollback would discard the caller's work",
+    "DB_TRANSACTION_OPEN": "a writer that opens its own transaction (write_once, guards.install) was handed a connection with uncommitted DML on it, where its pre-check would read a stale snapshot and its commit or rollback would take the caller's work with it",
 }
 
 # ---- DIRECTION_* ----
@@ -454,6 +459,8 @@ _WOUND_F = {
     "WOUND_CONCEPT_UNKNOWN":         "a wound names a concept the registry does not hold, so no reading can ever match it (gate three, 2026-09-11)",
     "WOUND_PATH_UNKNOWN":            "a wound names a path that is not one of the built paths, so it multiplies nothing",
     "WOUND_INTENSITY_RANGE":         "a wound's intensity is not a number in [0,1]",
+    "WOUND_MINT_ID_MISMATCH":        "a minted wound's id is not the one id of its (concept, path) - the log would keep a row its fold reads as another wound",
+    "WOUND_MINT_FIELD_TYPE":         "a minted wound's source or text is not text, or its trigger is not a list of text",
     "WOUND_LIST_NOT_A_LIST":         "baseline.wounds is not a list of wound dicts",
     "WOUND_MINT_CHAR_NOT_A_DICT":    "wound.mint received a char that is not a dict",
     "WOUND_TRIAL_INPUT_NOT_NUMERIC": "the observed dimension, the wound's intensity, or the resilience handed to a trial is not a number",

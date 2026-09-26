@@ -22,6 +22,16 @@
 -- SCOPED DELIBERATELY to columns where empty is a LIE. The 17 columns carrying `DEFAULT ''` are
 -- deliberately optional (`label`, `thought`, `action`, `rationale`, `what`, `source`…) and must NOT
 -- get this check: for them, empty is a legitimate authored value meaning "none given".
+--
+-- THE VOCABULARIES AND RANGES ARE NOT IN THIS FILE (v34, gate record-guards). Where the record layer
+-- holds a column to a closed vocabulary or a range (an axis, a primary, a rung on its ladder, a
+-- confidence word, a tier, a delta in [-1, 1]...), the wall is a BEFORE INSERT trigger per table,
+-- `<table>_record_guard`, built by src/engine/guards.py from the record layer's own constants and
+-- installed by db.connect on every open. Not a CHECK here: a CHECK reaches a migrated table only by a
+-- rebuild, which copies history through it (three book databases hold rows under retired emotion
+-- names or an older order spelling, and would refuse to migrate), and a vocabulary moves only by
+-- another rebuild; a trigger is replaced on the next open - one vocabulary per SCHEMA_VERSION, pinned
+-- by tests/test_record_guards.py, so two engines at one version never replace each other's guards.
 
 -- ---- the run (run-lifecycle.md: run config pins models, prompt versions, catalog version) ----
 CREATE TABLE IF NOT EXISTS runs (
@@ -74,7 +84,7 @@ CREATE TABLE IF NOT EXISTS current_state (      -- per-turn CURRENT rows; effect
     run_id TEXT NOT NULL CHECK (run_id <> ''),
     char_id TEXT NOT NULL CHECK (char_id <> ''),
     turn      INTEGER NOT NULL,
-    affect    TEXT    NOT NULL,                 -- JSON {SEEKING..PLAY: 0..1}
+    affect    TEXT    NOT NULL,                 -- JSON {path: 0..1}, the nine records.PATHS
     condition TEXT    NOT NULL DEFAULT '{}',    -- JSON energy/allostatic
     PRIMARY KEY (run_id, char_id, turn)
 );
@@ -496,7 +506,7 @@ CREATE TABLE IF NOT EXISTS toward_deltas (
     turn      INTEGER NOT NULL,
     perceiver TEXT NOT NULL CHECK (perceiver <> ''),  -- whose feeling moved
     target TEXT NOT NULL CHECK (target <> ''),  -- who it is toward
-    primary_  TEXT    NOT NULL CHECK (primary_ <> ''),                 -- one of records.PRIMARIES ('primary' is SQL-reserved)
+    primary_  TEXT    NOT NULL CHECK (primary_ <> ''),                 -- one of records.PATHS ('primary' is SQL-reserved)
     delta     REAL    NOT NULL,                 -- SIGNED; the sign carries the direction
     source    TEXT    NOT NULL DEFAULT '',      -- prose: what moved it
     UNIQUE (run_id, turn, perceiver, target, primary_)
@@ -744,7 +754,7 @@ CREATE TABLE IF NOT EXISTS target_binds (
     run_id    TEXT    NOT NULL CHECK (run_id <> ''),
     turn      INTEGER NOT NULL,
     char_id   TEXT    NOT NULL CHECK (char_id <> ''),  -- whose feeling this is
-    primary_  TEXT    NOT NULL CHECK (primary_ <> ''), -- one of records.PRIMARIES ('primary' is SQL-reserved)
+    primary_  TEXT    NOT NULL CHECK (primary_ <> ''), -- one of records.PATHS ('primary' is SQL-reserved)
     target    TEXT    NOT NULL,                        -- who/what it is about; '' IS THE RELEASE
     UNIQUE (run_id, turn, char_id, primary_)
 );
