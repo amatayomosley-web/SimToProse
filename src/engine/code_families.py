@@ -553,6 +553,24 @@ _KEEPER_F = {
     "KEEPER_VERDICT_UNKNOWN":   "a keeper's ruling is not one of established / fiction / superposed",
 }
 
+# ---- COMPOSER_* — the composer's selection, checked before it reaches an actor (scripts/composer.py verify) ----
+# Raised by a script, registered here as KEEPER_* are (gate composer-replies, 2026-09-26). A refusal falls back to the
+# engine's own deterministic floor (scripts/direct.py `_compose_selection`), and the direction record keeps the code.
+_COMPOSER_F = {
+    "COMPOSER_REPLY_NOT_AN_OBJECT": "the composer's reply is not a JSON object carrying `selected` - there is no selection to check",
+    "COMPOSER_FIELD_TYPE":          "a field of the composer's reply is the wrong type for what reads it: an `about` that is not text (it becomes the actor's line), a path that is not text, a rung that is not a whole number, a primary that is not true or false",
+    "COMPOSER_SELECTED_NOT_A_LIST": "the composer's `selected` is not a list of selections",
+    "COMPOSER_TOO_MANY":            "the composer selected more than three emotions for one beat",
+    "COMPOSER_ENTRY_SHAPE":         "a selection is not an object carrying a path and a rung",
+    "COMPOSER_PATH_UNKNOWN":        "the composer selected a path the engine did not offer this character",
+    "COMPOSER_RUNG_MOVED":          "the composer selected an emotion at a rung the engine did not compute - it selects the emotion, never the rung",
+    "COMPOSER_PRIMARY_COUNT":       "several emotions selected and not exactly one marked primary, so the actor would resolve them in sequence",
+    "COMPOSER_NAMES_EMOTION":       "the composer's `about` names an emotion, a path or a rung, doing the state text's work",
+    "COMPOSER_NAMES_ACT":           "the composer's `about` names an act - what the character does is theirs to decide",
+    "COMPOSER_NOTHING_SELECTABLE":  "no built path reads a primitive this character carries, so there is nothing to compose a prompt about",
+    "COMPOSER_ROWS_TYPE":           "the deterministic floor was handed rows that are not the list selectable() returns",
+}
+
 # ---- COMPOSITION_* — the composition pass's attachment classifier (scripts/composition_pass.py) ----
 # Raised by a script, registered here the way APPRAISER_* are: the parser between a model and a sheet.
 _COMPOSITION_F = {

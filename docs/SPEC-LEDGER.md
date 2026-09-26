@@ -145,7 +145,7 @@ build something listed SPEC-ONLY here, flip the row in the same commit. Line num
 | Perception-mode wall (PerceptSet whitelist; identity behind insight 0.55; subtle cues behind perception 0.60; acquaintance recognition) | `scene-assembly.md:17-21,74-97`, `relevancy-gate.md:28-32` | YES | `gate.py:90-210`; never-add structural (`test_scene` whitelist canary); known-entity bypass `gate.py:176` | BUILT-AS-SPEC'D |
 | Graph recall: weighted hops, pathfinding to hinges, degree-penalty, multi-hop chains | `relevancy-gate.md:60-97` | NO | vault is FLAT by design; single-hop cost 1−confidence (`guide-engine.md:171-173` declares the reduction) | **BUILT-DIFFERENTLY (deliberate)** — the entire hop/path/DC-from-distance apparatus is spec-only behind the same interface |
 | Authored hinges (director-planted checks that always surface + branch) | `relevancy-gate.md:39` (pipeline step 5) | NO | `must_surface` exists only as the event-anchor flag (`gate.py:24,144`); no hinge authoring surface, no branch mechanics | SPEC-ONLY |
-| Name masking + latent-leak regeneration ("recorded as-is" preserved) | `knowledge-model.md` wall; status log `driving-the-engine.md:104-111` | YES | `gate.scope_names` :543 (prompt wall), `faithfulness.py:16-35` (output detector), `direct.py` `faithful_turn` :386-418 (regenerate → reject) ; `tests/test_faithful_turn.py` | BUILT-AS-SPEC'D |
+| Name masking + latent-leak regeneration ("recorded as-is" preserved) | `knowledge-model.md` wall; status log `driving-the-engine.md:104-111` | YES | `gate.scope_names` :543 (prompt wall), `faithfulness.py:16-35` (output detector), `direct.py` `faithful_turn` :408-440 (regenerate → reject) ; `tests/test_faithful_turn.py` | BUILT-AS-SPEC'D |
 
 ### Scene assembly & the packet
 
@@ -1167,6 +1167,40 @@ emotion seat with no present list, so a `lands_on` name it returns is never chec
 would change the prompt). NOT COVERED: no new container type for the seats' parsed output - the parsers are the
 validating boundary, and the event seat's dict is read as `tags` by every consumer downstream; the keeper's three and
 the composer (their own gates).
+
+**2026-09-26 — the composer's reply, read to its contract (gate `composer-replies`):** G5 of the contracts plan, for
+the composer. `scripts/composer.py` `verify` read the composer's reply by named gets and raised a bare `ComposerError`,
+so every refusal - and the `fell_back` the direction record keeps (`scripts/direct.py` `_compose_selection`) - was prose
+with no code. An `about` that was not text (a number, a list, a map, true, NaN, a lone surrogate) passed `verify` and
+then raised after it, outside the fallback (in `direction_for`; a lone surrogate in `record`'s digest), so the beat lost
+its WHOLE emotion direction (`by: none`), not only the composer's selection; a path or rung that was a list or map raised
+an uncoded TypeError; a rung given as the text
+"7" was refused as having moved a rung; `primary` was read by truthiness, so the text "false" counted as the primary and
+was recorded as true; an empty map as `selected` selected nothing; `unavailable` - which the module itself calls "a
+diagnostic for the operator and the logs" - was kept and printed nowhere; keys beyond the contract were dropped unseen.
+NOW: the contract is declared (`replies.COMPOSER_KEYS`, `COMPOSER_ENTRIES`) and held to `compose_prompt`'s own JSON
+shape by the suite, whose bytes are pinned by hash. Board #258 as written, as the keeper's gate applied it: a known key
+of the wrong type refuses the reply by a registered `COMPOSER_*` code (`COMPOSER_FIELD_TYPE`: an `about` or path that is
+not text, a rung that is not a whole number - true is not 1 - a primary that is not true or false; the old refusals
+coded, HEAD's words kept), and the beat takes the engine's own deterministic floor; null is absent and an integral-float
+rung is its rung, as before. The seats' "refuse nothing new" reasons do not hold here: a composer refusal falls to the
+floor, never to nothing; nothing retries the composer; and the 37 recorded composer replies are one well-typed shape (a
+census of their types), and the 30 whose prompts were kept verify against rows parsed from those prompts with the same
+outcome and HEAD's words at HEAD and after (one more kept prompt was never answered). The direction record keeps
+`unavailable` when it is text that says something (non-text left out and named) and names what an ACCEPTED reply
+carried beyond the contract (`extra`; a key the record cannot hold named by its JSON escape); no recorded decision
+manifest carries a direction record, so no recorded record moves. The console prints what the seam reports as one
+printable-ASCII line (a refusal quotes the model's path; review 1: a newline in it forged a report line) and the extras
+with `replies.listed`, printed after the direction is kept; a console that cannot be written to costs no beat its
+direction on any path (review 2: a refusal, a transport error or a skip printed on a closed or broken stderr raised out
+of `rung_direction`, and the chair recorded the beat as skipped - the same at HEAD). Declared new refusals, none recorded: a falsy non-text
+`about` (0, false, an empty list or map), a primary that is not true or false, `selected` that is not a list (an empty
+map included), a rung that is `true` (HEAD read it as 1). A rung that is false, text or not whole was refused at HEAD
+too, as a moved rung; it is now `COMPOSER_FIELD_TYPE`, as is a null path or rung (HEAD: an unknown path, a moved rung).
+Suite: `tests/test_composer_replies.py` (115 checks, every `COMPOSER_*` code held to the registry with its exact words).
+Not closed here, both the same at HEAD: a selection naming one path twice sends its block twice, and a multi-line
+`about` (the prompt asks for "one line") can append prose to the direction - the next verify gate's; an actor reply's
+extra key holding an unpaired surrogate is still named raw (gate actor-reply's naming, `replies.actor_reply`).
 
 **2026-09-25 — the keeper's three replies, read to a contract (gate `keeper-replies`):** G5 of the contracts plan,
 for the keeper. `scripts/keeper.py` read its noticing reply (world changes and claims), its ruling reply and the

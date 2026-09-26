@@ -297,15 +297,30 @@ def rung_direction(packet, brief="", model=None, stub=False):
         sel, by, fell_back = _compose_selection(rows, brief, model, stub)
         text = _composer.direction_for(rows, sel)
         rec = _composer.record(rows, sel, text, by, fell_back=fell_back, descending=vs.get("descending"))
-        return text
     except Exception as exc:
-        print("  [rung-direction skipped] %s: %s" % (type(exc).__name__, exc), file=sys.stderr)
         rec = {"by": "none", "why": "%s: %s" % (type(exc).__name__, exc)}
+        _say("  [rung-direction skipped] %s" % _replies.shown([rec["why"]]))
         return None
     finally:
         _manifest = packet.get("manifest") if isinstance(packet, dict) else None
         if isinstance(_manifest, dict):
             _manifest["direction"] = rec
+    # NAMED, NEVER REFUSED (gate composer-replies; board #258), and printed once the direction is built and kept.
+    # `listed`, not `shown`: an empty name, one holding ", ", or "selected " must not read as other keys (review).
+    if rec.get("extra"):
+        _say("  [the composer's reply carries what the record does not keep: %s]" % _replies.listed(rec["extra"]))
+    return text
+
+
+def _say(line):
+    """One of the composer seam's console lines, on stderr. A console line is a diagnostic - the direction record keeps
+    what it says - so a console that cannot be written to (a closed or broken stderr) must not cost the beat its
+    direction: before gate composer-replies' second review, a refusal, a transport error or a skip printed on such a
+    console raised out of `rung_direction`, and the chair recorded the beat as skipped."""
+    try:
+        print(line, file=sys.stderr)
+    except (OSError, ValueError):
+        pass
 
 
 def _compose_selection(rows, brief, model, stub):
@@ -322,9 +337,12 @@ def _compose_selection(rows, brief, model, stub):
     IT FALLS BACK RATHER THAN GUESSING. No brief, no model, or --stub takes the deterministic floor
     unchanged -- the engine runs key-free by default and must keep doing so. So does any failure:
     a transport error, an unparseable reply, or a `verify` REFUSAL. A refusal is not repaired,
-    because every refusal names something the composer is structurally able to get wrong (selecting
-    a path the engine never produced, moving a rung, more than three, no single primary, or prose
-    carrying an emotion name or a named act). Repairing one would make the gate advisory.
+    because every refusal names something the composer is structurally able to get wrong (a reply that
+    is not a JSON object carrying `selected`, a field of the wrong type, selecting a path the engine
+    never produced, moving a rung, more than three, no single primary, or prose carrying an emotion
+    name or a named act - each by its COMPOSER_* code since gate composer-replies, and `fell_back`
+    keeps it; the console line shows it as printable ASCII, since it can quote the model's own text).
+    Repairing one would make the gate advisory.
 
     THE FLOOR FILTER DOES NOT APPLY HERE, and that asymmetry is deliberate. `select_deterministic`
     drops floor rungs because a height ranker is blind to the beat and pads its cap with states the
@@ -344,14 +362,18 @@ def _compose_selection(rows, brief, model, stub):
         # into {action, thought, exit, addressee, act, tags}, so a composer selection came back
         # with `selected` silently dropped and every call fell back. Measured 2026-09-08.
         m = re.search(r"\{.*\}", raw or "", re.DOTALL)
-        sel = json.loads(m.group(0)) if m else None
+        try:
+            sel = json.loads(m.group(0)) if m else None
+        except (ValueError, RecursionError) as exc:      # coded, as every composer refusal (gate composer-replies)
+            raise _composer.ComposerError("COMPOSER_REPLY_NOT_AN_OBJECT", "composer reply could not be read as "
+                                          "JSON: %s" % str(exc)[:120])
         if not isinstance(sel, dict) or "selected" not in sel:
-            raise ValueError("composer reply carried no `selected`")
+            raise _composer.ComposerError("COMPOSER_REPLY_NOT_AN_OBJECT", "composer reply carried no `selected`")
         return _composer.verify(sel, rows), "composer", ""
     except Exception as exc:
-        print("  [composer fell back to the deterministic floor] %s: %s"
-              % (type(exc).__name__, exc), file=sys.stderr)
-        return _composer.select_deterministic(rows), "floor", "%s: %s" % (type(exc).__name__, exc)
+        why = "%s: %s" % (type(exc).__name__, exc)
+        _say("  [composer fell back to the deterministic floor] %s" % _replies.shown([why]))
+        return _composer.select_deterministic(rows), "floor", why
 
 
 def llm_turn(packet, event_text, temperament, model, stub, think=True, seed=None, relationships=None, corrections=None, acts=(), brief=""):

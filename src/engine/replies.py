@@ -49,6 +49,12 @@ each such strip against the fold itself, in the world the report is judged in. `
 `ruling_extra` / `attach_extra` name what a report the keeper kept carried beyond what was written;
 tests/test_keeper_replies.py holds these tables to the prompts that state them.
 
+THE COMPOSER (gate composer-replies, 2026-09-26). Its reply picks the rungs a beat is directed by; a refusal falls to
+the engine's own deterministic floor, never to nothing, and nothing retries it, so board #258 holds as written: a known
+field of the wrong type is refused by a COMPOSER_* code (scripts/composer.py verify), and `composer_extra` names what an
+ACCEPTED reply carried beyond {selected, about, unavailable} and a selection's {path, rung, primary}, and an
+`unavailable` that is not text. tests/test_composer_replies.py holds COMPOSER_KEYS to the prompt that states them.
+
 Pure, deterministic, stdlib. No LLM (rule 3), no randomness (rule 4).
 """
 from __future__ import annotations
@@ -143,9 +149,11 @@ UNREAD = {"event": ("confidence",), "thermometer": ("confidence",)}
 def _name(k):
     """A key as a path segment: quoted when it holds a character paths use, so `told[].why` written as ONE top-level
     key cannot read as the nested one. (What a name looks like on a CONSOLE line - an empty one, one holding the ", "
-    names are joined with - is `listed`'s concern, not the record's: these names are written on committed turns.)"""
+    names are joined with - is `listed`'s concern, not the record's: these names are written on committed turns.) A
+    key the record cannot hold as it is - one carrying an unpaired surrogate - is named by its JSON escape too, so a
+    record that names it stays writable however it is serialised (gate composer-replies review)."""
     k = str(k)
-    return json.dumps(k) if any(c in k for c in '.[]"') else k
+    return json.dumps(k) if any(c in k for c in '.[]"') or not text_ok(k) else k
 
 
 def extra_keys(obj, known, entries=None, maps=None):
@@ -184,9 +192,12 @@ def shown(keys):
 def listed(names):
     """A list of key names for a console line: `shown`, with a name that is empty, holds the ", " they are joined with,
     or begins or ends with whitespace quoted - "a, b" and "" printed as three names (gate keeper-replies review), and
-    "actor " never read as the id `actor` (fourth review). Display only: the record keeps each name as it is, in a
-    list, where nothing is ambiguous."""
-    return shown(json.dumps(str(n)) if not str(n) or ", " in str(n) or str(n) != str(n).strip() else n for n in names)
+    "actor " never read as the id `actor` (fourth review). A name that begins with a quote is quoted again: `_name`
+    already quoted it (a top-level key spelled `selected[].x `), and printed as it is it read exactly like the entry key
+    `x ` quoted here for its space (gate composer-replies, second review). Display only: the record keeps each name as
+    it is, in a list, where nothing is ambiguous."""
+    return shown(json.dumps(str(n)) if not str(n) or ", " in str(n) or str(n) != str(n).strip() or str(n)[:1] == '"'
+                 else n for n in names)
 
 
 def text_ok(v):
@@ -298,6 +309,21 @@ def ruling_extra(obj):
     r = obj.get("rationale") if isinstance(obj, dict) else None
     unread = {"rationale"} if r and not text_ok(r) else set()
     return tuple(sorted(set(extra_keys(obj, RULING_KEYS)) | unread))
+
+
+# THE COMPOSER'S CONTRACT (gate composer-replies): scripts/composer.py compose_prompt states it; scripts/composer.py
+# verify reads it, and tests/test_composer_replies.py holds the two together.
+COMPOSER_KEYS = ("selected", "about", "unavailable")
+COMPOSER_ENTRIES = {"selected": ("path", "rung", "primary")}
+
+
+def composer_extra(obj):
+    """The composer's ACCEPTED reply -> what it carried beyond {selected, about, unavailable} and a selection's
+    {path, rung, primary}, and an `unavailable` that is not text (left out of the direction record; a null is absent).
+    The fields verify reads are refused when they are the wrong type, never named here."""
+    u = obj.get("unavailable") if isinstance(obj, dict) else None
+    unread = {"unavailable"} if u is not None and not text_ok(u) else set()
+    return tuple(sorted(set(extra_keys(obj, COMPOSER_KEYS, COMPOSER_ENTRIES)) | unread))
 
 
 def attach_extra(obj):

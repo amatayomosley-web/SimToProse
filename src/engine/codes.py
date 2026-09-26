@@ -107,6 +107,7 @@ from .code_families import (
     _CONTRACT_F,
     _REPLY_F,
     _KEEPER_F,
+    _COMPOSER_F,
     _APPRAISER_F,
     _READING_F,
 _RUNG,
@@ -162,6 +163,7 @@ _FAMILIES = (
     _CONTRACT_F,
     _REPLY_F,
     _KEEPER_F,
+    _COMPOSER_F,
 )
 
 # The families live in `code_families.py` — data that grows, split from the contract above.

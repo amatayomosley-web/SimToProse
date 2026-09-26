@@ -40,7 +40,8 @@ import sys
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO)
 
-from src.engine import rungs                                     # noqa: E402
+from src.engine import replies as _replies, rungs                 # noqa: E402
+from src.engine.errors import EngineError                        # noqa: E402
 from src.engine.rung_blocks import BLOCKS                        # noqa: E402
 from src.engine.vault import load_book, character_or_raise       # noqa: E402
 
@@ -76,8 +77,10 @@ def selectable(affect, descending=None):
     return out
 
 
-class ComposerError(Exception):
-    """A selection that names something the engine did not produce, or direction that says too much."""
+class ComposerError(EngineError):
+    """A selection that names something the engine did not produce, or direction that says too much. Coded since gate
+    composer-replies (2026-09-26): each refusal opens with its registered COMPOSER_* code, and the direction record's
+    `fell_back` carries it - it was a bare Exception, so every refusal was prose with no handle."""
 
 
 def compose_prompt(rows, brief):
@@ -91,8 +94,8 @@ def compose_prompt(rows, brief):
     NO FLOAT APPEARS. The rows carry an index and a name because that is all `rung_at` returns.
     """
     if not rows:
-        raise ComposerError("compose_prompt: nothing is selectable — no built path reads a primitive "
-                            "this character carries")
+        raise ComposerError("COMPOSER_NOTHING_SELECTABLE", "compose_prompt: nothing is selectable — no built path "
+                            "reads a primitive this character carries")
     live = "\n".join("  %-14s rung %2d   %s" % (r["path"], r["rung"], r["name"]) for r in rows)
     sys_p = (
         "You decide which of a character's live emotions this beat is played on. You are given what "
@@ -125,33 +128,72 @@ def verify(selection, rows):
 
     THE GATE. An LLM sits in this seam, so what leaves it is checked deterministically rather than
     trusted. Every refusal here is something the composer is structurally able to get wrong.
+
+    EACH FIELD THE TYPE IT IS READ AS (gate composer-replies, 2026-09-26; board #258: a known key of the wrong type is
+    refused, and the beat takes the floor). `about` becomes the line the actor is directed with: one that was not text
+    passed here and then raised after it, outside the fallback (in `direction_for`; a lone surrogate in `record`'s
+    digest), so the beat lost its whole direction. A path must be text, a rung a whole number (7.0 is 7, as it always
+    was; true is not 1), a primary true or false (the text "false" counted as the primary). Null is absent, as it
+    always was. None of the 37 recorded composer replies carries any of these shapes, so no recorded run verifies
+    differently. A path the model wrote is quoted (%r) wherever a refusal names it before it has matched a row (a moved
+    rung's refusal names an engine path, in HEAD's words): the refusal is printed on the console, and a newline in the
+    path forged a report line (gate composer-replies review).
     """
     if not isinstance(selection, dict):
-        raise ComposerError("verify: selection must be a JSON object, got %r" % type(selection).__name__)
-    picked = selection.get("selected") or []
+        raise ComposerError("COMPOSER_REPLY_NOT_AN_OBJECT", "verify: selection must be a JSON object, got %r"
+                            % type(selection).__name__)
+    about = selection.get("about")
+    if about is not None and not _replies.text_ok(about):
+        raise ComposerError("COMPOSER_FIELD_TYPE", "verify: `about` must be text, got %s - it becomes the line the "
+                            "actor is directed with" % _kind(about))
+    picked = selection.get("selected")
+    picked = [] if picked is None else picked
     if not isinstance(picked, list):
-        raise ComposerError("verify: `selected` must be a list")
+        raise ComposerError("COMPOSER_SELECTED_NOT_A_LIST", "verify: `selected` must be a list")
     if len(picked) > 3:
-        raise ComposerError("verify: %d emotions selected; at most three may play in one beat" % len(picked))
+        raise ComposerError("COMPOSER_TOO_MANY", "verify: %d emotions selected; at most three may play in one beat"
+                            % len(picked))
     have = {(r["path"], r["rung"]) for r in rows}
     for row in picked:
         if not isinstance(row, dict) or "path" not in row or "rung" not in row:
-            raise ComposerError("verify: each selection needs a path and a rung, got %r" % (row,))
+            raise ComposerError("COMPOSER_ENTRY_SHAPE", "verify: each selection needs a path and a rung, got %r" % (row,))
+        if not _replies.text_ok(row["path"]):
+            raise ComposerError("COMPOSER_FIELD_TYPE", "verify: a selection's path must be text, got %s"
+                                % _kind(row["path"]))
+        if not _whole(row["rung"]):
+            raise ComposerError("COMPOSER_FIELD_TYPE", "verify: %r was selected at rung %r, which is not a whole "
+                                "number" % (row["path"], row["rung"]))
+        if row.get("primary") is not None and not isinstance(row["primary"], bool):
+            raise ComposerError("COMPOSER_FIELD_TYPE", "verify: the primary of %r must be true or false, got %r"
+                                % (row["path"], row["primary"]))
         if (row["path"], row["rung"]) not in have:
             engine_rung = next((r["rung"] for r in rows if r["path"] == row["path"]), None)
             if engine_rung is None:
-                raise ComposerError("verify: %r is not a path this character has — the composer may "
-                                    "only select from what the engine produced" % (row["path"],))
-            raise ComposerError("verify: %s was selected at rung %r and the engine says rung %d. The "
-                                "composer selects the emotion, never the rung."
+                raise ComposerError("COMPOSER_PATH_UNKNOWN", "verify: %r is not a path this character has — the "
+                                    "composer may only select from what the engine produced" % (row["path"],))
+            raise ComposerError("COMPOSER_RUNG_MOVED", "verify: %s was selected at rung %r and the engine says rung "
+                                "%d. The composer selects the emotion, never the rung."
                                 % (row["path"], row["rung"], engine_rung))
     primaries = [r for r in picked if r.get("primary")]
     if len(picked) > 1 and len(primaries) != 1:
-        raise ComposerError("verify: %d emotions selected and %d marked primary — exactly one must "
-                            "be, or the actor resolves them in sequence instead of at once"
+        raise ComposerError("COMPOSER_PRIMARY_COUNT", "verify: %d emotions selected and %d marked primary — exactly "
+                            "one must be, or the actor resolves them in sequence instead of at once"
                             % (len(picked), len(primaries)))
     _refuse_leaks(selection)
     return selection
+
+
+def _whole(v):
+    """A rung the reply may name: a whole number - an integral float as the int it equals, as it always was; true and
+    false are not rungs, though Python counts them as 1 and 0. An int is whole as it is: converting it to a float
+    first raised OverflowError past 1e308, a size JSON carries (gate composer-replies review)."""
+    return (isinstance(v, int) and not isinstance(v, bool)) or (isinstance(v, float) and v.is_integer())
+
+
+def _kind(v):
+    """What a field that is not storable text is, for a refusal: its type - or, for a str JSON can carry and the record
+    cannot hold (an unpaired surrogate), that, rather than "must be text, got str"."""
+    return "text the record cannot hold (an unpaired surrogate)" if isinstance(v, str) else type(v).__name__
 
 
 def _forbidden_names():
@@ -186,14 +228,14 @@ def _refuse_leaks(selection):
     text = str(selection.get("about") or "").lower()
     named = sorted(n for n in _forbidden_names() if re.search(r"\b%s\b" % re.escape(n), text))
     if named:
-        raise ComposerError("verify: composer text names %s. The direction says what the beat is "
-                            "about; the state text says what is felt, and it is attached after."
+        raise ComposerError("COMPOSER_NAMES_EMOTION", "verify: composer text names %s. The direction says what the "
+                            "beat is about; the state text says what is felt, and it is attached after."
                             % ", ".join(named))
     acts = [v for v in ("he strikes", "she strikes", " hits ", " shouts ", "walks out", "refuses to",
                         "should say", "must tell", "will confront") if v in text]
     if acts:
-        raise ComposerError("verify: composer text names an act (%s). What the character does is "
-                            "theirs to decide." % ", ".join(a.strip() for a in acts))
+        raise ComposerError("COMPOSER_NAMES_ACT", "verify: composer text names an act (%s). What the character does "
+                            "is theirs to decide." % ", ".join(a.strip() for a in acts))
 
 
 def select_deterministic(rows, cap=3):
@@ -217,8 +259,8 @@ def select_deterministic(rows, cap=3):
     would put words in the actor's mouth that no engine computed.
     """
     if not isinstance(rows, list):
-        raise ComposerError("select_deterministic: rows must be the list from selectable(), got %r"
-                            % type(rows).__name__)
+        raise ComposerError("COMPOSER_ROWS_TYPE", "select_deterministic: rows must be the list from selectable(), "
+                            "got %r" % type(rows).__name__)
     if not rows:
         return {"selected": [], "about": "", "unavailable": ""}
     # A FLOOR RUNG IS A TRUE READING AND A WRONG STAGE DIRECTION. `selectable` answers "what rung is
@@ -295,12 +337,15 @@ def record(rows, selection, text, by, fell_back="", descending=None):
     by: "composer" (the verified LLM selection) or "floor" (`select_deterministic`); `fell_back` names
     the error when the composer was asked and the floor answered instead. `offered` is every path the
     engine put in front of the selector, at its rung, so the choice can be read against its options.
+    `unavailable` (gate composer-replies) is what the composer said it could not give, kept when it is text that says
+    something; `extra` names what an accepted reply carried beyond its contract, and an `unavailable` that is not text.
+    Neither key is written when there is nothing to keep, so a floor's record and a plain reply's are as before.
     """
     by_key = {(r["path"], r["rung"]): r for r in rows}
     down = descending if isinstance(descending, dict) else {}
     sel = selection or {}
     picked = sorted(sel.get("selected") or [], key=lambda s: (not s.get("primary"), s["path"]))
-    return {
+    rec = {
         "by": str(by),
         "fell_back": str(fell_back or ""),
         "offered": {r["path"]: r["name"] for r in rows},
@@ -311,6 +356,18 @@ def record(rows, selection, text, by, fell_back="", descending=None):
         "text": _digest(text) if text else "",
         "ladders": rungs.fingerprint(),        # the ladders this rung was read from (gate ladder-pin)
     }
+    # WHAT THE COMPOSER SAID IT COULD NOT GIVE, and what its reply carried beyond its contract (gate composer-replies).
+    # `unavailable` is "a diagnostic for the operator and the logs" (`_refuse_leaks`) and nothing kept it; it is kept
+    # here when it is text, and named when it is not. Both only when there is something to keep, so a floor's record
+    # and a plain reply's are as before. The extras are only ever a reply the composer's gate ACCEPTED: a refused one
+    # never reaches here - the floor's own selection does, and it carries none.
+    un = sel.get("unavailable")
+    if _replies.text_ok(un) and un.strip():
+        rec["unavailable"] = un
+    extra = _replies.composer_extra(sel)
+    if extra:
+        rec["extra"] = list(extra)
+    return rec
 
 
 def main():
