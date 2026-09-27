@@ -60,8 +60,12 @@ def table():
           _code(lambda: roles.check(_profile(seats="qwen/qwen3-235b"))) == "ROLES_MODEL_UNKNOWN")
     got, warns = roles.check(_profile(seats="qwen/qwen3-235b@mid"))
     check("...unless-the-author-writes-its-class,-which-the-provider-never-sees", len(warns) == 1
-          and roles.model_id(got["seats"]) == "qwen/qwen3-235b" and roles.class_of("seats", "subagent:opus") == "top",
+          and roles.model_id(got["seats"]) == "qwen/qwen3-235b" and roles.class_of("seats", "subagent:opus") == "top"
+          and roles.class_of("seats", "subagent:gemini@top") == "top"
+          and roles.model_id("subagent:gemini@top") == "subagent:gemini@top",
           warns)
+    check("a-non-Claude-subagent-without-its-class-is-still-refused",
+          _code(lambda: roles.check(_profile(seats="subagent:gemini"))) == "ROLES_MODEL_UNKNOWN")
     check("not-a-profile-is-ROLES_PROFILE_UNREADABLE", _code(lambda: roles.check({"roles": {}})) == "ROLES_PROFILE_UNREADABLE")
 
 

@@ -160,7 +160,7 @@ def _ollama_can_think(model):
     return _OLLAMA_THINKS[model]
 
 
-def _ollama(messages, model, max_tokens=4096, think=True, temperature=1.0, seed=None):
+def _ollama(messages, model, max_tokens=4096, think=True, temperature=1.0, seed=None, num_ctx=32768):
     """Local dispatch — Ollama's NATIVE /api/chat endpoint on localhost (free, on-disk, pinned).
     think=False: the engine wants the character's immediate turn, not a reasoning trace — and for
     thinking models (Gemma 4) the hidden trace otherwise consumes the token budget and empties the
@@ -184,6 +184,11 @@ def _ollama(messages, model, max_tokens=4096, think=True, temperature=1.0, seed=
     COST, measured on this host via /api/ps: 8K -> 26.2 GB total / 21.9 VRAM, 32K -> 28.4 / 22.0,
     128K -> 37.7 / 21.4. VRAM saturates at ~22 of 24 GB regardless, so the delta lands in system RAM:
     +2.2 GB for 32K, +11.5 GB for 128K. 128K buys nothing a bounded ~3K prompt can use.
+    A DENSE 32B MODEL IS ANOTHER MATTER (2026-09-27): its KV cache at 32K is ~15 GB on top of ~19 GB of weights, so
+    ~39% of it spills into system RAM and generation slows by an order of magnitude. `num_ctx` is therefore a
+    parameter - the default stays 32768, measured right for this engine's default actor, and a caller that runs a
+    dense 32B model (tests/actor_bakeoff.py --num-ctx) passes a smaller window and records it, knowing that 8192 is
+    where the empty-reply failure above lives for a thinking model.
 
     THE OOM RATIONALE BELOW IS STALE AND KEPT FOR PROVENANCE. It cites a 16 GB host; this machine has
     64 GB (41 free, measured 2026-08-23), so the constraint that set 8192 no longer holds here. The
@@ -202,7 +207,7 @@ def _ollama(messages, model, max_tokens=4096, think=True, temperature=1.0, seed=
     import urllib.request
     payload = {"model": model, "messages": messages, "stream": False,
                "options": {"temperature": temperature, "top_p": 0.95, "top_k": 64,
-                           "num_ctx": 32768, "num_predict": max_tokens}}
+                           "num_ctx": num_ctx, "num_predict": max_tokens}}
     if seed is not None:                  # Ollama uses a FIXED seed by default (deterministic even at temp>0); vary the seed to sample
         payload["options"]["seed"] = seed
     if _ollama_can_think(model):          # capable -> always think (honor the flag); incapable -> omit (Ollama 400s)

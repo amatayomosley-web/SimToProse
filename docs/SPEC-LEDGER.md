@@ -145,7 +145,7 @@ build something listed SPEC-ONLY here, flip the row in the same commit. Line num
 | Perception-mode wall (PerceptSet whitelist; identity behind insight 0.55; subtle cues behind perception 0.60; acquaintance recognition) | `scene-assembly.md:17-21,74-97`, `relevancy-gate.md:28-32` | YES | `gate.py:90-210`; never-add structural (`test_scene` whitelist canary); known-entity bypass `gate.py:176` | BUILT-AS-SPEC'D |
 | Graph recall: weighted hops, pathfinding to hinges, degree-penalty, multi-hop chains | `relevancy-gate.md:60-97` | NO | vault is FLAT by design; single-hop cost 1−confidence (`guide-engine.md:171-173` declares the reduction) | **BUILT-DIFFERENTLY (deliberate)** — the entire hop/path/DC-from-distance apparatus is spec-only behind the same interface |
 | Authored hinges (director-planted checks that always surface + branch) | `relevancy-gate.md:39` (pipeline step 5) | NO | `must_surface` exists only as the event-anchor flag (`gate.py:24,144`); no hinge authoring surface, no branch mechanics | SPEC-ONLY |
-| Name masking + latent-leak regeneration ("recorded as-is" preserved) | `knowledge-model.md` wall; status log `driving-the-engine.md:104-111` | YES | `gate.scope_names` :543 (prompt wall), `faithfulness.py:16-35` (output detector), `direct.py` `faithful_turn` :408-440 (regenerate → reject) ; `tests/test_faithful_turn.py` | BUILT-AS-SPEC'D |
+| Name masking + latent-leak regeneration ("recorded as-is" preserved) | `knowledge-model.md` wall; status log `driving-the-engine.md:104-111` | YES | `gate.scope_names` :543 (prompt wall), `faithfulness.py:16-35` (output detector), `direct.py` `faithful_turn` :413-445 (regenerate → reject) ; `tests/test_faithful_turn.py` | BUILT-AS-SPEC'D |
 
 ### Scene assembly & the packet
 
@@ -1247,6 +1247,20 @@ the SUPERPOSED default its callers pass), the law statement (stored as `law._nor
 reachable only with a numeric subclass), a mint's id (it carries its producer's spelling, so a loosened match must
 re-derive it), and the other exact walls in these tables (`WoundDelta` kind, `RestDeclared` source, a law's domain,
 modality and epistemic).
+
+**2026-09-27 — a test for the actor role (gate `actor-bakeoff`):** two live multi-model runs on the public test book
+could not say which local models can act: each model played one to three beats, later beats were played from seat
+answers that were wrong (local seats) or canned (a fixed script recorded under a subagent's label), and "kept to
+direction" was judged against the scene file. `tests/actor_bakeoff.py` freezes the inputs instead: `build` plays two
+Beck Hollow scenes in-process through `scene.main` in --stub mode, fills earlier beats with on-contract reference
+replies, lets the engine's turn-taking pick each speaker, and keeps the exact actor messages at the target beat (the
+--prompt-only seam's call; resuming beat by beat cannot, since each --resume picks its opener again). `run` asks one model
+every prompt several times through `direct._ollama`, checked against the strict reply contract; `packet` writes blind
+judge packets with planted violations (acting for the other, a stranger, a broken drive, tags about the other's beat)
+and the key apart; `score` drops any prompt whose judge missed a plant. `direct._ollama` takes `num_ctx` (default
+32768, unchanged) so a dense 32B model can run at a smaller window, recorded; `roles.class_of` reads
+`subagent:<name>@<class>`, so a non-Claude answerer is recorded as what it is. Evidence: a stub build, one-draw run and
+a synthetic score in the gate's check; `tests/test_profile.py`.
 
 **2026-09-27 — the session profile: which model fills each role, set once per session (gate `session-profile`):** the
 owner - "Variable, use OS model, open router and subagent", then "we can set it per session ... and then it continues

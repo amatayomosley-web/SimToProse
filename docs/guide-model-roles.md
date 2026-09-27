@@ -57,8 +57,10 @@ measured 2026-09-27). Agent roles are Claude subagents and take a Claude model o
   catches its worst failure, and the NUMBERS come from the seats, not from the actor — a weaker actor
   writes flatter beats, which is a quality cost, not a corrupted record. Smaller local models are
   untested here: run the test before trusting one.
-- Test a candidate: a burst on a scratch copy of a book with `--model ollama/<candidate>`; read the
-  beats, and count the guard's re-asks and empty draws in the run's output.
+- Test a candidate: `tests/actor_bakeoff.py` - the engine's exact actor prompts from two scenes of the public test
+  book, frozen so every model answers the same ones, several draws each, judged blind against their own prompts with
+  planted violations as the control, and scored fit / marginal / unfit. A live burst compares nothing: after the first
+  beat each model is answering a different scene.
 
 **Composer** — picks the register the actor plays at, from rows the engine offers.
 - Checked by: `composer.verify` refuses any pick the engine cannot back, and any refusal or failure falls

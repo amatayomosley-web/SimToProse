@@ -14,7 +14,8 @@ trade, never a refusal.
 VALUES. An ENGINE role (a single call a script makes) takes `ollama/<model>` (local), an OpenRouter id such as
 `anthropic/claude-opus-5`, or `subagent:<tier>` (the replay backend: one fresh agent of that Claude tier answers each
 prompt). An OpenRouter id this table cannot place carries its class after an `@` (`qwen/qwen3-235b@mid`), written by
-the author, so no model is ranked by a guess. An AGENT role takes a Claude tier: haiku, sonnet, opus or fable.
+the author, so no model is ranked by a guess - and so does a subagent that is not Claude (`subagent:gemini@top`),
+so the record names what actually answered. An AGENT role takes a Claude tier: haiku, sonnet, opus or fable.
 """
 import json
 
@@ -65,7 +66,7 @@ def class_of(role, value):
         return TIERS[value]
     if value.startswith("ollama/"):
         return "local"
-    if value.startswith("subagent:"):
+    if value.startswith("subagent:") and "@" not in value:      # a Claude tier; any other answerer states its class
         tier = value[len("subagent:"):]
         if tier not in TIERS:
             raise RecordError("ROLES_MODEL_UNKNOWN", "%s: %r - a subagent answers at a Claude tier (%s)"
