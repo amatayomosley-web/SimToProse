@@ -40,6 +40,10 @@ runs/*.db.directions/
 **/runs/**/*.db.directions/
 # a book's lease (gate draft-flow): an operating-system lock file, machine-local; the lineage log beside it is kept
 **/runs/.lease
+# the public test book under examples/ (owner, 2026-09-27): its notes are tracked; what running it makes - the chronicle,
+# drafts, history, lineage, seat prompts, rendered prose - is machine-local and never committed
+examples/*/runs/
+examples/*/prose/
 
 # a book folder opened in Obsidian inside a clone
 .obsidian/

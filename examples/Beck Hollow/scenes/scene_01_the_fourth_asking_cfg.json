@@ -1,0 +1,39 @@
+{
+  "name": "scene_01_the_fourth_asking",
+  "at": {
+    "day": 1,
+    "time": "07:30"
+  },
+  "pov": "tam",
+  "location": "mill",
+  "situation": "First light at the mill, and the frost has held three days. Tam has been out on the race since four with the long bar, breaking the ice back so the wheel will turn, and his hands have stopped feeling like his. The wheel is moving. He is about to go up and sleep. Nell Harrow is standing in the doorway with a lamp still lit from the walk down, snow to the knee of her, and she has not come about flour. She has lost a fourth ewe in the night. This is the fourth time this winter she has come to ask him for something.",
+  "props": [
+    "the long iron bar, still in his hands, the end of it silvered with ice",
+    "the wheel turning, and the race running black and open behind it",
+    "her lamp, still lit at first light, burning oil nobody can spare",
+    "snow to the knee of her, melting on the grinding floor",
+    "the ledger where the Hollow's flour is counted, open on the bench"
+  ],
+  "subject": [
+    "tam",
+    "hollow"
+  ],
+  "opening_tags": {
+    "type": "care",
+    "dimensions": {
+      "care_relevant": 0.45,
+      "loss": 0.35
+    },
+    "durability": "transient"
+  },
+  "cast": [
+    {
+      "id": "nell",
+      "drive": "get him to say yes to walking up to the fold with her before dark — not tonight, not to fight anything, just to be a second pair of hands at the wall"
+    },
+    {
+      "id": "tam",
+      "drive": "finish reporting the state of the race, get up the stairs, and be asleep before she asks him the thing she came to ask"
+    }
+  ]
+}

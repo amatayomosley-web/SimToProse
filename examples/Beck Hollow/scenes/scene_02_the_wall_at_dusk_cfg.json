@@ -1,0 +1,35 @@
+{
+  "name": "scene_02_the_wall_at_dusk",
+  "pov": "tam",
+  "location": "fold",
+  "situation": "Dusk at the fold, and Tam came. He came because it was a task — go up, look at the stones, come down — and a task is the one thing he can carry. The light is going faster than either of them planned for. Nell has the lamp low against the wall so it does not spoil their eyes. There are tracks in the snow inside the fold line, come in over the drystone and gone out again the same way, and they are not a dog's. Below the wall the drover wintering in the long hall has his three dogs tied and they have not made a sound since the light started to go. Above them the fell road climbs out of the hollow past the last wall, and there is nothing up there but open ground.",
+  "props": [
+    "wolf tracks in the snow inside the fold line, over the wall and out again",
+    "the lamp set low against the drystone so it does not spoil their eyes",
+    "the gap in the wall where the stones have come down, wide enough for a sheep or worse",
+    "the drover's three dogs below the wall, tied, and silent since the light went",
+    "the fell road above them, climbing past the last wall into open ground"
+  ],
+  "subject": [
+    "tam",
+    "hollow"
+  ],
+  "opening_tags": {
+    "type": "threat",
+    "dimensions": {
+      "threat": 0.72,
+      "care_relevant": 0.4
+    },
+    "durability": "durable"
+  },
+  "cast": [
+    {
+      "id": "tam",
+      "drive": "get the stones back up, get the count done, and be off this hill and back down at the mill before the light is fully gone"
+    },
+    {
+      "id": "nell",
+      "drive": "keep him here long enough to see the tracks for what they are, and not frighten him off the hill doing it"
+    }
+  ]
+}

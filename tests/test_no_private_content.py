@@ -366,11 +366,18 @@ def book_name_candidates(books_root, public_books, known, ordinary):
     """{private book: {name: first file}} for every name a private book uses at least twice that is on
     neither list and in no public book's vocabulary."""
     books = sorted(d for d in os.listdir(books_root) if os.path.isdir(os.path.join(books_root, d)))
+    public_dirs = [os.path.join(books_root, b) for b in books if b in public_books]
+    # A book under this repo's examples/ is public by being here (CLAUDE.md "One public test book", 2026-09-27) -
+    # its words are public vocabulary wherever the books root is. Before it moved here it sat among the books and
+    # was named public in the review list; the move must not turn its ordinary words into private-book names.
+    examples = os.path.join(REPO, "examples")
+    if os.path.isdir(examples):
+        public_dirs += [os.path.join(examples, d) for d in sorted(os.listdir(examples))
+                        if os.path.isdir(os.path.join(examples, d))]
     common = set()
-    for b in books:
-        if b in public_books:
-            for _rel, _f, txt in _book_texts(os.path.join(books_root, b)):
-                common.update(w.lower() for w in _WORD.findall(txt))
+    for d in public_dirs:
+        for _rel, _f, txt in _book_texts(d):
+            common.update(w.lower() for w in _WORD.findall(txt))
     out = {}
     for b in books:
         if b in public_books:

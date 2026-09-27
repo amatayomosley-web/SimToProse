@@ -10,6 +10,11 @@ keeps a public engine publishable while its author's novels stay private. What s
 engine, the tests, the design docs, and the authoring blueprints; `characters/` and `world/` hold
 INVENTED ENGINE FIXTURES only, reached with `--fixture`, never `--book`.
 
+**One public test book** (the owner, 2026-09-27: "we will save the beck into the public repo for
+testing my books will stay only in swe"): `examples/Beck Hollow/` is a vault-format book kept here
+for end-to-end tests of the partner route (`--book "examples/Beck Hollow"`). Its notes are public by
+that ruling; what running it makes stays out of git (`.gitignore`). The owner's own books never come here.
+
 **Start at [`docs/authoring/START-HERE.md`](docs/authoring/START-HERE.md)** if you want to write a
 book. Start at `docs/MAP.md` if you want to work on the engine.
 
