@@ -9,7 +9,8 @@ release) and a DECLARATION are mechanical, and a spawn would pay about 70k token
 three commands (measured, cairn_spawn_overhead.py) - so `--run` checks the direction and runs them itself. The
 showrunner builds its specialists' briefs here too, which works from a session opened in any folder.
 
-    python scripts/brief.py <direction.json>                        a spawn's brief, or a coded refusal
+    python scripts/brief.py <direction.json> [--profile FILE]       a spawn's brief (with the session's tiers), or a
+                                                                    coded refusal
     python scripts/brief.py --run <direction.json>                  a record step or declaration, run now
     python scripts/brief.py --specialist narrator [--input FILE]    that agent's brief (.claude/agents/<name>.md)
 """
@@ -22,7 +23,7 @@ import sys
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO)
 
-from src.engine import books, drafts, handoff                         # noqa: E402
+from src.engine import books, drafts, handoff, roles                  # noqa: E402
 from src.engine.errors import EngineError                            # noqa: E402
 from src.engine.records import RecordError                           # noqa: E402
 
@@ -77,6 +78,26 @@ def _record_step(d):
             % (REPO.replace(os.sep, "/"), " ".join(_sh(a) for a in argv[2:]), d["kind"], d.get("draft", "")))
 
 
+def _session(path, profile, book):
+    """The session profile as the showrunner's brief carries it: where every scene.py call gets its models, the tier each
+    specialist is spawned at, and - for subagent seats - the loop that answers them (gate session-profile)."""
+    path = os.path.abspath(path).replace(os.sep, "/")
+    tiers = ", ".join("%s %s" % (r, t) for r, t in profile.items() if roles.ROLES[r][0] == "agent" and r != "showrunner")
+    out = ("\n\n## Session profile - the author's choices for this session\n\n"
+           "- Every `scene.py` call carries `--profile \"%s\"` (it sets the actor's model and the seats).\n"
+           "- Spawn each specialist at its tier, as the Agent tool's `model`: %s.\n- Seats: `%s`.\n"
+           % (path, tiers, profile["seats"]))
+    if profile["seats"].startswith("subagent:"):
+        folder = os.path.join(books.resolve(book), "runs", "seats").replace(os.sep, "/")
+        out += ("- The seats are answered by subagents: the run writes each seat prompt to `%s` and waits for its "
+                "answer. Run `scene.py` in the background with its output to a log file; then, until the run ends, "
+                "repeat `python scripts/seats.py pending \"%s\" --log <that log> --wait 60`, and for each `PENDING` key "
+                "spawn ONE fresh subagent at `%s` whose whole prompt is `python scripts/seats.py brief \"%s\" <key>`. "
+                "Never give one agent two prompts. `ENDED` means the run has stopped.\n"
+                % (folder, folder, profile["seats"][len("subagent:"):], folder))
+    return out
+
+
 def _run_direction(d, playbook):
     """Run a record step or a declaration now -> the exit status. A declaration on an adopted book is opened as a
     draft, declared, and promoted in advance on the author's words; a refused declaration's draft is set aside."""
@@ -114,6 +135,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description="the partner's hand-over: a spawn's brief, or a mechanical step run now")
     ap.add_argument("direction", nargs="?", help="the partner's direction (a JSON file)")
     ap.add_argument("--run", action="store_true", help="run a record step or a declaration now instead of briefing")
+    ap.add_argument("--profile", help="the session profile (scripts/profile.py) - carried into a showrunner's brief")
     ap.add_argument("--specialist", help="a specialist agent's name (a file in .claude/agents)")
     ap.add_argument("--input", help="the specialist's scoped input (a file), appended to its brief")
     a = ap.parse_args(argv)
@@ -141,11 +163,17 @@ def main(argv=None):
         if playbook == "record":
             print(_record_step(direction))
             return 0
+        session = ""
+        if a.profile:
+            profile, warnings = roles.load(a.profile)
+            session = _session(a.profile, profile, direction["book"])
+            print("brief.py: spawn the showrunner at %s (session profile)%s" % (
+                profile["showrunner"], "".join("\nbrief.py: %s" % w for w in warnings)), file=sys.stderr)
     except EngineError as exc:
         print("brief.py: %s" % exc, file=sys.stderr)
         return 1
     print(_body(os.path.join(AGENTS, "showrunner.md")))
-    print("\n\n" + _body(os.path.join(PLAYBOOKS, "%s.md" % playbook)))
+    print("\n\n" + _body(os.path.join(PLAYBOOKS, "%s.md" % playbook)) + session)
     print("\n\n## The direction\n\n```json\n%s\n```" % json.dumps(direction, indent=2, ensure_ascii=False) + _where())
     return 0
 

@@ -6,6 +6,21 @@ render you run yourself; a scene goes to the showrunner, which runs the engine a
 (section 2). For a question about the book, ask the engine yourself (section 4); no showrunner is needed. (The owner, 2026-09-27: the partner "can write the directions using the contract to hand to the showrunner.
 This keeps the context window for both smaller".)
 
+## 0. Open the session — once
+
+When the session opens, ask the author how it should run, once; it holds until the session closes (the owner: "you
+open a session prepare how you want it ran and then it continues until close"). The three presets differ only in the
+seats - the calls every emotion number is computed from:
+- `standard` - the seats on OpenRouter at the frontier model: the most accurate; needs a key file (`scripts/provider.py`).
+- `local` - the seats on the local model: no key, no spend; below the seats' floor, so a draft to judge by reading.
+- `subagents` - no key: a fresh agent answers each seat prompt; Claude tokens, a spawn per prompt.
+
+Any role can be changed with `--set ROLE=MODEL`; `docs/guide-model-roles.md` says what each role needs, and why. Then
+`python scripts/profile.py new --out "<your session's scratch folder>/profile.json" --preset <name> [--set ...]`. A
+refusal names the role (an agent role runs on a Claude model; the showrunner at least Sonnet-class); a warning names a
+trade - tell the author. Pass `--profile "<that file>"` to every `brief.py` call, and spawn each agent at the tier the
+profile gives it.
+
 ## 1. A direction — one JSON object, one piece of work
 
 | kind | what it asks | needs (beside `book` and `kind`) | may carry |
@@ -34,12 +49,13 @@ is kept for work that needs judgment and specialists.
 - **approve, reject, rewind, release, adopt, declare:** `python scripts/brief.py --run <direction.json>` checks the
   direction and runs it now - one draft.py command, or for a declaration: a draft opened, the file declared, and the
   draft promoted in advance on the author's words (set aside if the declaration is refused). Its output is the result.
-- **scene:** `python scripts/brief.py <direction.json>` prints the showrunner's whole brief (its core, the scene
-  playbook, the direction). Spawn a general-purpose subagent (sonnet is enough) whose prompt is that whole output; it
-  may run in the background. Its last message is the report.
+- **scene:** `python scripts/brief.py <direction.json> --profile <profile>` prints the showrunner's whole brief (its
+  core, the scene playbook, the session's choices, the direction) and names the showrunner's tier. Spawn a
+  general-purpose subagent at that tier whose prompt is that whole output; it may run in the background. Its last
+  message is the report.
 - **render:** `python scripts/narrate.py --vault "<book>" --run <run> --prompt-only` > a file, then spawn a
-  general-purpose subagent with `python scripts/brief.py --specialist narrator --input <that file>` as its prompt, and
-  save its prose to `<book>/prose/<run>/<scene>.md` (first line `record <state>`).
+  general-purpose subagent at the profile's narrator tier with `python scripts/brief.py --specialist narrator --input
+  <that file>` as its prompt, and save its prose to `<book>/prose/<run>/<scene>.md` (first line `record <state>`).
 
 A direction that fails its check is refused with a coded reason before anything runs - fix it and run again.
 Which model fills each role - and why - is `docs/guide-model-roles.md`.

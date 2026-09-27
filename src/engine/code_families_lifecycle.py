@@ -52,6 +52,12 @@ _DECLARE_F = {
     "HANDOFF_FIELD_UNKNOWN":   "a direction carries a field nothing reads - refused, so an instruction is never silently dropped",
     "HANDOFF_NEEDS_SPAWN":     "brief.py --run was asked for work that needs judgment and a specialist (a scene, a render) - pass the brief to the showrunner or the narrator instead",
     "ASK_NO_CHRONICLE":        "an info request (scripts/ask.py) named a book or draft with no chronicle yet - there is nothing to read, and none is created",
+    # ---- ROLES_* — the session profile: which model fills each role (src/engine/roles.py, scripts/profile.py) ----
+    "ROLES_PROFILE_UNREADABLE":      "a session profile is not there, not JSON, not {\"profile\": 1, \"roles\": {...}}, or a --set is not ROLE=MODEL - scripts/profile.py writes one",
+    "ROLES_UNKNOWN":    "a profile names a role the table (src/engine/roles.py ROLES) does not have - refused, so a choice is never silently dropped",
+    "ROLES_CLAUDE_ONLY":     "an agent role was given something other than a Claude tier - an agent drives Claude Code's tools, which a local or other model cannot",
+    "ROLES_BELOW_FLOOR":     "a role with a HARD floor was given a model below it - the showrunner needs at least Mid to hold its playbook, commands and report over many steps",
+    "ROLES_MODEL_UNKNOWN":   "a profile names a model the table cannot place (not ollama/..., subagent:<tier>, or a known OpenRouter id) - write its class after an @, so no model is ranked by a guess",
     # ---- the author's hand as other writers meet it ----
     "CLAIM_SPEAKER_RESERVED":  "a claim was recorded as spoken by `author` under a tier other than authored - that name speaks only the owner's own facts (scripts/declare.py), so any other claim under it would read as the owner's hand",
     "KEEPER_RULING_AUTHORED":  "a keeper's ruling named an authored fact - the owner's own fact binds as written and is ruled by nobody",

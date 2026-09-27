@@ -146,11 +146,19 @@ that has seen another answer breaks the wall in question 6.
 
 **Continuity-critic (as an agent)** — the critic, as an agent. Floor: **Mid**.
 
-## Setting a role today
+## Setting the roles: the session profile
 
-- Actor and composer: `scripts/scene.py --model ollama/<name>` (local) or an OpenRouter id.
-- Seats and keeper: `SWE_SEAT_MODEL=<OpenRouter id>` with the key file above; or, with no key,
-  `SWE_SEAT_REPLIES=<dir>` and `SWE_SEAT_WAIT=<seconds>`, and one fresh agent answering each prompt the
-  run writes there (`docs/guide-operating.md`). A local model for the seats is not wired yet.
-- Critic and narrator scripts: `--model <OpenRouter id>`, or `--prompt-only` and a Claude agent.
-- Agent roles: the model given when the agent is spawned.
+The roles are set once per session, when it opens, and hold until it closes (the owner, 2026-09-27). The partner asks
+the author and writes the answer with `scripts/profile.py new --out <file> --preset standard|local|subagents [--set
+ROLE=MODEL ...]` (`docs/CONTRACTS.md` section 0); every `brief.py` and `scene.py` call then carries `--profile <file>`.
+The table and the floors are `src/engine/roles.py`:
+- **Hard floors refuse.** An agent role takes a Claude tier only (question 5); the showrunner needs at least Mid.
+- **Every other floor warns.** The profile stands, and the warning names the role and the trade - a draft on local
+  seats is the author's knowing choice, never a default.
+- A model the table cannot place carries its class after an `@` (`qwen/qwen3-235b@mid`), written by the author, so no
+  model is ranked by a guess.
+
+Without a profile, each role is set by hand: the actor with `scripts/scene.py --model`; the seats and keeper with
+`SWE_SEAT_MODEL` and the key file, or `SWE_SEAT_REPLIES` and `SWE_SEAT_WAIT` for subagents
+(`docs/guide-operating.md`); the critic and narrator scripts with `--model`, or `--prompt-only` and a Claude agent;
+an agent with the model given when it is spawned.

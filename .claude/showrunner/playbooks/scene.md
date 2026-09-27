@@ -1,5 +1,8 @@
 # Playbook: scene - run the next scene on a draft, render it for review, ask the author
 
+If this brief carries a **Session profile**, it governs: every `scene.py` call takes its `--profile`, every specialist
+is spawned at its tier, and subagent seats are answered by its loop while the scene runs.
+
 1. **Adopted?** If `ask.py where` shows the record role is not `record`, stop: report `needs-author` - "Adopt the book
    so this scene waits for your yes?" (recommend yes). A scene never writes an unadopted book.
 2. **Open a draft:** `python scripts/draft.py open --book "<book>" --note "<the intent, in a few words>"` - it prints the

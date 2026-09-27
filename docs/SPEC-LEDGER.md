@@ -1248,6 +1248,19 @@ reachable only with a numeric subclass), a mint's id (it carries its producer's 
 re-derive it), and the other exact walls in these tables (`WoundDelta` kind, `RestDeclared` source, a law's domain,
 modality and epistemic).
 
+**2026-09-27 — the session profile: which model fills each role, set once per session (gate `session-profile`):** the
+owner - "Variable, use OS model, open router and subagent", then "we can set it per session ... and then it continues
+until close", and "the show runner can't be a qwen 7B". `src/engine/roles.py` is the table behind
+`docs/guide-model-roles.md`: every role, its capability floor, and whether the floor is HARD (an agent role takes a
+Claude tier only - it drives Claude Code's tools; the showrunner needs at least Mid) or ADVICE (a warning naming the
+trade - so the seats may run local by the author's choice). `scripts/profile.py new` writes a profile from a preset
+(standard: OpenRouter seats; local: the actor's local model; subagents: one fresh agent per seat prompt) or refuses it
+(ROLES_*); `scene.py --profile` sets the actor and calls `provider.configure_seats` - an `ollama/` seat is answered
+by `provider._local` through the actor's own Ollama client, a `subagent:<tier>` seat replays the seat purposes only
+(never the actor's calls) from `<book>/runs/seats/` - and records the profile in the run's config; `brief.py --profile`
+gives the showrunner its specialists' tiers and the subagent-seat loop (`scripts/seats.py pending|brief`, the new
+`.claude/agents/seat.md`). Evidence: `tests/test_profile.py`.
+
 **2026-09-27 — the partner runs the mechanical steps; the showrunner is spawned for scenes (gates `record-step-brief`,
 `partner-runs-mechanical`):** measured over the round trip's transcripts, every spawn opens at about 67.5k tokens of
 context before it reads its task, so a record step spawned alone was 63-91% overhead - a one-command approve still cost

@@ -4,7 +4,8 @@
 Owner, 2026-09-11: *"Since this will be the basis for most of the system we will not use local
 models, we need accuracy."* The appraiser seats are the one semantic step in the engine — every
 number downstream is arithmetic on what they say — so they run on a frontier model through this
-seam, and nothing else in the repo opens a socket to a model. Before this file there were three
+seam; the one other socket to a model is the actor's local Ollama client (`direct._ollama`), which a
+local seat now shares (THE SESSION PROFILE, below). Before this file there were three
 hand-copied OpenRouter helpers (scripts/direct.py, tests/coherence_probe.py, and the bakeoff's
 ollama-only path), which is the seven-duplicates table in CLAUDE.md one row longer.
 
@@ -48,6 +49,12 @@ is opt-in: absent, a missing answer refuses immediately and nothing is written, 
 timeout it refuses by the same name (PROVIDER_REPLY_MISSING) — and note that scripts/scene.py
 still catches that as a seat refusal and commits the beat on the actor's self-tags, so a driven
 run sets the wait long and checks `llm_calls` afterwards (one act + two seat rows per beat).
+THE SESSION PROFILE (2026-09-27, gate session-profile). The owner turned the seats' backend into the author's choice,
+set once per session: "Variable, use OS model, open router and subagent. The partner can ask which they want" - so
+the 2026-09-11 "no local models" is now a floor the guide ADVISES (docs/guide-model-roles.md), not a wall.
+`configure_seats` takes the profile's `seats` value: an `ollama/` model answers through `_local` (the actor's own
+Ollama client - one local client in the repo), `subagent:<tier>` replays the seat purposes only, and anything else is
+an OpenRouter id, as before. Without a profile nothing changes.
 Nothing here is imported by `src/engine/` (hard rule 3).
 """
 from __future__ import annotations
@@ -79,6 +86,11 @@ REPLIES_ENV = "SWE_SEAT_REPLIES"     # a directory of answered prompts -> the re
 _REPLIES = None                       # use_replies() override; the env var otherwise
 WAIT_ENV = "SWE_SEAT_WAIT"           # seconds a missing answer is waited for (0 / unset: refuse at once)
 _WAIT = None                          # use_replies(wait=...) override; the env var otherwise
+_SEAT_MODEL = None                    # configure_seats() override - a session profile's choice
+_REPLAY_ONLY = None                   # configure_seats(): replay only these purposes (None: every call, as before)
+SEAT_PURPOSES = frozenset(("appraise-event", "appraise-emotion", "thermometer",
+                           "keeper-notice", "keeper-rule", "keeper-attach"))
+SUBAGENT_WAIT = 3600.0                # seconds a subagent seat's answer is waited for, per prompt
 _POLL_SECONDS = 2.0                   # how often the wait looks for the answer file
 _SETTLE_SECONDS = 1.0                 # an answer file is read only once its mtime is this old
 
@@ -218,8 +230,42 @@ def read_key(path=None):
 
 
 def seat_model():
-    """The model the appraiser seats run on: SWE_SEAT_MODEL or the pinned default."""
-    return os.environ.get("SWE_SEAT_MODEL") or DEFAULT_SEAT_MODEL
+    """The model the appraiser seats run on: a session profile's choice (configure_seats), else SWE_SEAT_MODEL, else the
+    pinned default."""
+    return _SEAT_MODEL or os.environ.get("SWE_SEAT_MODEL") or DEFAULT_SEAT_MODEL
+
+
+def configure_seats(value, replies=None, wait=None):
+    """A session profile's `seats` value (src/engine/roles.py) -> this process's seat backend; returns the model label
+    every seat call records. `ollama/<model>`: the local model answers (`call` routes it to `_local`).
+    `subagent:<tier>`: the SEAT purposes replay from `replies`, each missing answer emitted and waited for `wait`
+    seconds while a fresh agent writes it (the actor's own calls are not replayed). Anything else: that OpenRouter id.
+    The owner, 2026-09-27: "Variable, use OS model, open router and subagent" - set once per session."""
+    global _SEAT_MODEL, _REPLAY_ONLY
+    if value.startswith("subagent:"):
+        if not replies:
+            raise ValueError("subagent seats need the folder their prompts are written to")
+        use_replies(replies, wait=SUBAGENT_WAIT if wait is None else wait)
+        _REPLAY_ONLY = SEAT_PURPOSES
+    _SEAT_MODEL = value
+    return value
+
+
+def _local(messages, model, purpose, led, run_id, turn, scene, max_tokens):
+    """A seat answered by a local model through Ollama - by the actor's own client (`direct._ollama`), so the repo keeps
+    one local client. think=False: the reply is one JSON object, and a thinking trace can spend the whole token budget
+    and empty the reply (measured, `direct._ollama`). The model samples at its shipped profile, not temperature 0 -
+    measured off-spec for Gemma 4 (a greedy repetition tic)."""
+    import direct                                                   # lazy: direct imports this module at load
+    text = direct._ollama(messages, model[len("ollama/"):], max_tokens=max_tokens, think=False)
+    usage = dict(direct.LAST_USAGE)
+    LAST_USAGE.clear()
+    LAST_USAGE.update({"model": model, "tokens_in": usage.get("tokens_in"), "tokens_out": usage.get("tokens_out"),
+                       "tokens_cached": None})
+    if led is not None and run_id is not None:
+        led.log_llm_call(run_id, int(turn or 0), purpose, model, usage.get("tokens_in"), usage.get("tokens_out"),
+                         scene=scene)
+    return text
 
 
 def shape(messages, model, temperature=DEFAULT_TEMPERATURE, max_tokens=700, cache=True):
@@ -249,8 +295,10 @@ def call(messages, model, purpose, led=None, run_id=None, turn=None, scene=None,
     """messages -> the reply text. Logs the call on `led` when given. Raises by name on a bad reply.
     With a replay root in force (SWE_SEAT_REPLIES / use_replies) the answer comes from the file
     written for this exact prompt and neither the network nor the key file is touched."""
-    if replies_dir():
+    if replies_dir() and (_REPLAY_ONLY is None or purpose in _REPLAY_ONLY):
         return _replay(messages, model, purpose, led, run_id, turn, scene)
+    if model.startswith("ollama/"):
+        return _local(messages, model, purpose, led, run_id, turn, scene, max_tokens)
     key = read_key()
     body = json.dumps(shape(messages, model, temperature, max_tokens, cache)).encode("utf-8")
     req = urllib.request.Request(ENDPOINT, data=body, headers={

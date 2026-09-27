@@ -1363,6 +1363,8 @@ def main():
                          "sayings the fence cannot see until the keeper notices them — is left "
                          "unresolved; the run's closing 'lore:' line says how much")
     ap.add_argument("--model", default=DEFAULT_MODEL)
+    ap.add_argument("--profile", default=None,
+                    help="the session profile (scripts/profile.py): the actor's model and the seats' backend")
     ap.add_argument("--budget", type=int, default=14, help="max beats")
     ap.add_argument("--seed-base", type=int, default=0, dest="seed_base",
                     help="sampling seed base; per-beat seed = base*1000 + beat. Vary it (0..K-1) to draw a "
@@ -1401,6 +1403,20 @@ def main():
         except OSError as e:
             raise SystemExit("--turn-json cannot be read: %s" % e)
 
+    # THE SESSION PROFILE (gate session-profile): the author's choices for the whole session - the actor's model (unless
+    # --model names another) and the seats' backend. Applied before the pre-warm, so a local actor is the one warmed.
+    _profile = None
+    if args.profile:
+        from src.engine import roles as _roles
+        try:
+            _profile, _warns = _roles.load(args.profile)
+        except RecordError as e:
+            raise SystemExit(str(e))
+        for _w in _warns:
+            print("profile: %s" % _w)
+        if args.model == DEFAULT_MODEL:
+            args.model = _roles.model_id(_profile["actor"])
+
     # pre-warm: cold-load the model NOW, before load_book pulls the engine's recall models into host RAM.
     # On this RAM-constrained host the 17 GB model's cold load (UseMmap:false) OOMs if it lands mid-scene
     # with scene.py resident (ggml mem_buffer NULL -> HTTP 500; server.log 2026-06-14). Warming first puts
@@ -1418,6 +1434,8 @@ def main():
         book_dir = books.resolve(spec)
     except books.BookError as e:
         raise SystemExit(str(e))
+    if _profile:                          # subagent seats write their prompts beside the book, never into this repo
+        _provider.configure_seats(_roles.model_id(_profile["seats"]), replies=os.path.join(book_dir, "runs", "seats"))
     world, chars = load_book(book_dir)
     # THE CONTRACTS, AT RUN START (gate run-start-refusal, G4): the world, the scene's cast and the scene file AS
     # WRITTEN - `load_scene_cfg` rewrites it - each against its contract, before a sheet is stamped and before the
@@ -1616,6 +1634,9 @@ def main():
         run_cfg = {"catalog_version": 1,
                    "models": {"turn": "stub" if args.stub else args.model},
                    "prompt_versions": {"turn": 1, "ladders": rungs.fingerprint()}}   # the ladders it is directed from
+        if _profile:                      # the session's choices travel with the run they shaped
+            run_cfg["models"]["seats"] = _provider.seat_model()
+            run_cfg["profile"] = _profile
         from src.engine import bible
         _fp = bible.build(led.con, world, chars)                          # pin the bible
         # REFUSE BEFORE THE RUN EXISTS. The pre-flight used to sit inside `run_scene`, after this
