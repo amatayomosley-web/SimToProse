@@ -18,9 +18,22 @@ the remote's name and URL as arguments and one line per ref on stdin:
      and this makes the reading a condition of the push instead of a habit. It proves a review was
      recorded for exactly this commit; it cannot prove the review was good.
 
+A remote DECLARED private (2026-09-26, gate clone-role) is not a publish: the owner's personal clone holds
+his books and pushes them to his own private remote. When the url git is pushing to - its second argument,
+after any pushurl or pushInsteadOf - is on the machine-local private-remotes list beside the books
+(`scripts/checkout_role.py`, the one definition; a list inside this checkout does not count), every ref but
+a tag goes, and the verdict names the declaration so a wrongly listed url is visible. Every OTHER remote
+gets the full gate above PLUS:
+
+  4. any outgoing commit that ADDS or CHANGES a path under the personal namespace `books/`, and any pushed
+     tip whose TREE holds anything there but an empty placeholder - whatever it contains. A clone's books
+     never go to a public remote. The tree check holds even when commit traversal is fooled (a stale
+     remote-tracking ref, a remote re-pointed from private to public); a new ref is swept over its whole
+     history for the same reason. A pure deletion under books/ is allowed, so a leak can be cleaned up.
+
 Deleting a remote ref is always allowed. With no private-terms list or no review folder the gate
-REFUSES: a publish gate that cannot see what it guards must not pass. `git push --no-verify` skips
-every hook, visibly; there is deliberately no quieter switch.
+REFUSES a public push: a publish gate that cannot see what it guards must not pass. `git push
+--no-verify` skips every hook, visibly; there is deliberately no quieter switch.
 
 Stdlib only. Exit 0 = the push may go ahead.
 """
@@ -31,7 +44,9 @@ import sys
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(REPO, "tests"))
-import test_no_private_content as G                                    # noqa: E402  the ONE definition
+sys.path.insert(0, os.path.join(REPO, "scripts"))
+import test_no_private_content as G                                    # noqa: E402  the ONE pattern definition
+import checkout_role as R                                              # noqa: E402  the ONE role definition
 
 _REVIEWS_ENV = "SWE_PUBLISH_REVIEWS"
 _ZERO = re.compile(r"^0+$")
@@ -56,10 +71,13 @@ def _git(cwd, *args):
 
 
 def outgoing(cwd, local_sha, remote_sha, remote):
-    """The commits this ref would add to the remote: reachable from the new tip and not from what the
-    remote already holds (its old tip, or for a new ref every remote-tracking ref of that remote)."""
-    stop = [remote_sha] if not _ZERO.match(remote_sha) else ["--remotes=%s" % remote]
-    return _git(cwd, "rev-list", local_sha, "--not", *stop).split()
+    """The commits this ref would add to the remote: reachable from the new tip and not from the remote's old
+    tip. For a NEW ref, the whole history reachable from the tip: this checkout's remote-tracking refs are only a
+    local belief about the remote - stale, or left from a url the remote name used to point at, they hid every
+    commit ("0 outgoing") while git sent them all (the clone-role review, finding C)."""
+    if _ZERO.match(remote_sha):
+        return _git(cwd, "rev-list", local_sha).split()
+    return _git(cwd, "rev-list", local_sha, "--not", remote_sha).split()
 
 
 def _combined(pats):
@@ -91,11 +109,47 @@ def leaks_in(cwd, sha, pats):
     return hits
 
 
-def check(cwd, remote, lines):
+def personal_paths(cwd, sha):
+    """Paths under the personal namespace that one commit ADDS or CHANGES - against every parent of a merge, and
+    against nothing for a root commit - the placeholder excepted. Read NUL-separated: git C-quotes a non-ASCII name in
+    its newline output ("books/Caf\\303\\251 ..."), which matched no namespace, so an accented book path went out
+    reviewed and term-free (the clone-role review, MAJOR-1). A pure deletion is not listed: it adds nothing."""
+    names = _git(cwd, "diff-tree", "-z", "--no-commit-id", "--name-only", "-r", "-m", "--root",
+                 "--diff-filter=d", sha).split("\0")
+    bad = {n for n in names if n and R.is_personal(n)}
+    if R.NAMESPACE_KEEP in names and _git(cwd, "cat-file", "-s", "%s:%s" % (sha, R.NAMESPACE_KEEP)).strip() != "0":
+        bad.add("%s (filled in this commit; the placeholder must be empty)" % R.NAMESPACE_KEEP)   # review 2, nit c
+    return sorted(bad)
+
+
+def tip_problems(cwd, sha):
+    """What the pushed TREE holds under the personal namespace: every path but the placeholder, and a placeholder
+    that is not empty (it is exempt by name, so its size is held at 0). Commit traversal can be fooled; a tree
+    cannot."""
+    names = [n for n in _git(cwd, "ls-tree", "-r", "-z", "--name-only", sha, "--", R.PERSONAL_NAMESPACE).split("\0")
+             if n]
+    bad = [n for n in names if R.is_personal(n)]
+    if R.NAMESPACE_KEEP in names:
+        size = _git(cwd, "cat-file", "-s", "%s:%s" % (sha, R.NAMESPACE_KEEP)).strip()
+        if size != "0":
+            bad.append("%s (%s bytes; the placeholder must be empty)" % (R.NAMESPACE_KEEP, size))
+    return bad
+
+
+def remote_location(cwd, remote, url=None):
+    """The url git is pushing to - its second argument, with pushurl and pushInsteadOf already applied - else the
+    one it has for `remote`, else `remote` itself."""
+    return url or R.remote_url(cwd, remote) or remote
+
+
+def check(cwd, remote, lines, url=None):
     """-> list of (remote_ref, verdict, detail). verdict is OK or REFUSED."""
     out = []
     pats = G._patterns()
     rdir = reviews_dir()
+    where = remote_location(cwd, remote, url)
+    private, why = R.is_private_url(where, repo=cwd)
+    shown_where = R.redact(where)
     for raw in lines:
         parts = raw.split()
         if len(parts) != 4:
@@ -107,6 +161,9 @@ def check(cwd, remote, lines):
         if rref.startswith("refs/tags/"):
             out.append((rref, "REFUSED", "tags are never pushed: a tag carries history past every branch check"))
             continue
+        if private:
+            out.append((rref, "OK", "private remote %s (%s) - not a publish; no review needed" % (shown_where, why)))
+            continue
         if not G._PRIVATE:
             out.append((rref, "REFUSED", "no private-terms list on this machine (%s)" % G._PRIVATE_SOURCE))
             continue
@@ -114,7 +171,14 @@ def check(cwd, remote, lines):
             out.append((rref, "REFUSED", "no review folder (%s unset and none beside $SWE_BOOKS)" % _REVIEWS_ENV))
             continue
         commits = outgoing(cwd, lsha, rsha, remote)
-        hits = [(c[:7], where, tok) for c in commits for where, tok in leaks_in(cwd, c, pats)]
+        mine = [("tip", p) for p in tip_problems(cwd, lsha)]
+        mine += [(c[:7], p) for c in commits for p in personal_paths(cwd, c)]
+        if mine:
+            shown = "; ".join("%s %s" % m for m in mine[:10])
+            out.append((rref, "REFUSED", "the personal namespace %s never goes to a public remote: %d path(s) in "
+                        "the pushed tree or outgoing commits: %s" % (R.PERSONAL_NAMESPACE, len(mine), shown)))
+            continue
+        hits = [(c[:7], at, tok) for c in commits for at, tok in leaks_in(cwd, c, pats)]
         if hits:
             shown = "; ".join("%s %s %s" % h for h in hits[:10])
             out.append((rref, "REFUSED", "%d private hit(s) in %d outgoing commit(s): %s" % (len(hits), len(commits), shown)))
@@ -134,14 +198,18 @@ def check(cwd, remote, lines):
 def main(argv=None, stdin=None):
     argv = sys.argv[1:] if argv is None else argv
     remote = argv[0] if argv else "origin"
+    url = argv[1] if len(argv) > 1 else None                    # git passes the remote's location second
     lines = (stdin if stdin is not None else sys.stdin).read().splitlines()
     try:
-        verdicts = check(os.getcwd(), remote, lines)
+        verdicts = check(os.getcwd(), remote, lines, url)
     except RuntimeError as exc:
-        print("push_guard: REFUSED — %s" % exc)
+        print(("push_guard: REFUSED - %s" % exc).encode("ascii", "backslashreplace").decode("ascii"))
         return 1
     for rref, verdict, detail in verdicts:
-        print("push_guard: %s %s — %s" % (verdict, rref, detail))
+        # ASCII-safe: a refused books/ name outside the console's code page raised in print, so the reason arrived
+        # as a traceback at the very moment a book was being stopped (clone-role review 2, NEW-2)
+        line = "push_guard: %s %s - %s" % (verdict, rref, detail)
+        print(line.encode("ascii", "backslashreplace").decode("ascii"))
     return 1 if any(v == "REFUSED" for _r, v, _d in verdicts) else 0
 
 

@@ -44,6 +44,24 @@ REPO = Path(__file__).resolve().parent.parent.parent
 BOOKS_ENV = "SWE_BOOKS"
 
 
+def _role_line() -> str:
+    """This checkout's declared role (scripts/checkout_role.py `checkout_role`, the one definition), or why
+    it is unknown. Replaces a line that told every session the private-content sweep was EXPECTED TO FAIL
+    here - retired on 2026-08-21 and repeated at every wake until 2026-09-26. The origin url in `why` is
+    already redacted: a credential in it never reaches a session's transcript."""
+    try:
+        sys.path.insert(0, str(REPO / "scripts"))
+        import checkout_role as G
+        role, why = G.checkout_role(str(REPO))
+    except Exception as exc:
+        return "  Checkout role: unknown (%s: %s)" % (type(exc).__name__, exc)
+    if role == G.PERSONAL_CLONE:
+        return ("  Checkout role: PERSONAL CLONE (%s) -- books/ is yours and unswept here;\n"
+                "  every other tracked file is swept and the suite must stay green." % why)
+    return ("  Checkout role: TEMPLATE (%s) -- every tracked file is swept and\n"
+            "  books/ holds only its placeholder." % why)
+
+
 def _count(pattern: str, root: Path) -> int:
     try:
         return len(list(root.glob(pattern)))
@@ -97,10 +115,10 @@ def main() -> int:
         skills = _names(REPO / ".claude" / "skills")
 
         L = [
-            "=== simulated-world-evolve -- Wake ===",
+            "=== SimToProse -- Wake ===",
             "",
-            "An INSTANCE of SimToProse, not the template. It is SUPPOSED to diverge:",
-            "real books, real runs, machine-local config. Books NEVER live in this repo.",
+            "Which checkout this is - the public TEMPLATE or a declared PERSONAL CLONE,",
+            "and what that means for books/ - is the role line at the end of this wake.",
             "",
             "READ docs/MAP.md BEFORE REASONING ABOUT THE ENGINE. It carries the ROUTING",
             "table (which of the %d docs owns your question) and the VOCABULARY table." % docs,
@@ -154,10 +172,9 @@ def main() -> int:
               "  3 no LLM calls inside src/engine/   4 no randomness in the engine",
               "  5 numbers never reach the prompt    7 code writes need a depth gate",
               "",
-              "  Verify after ANY change: the 10-suite block in CLAUDE.md, then",
+              "  Verify after ANY change: python tests/run_all.py, then",
               "  coherence_probe.py --stub (must PASS) and --corrupt (must FAIL).",
-              "  tests/test_no_private_content.py is EXPECTED TO FAIL here -- this is",
-              "  the instance, not the template. Never 'fix' it by scrubbing a book.",
+              _role_line(),
               "=== end wake ==="]
 
         print("\n".join(x for x in L if x is not None))

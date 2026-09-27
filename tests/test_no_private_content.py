@@ -25,6 +25,11 @@ scene.py's DEFAULT, so every no-argument run played someone's book.
 This suite is now in CLAUDE.md's verify block and must stay green. Fix a failure
 by scrubbing the ENGINE, never by loosening the list. Books live in the vault.
 
+ROLES (2026-09-26, gate clone-role): a checkout is the TEMPLATE, swept whole, or
+a declared PERSONAL CLONE, swept whole except its one namespace books/, which the
+run counts and names. The role and the namespace are defined once, in
+scripts/checkout_role.py; tests/test_checkout_role.py proves them.
+
 SCOPE: everything git would offer to commit -- tracked files PLUS untracked
 files that are not gitignored. GITIGNORED paths (runs/*.db, staging/, .env)
 are excluded and that is correct: they never reach a remote.
@@ -93,7 +98,10 @@ def _private_terms():
         return [], ("NO private-terms file (%s unset and none beside $SWE_BOOKS) — this run "
                     "checked MACHINE PATHS ONLY and proves nothing about cast or titles" % _TERMS_ENV)
     toks = []
-    with open(path, encoding="utf-8") as fh:
+    # utf-8-sig: a file saved by PowerShell 5.1 starts with a BOM, which read as utf-8 glued itself to the FIRST
+    # term so that term never matched - silently, and the negative control probed with the same glued token
+    # (found by the clone-role review, 2026-09-26)
+    with open(path, encoding="utf-8-sig") as fh:
         for line in fh:
             line = line.split("#")[0].strip().lower()
             if line:
@@ -120,6 +128,11 @@ _BANNED_GENERIC = ()
 
 _PRIVATE, _PRIVATE_SOURCE = _private_terms()
 _BANNED = _BANNED_GENERIC + tuple(_PRIVATE)
+
+
+# THE CHECKOUT'S ROLE and its personal namespace are defined once, in scripts/checkout_role.py (gate clone-role).
+sys.path.insert(0, os.path.join(REPO, "scripts"))
+import checkout_role as R                                              # noqa: E402
 
 
 # THIS FILE IS SWEPT LIKE EVERY OTHER (since 2026-09-23). It used to exempt itself because it had to
@@ -160,31 +173,27 @@ def _patterns():
     return pats
 
 
-def _tracked_files():
-    # tracked + untracked-but-not-ignored = the set git would offer to commit. --exclude-standard
-    # keeps .gitignore honoured, so runs/*.db and staging/ stay out.
-    listed = []
-    for args in (["git", "ls-files"],
-                 ["git", "ls-files", "--others", "--exclude-standard"]):
-        out = subprocess.run(args, cwd=REPO, capture_output=True,
-                             text=True, encoding="utf-8", errors="replace")
-        if out.returncode != 0:
-            raise RuntimeError("%s failed — cannot determine the disclosure surface" % " ".join(args))
-        listed.extend(out.stdout.splitlines())
-    files = []
-    for rel in listed:
-        rel = rel.strip()
-        if not rel:
-            continue
-        if rel.endswith(_TEXT_EXT) or "." not in os.path.basename(rel):
-            files.append(rel)
-    return files
+def _tracked_files(repo=REPO):
+    # tracked + untracked-but-not-ignored = the set git would offer to commit (checkout_role.listed, read
+    # NUL-separated so a non-ASCII name arrives as itself). --exclude-standard keeps .gitignore honoured.
+    return [rel for rel in R.listed(repo) if rel.endswith(_TEXT_EXT) or "." not in os.path.basename(rel)]
 
 
-def _scan(files, pats):
+def sweep_set(repo=REPO):
+    """-> (files to sweep, files left unswept, role, why). The template sweeps every text file; a personal clone
+    sweeps every one EXCEPT those in its personal namespace, and hands back EVERY file it left - text or not - so a
+    run can say how much ground it did not cover."""
+    role, why = R.checkout_role(repo)
+    files = _tracked_files(repo)
+    if role != R.PERSONAL_CLONE:
+        return files, [], role, why
+    return [f for f in files if not R.is_personal(f)], R.namespace_intruders(repo), role, why
+
+
+def _scan(files, pats, repo=REPO):
     hits = []
     for rel in files:
-        path = os.path.join(REPO, rel)
+        path = os.path.join(repo, rel)
         try:
             with open(path, encoding="utf-8", errors="replace") as fh:
                 for n, line in enumerate(fh, 1):
@@ -285,7 +294,7 @@ def test_the_sweep_can_see_where_the_leak_was():
 
 
 def test_no_private_content_in_tracked_files():
-    files = _tracked_files()
+    files, mine, role, why = sweep_set()
     hits = _scan(files, _patterns())
     if hits:
         shown = "\n".join("    %s:%d  %s" % h for h in hits[:25])
@@ -293,8 +302,10 @@ def test_no_private_content_in_tracked_files():
         raise AssertionError(
             "%d private-content hit(s) across %d file(s):\n%s%s"
             % (len(hits), len({h[0] for h in hits}), shown, more))
-    return ("scanned %d tracked files, zero private-content hits\n          [terms] %s"
-            % (len(files), _PRIVATE_SOURCE))
+    left = ("; %d file(s) under %s NOT swept - its personal namespace" % (len(mine), R.PERSONAL_NAMESPACE)
+            if role == R.PERSONAL_CLONE else "")
+    return ("scanned %d tracked files, zero private-content hits\n          [terms] %s\n          [role] %s (%s)%s"
+            % (len(files), _PRIVATE_SOURCE, role, why, left))
 
 
 # ---- THE LIST MUST KEEP UP WITH THE BOOKS (2026-09-23, gate leak-guards) ----------------------------
@@ -324,7 +335,7 @@ def _name_review():
     if not path or not os.path.isfile(path):
         return None, None, "NO name-review file (%s unset and none beside $SWE_BOOKS)" % _REVIEW_ENV
     sections, cur = {"public-books": set(), "ordinary": set()}, None
-    with open(path, encoding="utf-8") as fh:
+    with open(path, encoding="utf-8-sig") as fh:          # -sig: a BOM must not eat the first header
         for line in fh:
             line = line.split("#")[0].strip()
             if line.startswith("[") and line.endswith("]"):

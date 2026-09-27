@@ -209,6 +209,28 @@ carried an old snapshot past every branch check, and the terms list had fallen 5
 - **A write-time block** in the author's own agent config refuses any edit to this tree that carries a
   private term, at the moment it is written. It is machine-local, so it is described here, not shipped.
 
+**A personal clone (2026-09-26, gate clone-role).** The owner: *"people clone the repo and make it
+personal"* — this template is public and ships the mechanism; a clone its owner makes private holds his
+books. `scripts/checkout_role.py` is the one definition. A checkout's ROLE is declared, never guessed: it
+is a **personal clone** only when its `origin` url is listed in the machine-local `private-remotes.txt`
+beside the books (`$SWE_PRIVATE_REMOTES`, default `<parent of $SWE_BOOKS>/private-remotes.txt`, an
+absolute path OUTSIDE the checkout — a list a commit could change does not count); anything else is the
+**template** role, which is today's behaviour exactly. In a personal clone the sweep skips ONE namespace,
+`books/`, and reports how many files — of any kind — it left on every run; everything else is still swept
+and must stay green. In the template `books/` must hold nothing but an EMPTY placeholder. The publish gate
+reads the same LIST, keyed on the url git is actually pushing to (its second argument, after any pushurl):
+a push to a declared-private remote needs no review record (a tag is still refused); every other push
+refuses any outgoing commit that adds or changes a path under `books/`, and any tip whose TREE holds
+anything there but the empty placeholder — whatever it contains; a new branch is swept over its whole
+history, and a pure deletion under `books/` goes, so a leak can be cleaned up. The namespace checks and
+the tree sweep read git's paths NUL-separated, so an accented title is seen as itself (git's quoted output
+had hidden every non-ASCII-named file from the sweep). Chronicle databases under any `runs/`, and the beside-the-books files
+if they ever sit at a clone's root, are ignored. `scripts/sync_clone.py --to <clone> [--check]` brings a
+declared clone whose history predates the template up to date by the template's own committed file list,
+one way, never `books/`. Listing the PUBLIC url by mistake would make that remote private to the gate — the
+gate names the declaration on every push it lets through, so the mistake shows. (Hard rule 1's own wording
+is the owner's to revise; this paragraph describes the mechanism.)
+
 Real-LLM probe (OpenRouter, ~25 haiku calls): `python tests/coherence_probe.py --run --db`.
 The probe is the permanent regression: a change that turns it red is wrong until proven otherwise.
 

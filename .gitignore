@@ -32,6 +32,26 @@ runs/*.db
 runs/*.db-wal
 runs/*.db-shm
 runs/*.db.directions/
+# ...and under ANY runs/ at any depth: a personal clone keeps its books under books/, each with its own
+# runs/ (drafts and history copies included) - chronicle databases are save-files, never commits (gate clone-role)
+**/runs/**/*.db
+**/runs/**/*.db-wal
+**/runs/**/*.db-shm
+**/runs/**/*.db.directions/
+
+# a book folder opened in Obsidian inside a clone
+.obsidian/
+
+# the files that live BESIDE the books (<parent of $SWE_BOOKS>): if a clone keeps its books in books/, that parent
+# is the clone's root - these must never be committed there, and a list inside the checkout does not count anyway
+/private-remotes.txt
+/private-terms.txt
+/name-review.txt
+/publish-reviews/
+
+# Claude Code's per-user, machine-local files
+.claude/settings.local.json
+CLAUDE.local.md
 
 # scratch
 staging/
