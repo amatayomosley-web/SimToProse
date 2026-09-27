@@ -404,8 +404,16 @@ def _strip_check(led, run_id, turn, etype, payload, ids, given, given_ids, junk,
     return None
 
 
-def apply_proposals(led, run_id, proposals, dry_run=False):
+def apply_proposals(led, run_id, proposals, dry_run=False, source=None, judge_at=None):
     """Validate, test warrant by folding, and append what genuinely moves the world.
+
+    `source` names who wrote a report that is NOT the keeper's - the author's hand, scripts/declare.py passes
+    "author" - and lands in every applied payload after the trim below. A report's own `source` key is a key no
+    fold reads and is left out like any other, so only a caller that passes one can write one: a keeper report
+    cannot pass for the author's (gate author-declarations). `judge_at` is the turn whose world the warrant is
+    judged in when that is not the one the report lands at: the author's event lands at the last committed turn and
+    is judged in the world the NEXT beat reads, where a correction of that beat already stands (review 1: after
+    correcting a beat, its change could not be restated as the author's own).
 
     -> (applied, rejected) where each rejected entry is (proposal, reason). Reasons are the
     rejection, not a summary of it, so a keeper's operator can see WHICH rule refused a report;
@@ -468,6 +476,8 @@ def apply_proposals(led, run_id, proposals, dry_run=False):
         keep = world_events.payload_keys(etype, raw)
         left_out = [k for k in raw if k not in keep]
         payload = {k: v for k, v in raw.items() if k in keep}
+        if source:                                     # the caller's word, after the trim: a report never sets it
+            payload["source"] = source
         if etype == "threaten" and isinstance(payload.get("dimensions"), dict):
             from src.engine.world_appraisal import DIMENSIONS      # relevance reads the seven, nothing else
             left_out += [("dimensions", k) for k in payload["dimensions"] if k not in DIMENSIONS]
@@ -556,7 +566,7 @@ def apply_proposals(led, run_id, proposals, dry_run=False):
         # took the whole run down AFTER earlier proposals in the same file had committed. "The seat
         # reports, never crashes" has to hold for every gate or it holds for none.
         try:
-            moved = world_events.would_change(led, run_id, turn, ev, at_turn=turn)
+            moved = world_events.would_change(led, run_id, turn, ev, at_turn=turn if judge_at is None else judge_at)
         except Exception as e:                       # noqa: BLE001 — the seat reports, never crashes
             rejected.append((p, _why(e, "the fold could not judge it")))
             continue
@@ -609,7 +619,9 @@ def build_ruling_prompt(led, run_id, first_turn, last_turn):
     from src.engine import read_api as _read_api
     utts = claims.for_run(led.con, run_id, as_of=last_turn)
     resolutions = claims.resolutions_for(led.con, run_id, as_of=last_turn)
-    scene = [u for u in utts if first_turn <= int(u["turn"]) <= last_turn]
+    # AN AUTHORED FACT IS NOT A CLAIM TO RULE ON: it binds as written, and shows under the facts in force (gate
+    # author-declarations review 1: a verdict of fiction had turned the owner's fact into open lore)
+    scene = [u for u in utts if first_turn <= int(u["turn"]) <= last_turn and u.get("tier") != claims.AUTHORED]
     subjects = sorted({e["subject"] for u in scene for e in (u.get("extracts") or [])})
     facts = _read_api.established(led.con, run_id, subjects, as_of=last_turn).rows if subjects else []
     lines = []
@@ -703,14 +715,18 @@ def apply_rulings(led, run_id, rulings, at_turn, dry_run=False):
     refused, each with its reason, opening with its code. A ruling applied or left carries `extra`
     when it held what was not written as given - a `rationale` that is not text among it, written as ""
     rather than as its string form (gate keeper-replies)."""
-    known = {u["id"] for u in claims.for_run(led.con, run_id)}
+    tiers = {u["id"]: u.get("tier") for u in claims.for_run(led.con, run_id)}
     applied, left, rejected = [], [], []
     for r in rulings:
         uid = r.get("utterance_id")
         verdict = str(r.get("verdict") or "").strip().lower()
-        if not isinstance(uid, int) or isinstance(uid, bool) or uid not in known:
+        if not isinstance(uid, int) or isinstance(uid, bool) or uid not in tiers:
             rejected.append((r, _refusal("KEEPER_RULING_UNKNOWN", "utterance %r is not in this run - a ruling on what "
                                          "nobody said is invention" % (uid,))))
+            continue
+        if tiers[uid] == claims.AUTHORED:
+            rejected.append((r, _refusal("KEEPER_RULING_AUTHORED", "utterance %d is the author's own fact - it binds "
+                                         "as written and is ruled by nobody" % uid)))
             continue
         extra = _replies.ruling_extra(r)
         kept = dict(r, extra=extra) if extra else r

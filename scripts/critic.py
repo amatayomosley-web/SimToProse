@@ -274,10 +274,13 @@ def _turn_actors(led, run_id):
 
 
 def _world_moving_ids(led, run_id, turn, moving):
-    """The event ids appended BY that turn whose type moves the world -> [int] in log order."""
+    """The event ids appended BY that turn whose type moves the world -> [int] in log order - never one the owner
+    declared there (payload source `author`, scripts/declare.py): a correction of a beat retracts what the beat did,
+    not the author's hand that landed on the same turn (gate author-declarations review 1: a later correction, the
+    owner's or the critic's, silently un-applied a declared event)."""
     return [r["event_id"] for r in led.con.execute(
-        "SELECT event_id, type FROM events WHERE run_id=? AND turn=? ORDER BY event_id",
-        (run_id, turn)) if r["type"] in moving]
+        "SELECT event_id, type, payload FROM events WHERE run_id=? AND turn=? ORDER BY event_id",
+        (run_id, turn)) if r["type"] in moving and (json.loads(r["payload"] or "{}") or {}).get("source") != "author"]
 
 
 def correct_run(led, run_id, review, source="critic"):

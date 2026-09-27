@@ -46,6 +46,7 @@ FICTION = "fiction"
 
 BINDING = (AUTHORED, ESTABLISHED)
 TIERS = (AUTHORED, ESTABLISHED, SUPERPOSED, FICTION)
+AUTHOR = "author"            # the one speaker of an authored fact (scripts/declare.py) - reserved to that tier
 
 _ARTICLES = ("the", "a", "an")
 
@@ -233,6 +234,11 @@ def record(con, run_id, turn, speaker, said, extracts=None, tier=SUPERPOSED):
                          "the claim — `tier_of` folds a keeper's rulings per utterance and "
                          "`faithfulness` asks who knew what, and neither question has an answer "
                          "about nobody." % (turn,))
+    if str(speaker).strip().lower() == AUTHOR and tier != AUTHORED:
+        raise ClaimError("CLAIM_SPEAKER_RESERVED",
+                         "claims.record: %r speaks only the author's own facts (tier authored, scripts/declare.py) - "
+                         "a claim of tier %r under that name would read as the owner's hand (gate "
+                         "author-declarations review 1)" % (speaker, tier))
     if not str(said or "").strip():
         raise ClaimError("CLAIM_SAID_EMPTY",
                          "claims.record: %r's utterance at turn %r carries no verbatim text. The "

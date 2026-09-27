@@ -179,6 +179,24 @@ def _fresh(path, doing):
                           "nothing kept is lost" % (doing, taken[0]))
 
 
+def scratch_copy(src_path, dst_path):
+    """A throwaway page copy of a book's database, role row and all, to rehearse writes on -> dst_path. A writer
+    rehearses a whole change on it and writes the book only if every step went in (scripts/declare.py, gate
+    author-declarations review 1: a check that judged each entry alone let a file write half of itself). No lineage
+    minted it, so nothing can promote it; a record's copy stays a record, and its lock refuses the rehearsal too."""
+    src = connect(_existing(src_path, "db.scratch_copy"))
+    try:
+        _fresh(dst_path, "db.scratch_copy")
+        dst = sqlite3.connect(dst_path, timeout=_BACKUP_SLEEP)
+        try:
+            _bounded_copy(src, dst, "db.scratch_copy: %s" % src_path)
+        finally:
+            dst.close()
+    finally:
+        src.close()
+    return dst_path
+
+
 def in_use(db_path):
     """Is a database still open somewhere? -> the sidecar file that proves it, or "". Opened and closed once here: the
     last connection to close removes a WAL database's -wal and -shm, so one that outlives this close belongs to another

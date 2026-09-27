@@ -45,11 +45,12 @@ except ImportError:                                    # pragma: no cover - this
 RUNS = "runs"
 LOG = "lineage.jsonl"
 LEASE = ".lease"
-OPS = ("adopt", "open", "reject", "promote", "restore", "stale", "kept", "torn")
+OPS = ("adopt", "open", "reject", "promote", "restore", "stale", "kept", "torn", "declare")
 #: what each op's entry must carry - read() refuses an entry without it, so no later check meets a KeyError
 _NEEDS = {"adopt": ("head",), "open": ("draft", "parent"), "reject": ("draft",),
           "promote": ("draft", "head", "parent", "approved", "by"), "restore": ("head", "kept_head", "approved", "by"),
-          "stale": ("draft", "sibling"), "kept": ("head", "history", "digest", "approved", "by"), "torn": ("bytes",)}
+          "stale": ("draft", "sibling"), "kept": ("head", "history", "digest", "approved", "by"), "torn": ("bytes",),
+          "declare": ("draft", "run", "file", "digest", "entries")}   # the author's hand (scripts/declare.py)
 _NOTE = 512                                            # the holder note, overwritten in place at the file's head
 _LOCK_AT = 1 << 30                                     # the byte the lease locks: far past the note and any buffer
 

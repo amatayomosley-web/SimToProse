@@ -30,3 +30,21 @@ _LINEAGE_F = {
     "LINEAGE_OP_UNKNOWN":  "an entry was appended under an op the lineage does not know",
     "LINEAGE_LEASE_HELD":  "another process holds the book's lease - another flow is running on this book; the operating system frees it when that process ends",
 }
+
+# ---- DECLARE_* — the author's hand: a file of the owner's declarations (scripts/declare.py) ----
+_DECLARE_F = {
+    "DECLARE_FILE_UNREADABLE": "a declaration file is not there, not JSON, or not a list of entries - nothing of it is written",
+    "DECLARE_ENTRY_MALFORMED": "a declaration entry is not an object, names no kind or one this version does not declare (event, correction, fact), lacks a field its kind needs, carries one of the wrong type, or carries a field nothing reads (a declaration never picks its own turn or source) - nothing of the file is written",
+    "DECLARE_WORDS_MISSING":   "a declaration entry carries no owner's words (`words`: none, no letter or digit, or a <placeholder>) - the author's hand is recorded exactly as the owner gave it, or not at all",
+    "DECLARE_RUN_UNKNOWN":     "a declaration named a run the chronicle does not hold, or a chronicle that does not exist - a declaration lands in a run that was played, and creates no database",
+    "DECLARE_RUN_EMPTY":       "a declaration named a run with no committed turn yet - there is no moment for it to land at; what is true before the first beat belongs in the book's notes, which the run pins",
+    "DECLARE_TURN_UNKNOWN":    "a correction named a turn the run never recorded",
+    "DECLARE_NAME_UNKNOWN":    "an event names someone the run does not know - its actor, target, a reveal's knowers or a tension's watched parties must be of the run's cast or a person its pinned bible names; the fold would take the name as given and grow a phantom",
+    "DECLARE_PLACE_UNKNOWN":   "an event names a place the run's pinned bible does not - a move's destination, an event's location or a tension's watched place; the world moves people only to places it names",
+    "DECLARE_ENTRY_REFUSED":   "a writer's own gates refused a declared entry when the whole file was rehearsed on a scratch copy of the database (the keeper's for an event, the claims' for a fact, the critic's for a correction), or kept only part of it - the reason carries that writer's code, and nothing of the file is written",
+    "DECLARE_ALREADY_DECLARED": "this exact file (by its sha256) was declared into this run before, and the database already holds every row it wrote - running it again would double them",
+    "DECLARE_DRAFT_STALE":     "a declaration was aimed at a draft taken from a state the record has since left - a stale take, whose promote would be refused; open a new draft",
+    # ---- the author's hand as other writers meet it ----
+    "CLAIM_SPEAKER_RESERVED":  "a claim was recorded as spoken by `author` under a tier other than authored - that name speaks only the owner's own facts (scripts/declare.py), so any other claim under it would read as the owner's hand",
+    "KEEPER_RULING_AUTHORED":  "a keeper's ruling named an authored fact - the owner's own fact binds as written and is ruled by nobody",
+}
