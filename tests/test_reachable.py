@@ -73,15 +73,9 @@ EXEMPT = {
     # `_rung_half_life`'s two ladders directly. Do not restore the entry; the function it named is
     # gone.
 
-    # The READ TIER is a public API for consumers outside this repo — the whole point is that the
-    # engine does not call it. docs/MAP.md routes to it as the read surface.
-    ("read_api.py", "state"):        "read tier: public API for external consumers, not engine-internal",
-    ("read_api.py", "knows"):        "read tier: public API for external consumers, not engine-internal",
-    ("read_api.py", "said"):         "read tier: public API for external consumers, not engine-internal",
-    ("read_api.py", "edges"):        "read tier: public API for external consumers, not engine-internal",
+    # The READ TIER is a public API for consumers outside this repo. Since gate partner-contracts, scripts/ask.py
+    # serves it to the author's partner (state, knows, said, edges, scene_of, place); snapshot_at has no caller yet.
     ("read_api.py", "snapshot_at"):  "read tier: public API for external consumers, not engine-internal",
-    ("read_api.py", "scene_of"):     "read tier: public API for external consumers, not engine-internal",
-    ("read_api.py", "place"):        "read tier: public API for external consumers, not engine-internal",
 
     # ORCHESTRATOR SURFACES (Mode B). Each is named by a doc or an agent as the thing the agent
     # layer calls, and the scripts (Mode A) do not: moved here from the ratchet 2026-09-10 when the

@@ -1248,6 +1248,16 @@ reachable only with a numeric subclass), a mint's id (it carries its producer's 
 re-derive it), and the other exact walls in these tables (`WoundDelta` kind, `RestDeclared` source, a law's domain,
 modality and epistemic).
 
+**2026-09-27 — the partner route: directions, reports and info requests (gate `partner-contracts`):** the owner chose
+the partner route - the author talks with their partner, the partner hands the showrunner a typed DIRECTION, and "this
+keeps the context window for both smaller". `docs/CONTRACTS.md` is the one page a partner reads. `src/engine/handoff.py`
+`parse_direction` refuses a malformed direction (HANDOFF_*) and names the one playbook its kind loads;
+`scripts/brief.py` prints the spawn's whole brief - the lean core (`.claude/agents/showrunner.md`) plus that playbook
+(`.claude/showrunner/playbooks/`: scene, record, declare, render) plus the direction - so the showrunner never has to
+choose what to read, and builds specialists' briefs the same way (a spawn from a session outside the clone cannot name
+the clone's agents). `scripts/ask.py` answers info requests from `read_api` as JSON (where, scene, knows, state, edges,
+facts, place) without a showrunner. Setup and cut playbooks wait until first needed. Evidence: `tests/test_handoff.py`.
+
 **2026-09-27 — the showrunner drives the drafts, and adoption has a way back (gate `showrunner-drives-drafts`):** the
 showrunner skill and the batch agent now run an adopted book on drafts: adopt once and ask first, `draft.py open` per
 scene, every burst with `--db <draft>`, the canon gate and a review render on the draft, the narrator's prose saved to

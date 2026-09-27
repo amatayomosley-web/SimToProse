@@ -1,7 +1,7 @@
 # MAP — what is in this project and what owns what
 
-**Why this file exists.** `docs/` holds 126 design docs, `src/engine/` 75 modules,
-`tests/` 131 suites. Nobody — human or agent — can hold that in their head, and reading it all every
+**Why this file exists.** `docs/` holds 127 design docs, `src/engine/` 76 modules,
+`tests/` 132 suites. Nobody — human or agent — can hold that in their head, and reading it all every
 session is not practical. **The failure this prevents is real and happened:** a session spent hours
 reasoning about the decision layer from four docs and inference, invented a parallel vocabulary
 ("vectors"), and rebuilt a worse version of the buff/debuff registry that `decision-engine.md`
@@ -102,10 +102,11 @@ the system already names, stop and search this table.**
 that lets narrated prose write state (`design.md` three boundaries).
 
 ---
-## docs/ — 125 design docs (normative for what SHOULD BE)
+## docs/ — 126 design docs (normative for what SHOULD BE)
 
 | docs | lines | owns |
 |---|---|---|
+| `CONTRACTS` | the partner's contracts |
 | `SPEC-LEDGER` | every specified mechanism, against the code that does or does not implement it |
 | `acceptance-criteria` | "a finished book" |
 | `actor-direction-format` | what an agent actually receives |
@@ -232,7 +233,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `world-model` | the other half of the loop (SEED — to co-design) |
 | `world-state-ledger` | the live now (design the machinery; the line items are runtime) |
 
-## src/engine/ — 75 modules (normative for what IS)
+## src/engine/ — 76 modules (normative for what IS)
 
 | src | lines | owns |
 |---|---|---|
@@ -273,6 +274,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `fold` | the pure function from LOG to SNAPSHOT. The reading half of the spine. |
 | `gate` | Relevancy Gate: perception-mode wall + recall-mode trigger-matching. |
 | `guards` | the record's second wall on every database the engine opens: insert guards built from the vocabularies |
+| `handoff` | the partner route's contract: the DIRECTION a partner writes and the showrunner executes. |
 | `heritable` | the genotype (hit, hold per PATH) and the one reading of where a character RESTS. |
 | `identity_view` | the STABLE identity prefix, said in words. |
 | `injuries` | bodily injuries as dated STATE that heals over story time (the `injuries` system). |
@@ -324,7 +326,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `narrate` | 232 | the narrator (design.md layer 7, narration.md): a canonized scene -> POV-bound prose. |
 | `scene` | 393 | the multi-agent scene runner (the director sets the scene; the agents push it). |
 
-## tests/ — 131 suites (each is a PROOF of the gate it names)
+## tests/ — 132 suites (each is a PROOF of the gate it names)
 
 | tests | lines | owns |
 |---|---|---|
@@ -386,6 +388,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `test_gate_multihop` |  |
 | `test_genotype` | the combinatorial preset draw (scripts/make_genotype.py): hit + hold, and a resting face. |
 | `test_genotype_balance` | the person system and the global system, checked against each other. |
+| `test_handoff` |  |
 | `test_injuries` | bodily injuries kept as state, told to who saw them, healed over story time (gate injuries). |
 | `test_integrity` |  |
 | `test_keeper` |  |

@@ -44,6 +44,13 @@ _DECLARE_F = {
     "DECLARE_ENTRY_REFUSED":   "a writer's own gates refused a declared entry when the whole file was rehearsed on a scratch copy of the database (the keeper's for an event, the claims' for a fact, the critic's for a correction), or kept only part of it - the reason carries that writer's code, and nothing of the file is written",
     "DECLARE_ALREADY_DECLARED": "this exact file (by its sha256) was declared into this run before, and the database already holds every row it wrote - running it again would double them",
     "DECLARE_DRAFT_STALE":     "a declaration was aimed at a draft taken from a state the record has since left - a stale take, whose promote would be refused; open a new draft",
+    # ---- HANDOFF_* — the partner's direction to the showrunner (src/engine/handoff.py, scripts/brief.py) ----
+    "HANDOFF_DIRECTION_UNREADABLE": "a direction is not there, not JSON, or not one JSON object - nothing is spawned",
+    "HANDOFF_KIND_UNKNOWN":    "a direction names a kind of work with no playbook (scene, render, declare, adopt, approve, reject, rewind, release)",
+    "HANDOFF_FIELD_MISSING":   "a direction lacks a field its kind needs - the book always, and e.g. the draft and the author's words for an approval",
+    "HANDOFF_WORDS_MISSING":   "a direction's `words` are blank, punctuation, or a <placeholder> - they must be the author's own words, verbatim",
+    "HANDOFF_FIELD_UNKNOWN":   "a direction carries a field nothing reads - refused, so an instruction is never silently dropped",
+    "ASK_NO_CHRONICLE":        "an info request (scripts/ask.py) named a book or draft with no chronicle yet - there is nothing to read, and none is created",
     # ---- the author's hand as other writers meet it ----
     "CLAIM_SPEAKER_RESERVED":  "a claim was recorded as spoken by `author` under a tier other than authored - that name speaks only the owner's own facts (scripts/declare.py), so any other claim under it would read as the owner's hand",
     "KEEPER_RULING_AUTHORED":  "a keeper's ruling named an authored fact - the owner's own fact binds as written and is ruled by nobody",
