@@ -42,6 +42,7 @@ is kept for work that needs judgment and specialists.
   save its prose to `<book>/prose/<run>/<scene>.md` (first line `record <state>`).
 
 A direction that fails its check is refused with a coded reason before anything runs - fix it and run again.
+Which model fills each role - and why - is `docs/guide-model-roles.md`.
 
 ## 3. The report
 

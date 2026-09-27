@@ -43,6 +43,7 @@ told to read FIRST.
 - **Working on the engine** (contracts, invariants, extension): `docs/guide-engine.md`
 - **Continuing a story** (what to author per generation step, how much data drives each step): `docs/guide-continuing-the-story.md`
 - **Driving the engine** (burst discipline, model choice, measured results): `docs/driving-the-engine.md`
+- **Choosing a model for each role** (every LLM role, what it needs, the floor, and why): `docs/guide-model-roles.md`
 - Design intent (normative): the docs in `docs/` — start at `docs/design.md`
 
 **Precedence:** for *what IS*: code > tests > guides > design docs. For *what SHOULD BE*: design docs win.
