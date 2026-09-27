@@ -67,7 +67,13 @@ TMP = tempfile.TemporaryDirectory(prefix="swe_guards_", ignore_cleanup_errors=Tr
 #: whole message-free trigger - before any book carried a v34 stamp: every run over the owner's books opened backup
 #: copies. The one database that did, the suite's own runs/ashford.db from an earlier build, was refused by the new
 #: build as the rule says, and released with docs/guide-operating.md's line - what stepping the version avoids.)
-GUARD_HASHES = {34: "43066b2019d9d202"}
+GUARD_HASHES = {34: "43066b2019d9d202",
+                35: "7ce0629bf6b1341a"}       # v35: the wall carries the record lock's shape (gate record-role; re-pinned
+                                              # at its reviews 1 and 2 - history locked, a missing role row locks, the
+                                              # role row guarded against DELETE, REPLACE and any change but open ->
+                                              # record, names quoted - before any book carried a v35 stamp (census: none
+                                              # above v30), and the suite's own runs/ashford.db released each time, as
+                                              # the v34 note above says)
 
 
 def check(name, ok, detail=""):
@@ -308,7 +314,9 @@ def built_from_the_constants():
         stands = guards.installed(raw)
         raw.close()
         check("a-same-version-engine-with-%s-is-refused-the-book,-and-every-guard-stands" % what,
-              code == "DB_GUARD_VOCABULARY_SKEW" and stands.get(guard) == before and len(stands) == tables,
+              code == "DB_GUARD_VOCABULARY_SKEW" and stands.get(guard) == before
+              and sum(1 for n in stands if n.endswith(guards.SUFFIX)) == tables     # the record locks stand beside
+              and all(guards.LOCK in n for n in stands if not n.endswith(guards.SUFFIX)),   # them (gate record-role)
               (code, sorted(stands)))
     # ...and the other way round: a book another engine made with a guard on a table this one does not guard
     try:
@@ -654,8 +662,10 @@ def a_migrated_database():
           and all(f["tier"] == "amber" for f in lacking), [f["subject"] for f in lacking])
     raw.close()
     con = db.connect(_path("old.db"))
-    check("it-opens-at-v34-with-every-guard", con.execute("PRAGMA user_version").fetchone()[0] == db.SCHEMA_VERSION == 34
-          and set(guards.installed(con)) == set(guards.expected()), con.execute("PRAGMA user_version").fetchone())
+    check("it-opens-at-v35-with-every-guard-and-the-record-lock",
+          con.execute("PRAGMA user_version").fetchone()[0] == db.SCHEMA_VERSION == 35
+          and set(guards.installed(con)) == set(guards.survey(con)["want"])
+          and set(guards.expected()) <= set(guards.installed(con)), con.execute("PRAGMA user_version").fetchone()[0])
     after = con.execute("SELECT * FROM toward_deltas").fetchall() + con.execute(
         "SELECT * FROM relationship_deltas").fetchall()
     check("the-legacy-rows-are-exactly-as-they-were", [tuple(r) for r in after] == [tuple(r) for r in before], after)
@@ -1009,9 +1019,10 @@ def the_doctor_and_the_engine_agree():
         holder.close()
     raw = sqlite3.connect(_path("held.db"))
     stamped = sum(1 for (s,) in raw.execute("SELECT sql FROM sqlite_master WHERE type = 'trigger'") if guards.stamp(s))
+    wall = len(guards.survey(raw)["want"])                           # the guards and the record lock (gate record-role)
     raw.close()
     check("...and-under-another-writer-past-the-busy-timeout-refuses-DB_BUSY_TIMEOUT-and-drops-nothing",
-          code == "DB_BUSY_TIMEOUT" and stamped == len(guards.expected()), (code, stamped, len(guards.expected())))
+          code == "DB_BUSY_TIMEOUT" and stamped == wall, (code, stamped, wall))
     con = db.connect(_path("foreign_named.db"))
     con.execute("INSERT INTO runs (run_id, created_at, config) VALUES ('r9', 'now', '{}')")
     check("...and-release-refuses-a-connection-with-a-transaction-open", _code_of(lambda: guards.release(con))
@@ -1151,7 +1162,8 @@ def the_schema_copies():
               ("bible_laws", "domain"): law._DOMAINS, ("bible_laws", "modality"): law._MODALITIES,
               ("bible_laws", "epistemic"): law._EPISTEMIC, ("claim_resolutions", "verdict"): claims.TIERS,
               ("snapshots", "kind"): snapshots.KINDS, ("edl", "kind"): edl.KINDS, ("bible_entities", "kind"): bible._KINDS,
-              ("scenes", "voice"): narration_modes.VOICES, ("scenes", "knowledge"): narration_modes.KNOWLEDGE}
+              ("scenes", "voice"): narration_modes.VOICES, ("scenes", "knowledge"): narration_modes.KNOWLEDGE,
+              ("db_role", "role"): db.ROLES}                   # gate record-role
     own = {("runs", "status")}                         # no constant names these words: the list is its own authority
     check("every-IN-list-CHECK-in-schema.sql-is-pinned-here-or-named-as-its-own", set(lists) == set(copies) | own,
           sorted(set(lists) ^ (set(copies) | own)))

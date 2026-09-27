@@ -37,6 +37,13 @@ in a law's statement), the guard is the weaker, never the stricter. A guard read
 written under another vocabulary stays as it was, and `legacy_counts` counts what today's guard would refuse
 (integrity reports it as LEGACY-ROWS, never as red).
 
+THE RECORD LOCK (gate record-role, schema v35). The owner: a scene is a draft until he approves it, and only then
+enters the record. A book's database says what it is in one row, `db_role` (open | record | draft | history), and this
+module builds a second family, `<table>_record_lock_<ins|upd|del>`: on every table but `db_role`, one BEFORE trigger
+per write that refuses it while that row says 'record' (DB_IS_RECORD). Under 'open' - every file until its book is
+adopted - it never fires. The family is stamped like the guards and is part of the WALL, so two engines that disagree
+about the lock are skew, and `release` drops it with the rest; `install` puts it back on the next open.
+
 Pure, deterministic, stdlib. No LLM (rule 3), no randomness (rule 4).
 """
 from __future__ import annotations
@@ -57,6 +64,12 @@ MARK = "(gate record-guards)"
 RETIRED = ()
 _STAMP = re.compile(r"-- record-guards v(\d+) vocabulary ([0-9a-f]{16}) wall ([0-9a-f]{16})")
 _MARKER = re.compile(r"-- record-guards v(\d+)")          # any stamp's version, whatever its format
+#: the record lock: name infix, the mark on its refusal (db.refuse_if_record reads it), the writes it closes, and the
+#: one table it leaves open - the role row itself, which only db.py's role primitives write
+LOCK = "_record_lock_"
+LOCK_MARK = "(gate record-role)"
+_LOCK_EVENTS = (("ins", "INSERT"), ("upd", "UPDATE"), ("del", "DELETE"))
+_LOCK_EXEMPT = ("db_role",)
 
 
 def _ladder():
@@ -165,6 +178,8 @@ def vocabulary(table=None):
     rows = sorted([g[0], _column(g[1]), g[2], _raise(_canonical(g), message=False)]
                   for g in GUARDS if table is None or g[0] == table)
     shape = _TRIGGER % ("<name>", "<table>", 0, "<vocabulary>", "<wall>", "<statements>")
+    if table is None:                                  # the WALL carries the record lock's shape too (gate record-role)
+        rows.append(["*", "record-lock", "lock", _lock_shape()])
     return hashlib.sha256(json.dumps([shape, rows], sort_keys=True).encode("utf-8")).hexdigest()[:16]
 
 
@@ -216,24 +231,104 @@ def expected(tables=None, version=None):
     return out
 
 
+#: when the lock holds: the role row says record or history - or is MISSING, which only tampering produces, so a
+#: deleted row locks rather than unlocks (review 1, MAJOR 1: a flipped or deleted row had switched the wall off for good)
+_LOCKED = "COALESCE((SELECT role FROM db_role WHERE id = 1), 'record') IN ('record', 'history')"
+#: one record-lock trigger, names quoted - a table the engine did not create may be named anything (review 1, MINOR 6)
+_LOCK_TRIGGER = ('CREATE TRIGGER "%s" BEFORE %s ON "%s"\nBEGIN\n  -- record-guards v%d vocabulary %s wall %s\n'
+                 "  SELECT RAISE(ABORT, %s) WHERE " + _LOCKED + ";\nEND")
+#: the role row's own guard, in the same family: the row is never deleted or replaced, and on disk it changes only from
+#: open to record (adopt) - copies get their roles in memory (db.py). The INSERT arm is what refuses a REPLACE: its
+#: delete fires no DELETE trigger on a connection without recursive_triggers, SQLite's default (review 2, finding 1)
+_ROLE_WHEN = (("del", "DELETE", "1"), ("upd", "UPDATE", "NOT (OLD.role = 'open' AND NEW.role = 'record')"),
+              ("ins", "INSERT", "EXISTS (SELECT 1 FROM db_role)"))
+_ROLE_TRIGGER = ("CREATE TRIGGER %s BEFORE %s ON db_role\nBEGIN\n  -- record-guards v%d vocabulary %s wall %s\n"
+                 "  SELECT RAISE(ABORT, %s) WHERE %s;\nEND")
+
+
+def _lock_message(table, event):
+    return ("DB_IS_RECORD: %s on %s refused - this file is the book's RECORD or a HISTORY copy of it, which changes "
+            "only by promote or restore, a page copy of a whole approved state; run writers on a draft %s"
+            % (event, table, LOCK_MARK))
+
+
+def _role_message(event):
+    return ("DB_IS_RECORD: %s on db_role refused - the role row is never deleted or replaced, and on disk it changes "
+            "only from open to record, by adopt %s" % (event, LOCK_MARK))
+
+
+def _lock_shape():
+    """The record lock's statements with their names left out - what the wall fingerprints."""
+    return (_LOCK_TRIGGER % ("<name>", "<event>", "<table>", 0, "<vocabulary>", "<wall>", "<message>") + "\n"
+            + "\n".join(_ROLE_TRIGGER % ("<name>", event, 0, "<vocabulary>", "<wall>", "<message>", when)
+                        for _short, event, when in _ROLE_WHEN))
+
+
+def _lock_vocabulary():
+    return hashlib.sha256(_lock_shape().encode("utf-8")).hexdigest()[:16]
+
+
 def _tables(con):
     return {r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
 
 
+def lock_tables(con):
+    """Every table the record lock closes: this database's ordinary tables but the role row and SQLite's own. A virtual
+    table and its shadow tables stay outside it: SQLite refuses a trigger on the one, and a trigger on the others made
+    the next write into an FTS5 table kill the process - on an OPEN file, where the lock does not even fire (measured
+    2026-09-26; round 1's fix had locked them). `PRAGMA table_list` names both kinds (SQLite 3.37+); an older SQLite
+    ignores the pragma, and a table named after a virtual table and "_" is then taken for a shadow."""
+    rows = [(str(r[1]), str(r[2])) for r in con.execute("PRAGMA table_list") if str(r[0]) == "main"]
+    if not rows:
+        found = [(str(n), str(sql or "")) for n, sql in con.execute("SELECT name, sql FROM sqlite_master "
+                                                                   "WHERE type = 'table'")]
+        virtual = [n for n, sql in found if sql.lstrip().upper().startswith("CREATE VIRTUAL")]
+        rows = [(n, "virtual" if n in virtual else "shadow" if any(n.startswith(v + "_") for v in virtual) else "table")
+                for n, _sql in found]
+    return sorted(n for n, kind in rows if kind == "table" and n not in _LOCK_EXEMPT
+                  and not n.lower().startswith("sqlite_"))
+
+
+def expected_locks(tables, version=None, role_row=True):
+    """{trigger name: its CREATE statement} for the record lock on each of `tables` and each write it closes, and -
+    with `role_row` - the role row's own guard."""
+    version, wall, vocab = _version(version), vocabulary(), _lock_vocabulary()
+    out = {t + LOCK + short: _LOCK_TRIGGER % (t.replace('"', '""') + LOCK + short, event, t.replace('"', '""'),
+                                              version, vocab, wall, _q(_lock_message(t, event)))
+           for t in sorted(tables) for short, event in _LOCK_EVENTS}
+    if role_row:
+        for short, event, when in _ROLE_WHEN:
+            name = "db_role" + LOCK + short
+            out[name] = _ROLE_TRIGGER % (name, event, version, vocab, wall, _q(_role_message(event)), when)
+    return out
+
+
+def _lock_owner(name):
+    """The table a record-lock trigger's name belongs to, or None when the name is not a lock's - the role row's own
+    guards included, whatever writes the lock closes."""
+    low = str(name).lower()
+    for short in sorted({s for s, _e in _LOCK_EVENTS} | {s for s, _e, _w in _ROLE_WHEN}):
+        if low.endswith((LOCK + short).lower()):
+            return str(name)[:-len(LOCK + short)]
+    return None
+
+
 def _ours():
-    """Every trigger name this module may own: the guarded tables' and the retired ones'."""
+    """Every guard trigger name this module may own: the guarded tables' and the retired ones'."""
     return {t + SUFFIX for t in {g[0] for g in GUARDS} | set(RETIRED)}
 
 
 def installed(con):
-    """{trigger name: its SQL} for every guard of ours this database carries - a trigger whose name is ours, compared
-    case-blind as SQLite compares it, and which sits on our table."""
+    """{trigger name: its SQL} for every guard and record lock of ours this database carries - a trigger whose name is
+    ours, compared case-blind as SQLite compares it, and which sits on our table."""
     ours = {n.lower(): n for n in _ours()}
     out = {}
     for name, table, sql in con.execute("SELECT name, tbl_name, sql FROM sqlite_master WHERE type = 'trigger'"):
-        mine = ours.get(str(name).lower())
+        mine, owner = ours.get(str(name).lower()), _lock_owner(name)
         if mine and str(table).lower() == mine[:-len(SUFFIX)].lower():
             out[mine] = sql
+        elif owner is not None and str(table).lower() == owner.lower():
+            out[str(name)] = sql
     return out
 
 
@@ -250,7 +345,8 @@ def survey(con, version=None):
     not ours holds. install refuses both; integrity reports both from this one reading, so the doctor and the engine
     cannot disagree about a book."""
     version, wall = _version(version), vocabulary()
-    want, have = expected(_tables(con), version), installed(con)
+    locks = expected_locks(lock_tables(con), version, role_row="db_role" in _tables(con))
+    want, have = dict(expected(_tables(con), version), **locks), installed(con)
     triggers = [(str(r[0]), r[1]) for r in con.execute("SELECT name, sql FROM sqlite_master WHERE type = 'trigger'")]
     stamped = [(name, stamp(sql)) for name, sql in triggers]
     skew = sorted((name, got) for name, got in stamped if got and got[0] >= version and got[2] != wall)
@@ -258,8 +354,9 @@ def survey(con, version=None):
     changed = sorted(n for n, sql in want.items() if have.get(n) != sql)
     held, mine = {name.lower(): name for name, _sql in triggers}, {n.lower() for n in have}
     # every guard name, not only those this database's tables want now: a migration creates a table, and a name taken
-    # before it is taken after (review 4: the doctor read the book before migration and the open after)
-    taken = sorted((n, held[n.lower()]) for n in (t + SUFFIX for t in {g[0] for g in GUARDS})
+    # before it is taken after (review 4: the doctor read the book before migration and the open after) - and every
+    # record lock this database's tables want
+    taken = sorted((n, held[n.lower()]) for n in [t + SUFFIX for t in {g[0] for g in GUARDS}] + list(locks)
                    if n not in have and n.lower() in held)
     # an older engine's guard this one does not own - a table no longer guarded and not listed in RETIRED: left on open
     unowned = sorted((name, got) for name, got in stamped if got and got[0] < version and name.lower() not in mine)

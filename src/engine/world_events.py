@@ -448,6 +448,18 @@ def append(led, run_id, turn, events):
     against).
     """
     led.load_run(run_id)
+    try:
+        return _append(led, run_id, turn, events)
+    except Exception as exc:
+        # THE RECORD LOCK'S REFUSAL is named here as append_turn names it (gate record-role): critic --correct, the
+        # keeper's rulings and a run's seeded world events all write through this function
+        from . import db as _db                        # at call time: db imports guards, which imports the record layer
+        _db.refuse_if_guarded(exc, "world_events.append (run=%s turn=%s)" % (run_id, turn))
+        raise
+
+
+def _append(led, run_id, turn, events):
+    """append's one transaction: the rows, then the snapshot cache dropped from the earliest turn they reach."""
     earliest = None
     with led.con:
         for ev in events:

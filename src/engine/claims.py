@@ -296,10 +296,17 @@ def resolve(con, run_id, utterance_id, at_turn, verdict, rationale=""):
             "turn %d — it would be overruled by the earlier ruling and take no effect. Date a "
             "correction at or after the verdict it corrects."
             % (utterance_id, prior["t"], int(at_turn)))
-    with con:
-        con.execute("INSERT INTO claim_resolutions (run_id, utterance_id, at_turn, verdict, "
-                    "rationale) VALUES (?, ?, ?, ?, ?)",
-                    (run_id, int(utterance_id), int(at_turn), verdict, str(rationale)))
+    try:
+        with con:
+            con.execute("INSERT INTO claim_resolutions (run_id, utterance_id, at_turn, verdict, "
+                        "rationale) VALUES (?, ?, ?, ?, ?)",
+                        (run_id, int(utterance_id), int(at_turn), verdict, str(rationale)))
+    except Exception as exc:
+        # THE RECORD LOCK'S REFUSAL named as claims.record names it (gate record-role, review 2): keeper --rule
+        # --rulings writes a verdict through here
+        from . import db as _db                        # at call time: db imports guards, which imports this module
+        _db.refuse_if_guarded(exc, "claims.resolve (run=%s utterance=%s)" % (run_id, utterance_id))
+        raise
     return True
 
 

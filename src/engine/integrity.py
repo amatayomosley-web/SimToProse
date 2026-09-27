@@ -57,6 +57,7 @@ TIERS = {
     "APPEND-ONLY-TRIGGER-MISSING": "amber",
     "SCHEMA-GUARD-MISSING":        "amber",
     "INSERT-GUARD-MISSING":        "amber",
+    "RECORD-LOCK-MISSING":         "amber",
     "LEGACY-ROWS":                 "amber",
     "BOOK-REFUSED":                "red",
     "INSERT-GUARD-UNOWNED":        "amber",
@@ -271,7 +272,16 @@ def _insert_guards(con, findings):
                      "this book (DB_GUARD_NAME_TAKEN)" % (holder,)) for name, holder in s["taken"]]
     for subject, detail in refused:
         findings.append(_finding("BOOK-REFUSED", subject, detail))
+    # THE RECORD LOCK is one fact about a book, not a hundred (gate record-role): three triggers per table, so an unopened
+    # book lacks them all - reported once, and the guards below stay one line each
+    locks = [n for n in ([] if refused else s["changed"] + s["stale"]) if _guards.LOCK in n]
+    if locks:
+        findings.append(_finding("RECORD-LOCK-MISSING", "record lock", "this database lacks, or carries an older, record "
+                                 "lock on %d trigger(s) of %d; the engine installs it on open (gate record-role)"
+                                 % (len(locks), sum(1 for n in s["want"] if _guards.LOCK in n))))
     for name in ([] if refused else s["changed"]):
+        if _guards.LOCK in name:
+            continue
         got = _guards.stamp(s["have"].get(name))
         findings.append(_finding("INSERT-GUARD-MISSING", name, "this database %s; the engine %s it on open" % (
             "does not carry it" if name not in s["have"]
@@ -279,7 +289,7 @@ def _insert_guards(con, findings):
             else "carries one stamped v%d, older than this engine's v%d" % (got[0], s["version"]) if got[0] < s["version"]
             else "carries one stamped v%d with this engine's guard set but another body (edited, or reworded)" % got[0],
             "installs" if name not in s["have"] else "replaces")))
-    for name in ([] if refused else s["stale"]):
+    for name in ([] if refused else [n for n in s["stale"] if _guards.LOCK not in n]):
         findings.append(_finding("INSERT-GUARD-MISSING", name, "this database carries a guard this engine retired; the "
                                  "engine drops it on open"))
     for name, got in s["unowned"]:

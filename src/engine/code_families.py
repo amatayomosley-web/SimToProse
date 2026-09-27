@@ -379,6 +379,10 @@ _DB_F = {
     "DB_GUARD_NAME_TAKEN": "a trigger that is not the engine's holds a record guard's name (SQLite compares trigger names case-blind), so the guard cannot be installed without destroying it (gate record-guards)",
     "DB_BUSY_TIMEOUT":    "another writer held the database past the busy timeout — a TIMEOUT, not a refusal: the same call succeeds unchanged once the lock clears, which is why it is not folded into any _EXISTS or ROLLED_BACK code",
     "DB_TRANSACTION_OPEN": "a writer that opens its own transaction (write_once, guards.install) was handed a connection with uncommitted DML on it, where its pre-check would read a stale snapshot and its commit or rollback would take the caller's work with it",
+    "DB_IS_RECORD":      "a write reached a book's RECORD or a HISTORY copy of it - a file its role row marks as an approved state, which the record lock closes to every INSERT, UPDATE and DELETE (the role row itself changes on disk only from open to record); writers run on a draft, and the record changes only by promote or restore (gate record-role)",
+    "DB_ROLE_WRONG":     "a role primitive met a file in the wrong role - adopting one that is not open, promoting something not a draft or onto something not a record, a history copy of anything but a record, restoring from something not a history copy, a lineage id reused or empty, a role row or table removed (gate record-role)",
+    "DB_PROMOTE_STALE":  "a draft's parent is not the record's head: another promote landed first, or the draft was copied from another record - promoting it would drop what landed since (gate record-role)",
+    "DB_COPY_TARGET_EXISTS": "a role primitive would have written a copy - a draft, a history copy, the state a rewind keeps - over an existing file; copies are never overwritten, so nothing kept is lost (gate record-role)",
 }
 
 # ---- DIRECTION_* ----

@@ -1248,6 +1248,49 @@ reachable only with a numeric subclass), a mint's id (it carries its producer's 
 re-derive it), and the other exact walls in these tables (`WoundDelta` kind, `RestDeclared` source, a law's domain,
 modality and epistemic).
 
+**2026-09-26 — a book's record changes only by promote (gate `record-role`, schema v35):** the owner: "not save runs
+into the books db until it's approved so a scene is draft until it's approved and then it's saved into record." Until
+now `db.connect` opened every file alike and `books.assert_db_for_book` handed `scene.py --book X` the record itself
+when no `--db` was given, so every turn landed in the book before any approval. Now one row, `schema.sql` `db_role`,
+says what a FILE is - open, record, draft or history, with a lineage `head` and the `parent` it was copied from - and
+`guards.py` installs, on every open, a record lock: a BEFORE INSERT, UPDATE and DELETE trigger on every table but the
+role row (names quoted; a virtual table and its shadow tables stay outside it - a trigger on FTS5's shadow tables
+killed the process on the next write into the table, even on an open file, where the lock does not fire) that refuses
+the write while
+the row says 'record' or 'history' - or is missing, which only tampering produces, so a deleted row locks rather than
+unlocks (`DB_IS_RECORD`, named through `db.refuse_if_record` by `refuse_if_guarded`'s callers, `writeonce.write_once`,
+`world_events.append` and `claims.resolve`; a raw sqlite3 write carries the same words). The role row has its own guard
+in the same family: it is never deleted or replaced - an INSERT arm refuses a REPLACE, whose delete fires no DELETE
+trigger on a connection without recursive_triggers - and on disk it changes only from open to record, by `adopt`;
+copies get their roles in memory. A role row a stranger removed stays removed through later version steps (the seed
+runs only where the table is new), so the file keeps reading, and locking, as a record - until a hand-typed INSERT
+refills it, which only a writer that already used DDL to empty it can reach. The lock is part of the guards' wall - two engines that
+disagree about it are skew, `release_guards` drops it with the rest and the next open restores it - which is why the
+version steps. A record changes only by a page copy of a whole approved state: `db.adopt` (open -> record),
+`db.copy_to` (a draft, under a lineage id of its own with its source's head as parent, or a history copy - only of a
+record, under that record's own head and parent; the role is set in memory, so no file is ever on disk in the wrong
+role), `db.promote` (the draft's parent must be the record's head - `DB_PROMOTE_STALE` - the old record is kept as a
+history copy labelled from what the record actually was, and a promote that landed in between is refused, the winner
+kept; the draft lands in one destination transaction and the WAL is emptied) and `db.restore` (a rewind that keeps what
+it removes, refusing a newer engine's copy - `DB_SCHEMA_TOO_NEW`). sqlite's backup retries a busy destination forever,
+past the connection's own timeout (measured twice); `db._bounded_copy` gives up once `BUSY_TIMEOUT_SECONDS` have passed
+on the clock, through backup's progress callback, after a lock probe, so a held record is `DB_BUSY_TIMEOUT`, never a
+hang. A table rebuild drops its guard and lock before the rename, so one killed part-way leaves no name the next open
+would meet as a stranger's. Every existing and fresh file opens as open, under which nothing is locked: the stub, seated
+and prompt goldens are byte-identical but for the new role row. `integrity` reports a book without the lock once
+(`RECORD-LOCK-MISSING`), not once per trigger. Review 1 (0 blocker, 3 major - the role row was an unguarded off-switch,
+history copies took writes, and critic `--correct`, keeper `--propose` and cut `--edl` write a book too - all fixed or
+routed: those are refused on a record and reach it through a draft approved in advance in draft-flow); review 2 found
+the off-switch still open to one statement form (REPLACE) and a draft relabelled as history in one UPDATE - both
+closed - and keeper `--rule --rulings` writing through `claims.resolve`, now mapped; review 3: ship. The lock covers row writes, not
+DDL: a stranger can still drop a trigger or switch a connection's triggers off, as with hard rule 2's triggers. Evidence:
+`tests/test_record_role.py`. Next: `scripts/draft.py` (gate draft-flow) calls the primitives and holds the book lease
+that excludes two promotes racing; until then `tests/test_reachable.py` explains them. Not changed: the unmapped
+writers (`Ledger.set_status`, `record_turn_skipped`, `append_acquisition`, `log_llm_call`, `persist_snapshot`,
+`invalidate_snapshots_from`, `attachments.write`, `scene_cfg.record`) raise the lock's own words as a bare
+`sqlite3.IntegrityError` - the drivers refuse a record path up front in draft-flow - and a write into a virtual table on a
+record lands (no book carries one).
+
 **2026-09-26 — the composer's reply, read to its contract (gate `composer-replies`):** G5 of the contracts plan, for
 the composer. `scripts/composer.py` `verify` read the composer's reply by named gets and raised a bare `ComposerError`,
 so every refusal - and the `fell_back` the direction record keeps (`scripts/direct.py` `_compose_selection`) - was prose

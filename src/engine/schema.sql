@@ -801,3 +801,27 @@ CREATE TRIGGER IF NOT EXISTS wound_minted_no_delete
 BEFORE DELETE ON wound_minted BEGIN
     SELECT RAISE(ABORT, 'wound_minted is append-only (CLAUDE.md hard rule 2): DELETE refused. A healed wound is a wound_deltas row down to its floor, never an erased one.');
 END;
+
+-- =====================================================================================
+-- THE BOOK'S ROLE (schema v35, gate record-role, 2026-09-26)
+--
+-- The owner: "not save runs into the books db until it's approved so a scene is draft until it's approved and then
+-- it's saved into record." One row says what this FILE is: 'open' (every file until its book is adopted - nothing is
+-- locked), 'record' (the book's approved state: guards.py installs a record lock on every other table that refuses
+-- INSERT, UPDATE and DELETE while this row says 'record'), 'draft' (a working copy writers run on) or 'history' (a
+-- record kept after a promote or a rewind). `head` is this file's lineage id and `parent` the head it was copied
+-- from, so a promote can refuse a draft made from another record. The row is written only by db.py's role
+-- primitives (adopt, copy_to, promote, restore); a record changes only by promote or restore - a page copy of a whole
+-- approved state, which no row trigger sees. The table is mutable by design and the one table the lock exempts.
+-- =====================================================================================
+CREATE TABLE IF NOT EXISTS db_role (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    role TEXT NOT NULL DEFAULT 'open' CHECK (role IN ('open', 'record', 'draft', 'history')),
+    head TEXT NOT NULL DEFAULT '',
+    parent TEXT NOT NULL DEFAULT ''
+);
+-- SEEDED ONLY WHERE THE TABLE IS NEW: a file stepping up from below v35, or a fresh one. A row missing from a v35
+-- file was removed by hand, and re-seeding it 'open' at the next version step would unlock the book (review 2,
+-- finding 6); not OR IGNORE either, since the role row's INSERT guard fires before OR IGNORE's conflict check.
+INSERT INTO db_role (id, role, head, parent) SELECT 1, 'open', '', ''
+    WHERE NOT EXISTS (SELECT 1 FROM db_role) AND (SELECT user_version FROM pragma_user_version) < 35;

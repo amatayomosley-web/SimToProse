@@ -102,7 +102,8 @@ def write_once(con, check, write):
     try:
         with con:
             write()
-    except sqlite3.IntegrityError:
+    except sqlite3.IntegrityError as exc:
+        _db.refuse_if_record(exc, "write_once")   # the record lock names itself (gate record-role)
         if check():                       # the row is there now: the constraint answered first
             return True
         raise                             # a DIFFERENT constraint — not ours to name

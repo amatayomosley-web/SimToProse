@@ -231,6 +231,8 @@ def test_every_LOG_LIKE_table_is_append_only(tmp):
         "llm_calls":      "token accounting, not canon",
         "dialogue_acts":  "no writer yet",
         "stance_snapshots": "no writer yet",
+        "db_role":        "the file's role row (gate record-role): flipped by db.py's role primitives - adopt, copy_to, "
+                          "promote, restore - and the one table the record lock leaves open",
     }
     tables = {r["name"] for r in led.con.execute(
         "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")}
@@ -346,6 +348,10 @@ def test_NOT_NULL_does_not_mean_PRESENT(tmp):
         # that owns it (`claims.record` for `said`), not an integrity question for the database.
         "utterances.said": "prose", "bible_laws.statement": "prose",
         "stance_snapshots.position": "prose",
+        # THE ROLE ROW (gate record-role). '' IS the meaning in both: an open file has no lineage yet, and an adopted
+        # record's first head has no parent. The role itself is guarded by its CHECK.
+        "db_role.head": "'' IS no lineage yet - an open, unadopted file",
+        "db_role.parent": "'' IS no parent - an adopted record's first head",
     }
 
     def _guarded(col, body):

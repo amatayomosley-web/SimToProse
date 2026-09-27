@@ -1,7 +1,7 @@
 # MAP — what is in this project and what owns what
 
 **Why this file exists.** `docs/` holds 126 design docs, `src/engine/` 72 modules,
-`tests/` 128 suites. Nobody — human or agent — can hold that in their head, and reading it all every
+`tests/` 129 suites. Nobody — human or agent — can hold that in their head, and reading it all every
 session is not practical. **The failure this prevents is real and happened:** a session spent hours
 reasoning about the decision layer from four docs and inference, invented a parallel vocabulary
 ("vectors"), and rebuilt a worse version of the buff/debuff registry that `decision-engine.md`
@@ -321,7 +321,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `narrate` | 232 | the narrator (design.md layer 7, narration.md): a canonized scene -> POV-bound prose. |
 | `scene` | 393 | the multi-agent scene runner (the director sets the scene; the agents push it). |
 
-## tests/ — 128 suites (each is a PROOF of the gate it names)
+## tests/ — 129 suites (each is a PROOF of the gate it names)
 
 | tests | lines | owns |
 |---|---|---|
@@ -422,6 +422,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `test_recall_decay_is_wired` | through assemble(), not through decay's own unit tests. |
 | `test_receive` | Phase 3: the receipt from READINGS, and what follows from a reading. |
 | `test_record_guards` |  |
+| `test_record_role` |  |
 | `test_replies` |  |
 | `test_reserves` | one shared pool, with a reserve for the mind and one for the body (gate energy-reserves). |
 | `test_retired_vocabulary` | a migration's old words may not stay alive anywhere in the tree. |

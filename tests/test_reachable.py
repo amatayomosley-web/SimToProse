@@ -55,6 +55,12 @@ def check(name, ok, detail=""):
 # artifact, because it is what a future reader weighs when deciding whether the exemption still
 # holds. "Add it to the list" without one is how the other guard rotted (CLAUDE.md's `_BANNED`).
 EXEMPT = {
+    # THE RECORD'S ROLE PRIMITIVES (gate record-role, 2026-09-26). Built one gate ahead of their caller on purpose: the
+    # wall has to exist in the file before any script relies on it. scripts/draft.py (gate draft-flow) calls each;
+    # until then tests/test_record_role.py exercises every one against real files. Delete these lines when it lands.
+    ("db.py", "adopt"):              "the record-role primitive scripts/draft.py adopt calls (gate draft-flow); tests/test_record_role.py exercises it",
+    ("db.py", "promote"):            "the record-role primitive scripts/draft.py promote calls (gate draft-flow); tests/test_record_role.py exercises it",
+    ("db.py", "restore"):            "the record-role primitive scripts/draft.py restore calls (gate draft-flow); tests/test_record_role.py exercises it",
     # THE NO-DECLARATION REFERENCE (gate erosion-derived-at-replay, 2026-09-22). No driver calls it
     # since the attitude refold moved to `passage.fold_toward`, which keeps each opening's fade;
     # tests/test_passage.py [7] pins the fold EQUAL to it on a log with no time declaration, so a
