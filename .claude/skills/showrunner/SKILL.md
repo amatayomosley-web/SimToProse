@@ -111,19 +111,44 @@ vault slice, not the omniscient truth.
 2. **World** — world-builder, to the depth the story levers. → *Setup gate.*
 3. **Cast** — character-generator per principal, grounded in the world. → *Setup gate.*
 4. **Plan** — director for beats / arc / ending. Destination firm, route discovered.
-5. **Simulate to each beat** (per scene):
+5. **Simulate to each beat** (per scene; on an adopted book, on a DRAFT — see *Drafts* below):
    a. Director places circumstance — you keep it from the simulator.
-   b. Run the burst (`scripts/direct.py` / `scripts/scene.py`, ≤5 turns, inspect between).
+   b. Run the burst (`scripts/direct.py` / `scripts/scene.py`, ≤5 turns, inspect between; `--db "<draft>"`).
    c. Route what the engine flagged to the recorder.
    d. **Beat gate** — a faithful refusal means **the beat is wrong**: revise the beat,
       never the character.
    e. **Canon gate** — `scripts/critic.py --prompt-only` → continuity-critic. A bad
       committed record is corrected **forward**, never rewritten.
    f. **Coherence** — state sane, the character still recognizably themselves.
-   g. **Write the notes** before you move on.
+   g. **Show the author, then promote on their words or reject** (*Drafts* below).
+   h. **Write the notes** before you move on.
 6. **Cut** — the cutter shapes the lived material. → *Cut gate.*
-7. **Render** — narrator per selected scene. → *Render gate.*
+7. **Render** — narrator per selected scene; save the prose to `<book>/prose/<run>/<scene>.md`. → *Render gate.*
 8. **Assemble** — the manuscript. → *Finish gate.*
+
+## Drafts — nothing reaches the book until the author says yes
+
+Once a book is **adopted**, its database is the RECORD and no command writes it; every scene runs on a **draft**.
+
+- **Adopt once, deliberately, and ask first:** `python scripts/draft.py adopt --book "<book>"`. Tell the author it can
+  be undone: `draft.py release` on their words.
+- **Per scene:** `python scripts/draft.py open --book "<book>" --note "<what this take tries>"` prints the draft's path.
+  Run every burst with `--db "<draft>"`; the resume lines print it.
+- **Show before you ask:** the canon gate on the draft (`critic.py --vault "<book>" --db "<draft>" --run <id>
+  --prompt-only` → continuity-critic) and a review render (`narrate.py --vault "<book>" --db "<draft>" --run <id>
+  --prompt-only` → narrator). Save the narrator's prose to `<book>/prose/<run>/<scene>.md` and point the author at the
+  file.
+- **On the author's yes:** `python scripts/draft.py promote --book "<book>" --draft <id> --approved "<their words,
+  verbatim>" --by owner`. Never paraphrase the words and never promote without them. **Otherwise:** `draft.py reject
+  --book "<book>" --draft <id> --why "<their reason>"`.
+- **A change the author dictates** — a keeper ruling, a correction, a cut, or their own off-page event, correction or
+  fact (`scripts/declare.py --book "<book>" --run <id> --file <declarations.json> --db "<draft>"`): make it on a fresh
+  draft, then promote with `--in-advance`, because the instruction was the yes.
+- **Where the story is:** `python scripts/draft.py list --book "<book>"` (the record's state, open drafts, the approval
+  log) and the canon digest.
+- **Rewind:** `draft.py restore --to <state>` on their words. **Way out:** `draft.py release` on their words.
+- A command aimed at the record is refused with `DB_IS_RECORD`, naming `draft.py open`. That is the wall working: open
+  a draft.
 
 ## The gates — and which of them actually have teeth
 
@@ -181,7 +206,10 @@ reconstruct the state — and after a compaction they are the only thing that do
 `direct.py` is an interactive stdin loop, pipe it to run unattended). Judge/write
 seams: `critic.py --prompt-only` → continuity-critic; `narrate.py --prompt-only` →
 narrator. Views for the cut: `cut.py`. Pre-run check: `lint_book.py --vault "<book>"`
-— and note it does **not** check laws, so run `bible.completeness()` too.
+— and note it does **not** check laws, so run `bible.completeness()` too. Drafts and the author's yes: `draft.py`;
+the author's own additions: `declare.py` (both above, under *Drafts*). The act seam: `--prompt-only` emits a
+character's packet for the character-simulator, and `--turn-json <file>` commits its reply through the same
+validate → appraise → commit path.
 
 **Set `SWE_ACTIVE_BOOK`** to the book's slug or path, or the grounding hook has nothing
 to inject and will say so.

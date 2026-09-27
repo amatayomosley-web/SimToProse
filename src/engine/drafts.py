@@ -63,8 +63,10 @@ def _stems(book_dir):
 
 
 def _adoption(book_dir, log=None):
-    """The lineage's adopt entry, or None."""
-    return next((e for e in reversed(log if log is not None else lineage.read(book_dir)) if e["op"] == "adopt"), None)
+    """The lineage's adopt entry, or None - also None once a later `release` ended it (scripts/draft.py release)."""
+    last = next((e for e in reversed(log if log is not None else lineage.read(book_dir)) if e["op"] in ("adopt",
+                                                                                                     "release")), None)
+    return last if last is not None and last["op"] == "adopt" else None
 
 
 def _record(book_dir):

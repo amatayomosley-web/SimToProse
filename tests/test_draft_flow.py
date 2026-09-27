@@ -600,6 +600,28 @@ def held_directions(tmp):
           and _text(os.path.join(stale + ".directions", "x.mira.json")) == "d3's", out)
 
 
+def release(tmp):
+    print("\n[13] release: the way back from adopt, on the owner's words (gate showrunner-drives-drafts)")
+    book, rec = _adopted_book(tmp, "release")
+    turns = _one(rec, "SELECT COUNT(*) FROM turns")
+    rc, out = _draft(book, "release", "--by", "owner")
+    check("release-without-the-owner's-words-is-DRAFT_APPROVAL_MISSING", rc == 1 and "[DRAFT_APPROVAL_MISSING]" in out
+          and db.role_of(rec)["role"] == "record", out)
+    rc, out = _draft(book, "release", "--approved", "Let it go back to the plain book.", "--by", "owner")
+    line = (_log(book, "release") or [{}])[-1]
+    kept = os.path.join(book, line.get("kept", "missing"))
+    check("release-opens-the-book-at-its-state-and-keeps-the-record-whole", rc == 0
+          and db.role_of(rec) == {"role": "open", "head": "d0", "parent": "d0"} and os.path.isfile(kept)
+          and db.role_of(kept)["role"] == "record" and line.get("approved") == "Let it go back to the plain book.", out)
+    rc, out = _turn(book)
+    rc2, out2 = _draft(book, "open")
+    check("...so-a-driver-writes-the-book-directly-again-and-drafts-need-adopt", rc == 0
+          and _one(rec, "SELECT COUNT(*) FROM turns") > turns and rc2 == 1 and "[DRAFT_BOOK_NOT_ADOPTED]" in out2,
+          (out, out2))
+    rc, out = _draft(book, "adopt")
+    check("...and-adopt-works-again", rc == 0 and db.role_of(rec)["role"] == "record", out)
+
+
 def main():
     print("test_draft_flow.py - drafts, approval and the record (gate draft-flow)\n")
     with tempfile.TemporaryDirectory(prefix="swe_draftflow_", ignore_cleanup_errors=True) as tmp:
@@ -615,6 +637,7 @@ def main():
         encoding(tmp)
         log_flaws(tmp)
         held_directions(tmp)
+        release(tmp)
     print("\n%s: %d failure(s)" % ("OK" if not FAILS else "FAIL", len(FAILS)))
     return 1 if FAILS else 0
 

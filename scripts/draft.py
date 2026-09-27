@@ -16,6 +16,9 @@ record-role and draft-flow).
     python scripts/draft.py promote --book B --draft d3 --approved "<the owner's words>" --by owner|partner-relayed
                                     [--in-advance]   (a dictated change: the yes came before the work)
     python scripts/draft.py restore --book B --to d2 --approved "<the owner's words>" --by owner|partner-relayed
+    python scripts/draft.py release --book B --approved "<the owner's words>" --by owner|partner-relayed
+                                    (the way back: the book's database is an open book again at the record's state,
+                                    the record kept whole in runs/history; adopt works again later)
 
 Output is UTF-8 whatever the console or pipe (review 1: a cp1252 pipe had turned an accented book path into a path
 that was not the file, and crashed `list` on a character outside cp1252).
@@ -29,8 +32,29 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.engine import books, drafts                                 # noqa: E402
+from src.engine import books, db, drafts, lineage                    # noqa: E402
 from src.engine.errors import EngineError                            # noqa: E402
+from src.engine.records import RecordError                           # noqa: E402
+
+
+def _release(book_dir, approved, by):
+    """The way back from adopt, on the owner's words -> the lineage entry. An open copy of the record takes the record's
+    name, so the book is written directly again, and the record itself is kept whole in runs/history (gate
+    showrunner-drives-drafts; Fable review 3: adoption had no exit). Drafts still open stay where they are."""
+    words = drafts._approval(approved, by)
+    drafts._only_books(book_dir)
+    with lineage.hold(book_dir, "release"):
+        rec, role = drafts._record_role(book_dir)
+        busy = db.in_use(rec)
+        if busy:
+            raise RecordError("DRAFT_IN_USE", "%s is still open somewhere (%s outlived a close) - finish the run that "
+                              "holds it, then release" % (rec, busy))
+        fresh = db.scratch_copy(rec, rec + ".open", role="open")
+        kept = drafts._free(os.path.join(book_dir, lineage.RUNS, "history"), role["head"])
+        os.replace(rec, kept)
+        os.replace(fresh, rec)
+        return lineage.append(book_dir, "release", head=role["head"], approved=words, by=by,
+                              kept=os.path.relpath(kept, book_dir).replace(os.sep, "/"))
 
 
 def _show(book_dir):
@@ -64,7 +88,7 @@ def main(argv=None):
     for stream in (sys.stdout, sys.stderr):
         stream.reconfigure(encoding="utf-8", errors="backslashreplace")
     ap = argparse.ArgumentParser(description="a book's approval flow: drafts, promote, reject, restore")
-    ap.add_argument("command", choices=("adopt", "open", "list", "reject", "promote", "restore"))
+    ap.add_argument("command", choices=("adopt", "open", "list", "reject", "promote", "restore", "release"))
     ap.add_argument("--book", required=True, help="the book's slug or folder")
     ap.add_argument("--new", action="store_true", help="adopt: start the record empty (a book with no database yet)")
     ap.add_argument("--draft", help="the draft's id (reject, promote)")
@@ -96,6 +120,10 @@ def main(argv=None):
         elif a.command == "reject":
             e = drafts.reject(book_dir, a.draft, a.why)
             print("set aside: %s -> %s" % (a.draft, e["file"]))
+        elif a.command == "release":
+            e = _release(book_dir, a.approved, a.by)
+            print("released: the book's database is an open book again at state %s, written directly; the record is "
+                  "kept at %s; adopt works again later" % (e["head"], e["kept"]))
         elif a.command == "promote":
             e, notes = drafts.promote(book_dir, a.draft, a.approved, a.by, a.in_advance)
             print("promoted: %s is the record (from %s); the previous record is kept at %s" % (e["head"], e["parent"],

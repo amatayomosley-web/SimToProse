@@ -179,20 +179,25 @@ def _fresh(path, doing):
                           "nothing kept is lost" % (doing, taken[0]))
 
 
-def scratch_copy(src_path, dst_path):
-    """A throwaway page copy of a book's database, role row and all, to rehearse writes on -> dst_path. A writer
-    rehearses a whole change on it and writes the book only if every step went in (scripts/declare.py, gate
-    author-declarations review 1: a check that judged each entry alone let a file write half of itself). No lineage
-    minted it, so nothing can promote it; a record's copy stays a record, and its lock refuses the rehearsal too."""
-    src = connect(_existing(src_path, "db.scratch_copy"))
+def scratch_copy(src_path, dst_path, role=None):
+    """A page copy of a book's database to a NEW file, role row and all -> dst_path. A writer rehearses a whole change
+    on one and writes the book only if every step went in (scripts/declare.py, gate author-declarations review 1). No
+    lineage minted it, so nothing can promote it; a record's copy stays a record. `role="open"` is the owner's exit
+    from adoption (scripts/draft.py release): the COPY, and only the copy, is an open book at the record's state - the
+    record itself is kept as it was (gate showrunner-drives-drafts)."""
+    src, mem = connect(_existing(src_path, "db.scratch_copy")), sqlite3.connect(":memory:")
     try:
+        _bounded_copy(src, mem, "db.scratch_copy: reading %s" % src_path)
+        if role:
+            _write_role(mem, role, _role_row(mem)["head"], _role_row(mem)["head"], "db.scratch_copy", in_memory=True)
         _fresh(dst_path, "db.scratch_copy")
         dst = sqlite3.connect(dst_path, timeout=_BACKUP_SLEEP)
         try:
-            _bounded_copy(src, dst, "db.scratch_copy: %s" % src_path)
+            _bounded_copy(mem, dst, "db.scratch_copy: writing %s" % dst_path)
         finally:
             dst.close()
     finally:
+        mem.close()
         src.close()
     return dst_path
 

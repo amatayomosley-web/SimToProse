@@ -1248,6 +1248,16 @@ reachable only with a numeric subclass), a mint's id (it carries its producer's 
 re-derive it), and the other exact walls in these tables (`WoundDelta` kind, `RestDeclared` source, a law's domain,
 modality and epistemic).
 
+**2026-09-27 — the showrunner drives the drafts, and adoption has a way back (gate `showrunner-drives-drafts`):** the
+showrunner skill and the batch agent now run an adopted book on drafts: adopt once and ask first, `draft.py open` per
+scene, every burst with `--db <draft>`, the canon gate and a review render on the draft, the narrator's prose saved to
+`<book>/prose/<run>/<scene>.md`, then `promote --approved "<the author's words>"` or `reject`; a dictated change
+(a ruling, a correction, a cut, a declaration) is promoted `--in-advance`; the batch agent never promotes. The act seam
+is named as wired (`--prompt-only` / `--turn-json`). `draft.py release` (on the author's words) is the way back: an
+open copy of the record (`db.scratch_copy(role="open")`) takes the record's name, the record is kept whole in
+`runs/history`, and a `release` line ends the adoption (`drafts._adoption`), so adopt works again. Merged P4-P6 per
+Fable review 3; hooks, `orient_book` and a prose manifest wait until use asks. Evidence: `tests/test_draft_flow.py` [13].
+
 **2026-09-27 — the author's hand (gate `author-declarations`):** the owner: "a way to add content directly into the
 db". `scripts/declare.py --book B --run R --file F [--db <draft>] [--dry-run]` reads a DECLARATION FILE - a JSON list
 of the owner's statements, each in the owner's own words (`words`, kept verbatim) - and writes three kinds through the

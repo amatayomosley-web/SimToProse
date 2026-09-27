@@ -376,6 +376,25 @@ Meaning of each signal:
 - **flags but ok=1** — illegitimate dims were stripped before appraisal; state took only the
   catalog-legal part. Informational.
 
+## Recipe: an adopted book — drafts and the author's yes
+
+Once a book is adopted, its database is the RECORD and no command writes it (`DB_IS_RECORD` names the way). Work
+runs on a draft and lands only on the author's words (`scripts/draft.py`; SPEC-LEDGER, gates record-role and
+draft-flow).
+```bash
+python scripts/draft.py adopt   --book "<book>"                  # once, deliberately
+python scripts/draft.py open    --book "<book>" --note "take one" # prints the draft's path
+python scripts/scene.py  --book "<book>" --db "<draft>" --scene <cfg> --budget 5   # every burst on the draft
+python scripts/narrate.py --vault "<book>" --db "<draft>" --run <id> --prompt-only  # a review render -> <book>/prose/<run>/<scene>.md
+python scripts/draft.py promote --book "<book>" --draft <id> --approved "<the author's words>" --by owner
+python scripts/draft.py reject  --book "<book>" --draft <id> --why "<reason>"      # or set it aside
+python scripts/draft.py list    --book "<book>"                  # the record's state, drafts, the approval log
+```
+A change the author dictates (a keeper ruling, a correction, a cut, or their own off-page event or fact through
+`scripts/declare.py`) goes on a fresh draft and is promoted with `--in-advance`. `draft.py restore --to <state>`
+rewinds; `draft.py release` (on the author's words) makes the book an open book again, the record kept whole in
+`runs/history`.
+
 ## Recipe: resume / crash recovery
 
 Crash recovery IS resume — no separate mechanism (run-lifecycle.md):

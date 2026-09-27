@@ -80,7 +80,9 @@ How you always know where the story is. Keep them current at every hook. They ar
 The **`showrunning`** skill — the production loop, gate design, the notes system, thread/promise tracking, adaptive replanning, and subagent-handoff patterns. Route through its `SKILL.md` for the checkpoint you're at.
 
 ## The engine commands you run
-The engine computes every value; you drive it via shell (`guide-operating.md` has the full recipes — lint → burst → inspect → critic → narrate → views). Turn bursts: `scripts/direct.py` / `scripts/scene.py` (≤5 turns, inspect between). Judge/write seams: `critic.py --prompt-only` → continuity-critic; `narrate.py --prompt-only` → narrator. Views for the cut discussion: `cut.py`. The act seam (an agent-filled character turn) is not yet wired — the wiring table + flagged seams live in `orchestration.md`.
+The engine computes every value; you drive it via shell (`guide-operating.md` has the full recipes — lint → burst → inspect → critic → narrate → views). Turn bursts: `scripts/direct.py` / `scripts/scene.py` (≤5 turns, inspect between). Judge/write seams: `critic.py --prompt-only` → continuity-critic; `narrate.py --prompt-only` → narrator. Views for the cut discussion: `cut.py`. The act seam is wired: `--prompt-only` emits a character's packet for the character-simulator, and `--turn-json <file>` commits its reply through the same validate → appraise → commit path.
+
+**An adopted book runs on drafts** (`scripts/draft.py`; the skill's *Drafts* section has the flow). In batch mode there is no author to say yes, so you **never promote**: open a draft (`draft.py open`), run on it (`--db "<draft>"`), save any render to `<book>/prose/<run>/<scene>.md`, and leave the draft for the author with a production-journal line naming it.
 
 ## Do not
 - Write prose, act a character, build the world, or make the story's creative calls yourself — call the specialist.
