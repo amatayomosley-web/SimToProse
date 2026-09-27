@@ -1479,7 +1479,15 @@ def main():
         default_db = books.assert_db_for_book(book_dir, args.db)   # not merely defaulted
     except books.BookError as e:
         raise SystemExit(str(e))
-    led = Ledger(default_db)
+    # AN ADOPTED BOOK'S RECORD IS NEVER WRITTEN, and a scene's model calls come before its first write: refused here,
+    # before any spend, naming the command that opens a draft (gate draft-flow)
+    from src.engine import drafts as _drafts
+    from src.engine.records import RecordError as _RecordError
+    try:
+        default_db, _create = _drafts.writer_db(default_db, "scene.py", book_dir)
+    except _RecordError as e:
+        raise SystemExit(str(e))
+    led = Ledger(default_db, create=_create)     # a draft is opened, never re-created empty
 
     if args.resume:
         run_id = args.resume
@@ -1684,8 +1692,10 @@ def main():
             print("   WINDOW : %s - had this been their story, they would carry: %s" % (
                 cid, "; ".join(_added) if _added else "nothing lasting"))
     _report_lore(led, run_id, keeper_ran, args.stub)
-    print("\nparked %s at turn %d — continue with: python scripts/scene.py --vault \"%s\"%s --resume %s" % (
-        run_id, last, book_dir, " --stub" if args.stub else "", run_id))
+    _db_arg = "" if os.path.normcase(os.path.abspath(default_db)) == os.path.normcase(os.path.abspath(
+        books.db_path(book_dir))) else ' --db "%s"' % default_db       # a draft's run resumes on the draft
+    print("\nparked %s at turn %d — continue with: python scripts/scene.py --vault \"%s\"%s%s --resume %s" % (
+        run_id, last, book_dir, _db_arg, " --stub" if args.stub else "", run_id))
     return 0
 
 

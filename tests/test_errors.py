@@ -25,6 +25,7 @@ Run: python tests/test_errors.py      (run_all.py invokes it as a subprocess and
 """
 import io
 import ast
+import glob
 import os
 import re
 import subprocess
@@ -415,7 +416,10 @@ def test_no_code_is_registered_twice():
     dict literal is overwritten silently, and codes.py merges the families with `update`, which does the same. Gate
     seat-replies registered an existing code a second time and replaced another raise site's description unseen."""
     seen, twice = {}, []
-    for rel in ("src/engine/code_families.py", "src/engine/codes.py"):
+    # EVERY DATA FILE, derived: a second one arrived with gate draft-flow (code_families_lifecycle.py), and a list
+    # naming the first would have scanned past it (the scan-saw-the-registry check below caught exactly that)
+    families = sorted(glob.glob(os.path.join(REPO, "src", "engine", "code_families*.py")))
+    for rel in [os.path.relpath(f, REPO).replace(os.sep, "/") for f in families] + ["src/engine/codes.py"]:
         tree = ast.parse(open(os.path.join(REPO, rel), encoding="utf-8").read())
         for node in ast.walk(tree):
             if isinstance(node, ast.Dict):

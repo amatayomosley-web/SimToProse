@@ -1230,7 +1230,13 @@ def main():
     # WHAT THE SHEET AUTHORED, before anything moves it (gate erosion-derived-at-replay) - after the check, so a sheet
     # the stamp cannot read is refused by name first, as the scene driver does
     passage.stamp_authored(char)
-    led = Ledger(args.db or default_db)
+    # AN ADOPTED BOOK'S RECORD IS NEVER WRITTEN (gate draft-flow): refused before the turn's model call
+    from src.engine import drafts as _drafts
+    try:
+        default_db, _create = _drafts.writer_db(args.db or default_db, "direct.py", book_dir if book_spec else None)
+    except RecordError as e:
+        raise SystemExit(str(e))
+    led = Ledger(default_db, create=_create)     # a draft is opened, never re-created empty
 
     if args.resume:
         run_id = args.resume
@@ -1507,7 +1513,10 @@ def main():
     led.set_status(run_id, "parked")
     print(faults.render(faults.scan_run(led, run_id)))   # engine-faults: recurring vocab/representation gaps (the world-fault twin)
     _report_lore(led, run_id, keeper_ran, args.stub)
-    src_arg = ('--vault "%s"' % args.vault) if args.vault else ("--book %s" % args.book)
+    src_arg = ('--vault "%s"' % args.vault) if args.vault else ('--book "%s"' % args.book)
+    if book_spec and os.path.normcase(os.path.abspath(default_db)) != os.path.normcase(os.path.abspath(
+            books.db_path(book_dir))):
+        src_arg += ' --db "%s"' % default_db          # a draft's run resumes on the draft (gate draft-flow)
     print("parked %s at turn %d — resume with: python scripts/direct.py %s --char %s%s --resume %s" % (
         run_id, turn_no - 1, src_arg, args.char, " --stub" if args.stub else "", run_id))
     return 0

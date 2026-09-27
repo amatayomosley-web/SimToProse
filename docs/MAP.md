@@ -1,7 +1,7 @@
 # MAP — what is in this project and what owns what
 
-**Why this file exists.** `docs/` holds 126 design docs, `src/engine/` 72 modules,
-`tests/` 129 suites. Nobody — human or agent — can hold that in their head, and reading it all every
+**Why this file exists.** `docs/` holds 126 design docs, `src/engine/` 75 modules,
+`tests/` 130 suites. Nobody — human or agent — can hold that in their head, and reading it all every
 session is not practical. **The failure this prevents is real and happened:** a session spent hours
 reasoning about the decision layer from four docs and inference, invented a parallel vocabulary
 ("vectors"), and rebuilt a worse version of the buff/debuff registry that `decision-engine.md`
@@ -232,7 +232,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `world-model` | the other half of the loop (SEED — to co-design) |
 | `world-state-ledger` | the live now (design the machinery; the line items are runtime) |
 
-## src/engine/ — 72 modules (normative for what IS)
+## src/engine/ — 75 modules (normative for what IS)
 
 | src | lines | owns |
 |---|---|---|
@@ -249,6 +249,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `claims` | what an actor asserted about the world, and when two assertions cannot both be true. |
 | `clock` | the DECLARED clock. One cause, FIVE consumers, and since 2026-09-10 a UNIT. |
 | `code_families` | the code DATA. One dict per module family; `codes.py` holds the contract. |
+| `code_families_lifecycle` | the code DATA for a book's life after adoption: drafts, the lineage log, the lease. |
 | `codes` | the frozen registry of engine error codes. |
 | `concepts` | the closed vocabulary of things a feeling can be ABOUT that are not people. |
 | `condition` | energy and stress that MOVE (the `condition_flow` system). |
@@ -262,6 +263,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `decay` | Track 3: Memory Decay & Temporal Forgetting Curves. |
 | `decay_law` | the one equation every decay in this engine already was. |
 | `direction` | numbers to qualitative DIRECTION (gate 5, the backstage guardrail). |
+| `drafts` | the book's approval flow: adopt, open a draft, reject, promote, restore, over the record's primitives. |
 | `edl` | the edit decision list: what the room decided, recorded so the prose can be traced. |
 | `errors` | the single typed refusal channel for the whole engine. |
 | `facets` | what a belief is ABOUT, stamped when the belief is written. |
@@ -278,6 +280,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `law` | what the world PERMITS. The ruling half of the bible. |
 | `ledger` | the event-sourced spine: append-only log + atomic turn-commit + pure fold + resume. |
 | `levers` | the effective-levers tier (the buff/debuff catalog). |
+| `lineage` | a book's lineage log and its lease: whose yes made each state the record, and one hand on it at a time. |
 | `mood_fold` | the mood tier, re-derived from the log. |
 | `narration_modes` | the two axes a narrator is set on, and only one touches the wall. |
 | `passage` | one clock, read the same way by both drivers. |
@@ -321,7 +324,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `narrate` | 232 | the narrator (design.md layer 7, narration.md): a canonized scene -> POV-bound prose. |
 | `scene` | 393 | the multi-agent scene runner (the director sets the scene; the agents push it). |
 
-## tests/ — 129 suites (each is a PROOF of the gate it names)
+## tests/ — 130 suites (each is a PROOF of the gate it names)
 
 | tests | lines | owns |
 |---|---|---|
@@ -368,6 +371,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `test_disgust` | the eighth primitive, and what it unlocked. |
 | `test_displeasure_universal` |  |
 | `test_doctor` |  |
+| `test_draft_flow` |  |
 | `test_driver_main` |  |
 | `test_edl` |  |
 | `test_effective` | the effective-levers tier (src/engine/levers.py). |

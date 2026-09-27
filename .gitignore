@@ -38,6 +38,8 @@ runs/*.db.directions/
 **/runs/**/*.db-wal
 **/runs/**/*.db-shm
 **/runs/**/*.db.directions/
+# a book's lease (gate draft-flow): an operating-system lock file, machine-local; the lineage log beside it is kept
+**/runs/.lease
 
 # a book folder opened in Obsidian inside a clone
 .obsidian/

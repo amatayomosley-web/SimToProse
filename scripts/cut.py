@@ -152,7 +152,20 @@ def main():
 
     from src.engine.vault import load_book
     _world, _chars = load_book(args.vault)
-    led = Ledger(args.db or books.db_path(args.vault))
+    if args.edl:                                      # an EDL writes the book: never its record (gate draft-flow)
+        from src.engine import drafts as _drafts
+        from src.engine.records import RecordError as _RecordError
+        try:
+            _drafts.writer_db(args.db or books.db_path(args.vault), "cut.py --edl", args.vault)
+        except _RecordError as e:
+            raise SystemExit(str(e))
+    from src.engine import drafts as _drafts_open        # an adopted book's databases are never created by opening,
+    from src.engine.records import RecordError as _OpenError   # whichever book --vault names (gate draft-flow, review 3)
+    _dbp = args.db or books.db_path(args.vault)
+    try:
+        led = Ledger(_dbp, create=_drafts_open.may_create(_dbp, args.vault))
+    except _OpenError as e:
+        raise SystemExit(str(e))
 
     # ---- THE RECORD HALF (cutting-room.md part 3). The room decides; this writes it down.
     # Deliberately a file of entries rather than anything computed: the automated selection

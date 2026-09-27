@@ -1153,7 +1153,19 @@ def main():
     ap.add_argument("--rulings", default=None, metavar="FILE", help="a JSON list of rulings to apply (with --rule)")
     args = ap.parse_args()
 
-    led = Ledger(args.db or books.db_path(args.vault))
+    if (args.propose or (args.rule and args.rulings)) and not args.dry_run:  # rulings and proposals write the book (gate draft-flow)
+        from src.engine import drafts as _drafts
+        from src.engine.records import RecordError as _RecordError
+        try:
+            _drafts.writer_db(args.db or books.db_path(args.vault), "keeper.py", args.vault)
+        except _RecordError as e:
+            raise SystemExit(str(e))
+    from src.engine import drafts as _drafts_open        # an adopted book's databases are never created by opening,
+    _dbp = args.db or books.db_path(args.vault)         # whichever book --vault names (gate draft-flow, review 3)
+    try:
+        led = Ledger(_dbp, create=_drafts_open.may_create(_dbp, args.vault))
+    except RecordError as e:
+        raise SystemExit(str(e))
     turns = scene_turns(led, args.run)
     if not turns:
         print("no committed turns in run %s — nothing to read" % args.run)

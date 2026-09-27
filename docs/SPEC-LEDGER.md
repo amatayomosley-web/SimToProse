@@ -1248,6 +1248,40 @@ reachable only with a numeric subclass), a mint's id (it carries its producer's 
 re-derive it), and the other exact walls in these tables (`WoundDelta` kind, `RestDeclared` source, a law's domain,
 modality and epistemic).
 
+**2026-09-27 — drafts, the owner's yes, and a rewind (gate `draft-flow`):** gate record-role gave the record its wall
+and its page-copy primitives; nothing called them. Now `scripts/draft.py` does, over `src/engine/drafts.py`: `adopt`
+makes a book's database its record (state d0 - once, only in a book folder, `--new` for a book with no database yet),
+`open` copies it into `runs/drafts/<id>.db` for the drivers' `--db`, `promote` lands a draft on the owner's words
+(`--approved`, recorded exactly as given, `--by owner|partner-relayed`, `--in-advance` for a dictated change whose yes
+came before the work), `reject` sets any file in `runs/drafts` aside, `restore` rewinds to a state the lineage kept, and
+`list` shows it all. Every change is a line in `<book>/runs/lineage.jsonl` (`src/engine/lineage.py`). Before each
+landing a `kept` line logs the record as it was - its history copy, that copy's sha256 and the words - so the line is
+true when written and a promote or restore cut short after its landing leaves the old state restorable, while `list`
+keeps warning of the unlogged landing: every landing must start where the last one left, so later landings cannot hide
+the gap. A restore lands only a copy whose bytes still match, a promote only a draft the lineage opened from this
+book's own record that holds every run and turn of it (another book's draft under a minted id carries the right role
+row; `DRAFT_NOT_EXTENDING`) - a check that cannot tell another book's draft while the record is empty or holds nothing
+that draft lacks (a book folder copied after adoption; reviews 2 and 3), which a restore undoes. Other drafts from the
+promoted draft's state go to `runs/drafts/stale`; nothing is deleted. Each database's `.directions` folder travels with
+it, moved before the landing's log line, and a set-aside moves both or neither: a file held open in the folder puts the
+database back and the refusal says so (review 3). `list` marks a history copy no `kept` line names. One flow at a time:
+the book's lease is an operating-system lock on one byte of `runs/.lease`, freed by the OS when its holder exits or dies.
+The record's file is where the lineage adopted it, so a book folder renamed later keeps its record. Once a book is
+adopted, a WRITER opens only an open draft the lineage minted (`drafts.writer_db`), and without creating one
+(`db.connect(create=False)`, SQLite's `mode=rw`): review 1 found a driver aimed at a promoted draft's old path making
+a new, empty chronicle there and running a paid scene on it. `scene.py`, `direct.py`, `critic --correct`, `cut --edl`
+and `keeper --propose` / `--rule --rulings` all ask it before any model call; their read-only and dry-run modes still run
+on a record, and no opener creates a file in an adopted book (`drafts.may_create`): a critic review, a cut view,
+`narrate` or the keeper's prompt aimed at a promoted draft's old path is refused in one coded line, not handed an empty
+chronicle to call clean (review 2) - whichever book `--vault` names, since the book folder the file sits in counts too,
+for readers and writers alike (review 3). An unreadable lineage fails closed: a reader still reads an existing file and
+creates none. A database still open elsewhere is refused (`db.in_use`: a WAL database's `-wal`/`-shm` outliving a close of
+our own - a read-only open leaves both behind, so their presence alone proves nothing - or another program's handle
+refusing the move, which after a landing is a note, never a failure). A last lineage line cut off mid-write is marked by
+the next append and passed; any other flaw is refused by name. `draft.py` writes UTF-8 whatever the pipe. An unadopted
+book is written exactly as before. Evidence: `tests/test_draft_flow.py` (the real commands on scratch books). Next: the
+showrunner drives the flow (gate showrunner-interface).
+
 **2026-09-26 — a book's record changes only by promote (gate `record-role`, schema v35):** the owner: "not save runs
 into the books db until it's approved so a scene is draft until it's approved and then it's saved into record." Until
 now `db.connect` opened every file alike and `books.assert_db_for_book` handed `scene.py --book X` the record itself

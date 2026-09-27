@@ -38,8 +38,8 @@ def _now():
     return datetime.now(timezone.utc).isoformat()
 
 class Ledger:
-    def __init__(self, db_path):
-        self.con = db.connect(db_path)
+    def __init__(self, db_path, create=True):
+        self.con = db.connect(db_path, create)
 
     # ---- run lifecycle -------------------------------------------------------------------------
     def create_run(self, run_id, config):

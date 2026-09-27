@@ -308,7 +308,13 @@ def main():
     from src.engine.vault import load_book
     world, chars = load_book(args.vault)
     cfg = load_narration_config(args.vault)               # book.json: timeline spines + per-character casting
-    led = Ledger(args.db or books.db_path(args.vault))
+    from src.engine import drafts as _drafts_open        # an adopted book's databases are never created by opening,
+    from src.engine.records import RecordError as _OpenError   # whichever book --vault names (gate draft-flow, review 3)
+    _dbp = args.db or books.db_path(args.vault)
+    try:
+        led = Ledger(_dbp, create=_drafts_open.may_create(_dbp, args.vault))
+    except _OpenError as e:
+        raise SystemExit(str(e))
 
     if args.book:                                     # whole-chronicle manuscript, POV per recorded scene
         if args.prompt_only:                          # Claude-in-the-loop: emit per-scene prompts

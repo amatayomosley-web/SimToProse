@@ -79,13 +79,17 @@ def refuse_if_guarded(exc, doing):
             "is schema v%d): %s" % (doing, SCHEMA_VERSION, exc)) from exc
 
 
-def connect(db_path):
+def connect(db_path, create=True):
+    """`create` False opens only a file that exists, and SQLite's own `mode=rw` refuses one gone by the time it opens
+    (gate draft-flow, review 1: a driver aimed at a draft moved aside had created a new, empty chronicle there)."""
     if not isinstance(db_path, (str, bytes, os.PathLike)):
         raise RecordError("DB_PATH_INVALID", "db_path must be a filesystem path, got %r" % type(db_path).__name__)
     parent = os.path.dirname(os.path.abspath(os.fspath(db_path)))
-    if parent and not os.path.isdir(parent):
+    if create and parent and not os.path.isdir(parent):
         os.makedirs(parent, exist_ok=True)
-    con = sqlite3.connect(db_path, timeout=BUSY_TIMEOUT_SECONDS)
+    con = (sqlite3.connect(db_path, timeout=BUSY_TIMEOUT_SECONDS) if create else sqlite3.connect(
+        pathlib.Path(_existing(db_path, "db.connect")).resolve().as_uri() + "?mode=rw", uri=True,
+        timeout=BUSY_TIMEOUT_SECONDS))
     con.row_factory = sqlite3.Row
     con.execute("PRAGMA journal_mode=WAL")
     con.execute("PRAGMA foreign_keys=ON")
@@ -173,6 +177,20 @@ def _fresh(path, doing):
     if taken:
         raise RecordError("DB_COPY_TARGET_EXISTS", "%s: %s already exists - a copy is never written over a file, so "
                           "nothing kept is lost" % (doing, taken[0]))
+
+
+def in_use(db_path):
+    """Is a database still open somewhere? -> the sidecar file that proves it, or "". Opened and closed once here: the
+    last connection to close removes a WAL database's -wal and -shm, so one that outlives this close belongs to another
+    live connection. Their presence alone proves nothing - a read-only open (role_of) leaves both behind (measured
+    2026-09-27, gate draft-flow). An existing file only (DB_PATH_INVALID)."""
+    path = _existing(db_path, "db.in_use")
+    con = sqlite3.connect(path, timeout=BUSY_TIMEOUT_SECONDS)
+    try:
+        con.execute("PRAGMA schema_version").fetchone()   # a read: the pager opens the WAL, so the close can tidy it
+    finally:
+        con.close()
+    return next((path + s for s in ("-wal", "-shm") if os.path.exists(path + s)), "")
 
 
 def role_of(db_path):
@@ -319,14 +337,15 @@ def copy_to(src_path, dst_path, role, head=None):
     return role_of(dst_path)
 
 
-def promote(draft_path, record_path, history_path):
+def promote(draft_path, record_path, history_path, on_kept=None):
     """Make an approved DRAFT the book's RECORD - a page copy of the whole draft, never a merge of rows -> {"head",
     "parent", "history"}. In order: the draft must be a draft under a lineage id of its own whose parent is the
     record's head (DB_PROMOTE_STALE: another promote got there first, or it was copied from another record), the
     record a record (DB_ROLE_WRONG); the record's write lock is probed (DB_BUSY_TIMEOUT, never a spin); the record as
     it is is kept at `history_path` in role history - and if its head is no longer the one checked, another promote
     landed meanwhile (DB_PROMOTE_STALE, the kept copy stays); then the draft lands in role record, parent the old head.
-    Two promotes racing past that check are the book lease's to exclude (gate draft-flow)."""
+    Two promotes racing past that check are the book lease's to exclude (gate draft-flow). `on_kept(history_path)` is
+    called once the kept copy exists and before the landing - where the lineage logs it (gate draft-flow, review 1)."""
     draft_path, record_path = _existing(draft_path, "db.promote"), _existing(record_path, "db.promote")
     _fresh(history_path, "db.promote")
     draft = connect(draft_path)
@@ -345,18 +364,20 @@ def promote(draft_path, record_path, history_path):
             raise RecordError("DB_PROMOTE_STALE", "db.promote: another promote landed (head %r) while this one checked "
                               "%r - the record as it now is was kept at %s; redo the work on a fresh draft"
                               % (kept["head"], r["head"], history_path))
+        if on_kept:
+            on_kept(history_path)
         _land(draft, record_path, "record", d["head"], r["head"], "db.promote")
     finally:
         draft.close()
     return {"head": d["head"], "parent": r["head"], "history": history_path}
 
 
-def restore(history_path, record_path, keep_path):
+def restore(history_path, record_path, keep_path, on_kept=None):
     """Rewind: make a HISTORY copy the book's RECORD again -> {"head", "parent", "kept"}. Refuses a copy from a newer
     engine (DB_SCHEMA_TOO_NEW - the record would then refuse this engine). The record as it is goes to `keep_path`
     first (a rewind keeps what it removed); then the history copy lands in role record with its own head and parent,
     in promote's order. Which history copy may be restored - one in the record's head chain - is the lineage's question
-    (scripts/draft.py, gate draft-flow), not this primitive's."""
+    (scripts/draft.py, gate draft-flow), not this primitive's. `on_kept(keep_path)` as in promote."""
     history_path, record_path = _existing(history_path, "db.restore"), _existing(record_path, "db.restore")
     _fresh(keep_path, "db.restore")
     h, r = role_of(history_path), role_of(record_path)
@@ -372,6 +393,8 @@ def restore(history_path, record_path, keep_path):
                               "the record would refuse this engine" % (history_path, v, SCHEMA_VERSION))
         _probe_lock(record_path, "db.restore")
         copy_to(record_path, keep_path, "history")
+        if on_kept:
+            on_kept(keep_path)
         _land(hist, record_path, "record", h["head"], h["parent"], "db.restore")
     finally:
         hist.close()
