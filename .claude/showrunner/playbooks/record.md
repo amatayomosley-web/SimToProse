@@ -10,6 +10,6 @@ One command each. The author's words come from the direction's `words`, passed e
 | rewind | `python scripts/draft.py restore --book "<book>" --to <to> --approved "<words>" --by partner-relayed` |
 | release | `python scripts/draft.py release --book "<book>" --approved "<words>" --by partner-relayed` |
 
-After approve: if `<book>/prose/<run>/` holds a review file for that draft, change its first line to
-`APPROVED - <state>`. Report `done` with the command's own output line in the summary; on a refusal, `refused` with
+The partner runs these itself: `python scripts/brief.py --run <direction.json>` runs the one command (docs/CONTRACTS.md).
+Without `--run`, brief.py hands a spawn only its one filled-in command; the spawn makes that one call and reports. Report `done` with the command's own output line in the summary; on a refusal, `refused` with
 its code.

@@ -1248,6 +1248,19 @@ reachable only with a numeric subclass), a mint's id (it carries its producer's 
 re-derive it), and the other exact walls in these tables (`WoundDelta` kind, `RestDeclared` source, a law's domain,
 modality and epistemic).
 
+**2026-09-27 — the partner runs the mechanical steps; the showrunner is spawned for scenes (gates `record-step-brief`,
+`partner-runs-mechanical`):** measured over the round trip's transcripts, every spawn opens at about 67.5k tokens of
+context before it reads its task, so a record step spawned alone was 63-91% overhead - a one-command approve still cost
+111,885 tokens on a one-command brief. `scripts/brief.py --run <direction>` now checks a record direction (adopt,
+approve, reject, rewind, release) or a declaration and runs it itself: `_argv` is the one source of each record step's
+draft.py command (the author's words passed as one argument, marked `partner-relayed`), and a declaration on an
+adopted book is a draft opened, declared and promoted `--in-advance` on the author's words, or set aside when refused.
+A scene or render asked of `--run` is `HANDOFF_NEEDS_SPAWN`; a render is the partner's two steps (`narrate.py
+--prompt-only`, then the narrator through `brief.py --specialist`). The scene playbook drops the continuity-critic
+spawn (the showrunner reads `critic.py --prompt-only` itself) and carries a compact example scene setup in place of the
+blueprint read. Prose files carry `draft <id>` or `record <state>`; whether it was approved is the lineage's to say.
+Evidence: `tests/test_handoff.py` [3].
+
 **2026-09-27 — the partner route: directions, reports and info requests (gate `partner-contracts`):** the owner chose
 the partner route - the author talks with their partner, the partner hands the showrunner a typed DIRECTION, and "this
 keeps the context window for both smaller". `docs/CONTRACTS.md` is the one page a partner reads. `src/engine/handoff.py`

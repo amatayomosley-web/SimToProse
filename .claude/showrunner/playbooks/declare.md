@@ -1,5 +1,8 @@
 # Playbook: declare - the author's own events, corrections and facts
 
+The partner normally runs this itself: `python scripts/brief.py --run <direction.json>` does steps 1-2 and sets a
+refused draft aside (docs/CONTRACTS.md). This playbook is for a showrunner handed a declaration.
+
 The direction names the declaration file (`file`, the shape in `docs/CONTRACTS.md`) and carries the author's `words`:
 the instruction was the yes.
 

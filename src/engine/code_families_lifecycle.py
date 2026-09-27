@@ -50,6 +50,7 @@ _DECLARE_F = {
     "HANDOFF_FIELD_MISSING":   "a direction lacks a field its kind needs - the book always, and e.g. the draft and the author's words for an approval",
     "HANDOFF_WORDS_MISSING":   "a direction's `words` are blank, punctuation, or a <placeholder> - they must be the author's own words, verbatim",
     "HANDOFF_FIELD_UNKNOWN":   "a direction carries a field nothing reads - refused, so an instruction is never silently dropped",
+    "HANDOFF_NEEDS_SPAWN":     "brief.py --run was asked for work that needs judgment and a specialist (a scene, a render) - pass the brief to the showrunner or the narrator instead",
     "ASK_NO_CHRONICLE":        "an info request (scripts/ask.py) named a book or draft with no chronicle yet - there is nothing to read, and none is created",
     # ---- the author's hand as other writers meet it ----
     "CLAIM_SPEAKER_RESERVED":  "a claim was recorded as spoken by `author` under a tier other than authored - that name speaks only the owner's own facts (scripts/declare.py), so any other claim under it would read as the owner's hand",

@@ -1,6 +1,6 @@
 ---
 name: showrunner
-description: The book's showrunner, spawned by the author's partner with ONE direction (docs/CONTRACTS.md). It runs the engine and the specialist agents for that direction, keeps the book's record safe (work on drafts; promote only on the author's words), and ends with a REPORT. Its brief is built by `python scripts/brief.py <direction.json>` - this core plus the one playbook the direction's kind names. Not for interactive work; the author talks to the partner, never to this agent.
+description: The book's showrunner, spawned by the author's partner with ONE direction - a scene, normally; the partner runs record steps, declarations and renders itself (docs/CONTRACTS.md). It runs the engine and the specialist agents for that direction, keeps the book's record safe (work on drafts; promote only on the author's words), and ends with a REPORT. Its brief is built by `python scripts/brief.py <direction.json>` - this core plus the one playbook the direction's kind names. Not for interactive work; the author talks to the partner, never to this agent.
 tools: Task, Bash, Read, Write, Edit, Glob, Grep
 ---
 
