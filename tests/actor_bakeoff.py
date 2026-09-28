@@ -33,6 +33,8 @@ THE DESIGN.
 
     python tests/actor_bakeoff.py build  --out DIR [--book PATH] [--beats 3]
     python tests/actor_bakeoff.py run    --out DIR --model ollama/<name> [--draws 5] [--num-ctx 32768] [--no-think]
+    python tests/actor_bakeoff.py tasks  --out DIR --config NAME [--draws 5]     (an agent actor: one task per reply)
+    python tests/actor_bakeoff.py ingest --out DIR --config NAME --model LABEL   (its raw replies -> reply rows)
     python tests/actor_bakeoff.py packet --out DIR [--seed 1]
     python tests/actor_bakeoff.py score  --out DIR
 
@@ -291,6 +293,47 @@ def run_model(out, model, draws, num_ctx, think):
             print("%s %s d%d: %s (%.0fs)" % (name, item["id"], d, err or shape, row["seconds"]))
 
 
+def tasks(out, config, draws):
+    """For an AGENT actor (a model with no local endpoint, answered by one fresh agent per reply): one task file per
+    prompt and draw - the engine's system and user messages verbatim, and the path the raw reply goes to. Prints one
+    `TASK <file> REPLY <file>` line per task still unanswered."""
+    tdir, rdir = os.path.join(out, "tasks", config), os.path.join(out, "agent_replies", config)
+    os.makedirs(tdir, exist_ok=True)
+    os.makedirs(rdir, exist_ok=True)
+    for item in _items(out):
+        msgs = {m["role"]: m["content"] for m in item["messages"]}
+        for d in range(draws):
+            t = os.path.join(tdir, "%s_d%d.json" % (item["id"], d))
+            reply = os.path.join(rdir, "%s_d%d.txt" % (item["id"], d))
+            if not os.path.exists(t):
+                with io.open(t, "w", encoding="utf-8") as fh:
+                    json.dump({"system": msgs.get("system", ""), "user": msgs.get("user", ""), "reply_path": reply},
+                              fh, indent=1, ensure_ascii=False)
+            if not os.path.exists(reply):
+                print("TASK %s REPLY %s" % (t, reply))
+
+
+def ingest(out, config, label):
+    """An agent actor's raw replies -> reply rows like `run` writes (no timing: an agent's clock is not the model's)."""
+    folder = os.path.join(out, "replies", config)
+    os.makedirs(folder, exist_ok=True)
+    n = 0
+    for path in sorted(glob.glob(os.path.join(out, "agent_replies", config, "*.txt"))):
+        stem = os.path.basename(path)[:-len(".txt")]
+        item, draw = stem.rsplit("_d", 1)
+        with io.open(path, encoding="utf-8", errors="replace") as fh:
+            text = fh.read()
+        parsed, shape = _read(text)
+        with io.open(os.path.join(folder, stem + ".json"), "w", encoding="utf-8") as fh:
+            json.dump({"model": label, "item": item, "draw": int(draw), "seed": None, "num_ctx": None, "think": None,
+                       "seconds": None, "error": "", "raw": text, "shape": shape, "parsed": parsed}, fh, indent=1,
+                      ensure_ascii=False)
+        n += 1
+        print("%s %s: %s" % (label, stem, shape))
+    missing = len(glob.glob(os.path.join(out, "tasks", config, "*.json"))) - n
+    print("ingested %d replies for %s; %d task(s) still unanswered" % (n, label, missing))
+
+
 def _plants(item):
     """The planted replies for one prompt: {kind: reply}."""
     sid, k, who = item["id"].split("_b")[0], item["beat"], item["speaker"]
@@ -401,7 +444,8 @@ def score(out):
                                              **{q: 0 for q in QUESTIONS}})
         m["replies"] += 1
         m["shape_ok"] += row["shape"] == "ok"
-        m["seconds"].append(row["seconds"])
+        if row.get("seconds") is not None:
+            m["seconds"].append(row["seconds"])
     for eid, k in key.items():
         if k["who"].startswith("PLANT:") or not reliable.get(k["item"]):
             continue
@@ -445,6 +489,14 @@ def main(argv=None):
     r.add_argument("--draws", type=int, default=5)
     r.add_argument("--num-ctx", type=int, default=32768, dest="num_ctx")
     r.add_argument("--no-think", action="store_false", dest="think")
+    t = sub.add_parser("tasks", help="task files for an agent actor (one fresh agent per reply)")
+    t.add_argument("--out", required=True)
+    t.add_argument("--config", required=True, help="a folder name for this actor, e.g. sonnet-low")
+    t.add_argument("--draws", type=int, default=5)
+    g = sub.add_parser("ingest", help="an agent actor's raw replies -> reply rows")
+    g.add_argument("--out", required=True)
+    g.add_argument("--config", required=True)
+    g.add_argument("--model", required=True, help="the label the score shows, e.g. claude:sonnet@low")
     p = sub.add_parser("packet")
     p.add_argument("--out", required=True)
     p.add_argument("--seed", type=int, default=1)
@@ -456,6 +508,10 @@ def main(argv=None):
         build(out, os.path.abspath(a.book), a.beats)
     elif a.cmd == "run":
         run_model(out, a.model, a.draws, a.num_ctx, a.think)
+    elif a.cmd == "tasks":
+        tasks(out, a.config, a.draws)
+    elif a.cmd == "ingest":
+        ingest(out, a.config, a.model)
     elif a.cmd == "packet":
         packet(out, a.seed)
     else:
