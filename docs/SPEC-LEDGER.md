@@ -1262,6 +1262,16 @@ and the key apart; `score` drops any prompt whose judge missed a plant. `direct.
 `subagent:<name>@<class>`, so a non-Claude answerer is recorded as what it is. Evidence: a stub build, one-draw run and
 a synthetic score in the gate's check; `tests/test_profile.py`.
 
+**2026-09-27 (later) — the actor test's references weigh, and packets split:** every beat's stage directions pull more
+than one way, and the actor prompt then requires the thought to "name the pulls it is resolving and which one wins".
+The first reference replies did not, and a strict judge failed them on 4 of 6 prompts - rightly (Sym's Gemini run). The
+reference thoughts now weigh; no reference thought reaches a later prompt, so a rebuild is byte-identical to the frozen
+items. The judge answers `names_pulls` apart from `follows_direction` (reported, not in the tier; a verdict written
+before the question existed is scored on the rest). `packet --per N` splits a prompt's replies into packets of about N,
+each carrying every plant, dealt round-robin so a model's draws spread; `score` drops a packet, not a prompt, whose
+judges missed a plant. Evidence: a scratch rebuild identical to the frozen items, and a synthetic score over split
+packets (a reference failing only `names_pulls` drops exactly its packet).
+
 **2026-09-27 — the session profile: which model fills each role, set once per session (gate `session-profile`):** the
 owner - "Variable, use OS model, open router and subagent", then "we can set it per session ... and then it continues
 until close", and "the show runner can't be a qwen 7B". `src/engine/roles.py` is the table behind

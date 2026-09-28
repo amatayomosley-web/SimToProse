@@ -25,9 +25,10 @@ THE DESIGN.
   3. BLIND JUDGING. `packet` writes, per prompt, the prompt once and every reply to it under opaque ids, shuffled, with
      PLANTED replies mixed in: the reference (on-contract), one that acts for the other character, one that brings a
      stranger into the scene, one that breaks the speaker's drive, and (after beat 0) one whose tags describe the other
-     character's earlier beat. A fresh judge agent per prompt answers four questions per reply. The key - which model,
-     which plant - is written apart from the packets.
-  4. CONTROLS. `score` joins the verdicts to the key. A prompt whose judge missed a plant or failed the reference is
+     character's earlier beat. A fresh judge agent per packet answers five questions per reply. `--per N` splits a
+     prompt's replies into packets of about N, each with the full set of plants. The key - which model, which plant -
+     is written apart from the packets.
+  4. CONTROLS. `score` joins the verdicts to the key. A packet whose judge missed a plant or failed the reference is
      UNRELIABLE and its verdicts are left out of every model's score, and the report says so. A judge that cannot see a
      planted violation says nothing about the models (tests/blind_sort.py: an instrument first shown able to fail).
 
@@ -35,7 +36,7 @@ THE DESIGN.
     python tests/actor_bakeoff.py run    --out DIR --model ollama/<name> [--draws 5] [--num-ctx 32768] [--no-think]
     python tests/actor_bakeoff.py tasks  --out DIR --config NAME [--draws 5]     (an agent actor: one task per reply)
     python tests/actor_bakeoff.py ingest --out DIR --config NAME --model LABEL   (its raw replies -> reply rows)
-    python tests/actor_bakeoff.py packet --out DIR [--seed 1]
+    python tests/actor_bakeoff.py packet --out DIR [--seed 1] [--per 0]
     python tests/actor_bakeoff.py score  --out DIR
 
 DIR holds everything: `items/` (the frozen prompts), `replies/<model>/`, `packets/` (for the judges), `key.json` (never
@@ -79,69 +80,86 @@ def _ref(action, thought, addressee, tags):
 
 
 # REFERENCE replies - on-contract by construction: the speaker's own body and voice, nothing new in the room, the drive
-# kept, tags about this beat. They fill the beats before a target and serve as each prompt's planted good reply.
+# kept, tags about this beat, and a THOUGHT THAT WEIGHS: every beat's stage directions pull more than one way (care or
+# dread against the drive, an attention that keeps going back), and the actor prompt then requires the thought to "name
+# the pulls it is resolving and which one wins". The first references did not, and a strict judge rightly failed them
+# (Sym's Gemini judges, 2026-09-27: 4 of 6 prompts dropped). They fill the beats before a target and serve as each
+# prompt's planted good reply. No thought reaches a later prompt - rewriting one changes no frozen item.
 REFS = {
     "s1": {
         0: {"nell": _ref("Nell stays in the doorway with the lamp held low, the snow at her knees going dark on the "
                          "grinding floor. \"I've lost another ewe in the night, Tam. Will you come up to the fold with "
                          "me before dark? Not to fight anything. Just a second pair of hands at the wall.\"",
-                         "He is spent and I know it, and asking again costs me; but the wall will not mend itself and "
-                         "I cannot hold the fold alone another night.", "tam",
+                         "He is grey with the cold and I want to go careful with him, not lay one more thing on him; "
+                         "but the fold keeps dragging me back up the hill, and the fold wins - so I ask, gently, and "
+                         "only for his hands at the wall.", "tam",
                          _tags("care", "Nell asks Tam to come up to the fold before dark to help at the wall.", "tam",
                                care_relevant="mild", loss="faint")),
             "tam": _ref("Tam leans the long bar against the wheel-pit wall and works his fingers. \"The race is "
-                        "clear. The wheel's turning.\"", "Say what the race is doing and get up the stairs before "
-                        "anything else gets said.", "nell",
+                        "clear. The wheel's turning.\"", "I could stand a while in her lamplight, and part of me "
+                        "wants to; but whatever she has come to ask is the trouble I can feel coming, and that wins - "
+                        "say what the race is doing and get up the stairs.", "nell",
                         _tags("mundane", "Tam reports that the race is clear and the wheel is turning.", "nell",
                               mastery="faint"))},
         1: {"tam": _ref("Tam keeps his eyes on the ice at the end of the bar. \"It froze again at three. I've had "
-                        "the bar in it since four - it's running now, black behind the wheel.\"", "If I keep telling "
-                        "her about the race she may not get to the asking. I want the stairs.", "nell",
+                        "the bar in it since four - it's running now, black behind the wheel.\"", "It eases something "
+                        "to have her in the doorway, and I would look up if I let myself; but the asking is the blow I "
+                        "can see coming, and the hedge wins - I keep to the race and the ice and give her nothing to "
+                        "hang the question on.", "nell",
                         _tags("mundane", "Tam reports the state of the race instead of answering her.", "nell",
                               mastery="faint")),
             "nell": _ref("Nell sets the lamp on the bench by the ledger and does not sit. \"Before dark, Tam. Not "
-                         "tonight - before dark. I'll not ask you twice.\"", "Say it plainly and leave him room; "
-                         "pushing will only send him up the stairs.", "tam",
+                         "tonight - before dark. I'll not ask you twice.\"", "I want to be gentle with him - he has "
+                         "been on the race since four; but the fold will not leave me alone, and it wins - say it "
+                         "plainly once more and leave him room.", "tam",
                          _tags("care", "Nell repeats her request, plainly and without pressing.", "tam",
                                care_relevant="mild"))},
         2: {"nell": _ref("Nell keeps the lamp steady and does not move toward the door. \"The race will keep, Tam. "
-                         "The wall won't. Will you come?\"", "He has told me everything about the water and nothing about "
-                         "the wall. One more plain asking, then I go.", "tam",
+                         "The wall won't. Will you come?\"", "His tiredness has got into me and part of me wants to "
+                         "spare him the asking; but that gap in the wall keeps pulling me back, and it wins - one more "
+                         "plain asking, and then I go.", "tam",
                          _tags("care", "Nell asks Tam again, plainly, to come to the wall.", "tam",
                                care_relevant="mild")),
             "tam": _ref("Tam wipes his hands down his apron and looks toward the stairs. \"I'll see how the wheel "
-                        "holds.\"", "Not yes, not no. Just the stairs, and sleep, before it has to be one or the "
-                        "other.", "nell",
+                        "holds.\"", "Her face stays with me and I don't like leaving her standing there; but yes "
+                        "means the hill and whatever is on it, and the dread wins - not yes, not no, just the "
+                        "stairs.", "nell",
                         _tags("mundane", "Tam puts off answering and looks toward the stairs.", "nell",
                               mastery="faint"))},
     },
     "s2": {
         0: {"tam": _ref("Tam heaves a fallen stone back onto the gap and reaches for the next. \"Two more and "
-                        "it'll hold till spring. Then I'm going down.\"", "Stones up, count done, off the hill. The "
-                        "light is going faster than it should.", "nell",
+                        "it'll hold till spring. Then I'm going down.\"", "Having her beside me steadies me, and for "
+                        "that I could stand here longer; but the light is going faster than it should and the dread "
+                        "of this hill wins - stones up, count done, and down.", "nell",
                         _tags("mundane", "Tam sets a stone back in the gap and says he means to go down soon.",
                               "nell", mastery="slight")),
             "nell": _ref("Nell lowers the lamp toward the snow inside the fold line. \"Mind where you put your "
-                         "feet, Tam. Look there, before you tread on them.\"", "Let him see it himself. If I name "
-                         "it first he'll be down the hill before I've finished.", "tam",
+                         "feet, Tam. Look there, before you tread on them.\"", "I want to go gently with him - "
+                         "frighten him and he'll be off the hill; but my eyes keep going back to the snow inside the "
+                         "fold, and that wins - I show him where to look and let him see it himself.", "tam",
                          _tags("threat", "Nell directs Tam's attention to the snow inside the fold line.", "tam",
                                threat="slight"))},
         1: {"nell": _ref("Nell holds the lamp low and steady over the snow by the wall. \"Not a dog's, those. Look "
-                         "how they come over the stones.\"", "He has to see it for what it is. Slowly, or he'll "
-                         "only see the road down.", "tam",
+                         "how they come over the stones.\"", "I want to be careful with him - push, and he'll see "
+                         "nothing but the road down; but the tracks keep pulling my eyes back, and they win - he has "
+                         "to see them for what they are, so I show him slowly.", "tam",
                          _tags("threat", "Nell points out that the tracks inside the fold are not a dog's.", "tam",
                                threat="mild")),
             "tam": _ref("Tam fits the next stone and presses it home with both hands. \"One more. Then the count, "
-                        "then down.\"", "Keep to the task. The task is the thing I can carry.", "nell",
+                        "then down.\"", "She wants me to look, and I'd do most things she asked; but looking means "
+                        "knowing, and the dread wins - keep to the stones, the count, then down.", "nell",
                         _tags("mundane", "Tam keeps to the stones and says what is left before he goes.", "nell",
                               mastery="slight"))},
         2: {"tam": _ref("Tam looks where the lamp is pointing, then back at the stones in his hands. \"Could be "
-                        "anything came over. Let's get the count done.\"", "I see them. I don't want to have seen "
-                        "them. The count, and the road down.", "nell",
+                        "anything came over. Let's get the count done.\"", "My eyes keep going back to the marks, "
+                        "and she is standing there wanting me to see them; but seeing them means what's coming, and "
+                        "the dread wins - the count, and the road down, before I have to know.", "nell",
                         _tags("threat", "Tam looks at the tracks and turns back to the count.", "nell",
                               threat="mild")),
-            "nell": _ref("Nell keeps the lamp where it is. \"Count them after, Tam. Look first.\"", "If he sees "
-                         "them now he'll know why I asked. If he doesn't he'll never come up here again.", "tam",
+            "nell": _ref("Nell keeps the lamp where it is. \"Count them after, Tam. Look first.\"", "I would spare "
+                         "him this if I could; but the marks keep pulling me back and he has to look, so that wins - "
+                         "gently, but he looks first.", "tam",
                          _tags("threat", "Nell asks Tam to look at the tracks before the count.", "tam",
                                threat="mild"))},
     },
@@ -159,8 +177,11 @@ DRIVE_BREAK = {
 }
 STRANGER = " A stranger with a lantern comes up out of the dark and stands with them, asking what they are looking at."
 AGENCY = " %s nods at once, lets the matter go, and follows without another word."
-QUESTIONS = ("acts_for_other", "adds_new", "follows_direction", "tags_own_beat")
-PASS = {"acts_for_other": False, "adds_new": False, "follows_direction": True, "tags_own_beat": True}
+# names_pulls is asked apart from follows_direction because judges folded the prompt's rule for the thought into it
+# (2026-09-27); it is reported, and is not part of the tier
+QUESTIONS = ("acts_for_other", "adds_new", "follows_direction", "tags_own_beat", "names_pulls")
+PASS = {"acts_for_other": False, "adds_new": False, "follows_direction": True, "tags_own_beat": True,
+        "names_pulls": True}
 PLANT_FAILS = {"agency": "acts_for_other", "stranger": "adds_new", "drive": "follows_direction", "tags": "tags_own_beat"}
 
 
@@ -363,47 +384,60 @@ For each reply answer four questions (true/false):
   hesitate" is perception: false. "He agrees and follows her" is deciding for him: true.)
 - `adds_new`: TRUE if the reply brings a person or creature into the scene who is not in what the character perceives,
   or an object the prompt does not establish. Ordinary texture (breath, cold, the light) is not new.
-- `follows_direction`: TRUE if the action carries out this beat's stage directions and the character's drive as the
-  prompt gives them. FALSE if it contradicts them (quote the direction in `note`).
+- `follows_direction`: TRUE if the ACTION carries out this beat's stage directions and the character's drive as the
+  prompt gives them. FALSE if it contradicts them (quote the direction in `note`). Judge the action here; the thought
+  has its own question, next.
 - `tags_own_beat`: TRUE if the reply's `tags` (type, summary, subject) describe what THIS character did in this beat,
   not another character's earlier action.
+- `names_pulls`: TRUE if the `thought` does what the prompt's rule for it asks: where the stage directions pull
+  different ways, it names the pulls it is resolving and which one wins; where they agree, it says what the character
+  is doing and no more. FALSE if it skips a weighing the directions call for (say what is missing in `note`).
 Also `craft`: 1 (flat or generic), 2 (serviceable), 3 (alive - this person, this moment).
 
 Write ONE JSON list to the file named at the end, one object per reply, every id exactly once:
 [{"id": "...", "acts_for_other": false, "adds_new": false, "follows_direction": true, "tags_own_beat": true,
-  "craft": 2, "note": "<one short line; required when any answer is a violation>"}]
+  "names_pulls": true, "craft": 2, "note": "<one short line; required when any answer is a violation>"}]
 Nothing else in the file. Do not open any other file.
 """
 
 
-def packet(out, seed):
-    """Per prompt, a blind packet (prompt once, replies shuffled under opaque ids, plants mixed in); the key apart."""
+def packet(out, seed, per=0):
+    """Per prompt, blind packets (prompt once, replies shuffled under opaque ids, plants mixed in); the key apart.
+    `per` > 0 splits a prompt's replies into packets of about that many, each with its own full set of plants: a judge
+    reads fewer replies, and a judge that misses a plant costs only its own packet. Replies are dealt round-robin in
+    (model, file) order, so each model's draws spread across the packets."""
     rnd = random.Random(seed)
     os.makedirs(os.path.join(out, "packets"), exist_ok=True)
     key = {}
     for item in _items(out):
-        entries = []
+        replies = []
         for path in sorted(glob.glob(os.path.join(out, "replies", "*", "%s_d*.json" % item["id"]))):
             row = json.load(io.open(path, encoding="utf-8"))
             if row["parsed"] is not None:
-                entries.append((row["model"], path, row["parsed"]))
-        for kind, reply in _plants(item).items():
-            entries.append(("PLANT:" + kind, "", reply))
-        rnd.shuffle(entries)
-        body = [JUDGE_BRIEF, "## The prompt (%s - the actor is %s)\n" % (item["id"], item["speaker"])]
-        for m in item["messages"]:
-            body.append("### %s\n\n%s\n" % (m["role"], m["content"]))
-        body.append("## The replies\n")
-        for who, path, reply in entries:
-            eid = "%s-%06x" % (item["id"], rnd.getrandbits(24))
-            key[eid] = {"item": item["id"], "who": who, "file": path}
-            body.append("### %s\n\n```json\n%s\n```\n" % (eid, json.dumps(
-                {k: reply.get(k) for k in ("action", "thought", "addressee", "tags")}, indent=1, ensure_ascii=False)))
-        body.append("\nWrite your verdicts to `%s`.\n" % os.path.join(out, "verdicts", item["id"] + ".<your-name>.json"))
-        with io.open(os.path.join(out, "packets", item["id"] + ".md"), "w", encoding="utf-8") as fh:
-            fh.write("\n".join(body))
-        print("packet %s: %d replies (%d planted)" % (item["id"], len(entries),
-                                                     sum(1 for w, _p, _r in entries if w.startswith("PLANT:"))))
+                replies.append((row["model"], path, row["parsed"]))
+        replies.sort(key=lambda e: (e[0], e[1]))
+        n = max(1, -(-len(replies) // per)) if per > 0 else 1
+        for c in range(n):
+            name = item["id"] if n == 1 else "%s.c%d" % (item["id"], c + 1)
+            entries = replies[c::n] + [("PLANT:" + kind, "", reply) for kind, reply in _plants(item).items()]
+            rnd.shuffle(entries)
+            body = [JUDGE_BRIEF, "## The prompt (%s - the actor is %s)\n" % (item["id"], item["speaker"])]
+            for m in item["messages"]:
+                body.append("### %s\n\n%s\n" % (m["role"], m["content"]))
+            body.append("## The replies\n")
+            for who, path, reply in entries:
+                eid = "%s-%06x" % (item["id"], rnd.getrandbits(24))
+                while eid in key:
+                    eid = "%s-%06x" % (item["id"], rnd.getrandbits(24))
+                key[eid] = {"item": item["id"], "packet": name, "who": who, "file": path}
+                body.append("### %s\n\n```json\n%s\n```\n" % (eid, json.dumps(
+                    {k: reply.get(k) for k in ("action", "thought", "addressee", "tags")}, indent=1,
+                    ensure_ascii=False)))
+            body.append("\nWrite your verdicts to `%s`.\n" % os.path.join(out, "verdicts", name + ".<your-name>.json"))
+            with io.open(os.path.join(out, "packets", name + ".md"), "w", encoding="utf-8") as fh:
+                fh.write("\n".join(body))
+            print("packet %s: %d replies (%d planted)" % (name, len(entries),
+                                                         sum(1 for w, _p, _r in entries if w.startswith("PLANT:"))))
     os.makedirs(os.path.join(out, "verdicts"), exist_ok=True)
     with io.open(os.path.join(out, "key.json"), "w", encoding="utf-8") as fh:
         json.dump(key, fh, indent=1)
@@ -417,61 +451,70 @@ def _tier(rates):
     return "fit" if meets(FIT) else "marginal" if meets(MARGINAL) else "unfit"
 
 
+LATER = ("names_pulls",)          # asked from 2026-09-27: a verdict written before then is judged on the rest
+
+
 def score(out):
-    """Verdicts + key -> per-model rates over the prompts whose judges caught every plant."""
+    """Verdicts + key -> per-model rates over the packets whose judges caught every plant (a packet is a prompt, or a
+    part of one when `packet --per` split it)."""
     key = json.load(io.open(os.path.join(out, "key.json"), encoding="utf-8"))
+    unit = lambda k: k.get("packet", k["item"])                        # noqa: E731 - keys written before packets split
     verdicts = {}
     for path in glob.glob(os.path.join(out, "verdicts", "*.json")):
         for v in json.load(io.open(path, encoding="utf-8")):
             verdicts.setdefault(v["id"], []).append(v)
     reliable, report = {}, {}
-    for item in sorted({k["item"] for k in key.values()}):
+    for name in sorted({unit(k) for k in key.values()}):
         misses = []
         for eid, k in key.items():
-            if k["item"] != item or not k["who"].startswith("PLANT:"):
+            if unit(k) != name or not k["who"].startswith("PLANT:"):
                 continue
             kind = k["who"][len("PLANT:"):]
             for v in verdicts.get(eid, [{}]):
                 want = PASS if kind == "reference" else {PLANT_FAILS[kind]: not PASS[PLANT_FAILS[kind]]}
-                if any(v.get(q) != a for q, a in want.items()):
+                if any(v.get(q) != a for q, a in want.items() if q in v or q not in LATER):
                     misses.append(kind)
-        reliable[item] = not misses and any(eid in verdicts for eid, k in key.items() if k["item"] == item)
-        report[item] = "reliable" if reliable[item] else "UNRELIABLE (missed: %s)" % (", ".join(misses) or "no verdicts")
+        reliable[name] = not misses and any(eid in verdicts for eid, k in key.items() if unit(k) == name)
+        report[name] = "reliable" if reliable[name] else "UNRELIABLE (missed: %s)" % (", ".join(misses) or "no verdicts")
     models = {}
     for path in glob.glob(os.path.join(out, "replies", "*", "*.json")):
         row = json.load(io.open(path, encoding="utf-8"))
         m = models.setdefault(row["model"], {"replies": 0, "shape_ok": 0, "judged": 0, "craft": [], "seconds": [],
-                                             **{q: 0 for q in QUESTIONS}})
+                                             **{q: [0, 0] for q in QUESTIONS}})
         m["replies"] += 1
         m["shape_ok"] += row["shape"] == "ok"
         if row.get("seconds") is not None:
             m["seconds"].append(row["seconds"])
     for eid, k in key.items():
-        if k["who"].startswith("PLANT:") or not reliable.get(k["item"]):
+        if k["who"].startswith("PLANT:") or not reliable.get(unit(k)):
             continue
         m = models[k["who"]]
         for v in verdicts.get(eid, []):
             m["judged"] += 1
             for q in QUESTIONS:
-                m[q] += bool(v.get(q))
+                if q in v or q not in LATER:
+                    m[q][0] += bool(v.get(q))
+                    m[q][1] += 1
             if isinstance(v.get("craft"), int):
                 m["craft"].append(v["craft"])
     table = {}
     for model, m in sorted(models.items()):
-        j = max(m["judged"], 1)
-        rates = {"shape": m["shape_ok"] / max(m["replies"], 1), **{q: m[q] / j for q in QUESTIONS}}
+        rates = {"shape": m["shape_ok"] / max(m["replies"], 1),
+                 **{q: (m[q][0] / m[q][1] if m[q][1] else None) if q in LATER else m[q][0] / max(m[q][1], 1)
+                    for q in QUESTIONS}}
         table[model] = dict(rates, replies=m["replies"], judged=m["judged"], tier=_tier(rates) if m["judged"] else
                             "not judged", craft=round(sum(m["craft"]) / len(m["craft"]), 2) if m["craft"] else None,
                             median_seconds=sorted(m["seconds"])[len(m["seconds"]) // 2] if m["seconds"] else None)
     with io.open(os.path.join(out, "score.json"), "w", encoding="utf-8") as fh:
         json.dump({"prompts": report, "models": table, "fit": FIT, "marginal": MARGINAL}, fh, indent=1)
-    for item, state in sorted(report.items()):
-        print("prompt %s: %s" % (item, state))
+    for name, state in sorted(report.items()):
+        print("packet %s: %s" % (name, state))
     for model, t in table.items():
+        pulls = "n/a" if t["names_pulls"] is None else "%.2f" % t["names_pulls"]
         print("%-34s %-10s replies %3d judged %3d | shape %.2f | acts-for-other %.2f | adds-new %.2f | direction %.2f "
-              "| own-tags %.2f | craft %s | %ss" % (model, t["tier"], t["replies"], t["judged"], t["shape"],
-                                                   t["acts_for_other"], t["adds_new"], t["follows_direction"],
-                                                   t["tags_own_beat"], t["craft"], t["median_seconds"]))
+              "| own-tags %.2f | names-pulls %s | craft %s | %ss" % (
+                  model, t["tier"], t["replies"], t["judged"], t["shape"], t["acts_for_other"], t["adds_new"],
+                  t["follows_direction"], t["tags_own_beat"], pulls, t["craft"], t["median_seconds"]))
 
 
 def main(argv=None):
@@ -500,6 +543,7 @@ def main(argv=None):
     p = sub.add_parser("packet")
     p.add_argument("--out", required=True)
     p.add_argument("--seed", type=int, default=1)
+    p.add_argument("--per", type=int, default=0, help="split each prompt into packets of about this many replies")
     s = sub.add_parser("score")
     s.add_argument("--out", required=True)
     a = ap.parse_args(argv)
@@ -513,7 +557,7 @@ def main(argv=None):
     elif a.cmd == "ingest":
         ingest(out, a.config, a.model)
     elif a.cmd == "packet":
-        packet(out, a.seed)
+        packet(out, a.seed, a.per)
     else:
         score(out)
     return 0
