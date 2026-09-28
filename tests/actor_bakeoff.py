@@ -102,8 +102,8 @@ REFS = {
                          "pushing will only send him up the stairs.", "tam",
                          _tags("care", "Nell repeats her request, plainly and without pressing.", "tam",
                                care_relevant="mild"))},
-        2: {"nell": _ref("Nell stays by the lamp and waits until he looks at her. \"The race will keep, Tam. The "
-                         "wall won't. Will you come?\"", "He has told me everything about the water and nothing about "
+        2: {"nell": _ref("Nell keeps the lamp steady and does not move toward the door. \"The race will keep, Tam. "
+                         "The wall won't. Will you come?\"", "He has told me everything about the water and nothing about "
                          "the wall. One more plain asking, then I go.", "tam",
                          _tags("care", "Nell asks Tam again, plainly, to come to the wall.", "tam",
                                care_relevant="mild")),
