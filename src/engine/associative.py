@@ -37,6 +37,21 @@ def _referent(s):
     return " ".join(t.replace("_", " ").split())
 
 
+def _ready(b, eff_conf, current_turn=0, relationships=None, recall_history=None, elapsed=None):
+    """How readily a belief comes back, which is what recall is PRICED by. A belief with its own `readiness` (a telling:
+    tellings.py) fades from that value, apart from how far it is believed - so a doubted rumour is not also buried
+    (Fable review 3, 8.3: sureness and readiness are two numbers). Every other belief is as ready as it is sure."""
+    r = b.get("readiness")
+    if r is None:
+        return eff_conf
+    try:
+        r = max(0.0, min(1.0, float(r)))
+    except (TypeError, ValueError):
+        return eff_conf
+    return calculate_effective_confidence(dict(b, confidence=r), current_turn=current_turn, relationships=relationships,
+                                          recall_history=recall_history, elapsed=elapsed)
+
+
 def _word_hit(trigger):
     """A trigger's matcher: it meets text at WORD boundaries, never inside another word, and a single word meets its
     plural either way ("hunter" / "hunters"). Raw substring let 'low' qualify a belief about the Hollow and 'out' one
@@ -91,7 +106,7 @@ def build_vault_graph(vault, current_turn=0, relationships=None, recall_history=
         eff_conf = calculate_effective_confidence(
             b, current_turn=current_turn, relationships=relationships,
             recall_history=recall_history, elapsed=elapsed)
-        cost = max(MIN_STEP_COST, 1.0 - eff_conf)
+        cost = max(MIN_STEP_COST, 1.0 - _ready(b, eff_conf, current_turn, relationships, recall_history, elapsed))
 
         anchors = set()
         for l in (b.get("links") or []):
@@ -148,7 +163,7 @@ def find_associative_candidates(triggers, vault, goals, budget, current_turn=0,
         eff_conf = calculate_effective_confidence(
             b, current_turn=current_turn, relationships=relationships,
             recall_history=recall_history, elapsed=elapsed)
-        cost = max(0.0, 1.0 - eff_conf)
+        cost = max(0.0, 1.0 - _ready(b, eff_conf, current_turn, relationships, recall_history, elapsed))
         surface = _normalize(claim) + " " + " ".join(_referent(l) for l in (b.get("links") or []))
         about = {_referent(a) for a in (b.get("about") or []) if a}
 
@@ -195,6 +210,16 @@ def find_associative_candidates(triggers, vault, goals, budget, current_turn=0,
         for s in sorted(start_nodes):
             heapq.heappush(pq, (0.0, s, 0, [s]))
             best_cost[s] = 0.0
+        # THE DRAG (gate knowledge-tellings; the owner: memory "can and does drag other facts or ideas along"): a
+        # belief brought to mind directly is itself a start, at what it cost, so what it shares an anchor with - the
+        # same subject, the same authored link, the same telling - comes along by the graph's own hops and costs.
+        # Before, only a trigger that was itself an anchor started the walk, and a fact matched by its words
+        # dragged nothing.
+        for c in candidates:
+            bid = c["bid"]
+            if bid in beliefs and c["cost"] <= budget and c["cost"] < best_cost.get(bid, float("inf")):
+                best_cost[bid] = c["cost"]
+                heapq.heappush(pq, (c["cost"], bid, 1, [str(c["triggered"][0]), bid]))
 
         reached_beliefs = {}
         while pq:
@@ -247,7 +272,8 @@ def find_associative_candidates(triggers, vault, goals, budget, current_turn=0,
                 "provenance": b.get("provenance", ""),
                 "confidence": b.get("confidence", 0.5),
                 "confidence_eff": eff_conf,
-                "cost": 0.0 if b.get("must_surface") else max(MIN_STEP_COST, 1.0 - eff_conf),
+                "cost": 0.0 if b.get("must_surface") else max(
+                    MIN_STEP_COST, 1.0 - _ready(b, eff_conf, current_turn, relationships, recall_history, elapsed)),
                 "triggered": [chain_label],
                 "is_goal_bearing": is_goal_bearing or bool(b.get("must_surface")),
                 "hops": data["hops"],

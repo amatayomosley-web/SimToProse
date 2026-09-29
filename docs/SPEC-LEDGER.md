@@ -137,7 +137,7 @@ build something listed SPEC-ONLY here, flip the row in the same commit. Line num
 | mechanism | specified in | built? | where | divergence |
 |---|---|---|---|---|
 | Belief store `{claim, believed_value, provenance, timestamp, confidence}` + `## Beliefs` authoring contract | `knowledge-model.md:13`, `guide-content.md:49-63` | YES | `vault.py:22` (`_BELIEF_RE`), fail-loud on unparseable sections :74-78 (added after 41-52 of authored beliefs silently loaded as zero — `character-authoring-rules.md:8-10`) | BUILT-DIFFERENTLY in two spots: `timestamp` never parsed; `believed_value` carried by the gate then dropped at the packet |
-| Acquisition during play (lived / witnessed / learned; monotonic-add; dedup) | `knowledge-model.md:17,104-110` | YES | `acquisition.py` (`assess` :24, `witness_belief` :137, `reveal_name` :87, `overheard_names` :194); persisted `ledger.py` `append_acquisition` :274; resume rehydrates | BUILT-AS-SPEC'D (channels told/taught/read/deduced not distinguished; forgetting not built — declared later-layer) |
+| Acquisition during play (lived / witnessed / learned; monotonic-add; dedup) | `knowledge-model.md:17,104-110` | YES | `acquisition.py` (`assess` :24, `witness_belief` :152, `reveal_name` :87, `overheard_names` :203); persisted `ledger.py` `append_acquisition` :274; resume rehydrates | BUILT-AS-SPEC'D (channels told/taught/read/deduced not distinguished; forgetting not built — declared later-layer) |
 | **Trust gates transmission** (believed fact vs discounted rumor scales with B's trust in A) | `knowledge-model.md:108`, `relationships.md:21-22` | **YES (built 2026-08-22)** | `witness_belief(..., trust=)` scales `confidence` and flips `provenance` to `reported` at/below 0.40, reframing the claim as *"X claims: …"*; `scene.py` computes the belief PER WITNESS from that witness's edge | BUILT-AS-SPEC'D. Ceiling 0.88 is calibrated against `direction._SURENESS`, which turns over at 0.90 — a second-hand account must never render as *"you do not entertain the alternative"*. Distrust is deliberately NOT routed through `believed_value` (inert — see the schema row above) |
 | Talk-of-the-Town belief dynamics (confabulation/transference/mutation/forgetting) | `knowledge-model.md:112`, `prior-art.md:21` | NO | — | SPEC-ONLY (declared "+Full" tier) |
 | Trigger-matching recall + goal salience + energy budget (cost = 1−confidence) | `relevancy-gate.md:9-21,34-41,99-118` | YES | `gate.py:257-360` (`run_gate`), budget `gate.py:47` = energy×(1−load/2); `[[links]]` join the match surface | BUILT-AS-SPEC'D — with one measured seam: **triggers are lexicon CLASS NAMES + event kind, not the event's own words** (`gate.py:378-391`); "spider" cannot become a trigger unless a class is named "spider" (`goal-alignment-review.md:121-127`: the spider memory surfaced on the word `boy`). Levers' `when.percept` (raw-text match) does not inherit this gap; recall still does |
@@ -1271,6 +1271,20 @@ before the question existed is scored on the rest). `packet --per N` splits a pr
 each carrying every plant, dealt round-robin so a model's draws spread; `score` drops a packet, not a prompt, whose
 judges missed a plant. Evidence: a scratch rebuild identical to the frozen items, and a synthetic score over split
 packets (a reference failing only `names_pulls` drops exactly its packet).
+
+**2026-09-29 — what is told becomes what is known, and recall drags its neighbours (gate `knowledge-tellings`, step 4
+of the shared-knowledge build):** the owner, 2026-09-28: tellings write links; and "memory doesn't work only by
+recalling one specific thing". The event seat's `told` rows (since 2026-09-18) reached `scene_facts`' few in-run beats
+and `bonds`' trust arithmetic and never became what a hearer KNEW. `src/engine/tellings.py` turns each into a belief
+for everyone in the room but the teller, credited by the hearer's trust through `acquisition.credit` (witness_belief's
+own arithmetic, now one function): reported ("<Name> claims: ...") at or below `_REPORTED_AT`, else "told by <Name>",
+never above `_WITNESS_CEILING`. One `fact` identity per telling across its hearers (Fable M5); written to the
+acquisitions log, which resume, `read_api.knows` and `ask.py who` already fold (no DDL, M6); `readiness` apart from
+`confidence` (Fable 8.3), priced by `associative._ready`. The recall walk now starts from each directly matched belief
+too (the drag), and `gate.run_gate` ranks direct before dragged (hops in both sorts). Evidence: `tests/test_tellings.py`
+20 checks through `scripts/scene.py` main and a resumed scene, 10 red on the old driver and matcher; 11 mutants each
+killed by the check that states its claim. A per-beat "told together" anchor was built and removed: its mutant
+survived, because every telling already links its teller. Declared: text sources, per-hop hearsay, feeling edges.
 
 **2026-09-29 — recall meets a belief by its words or by what it is about (gate `knowledge-about-index`, step 3 of
 the shared-knowledge build):** Fable review 3 section 6, "index by `about` and retire the substring step, then measure

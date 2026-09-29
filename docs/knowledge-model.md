@@ -145,5 +145,21 @@ they see every day.
 (whole words, never the inside of one) or through what it is ABOUT - and `about` is the KNOWER's referent, so one
 person under two identities is two ids until a fact joins them (`docs/relevancy-gate.md`, "As built").
 
-Not built yet (the rest of the plan): a table for facts and links (with the tellings that first write one); tellings
-in play that write links (hearsay ranked below what was seen); one person under two identities; norms and language.
+**Tellings: what is told becomes what is known (gate knowledge-tellings).** The event seat reports each beat's `told`
+rows (what was said, to whom, at what cost to the teller); `src/engine/tellings.py` turns each into a belief for everyone
+in the room but the teller - the addressee and whoever overheard - credited by that hearer's trust in the teller
+(`acquisition.credit`, the rule a witnessed account already used): at or below the reported line it is kept as "Jory
+claims: ..."; above it, as the claim itself, told by Jory, never above the ceiling that keeps a told thing short of
+certainty. Every hearer's copy carries one `fact` identity from the beat, so who holds it is one question
+(`ask.py who`). It is written to the acquisitions log - no second store - so resume, `read_api.knows` and `who` see
+it with no change. A telling also carries `readiness`, how readily it comes back, apart from `confidence`, how far it
+is believed: recall is priced by readiness and the prompt renders confidence, so gossip can be vivid and doubted at
+once instead of doubted and buried.
+
+**The drag.** A belief recalled directly now starts the associative walk too, so what it shares a link with - the
+same subject, the same authored link, the same teller - comes along by the graph's own costs ("memory doesn't work only
+by recalling one specific thing"); what the scene touched ranks ahead of what it dragged along.
+
+Not built (declared): a telling from a text or a notice (no producer reports reading); hearsay bounded per hop by the
+teller's own confidence (a retelling is quoted anew, so nothing joins it to the teller's copy); feeling as an edge kind.
+Still to build: one person under two identities; norms. Language waits until a scene places a speaker of another tongue.

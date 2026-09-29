@@ -216,6 +216,9 @@ the prose is a defect.
 | `current.vault[].familiarity` | text | no | runtime | knowledge.shared_cost |  |
 | `current.vault[].acquaintance` | text | no | runtime | knowledge.acquaintances | the person a dated acquaintance belief is about (from a relationship edge's last_seen) |
 | `current.vault[].learned_days` | number | no | runtime | gate.run_gate; prompt (its age, in words) | how long since a member who left last shared the group's life; readiness, never sureness |
+| `current.vault[].readiness` | unit | no | runtime | associative._ready | how readily a telling comes back, apart from how far it is believed (tellings.READINESS); recall is priced by it |
+| `current.vault[].told` | any | no | runtime | read_api.knows | who told it, to whom, at which beat and what it cost the teller (tellings.told_beliefs) |
+| `current.vault[].fact` | text | no | runtime | read_api.knows | one telling's identity, from the beat - every hearer's copy carries the same one |
 | `current.memberships` | list | no | active | knowledge.links_for | the groups and places a character belongs to, for what they know: `of` grp.<tag> / loc.<id>; `left` how long ago they left (<n>d, <n>w, <n>y); `familiarity` everyday / familiar / faded overrides the derived word |
 | `current.memberships[]` | map | no | active | knowledge.links_for |  |
 | `current.memberships[].of` | text | no | active | knowledge.links_for |  |

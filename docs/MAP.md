@@ -1,7 +1,7 @@
 # MAP — what is in this project and what owns what
 
-**Why this file exists.** `docs/` holds 128 design docs, `src/engine/` 78 modules,
-`tests/` 135 suites. Nobody — human or agent — can hold that in their head, and reading it all every
+**Why this file exists.** `docs/` holds 128 design docs, `src/engine/` 79 modules,
+`tests/` 136 suites. Nobody — human or agent — can hold that in their head, and reading it all every
 session is not practical. **The failure this prevents is real and happened:** a session spent hours
 reasoning about the decision layer from four docs and inference, invented a parallel vocabulary
 ("vectors"), and rebuilt a worse version of the buff/debuff registry that `decision-engine.md`
@@ -234,7 +234,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `world-model` | the other half of the loop (SEED — to co-design) |
 | `world-state-ledger` | the live now (design the machinery; the line items are runtime) |
 
-## src/engine/ — 78 modules (normative for what IS)
+## src/engine/ — 79 modules (normative for what IS)
 
 | src | lines | owns |
 |---|---|---|
@@ -307,6 +307,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `state` | State Engine, Gate 2. |
 | `systems` | which engine systems a book runs, declared in its world note. |
 | `targets` | what each feeling is ABOUT. |
+| `tellings` | what a character is TOLD becomes what they know (gate knowledge-tellings, 2026-09-29). |
 | `tells` | the small signs a sharp eye catches, and a listener who misses them never reads (the `tells` system). |
 | `tensions` | the first register on the world-appraisal chassis. |
 | `toward` | the MICRO tier: what one specific person makes you feel. |
@@ -329,7 +330,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `narrate` | 232 | the narrator (design.md layer 7, narration.md): a canonized scene -> POV-bound prose. |
 | `scene` | 393 | the multi-agent scene runner (the director sets the scene; the agents push it). |
 
-## tests/ — 135 suites (each is a PROOF of the gate it names)
+## tests/ — 136 suites (each is a PROOF of the gate it names)
 
 | tests | lines | owns |
 |---|---|---|
@@ -459,6 +460,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `test_subject` |  |
 | `test_sync_clone` |  |
 | `test_systems` | which engine systems a book runs (src/engine/systems.py, gate systems-registry). |
+| `test_tellings` |  |
 | `test_tells` | the signs a sharp eye catches, and a listener who misses them never reads (gate tells). |
 | `test_theory_of_mind` |  |
 | `test_toward` |  |

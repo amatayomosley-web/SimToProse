@@ -134,6 +134,21 @@ _WITNESS_CEILING = 0.88    # nobody is CERTAIN of another person's account of ev
                            # warns about: a number that changed and a rendering that did not.)
 
 
+def credit(trust):
+    """How far a person takes another's word -> (confidence, reported). One spelling for everything a character
+    learns from someone else - a witnessed account here, a telling in tellings.py. None (no edge to hand) is the
+    neutral credit; at or below _REPORTED_AT the word is kept as THEIR assertion, not as fact. Raises RecordError
+    on a trust that is not a number."""
+    if trust is None:
+        return _WITNESS_BASE, False
+    try:
+        t = max(0.0, min(1.0, float(trust)))
+    except (TypeError, ValueError):
+        raise RecordError("ACQUISITION_WITNESS_TRUST_INVALID", "witness_belief: trust must be a number in [0,1], got %r" % (trust,))
+    conf = round(_WITNESS_BASE * (0.4 + 1.2 * t), 4)   # neutral trust reproduces the base value
+    return max(0.05, min(_WITNESS_CEILING, conf)), t <= _REPORTED_AT
+
+
 def witness_belief(actor_name, tags, actor_id, trust=None, world=None, witness_id=None):
     """What a PRESENT bystander takes from watching `actor` do a durable thing this turn — a belief
     for their own vault. knowledge-model.md transmission: B's vault gains what B saw. Returns the
@@ -170,17 +185,11 @@ def witness_belief(actor_name, tags, actor_id, trust=None, world=None, witness_i
     else:
         claim = "%s — as I saw it: %s" % (name, summary)
 
-    conf, prov = _WITNESS_BASE, "witnessed"
-    if trust is not None:
-        try:
-            t = max(0.0, min(1.0, float(trust)))
-        except (TypeError, ValueError):
-            raise RecordError("ACQUISITION_WITNESS_TRUST_INVALID", "witness_belief: trust must be a number in [0,1], got %r" % (trust,))
-        conf = round(_WITNESS_BASE * (0.4 + 1.2 * t), 4)   # neutral trust reproduces the base value
-        conf = max(0.05, min(_WITNESS_CEILING, conf))
-        if t <= _REPORTED_AT:                              # a discounted rumour, kept but attributed
-            prov = "reported"
-            claim = "%s claims: %s" % (name, summary[2:].strip() if summary[:2].lower() == "i " else summary)
+    conf, reported = credit(trust)
+    prov = "witnessed"
+    if reported:                                           # a discounted rumour, kept but attributed
+        prov = "reported"
+        claim = "%s claims: %s" % (name, summary[2:].strip() if summary[:2].lower() == "i " else summary)
     return _stamp_facets({
         "claim": claim,
         "confidence": conf,

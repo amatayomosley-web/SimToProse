@@ -267,6 +267,12 @@ SHEET = (
       doc="the person a dated acquaintance belief is about (from a relationship edge's last_seen)"),
     F("current.vault[].learned_days", "number", status="runtime", reader="gate.run_gate; prompt (its age, in words)",
       doc="how long since a member who left last shared the group's life; readiness, never sureness"),
+    F("current.vault[].readiness", "unit", status="runtime", reader="associative._ready",
+      doc="how readily a telling comes back, apart from how far it is believed (tellings.READINESS); recall is priced by it"),
+    F("current.vault[].told", "any", status="runtime", reader="read_api.knows",
+      doc="who told it, to whom, at which beat and what it cost the teller (tellings.told_beliefs)"),
+    F("current.vault[].fact", "text", status="runtime", reader="read_api.knows",
+      doc="one telling's identity, from the beat - every hearer's copy carries the same one"),
     F("current.memberships", "list", check=_memberships, reader="knowledge.links_for",
       doc="the groups and places a character belongs to, for what they know: `of` grp.<tag> / loc.<id>; `left` how long "
           "ago they left (<n>d, <n>w, <n>y); `familiarity` everyday / familiar / faded overrides the derived word",

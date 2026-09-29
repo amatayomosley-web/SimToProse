@@ -34,6 +34,7 @@ from src.engine.vault import load_book                              # noqa: E402
 from src.engine.scene import (assemble, resolve_subject, subject_groups, norm_id,  # noqa: E402
                               referenced_ids)
 from src.engine import acquisition                                  # noqa: E402  (witness-propagation + name-transmission)
+from src.engine import tellings as _tellings                        # noqa: E402  (what is told becomes what is known)
 from src.engine import integrity                              # noqa: E402
 from src.engine import claims                                 # noqa: E402  (the utterance/T2 path)
 from src.engine import read_api as _read_api                  # noqa: E402  (what is established: the lore fence)
@@ -1196,6 +1197,25 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
                 if belief:
                     led.append_acquisition(run_id, wid, turn_no, belief)
                     print("   >> %s overhears the name %r (learned)" % (wid, nm))
+
+        # TELLINGS (gate knowledge-tellings): what the event seat says was TOLD this beat becomes what each person in
+        # the room KNOWS - the addressee and anyone who overheard - credited by their own trust in the teller. Before,
+        # a `told` row reached only scene_facts' few beats and bonds' trust arithmetic. Gated like `assess`: a beat the
+        # engine refused teaches nothing.
+        _heard = _tellings.told_beliefs(
+            applied.get("told") if validation["ok"] else [], speaker, names.get(speaker, speaker),
+            [w for w in present if w != speaker],
+            lambda w: ((actors[w]["char"]["current"].get("relationships") or {}).get(speaker) or {}).get("trust"),
+            turn_no, world=_world_b)
+        for wid, _told in _heard.items():
+            wvault = actors[wid]["char"]["current"].setdefault("vault", [])
+            for tb in _told:
+                if any(isinstance(x, dict) and x.get("claim") == tb["claim"] for x in wvault):
+                    continue                            # already holds it, word for word
+                wvault.append(dict(tb))
+                acquisition.fold_vault(wvault)
+                led.append_acquisition(run_id, wid, turn_no, dict(tb))
+                print("   >> %s is told: %s" % (names.get(wid, wid), tb["claim"]))
 
         turn_no += 1                                    # this beat is committed; the next beat is a new turn
 

@@ -448,7 +448,10 @@ def run_gate(triggers, vault, skills, goals, condition, current_turn=0, relation
 
     # Phase 2: sort by salience descending (goal-bearing first, then by confidence)
     # relevancy-gate.md: "Explore from triggers by ascending cost / descending salience"
-    own.sort(key=lambda c: (0 if c["is_goal_bearing"] else 1, -c.get("confidence_eff", c["confidence"])))
+    # A belief the scene reached DIRECTLY ranks ahead of one it dragged along (gate knowledge-tellings: once a recalled
+    # belief starts the walk, a sure neighbour must not take the slot of what the scene actually touched).
+    own.sort(key=lambda c: (0 if c["is_goal_bearing"] else 1, c.get("hops", 1),
+                            -c.get("confidence_eff", c["confidence"])))
 
     # Phase 3: spend budget — inject until budget exhausted
     injected = []
@@ -461,7 +464,7 @@ def run_gate(triggers, vault, skills, goals, condition, current_turn=0, relation
         # (relevancy-gate.md: "when the budget runs out, remaining matches DON'T fire")
 
     # Phase 4: the shared links - cheapest first, their own budget, a count cap
-    shared.sort(key=lambda c: (0 if c["is_goal_bearing"] else 1, c["cost"],
+    shared.sort(key=lambda c: (0 if c["is_goal_bearing"] else 1, c.get("hops", 1), c["cost"],
                                -c.get("confidence_eff", c["confidence"])))
     s_spent = 0.0
     s_count = 0

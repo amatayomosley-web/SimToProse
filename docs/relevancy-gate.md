@@ -62,6 +62,13 @@ meets "old man". Measured on seeded synthetic vaults (12 triggers): candidates 1
 300 - the difference is the accidents. Hub down-weighting waits for measured need; topics (lexicon classes) are not
 matched directly, since every belief of a class would fire on every event of that class.
 
+**The drag (2026-09-29, gate knowledge-tellings):** a belief matched directly is itself a start of the walk, at what it
+cost, so its neighbours (a shared subject, authored link or teller) come along by the ordinary hop costs; before, only a
+trigger that was itself an anchor started the walk, and a fact matched by its words dragged nothing. The spend ranks
+what the scene touched ahead of what it dragged (`gate.run_gate` sorts goal-bearing, then hops, then sureness), so a
+sure neighbour cannot take a direct match's slot. A belief that carries its own `readiness` (a telling) is priced by it
+rather than by its confidence - sureness is rendered, readiness is paid for.
+
 ## Hard parts (honest)
 - **Trigger extraction is fuzzy** — explicit triggers (a symbol shown) are easy; implicit ones (a dialect phrase that only matters if you know the dialect) are hard. Authored hinges cover plot-critical; emergent extraction is imperfect.
 - **The proxy can miss/over-include** — trigger-matching ≈ counterfactual relevance but isn't identical. Hinges catch the plot-critical misses; the rest is acceptable noise.
