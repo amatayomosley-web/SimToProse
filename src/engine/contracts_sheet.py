@@ -74,6 +74,11 @@ def _last_seen(value, sheet, ctx):
     knowledge.validate_last_seen(value)
 
 
+def _same_as(value, sheet, ctx):
+    from . import knowledge
+    knowledge.validate_same_as(value, ctx.get("people"), "a vault belief's same_as")
+
+
 def _memberships(rows, sheet, ctx):
     from . import knowledge
     knowledge.validate_memberships(rows, ctx.get("registered"))
@@ -267,6 +272,9 @@ SHEET = (
       doc="the person a dated acquaintance belief is about (from a relationship edge's last_seen)"),
     F("current.vault[].learned_days", "number", status="runtime", reader="gate.run_gate; prompt (its age, in words)",
       doc="how long since a member who left last shared the group's life; readiness, never sureness"),
+    F("current.vault[].same_as", "list", check=_same_as, reader="knowledge.same_ids",
+      doc="two or more ids of the world's people this character holds as ONE person (the beekeeper is the basket-"
+          "seller): recall and `ask.py knows --about` join them for this character alone"),
     F("current.vault[].readiness", "unit", status="runtime", reader="associative._ready",
       doc="how readily a telling comes back, apart from how far it is believed (tellings.READINESS); recall is priced by it"),
     F("current.vault[].told", "any", status="runtime", reader="read_api.knows",

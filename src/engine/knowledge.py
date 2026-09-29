@@ -130,7 +130,51 @@ def validate_world(world):
             c = f["confidence"]
             if isinstance(c, bool) or not isinstance(c, (int, float)) or not 0.0 < float(c) <= 1.0:
                 raise RecordError("KNOWLEDGE_CONFIDENCE_RANGE", "%s: confidence %r is not a number in (0, 1]" % (where, c))
+        validate_same_as(f.get("same_as"), {str(p.get("id")) for p in (world.get("people") or [])
+                                           if isinstance(p, dict) and p.get("id")}, where)
     return None
+
+
+def validate_same_as(value, people, where="a belief"):
+    """An identity - `same_as` - -> None, or raise: two or more ids of the world's people, the ids one person goes by.
+    `people` None (a caller with no world to hand) checks the shape alone."""
+    if value is None:
+        return None
+    if not isinstance(value, list) or len({str(v) for v in value}) < 2:
+        raise RecordError("KNOWLEDGE_SAME_AS_INVALID", "%s: same_as must list two or more ids one person goes by, got %r"
+                          % (where, value))
+    for v in value:
+        if people is not None and str(v) not in people:
+            raise RecordError("KNOWLEDGE_SAME_AS_INVALID", "%s: same_as names %r, who is not among the world's people - "
+                              "each identity is a people[] entry of its own" % (where, v))
+    return None
+
+
+def same_ids(vault):
+    """The ids a character holds as ONE person -> {id: the id it is joined under} (Fable review 3, M3; gate
+    knowledge-identity). An identity is itself a belief - `same_as: [maudie, brisk]` (the beekeeper is the
+    basket-seller), on a sheet or linked from a group's knowledge - and it joins the ids for whoever HOLDS it, never
+    for anyone else: to everyone else the beekeeper and the basket-seller stay two people. `about` is the knower's
+    referent, so this is where a knower's two referents become one. Deterministic: the lesser id is the one the
+    others join under."""
+    parent = {}
+
+    def root(x):
+        while parent.get(x, x) != x:
+            x = parent[x]
+        return x
+    for b in vault or []:
+        if not isinstance(b, dict) or b.get("status") in ("superseded", "refuted"):
+            continue
+        ids = [str(i).strip().lower() for i in b.get("same_as") or [] if str(i).strip()] \
+            if isinstance(b.get("same_as"), list) else []
+        for i in ids:
+            parent.setdefault(i, i)
+        for other in ids[1:]:
+            a, c = root(ids[0]), root(other)
+            if a != c:
+                parent[max(a, c)] = min(a, c)
+    return {x: root(x) for x in parent}
 
 
 def validate_memberships(rows, registered):
@@ -221,6 +265,8 @@ def links_for(char, world):
                     "shared": holder, "familiarity": fam}
             if left is not None:
                 link["learned_days"] = left
+            if isinstance(f.get("same_as"), list):
+                link["same_as"] = [str(i) for i in f["same_as"]]      # an identity the group holds, joined for its members
             out.append(link)
     return out
 
@@ -278,8 +324,12 @@ def shared_cost(belief, cost):
 
 
 def knows_about(char, name):
-    """The beliefs in a character's vault about `name` (a person id, a place or group tail, or a registered name)."""
-    want = str(name).split(".", 1)[-1].lower()
+    """The beliefs in a character's vault about `name` (a person id, a place or group tail, or a registered name) - and,
+    for someone who holds that two ids are one person (`same_as`), about that person under either."""
     vault = ((char or {}).get("current") or {}).get("vault") or []
+    same = same_ids(vault)
+    want = str(name).split(".", 1)[-1].lower()
+    want = same.get(want, want)
     return [b for b in vault if isinstance(b, dict) and
-            want in {str(x).split(".", 1)[-1].lower() for x in (b.get("links") or []) + (b.get("about") or [])}]
+            want in {same.get(t, t) for t in (str(x).split(".", 1)[-1].lower()
+                                               for x in (b.get("links") or []) + (b.get("about") or []))}]

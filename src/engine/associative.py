@@ -18,6 +18,7 @@ import re
 
 from .decay import calculate_effective_confidence
 from .gate import _normalize, belief_id
+from .knowledge import same_ids
 
 MIN_STEP_COST = 0.05
 RUNTIME_MAX_HOPS = 16
@@ -35,6 +36,12 @@ def _referent(s):
             t = t[len(p):]
             break
     return " ".join(t.replace("_", " ").split())
+
+
+def _aliases(vault):
+    """The knower's identities (knowledge.same_ids: two ids held as one person) in referent spelling -> {referent:
+    the referent it joins under}. Empty for a vault with no `same_as` - two ids stay two (gate knowledge-identity)."""
+    return {_referent(k): _referent(v) for k, v in same_ids(vault).items()}
 
 
 def _ready(b, eff_conf, current_turn=0, relationships=None, recall_history=None, elapsed=None):
@@ -89,6 +96,7 @@ def build_vault_graph(vault, current_turn=0, relationships=None, recall_history=
     adj = {}
     node_beliefs = {}
     degrees = {}
+    alias = _aliases(vault)
 
     def _add_edge(u, v, weight):
         if u not in adj:
@@ -111,10 +119,12 @@ def build_vault_graph(vault, current_turn=0, relationships=None, recall_history=
         anchors = set()
         for l in (b.get("links") or []):
             if l:
-                anchors.add(_referent(l))
+                r = _referent(l)
+                anchors.add(alias.get(r, r))
         for a in (b.get("about") or []):
             if a:
-                anchors.add(_referent(a))
+                r = _referent(a)
+                anchors.add(alias.get(r, r))
 
         for anc in sorted(anchors):
             if not anc:
@@ -147,7 +157,8 @@ def find_associative_candidates(triggers, vault, goals, budget, current_turn=0,
 
     candidates = []
     seen_bids = set()
-    matchers = [(trig, _referent(trig), _word_hit(trig)) for trig in triggers]
+    alias = _aliases(vault)               # a knower who holds two ids as one person reaches both through either
+    matchers = [(trig, alias.get(_referent(trig), _referent(trig)), _word_hit(trig)) for trig in triggers]
 
     # --- Step 1: Direct 1-Hop Matching (words of the claim and its [[links]], or what it is ABOUT) ---
     # A belief is a direct candidate when a trigger is a WORD of it, or when a trigger names what it is about - its
@@ -165,7 +176,7 @@ def find_associative_candidates(triggers, vault, goals, budget, current_turn=0,
             recall_history=recall_history, elapsed=elapsed)
         cost = max(0.0, 1.0 - _ready(b, eff_conf, current_turn, relationships, recall_history, elapsed))
         surface = _normalize(claim) + " " + " ".join(_referent(l) for l in (b.get("links") or []))
-        about = {_referent(a) for a in (b.get("about") or []) if a}
+        about = {alias.get(r, r) for r in (_referent(a) for a in (b.get("about") or []) if a)}
 
         matched = [trig for trig, ref, pat in matchers
                    if (ref and ref in about) or (pat is not None and pat.search(surface))]
@@ -195,7 +206,7 @@ def find_associative_candidates(triggers, vault, goals, budget, current_turn=0,
 
     # --- Step 2: Multi-Hop Dijkstra Expansion from Triggers ---
     if budget > 0.0 and triggers:
-        norm_triggers = [_referent(t) for t in triggers if t]
+        norm_triggers = [alias.get(_referent(t), _referent(t)) for t in triggers if t]
         start_nodes = set()
         for nt in norm_triggers:
             if nt in adj:

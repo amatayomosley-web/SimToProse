@@ -379,7 +379,11 @@ def require_at_start(world, sheets, scene=None, scene_name="the scene file"):
     except (RecordError, ValueError, TypeError):        # the world's own check names the bad locations or groups;
         registered = None                               # None: the holds are not checked against a register
     files = [("world", world, contracts_world.WORLD, None)]
-    files += [(cid, sheets[cid], contracts_sheet.SHEET, {"registered": registered}) for cid in sorted(sheets)]
+    roster = world.get("people") if isinstance(world, dict) else None   # a malformed world is its own contract's finding
+    people = {str(p.get("id")) for p in (roster if isinstance(roster, list) else [])
+              if isinstance(p, dict) and p.get("id")}              # the ids an identity (`same_as`) may name
+    files += [(cid, sheets[cid], contracts_sheet.SHEET, {"registered": registered, "people": people})
+              for cid in sorted(sheets)]
     if scene is not None:
         files.append((scene_name, scene, contracts_scene.SCENE, None))
     stops, kept = {}, {}

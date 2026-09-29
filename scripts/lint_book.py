@@ -196,7 +196,8 @@ def lint(world, chars):
             continue
         # THE CONTRACT (src/engine/contracts_sheet.py): every field's shape, whether this book must author it, and
         # whether anything reads it - one declaration, the engine's own validators for the blocks they own
-        for stops, where, what in _grouped(_contracts.check(ch, _sheet_contract.SHEET, _enabled, {"registered": _registered}),
+        for stops, where, what in _grouped(_contracts.check(ch, _sheet_contract.SHEET, _enabled, {"registered": _registered,
+                                                                           "people": {str(i) for i in people_ids}}),
                                            _sheet_contract.SHEET):
             (errors if stops else warnings).append("%s: %s %s" % (tag, where or "the sheet", what))
         fixed, baseline, current = ({} if not isinstance(ch.get(k), dict) else ch[k] for k in ("fixed", "baseline", "current"))

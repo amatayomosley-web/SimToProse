@@ -94,6 +94,8 @@ checked by their own modules (`law.py`, `tensions.py`, `systems.py`), which have
 | `knowledge[].topic` | text | no | active | knowledge.links_for | a lexicon attribute class: the fact's domain |
 | `knowledge[].since` | any | no | active | knowledge.links_for | how long ago its holders came to know it (<n>d, <n>w, <n>y); a member who left before then cannot hold it |
 | `knowledge[].confidence` | number | no | active | knowledge.links_for | how sure a member is; .85 when absent |
+| `knowledge[].same_as` | list | no | active | knowledge.links_for | two or more people ids that are ONE person, for everyone who holds this fact (gate knowledge-identity) |
+| `knowledge[].same_as[]` | text | no | active | knowledge.links_for |  |
 <!-- END GENERATED -->
 
 ---

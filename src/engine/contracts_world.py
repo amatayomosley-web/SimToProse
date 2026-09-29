@@ -161,4 +161,7 @@ WORLD = (
     F("knowledge[].since", "any", reader="knowledge.links_for",
       doc="how long ago its holders came to know it (<n>d, <n>w, <n>y); a member who left before then cannot hold it"),
     F("knowledge[].confidence", "number", reader="knowledge.links_for", doc="how sure a member is; .85 when absent"),
+    F("knowledge[].same_as", "list", reader="knowledge.links_for",
+      doc="two or more people ids that are ONE person, for everyone who holds this fact (gate knowledge-identity)"),
+    F("knowledge[].same_as[]", "text", reader="knowledge.links_for"),
 )

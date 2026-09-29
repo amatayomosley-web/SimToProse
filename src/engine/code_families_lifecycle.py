@@ -78,4 +78,5 @@ _KNOWLEDGE_F = {
     "KNOWLEDGE_MEMBERSHIP_NOT_A_DICT": "a current.memberships entry is not an object with `of`",
     "KNOWLEDGE_MEMBERSHIP_UNREGISTERED": "a membership names a group or place the world does not register - a member of nothing knows nothing by it",
     "KNOWLEDGE_FAMILIARITY_UNKNOWN":   "a membership's familiarity is not everyday, familiar or faded",
+    "KNOWLEDGE_SAME_AS_INVALID":       "an identity (`same_as`) does not list two or more ids of the world's people - each name a person goes by is a people[] entry of its own",
 }

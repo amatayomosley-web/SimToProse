@@ -1272,6 +1272,19 @@ each carrying every plant, dealt round-robin so a model's draws spread; `score` 
 judges missed a plant. Evidence: a scratch rebuild identical to the frozen items, and a synthetic score over split
 packets (a reference failing only `names_pulls` drops exactly its packet).
 
+**2026-09-29 — one person under two identities, joined by a fact for whoever holds it (gate `knowledge-identity`):**
+Fable review 3, M3: a person a story shows under two names is two `people[]` entries, and nothing let a character
+hold that they are one person. A belief (on a sheet, or a group's `knowledge`) may carry `same_as: [id, id]`;
+`knowledge.same_ids` folds a vault's identities into one id per person, for its holder alone, and the matcher
+(`associative._aliases`: anchors, the about index, triggers) and `knows_about` read it - so the holder is reminded of
+the other name's memories directly, even exhausted and even when the identity names neither, while everyone else keeps
+two people. Checked in the world (`validate_world`) and on a sheet at the run's start (`contracts_sheet._same_as`, the
+world's people handed in by `contracts.require_at_start` and `lint_book`; KNOWLEDGE_SAME_AS_INVALID). Evidence:
+`tests/test_identity.py` 25 checks (through `gate.run_gate`, `contracts.require_at_start` and `scripts/scene.py` main),
+5 red on the old matcher; 12 mutants each killed by the check that states its claim. Found on the way: written with
+both names, an identity is already a bridge the walk (the drag) crosses - the old matcher passed those checks, so the
+proving checks use an identity that names neither. No producer in play: neither seat reports "X is Y".
+
 **2026-09-29 — what is told becomes what is known, and recall drags its neighbours (gate `knowledge-tellings`, step 4
 of the shared-knowledge build):** the owner, 2026-09-28: tellings write links; and "memory doesn't work only by
 recalling one specific thing". The event seat's `told` rows (since 2026-09-18) reached `scene_facts`' few in-run beats

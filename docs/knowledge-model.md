@@ -162,4 +162,14 @@ by recalling one specific thing"); what the scene touched ranks ahead of what it
 
 Not built (declared): a telling from a text or a notice (no producer reports reading); hearsay bounded per hop by the
 teller's own confidence (a retelling is quoted anew, so nothing joins it to the teller's copy); feeling as an edge kind.
-Still to build: one person under two identities; norms. Language waits until a scene places a speaker of another tongue.
+**One person under two identities (gate knowledge-identity).** A person known under two names - say, a beekeeper the
+hill folk call Maudie, whom the market knows as Brisk the basket-seller - is two `people[]` entries. What joins them is
+a FACT, held like any other: a belief with `same_as: [maudie, brisk]`, on the sheet of whoever knows it, or in a
+group's `knowledge` for everyone who holds it (`knowledge.same_ids`). For its holder only, recall treats the ids as one
+person - seeing Maudie brings Brisk's baskets to mind, directly, even when the belief says only "the basket-seller and
+the beekeeper are the same woman" - and `ask.py knows --about maudie` answers with both. Everyone else keeps two
+people. Written with both names, the identity is also a bridge in the
+graph, and the walk from it drags the other name's memories along. Working it out in play, or being told it, has no
+producer yet: neither seat reports "X is Y", so the author records the conclusion when the story reaches it.
+
+Still to build: norms. Language waits until a scene places a speaker of another tongue.
