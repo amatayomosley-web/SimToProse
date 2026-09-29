@@ -164,4 +164,7 @@ WORLD = (
     F("knowledge[].same_as", "list", reader="knowledge.links_for",
       doc="two or more people ids that are ONE person, for everyone who holds this fact (gate knowledge-identity)"),
     F("knowledge[].same_as[]", "text", reader="knowledge.links_for"),
+    F("knowledge[].norm", "bool", reader="knowledge.links_for",
+      doc="true: the way this group does things, not a fact - never fades, everyday to every member (gate knowledge-norms)"),
+    F("knowledge[].sanction", "text", reader="knowledge.links_for", doc="a norm's cost: what breaking it brings"),
 )

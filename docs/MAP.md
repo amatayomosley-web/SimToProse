@@ -1,7 +1,7 @@
 # MAP — what is in this project and what owns what
 
 **Why this file exists.** `docs/` holds 128 design docs, `src/engine/` 79 modules,
-`tests/` 137 suites. Nobody — human or agent — can hold that in their head, and reading it all every
+`tests/` 138 suites. Nobody — human or agent — can hold that in their head, and reading it all every
 session is not practical. **The failure this prevents is real and happened:** a session spent hours
 reasoning about the decision layer from four docs and inference, invented a parallel vocabulary
 ("vectors"), and rebuilt a worse version of the buff/debuff registry that `decision-engine.md`
@@ -330,7 +330,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `narrate` | 232 | the narrator (design.md layer 7, narration.md): a canonized scene -> POV-bound prose. |
 | `scene` | 393 | the multi-agent scene runner (the director sets the scene; the agents push it). |
 
-## tests/ — 137 suites (each is a PROOF of the gate it names)
+## tests/ — 138 suites (each is a PROOF of the gate it names)
 
 | tests | lines | owns |
 |---|---|---|
@@ -414,6 +414,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `test_narrate` |  |
 | `test_no_digits` | THE LAW: no number describing a character reaches them. |
 | `test_no_private_content` |  |
+| `test_norms` |  |
 | `test_numeric_slots` | a book that lints clean must be a book that runs. |
 | `test_one_name` |  |
 | `test_opening_profile` |  |

@@ -275,6 +275,8 @@ SHEET = (
     F("current.vault[].same_as", "list", check=_same_as, reader="knowledge.same_ids",
       doc="two or more ids of the world's people this character holds as ONE person (the beekeeper is the basket-"
           "seller): recall and `ask.py knows --about` join them for this character alone"),
+    F("current.vault[].norm", "text", status="runtime", reader="knowledge.links_for",
+      doc="the group whose way this is (a norm linked from world.knowledge)"),
     F("current.vault[].readiness", "unit", status="runtime", reader="associative._ready",
       doc="how readily a telling comes back, apart from how far it is believed (tellings.READINESS); recall is priced by it"),
     F("current.vault[].told", "any", status="runtime", reader="read_api.knows",

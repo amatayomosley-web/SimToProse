@@ -132,6 +132,15 @@ def validate_world(world):
                 raise RecordError("KNOWLEDGE_CONFIDENCE_RANGE", "%s: confidence %r is not a number in (0, 1]" % (where, c))
         validate_same_as(f.get("same_as"), {str(p.get("id")) for p in (world.get("people") or [])
                                            if isinstance(p, dict) and p.get("id")}, where)
+        if f.get("norm") is not None and not isinstance(f["norm"], bool):
+            raise RecordError("KNOWLEDGE_NORM_INVALID", "%s: norm must be true or false, got %r" % (where, f["norm"]))
+        if f.get("sanction") is not None:
+            if f.get("norm") is not True:
+                raise RecordError("KNOWLEDGE_NORM_INVALID", "%s: a sanction belongs to a norm - mark the entry "
+                                  "norm: true, or put the consequence in the claim of a plain fact" % where)
+            if not isinstance(f["sanction"], str) or not f["sanction"].strip():
+                raise RecordError("KNOWLEDGE_NORM_INVALID", "%s: a sanction is words - what breaking the norm costs, "
+                                  "got %r" % (where, f["sanction"]))
     return None
 
 
@@ -249,17 +258,24 @@ def links_for(char, world):
             since = _safe_days(f.get("since"))
             if left is not None and since is not None and since <= left:
                 continue                                  # the group learned it after this member left
+            # A NORM (gate knowledge-norms): the way a group does things, and what breaking it costs. A member lives by it
+            # every day whatever their trade, and it does not fade - a custom is replaced when you move, not forgotten
+            # (the design's "norms do not decay"): so `core`, told as "the way of" the group, the sanction beside it.
+            norm = f.get("norm") is True
             if m.get("familiarity") in FAMILIARITY:
                 fam = m["familiarity"]
             elif left is not None:
                 fam = "faded"
-            elif f.get("topic") and str(f["topic"]) in everyday:
+            elif norm or (f.get("topic") and str(f["topic"]) in everyday):
                 fam = "everyday"
             else:
                 fam = "familiar"
+            if norm and str(f.get("sanction") or "").strip():
+                claim = "%s %s" % (claim, str(f["sanction"]).strip())
             tail = holder.split(".", 1)[1]
             link = {"claim": claim, "confidence": float(f.get("confidence") or KNOWN_CONFIDENCE),
-                    "provenance": "known in %s" % _display(holder, world), "durability": "durable",
+                    "provenance": ("the way of %s" if norm else "known in %s") % _display(holder, world),
+                    "durability": "core" if norm else "durable",
                     "links": sorted({str(a) for a in (f.get("about") or [])} | ({str(f["topic"])} if f.get("topic") else set())
                                     | {tail}),
                     "shared": holder, "familiarity": fam}
@@ -267,6 +283,8 @@ def links_for(char, world):
                 link["learned_days"] = left
             if isinstance(f.get("same_as"), list):
                 link["same_as"] = [str(i) for i in f["same_as"]]      # an identity the group holds, joined for its members
+            if norm:
+                link["norm"] = holder
             out.append(link)
     return out
 

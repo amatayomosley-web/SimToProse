@@ -1272,6 +1272,17 @@ each carrying every plant, dealt round-robin so a model's draws spread; `score` 
 judges missed a plant. Evidence: a scratch rebuild identical to the frozen items, and a synthetic score over split
 packets (a reference failing only `names_pulls` drops exactly its packet).
 
+**2026-09-29 — a group's norms (gate `knowledge-norms`):** the 09-09 design's kinds: a norm carries a SANCTION, costs
+standing, and "does not decay at all (it is replaced when you move)"; the owner, 2026-09-28: a character from another
+land must speak from their people's beliefs; Fable review 3 step 5, "norms now, language when a scene places a speaker
+of another tongue". A `knowledge` entry marked `norm: true` with a `sanction` is linked by `knowledge.links_for` as the
+way of its group ("the way of <group>", the sanction beside the rule), `core` (never fading), everyday to every member
+whatever their trade, faded and dated for one who left; `norm` names the group on the link. `validate_world` refuses a
+norm that is not true/false and a sanction that is not words or stands on a plain fact (KNOWLEDGE_NORM_INVALID).
+Evidence: `tests/test_norms.py` 16 checks (units, decay over ten years against a plain fact of the same group, and
+`scripts/scene.py` main for a member and a stranger); 10 mutants each killed by the check that states its claim.
+Declared: a breach noticed by the seat, and its cost in standing; a norm learned in play by correction; language.
+
 **2026-09-29 — one person under two identities, joined by a fact for whoever holds it (gate `knowledge-identity`):**
 Fable review 3, M3: a person a story shows under two names is two `people[]` entries, and nothing let a character
 hold that they are one person. A belief (on a sheet, or a group's `knowledge`) may carry `same_as: [id, id]`;

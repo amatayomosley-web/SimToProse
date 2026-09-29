@@ -172,4 +172,11 @@ people. Written with both names, the identity is also a bridge in the
 graph, and the walk from it drags the other name's memories along. Working it out in play, or being told it, has no
 producer yet: neither seat reports "X is Y", so the author records the conclusion when the story reaches it.
 
-Still to build: norms. Language waits until a scene places a speaker of another tongue.
+**Norms: the way a group does things (gate knowledge-norms).** A `knowledge` entry marked `norm: true`, with a
+`sanction` - what breaking it costs - is a custom, not a fact: linked to each member like the group's facts, but told
+as "the way of" the group with its cost beside it, everyday to every member whatever their trade, and `core`, so it
+never fades - a custom is replaced when you move, not forgotten. A member who left holds it faded and dated. The
+actor, told the custom when the scene touches it, performs what a breach feels like; the seat does not yet report who
+broke which norm, or what it cost them in standing (a seat-contract change for a live gate).
+
+Language waits until a scene places a speaker of another tongue (Fable review 3, step 5).

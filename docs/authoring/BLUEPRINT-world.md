@@ -96,6 +96,8 @@ checked by their own modules (`law.py`, `tensions.py`, `systems.py`), which have
 | `knowledge[].confidence` | number | no | active | knowledge.links_for | how sure a member is; .85 when absent |
 | `knowledge[].same_as` | list | no | active | knowledge.links_for | two or more people ids that are ONE person, for everyone who holds this fact (gate knowledge-identity) |
 | `knowledge[].same_as[]` | text | no | active | knowledge.links_for |  |
+| `knowledge[].norm` | bool | no | active | knowledge.links_for | true: the way this group does things, not a fact - never fades, everyday to every member (gate knowledge-norms) |
+| `knowledge[].sanction` | text | no | active | knowledge.links_for | a norm's cost: what breaking it brings |
 <!-- END GENERATED -->
 
 ---
