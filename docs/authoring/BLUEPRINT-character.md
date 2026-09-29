@@ -183,6 +183,7 @@ the prose is a defect.
 | `current.relationships.<id>.debt` | unit | no | active | bonds; bond_rest; direction |  |
 | `current.relationships.<id>.known_as` | text | no | active | gate.scope_names; faithfulness; acquisition | what they call someone whose name they do not know |
 | `current.relationships.<id>.history` | any | no | unread | - | copied onto the edge; no prompt renders it |
+| `current.relationships.<id>.last_seen` | any | no | active | knowledge.acquaintances | how long ago they last saw this person (<n>d, <n>w, <n>y): a dated 'You know <name>' belief the actor is told the age of - leave it out for someone they see every day |
 | `current.relationships.<id>.their_view` | map | no | runtime | bonds.reflect; direction |  |
 | `current.relationships.<id>.their_view.<name>` | unit | no | runtime | direction |  |
 | `current.attachments` | delegated | no | active | attachments; connection; scene._build_holds | what they hold that is not a person: loc.<id> / grp.<tag> -> {hold, sign} |
@@ -213,6 +214,7 @@ the prose is a defect.
 | `current.vault[].supersedes` | any | no | runtime | acquisition |  |
 | `current.vault[].shared` | text | no | runtime | gate.run_gate | the group or place a link came from (knowledge.materialise); priced apart |
 | `current.vault[].familiarity` | text | no | runtime | knowledge.shared_cost |  |
+| `current.vault[].acquaintance` | text | no | runtime | knowledge.acquaintances | the person a dated acquaintance belief is about (from a relationship edge's last_seen) |
 | `current.vault[].learned_days` | number | no | runtime | gate.run_gate; prompt (its age, in words) | how long since a member who left last shared the group's life; readiness, never sureness |
 | `current.memberships` | list | no | active | knowledge.links_for | the groups and places a character belongs to, for what they know: `of` grp.<tag> / loc.<id>; `left` how long ago they left (<n>d, <n>w, <n>y); `familiarity` everyday / familiar / faded overrides the derived word |
 | `current.memberships[]` | map | no | active | knowledge.links_for |  |

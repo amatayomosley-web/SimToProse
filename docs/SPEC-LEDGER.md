@@ -1272,6 +1272,20 @@ each carrying every plant, dealt round-robin so a model's draws spread; `score` 
 judges missed a plant. Evidence: a scratch rebuild identical to the frozen items, and a synthetic score over split
 packets (a reference failing only `names_pulls` drops exactly its packet).
 
+**2026-09-28 — one fold for "what does P know", and dated acquaintance (gate `knowledge-fold`, step 2 of the
+shared-knowledge build):** Fable review 3 found `read_api.knows` read `acquisitions` only - zero rows in every run of
+the owner's book - so the question answered nothing, and never saw the authored vault (M2); and two stores for one
+relation need one fold (M6). `read_api.knows` now reads the run's pinned sheet (the character's own beliefs and the
+links `vault.load_book` made) plus `acquisitions`, each row marked `sheet` or `acquired`, with `about=` filtering by
+`knowledge.knows_about`; `scripts/ask.py` gains `knows --about X` and `who --about X` (who in the pinned cast holds
+anything about X). A relationship edge's `last_seen` (M4, the owner's confirmed example) becomes a lived "You know
+<name>" belief with its age (`knowledge.acquaintances`, through `materialise`), and `gate.run_gate` carries any
+candidate's age to the prompt, where it is told in words. The links table waits for the tellings gate, where play
+first writes one - a table nothing writes is dead. Evidence: `tests/test_knowledge.py` 59 checks (through
+`scripts/ask.py` as a subprocess and `scripts/scene.py`'s own main), 11 mutants each killed by the check that states
+its claim (the runner now gives each mutant a fresh bytecode cache: a same-length mutant restored inside one second
+left a cache Python still trusted, and a baseline failed on code no longer in the tree).
+
 **2026-09-28 — what a group knows, linked to each member (gate `knowledge-links`, step 1 of the shared-knowledge
 build):** the owner - "the logic is more of links to knowledge", "what's familiar to a tax collector may be obscure for
 a farmer". `src/engine/knowledge.py`: the world's `knowledge` (each fact written once, `held_by` the registered

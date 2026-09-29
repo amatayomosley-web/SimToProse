@@ -7,7 +7,8 @@ every engine reader, opening an older database brings its schema up to date). No
 
     python scripts/ask.py where  --book B                          the record's state, open drafts, each run's turns
     python scripts/ask.py scene  --book B --run R --turn T         what was done and said at that turn, and its scene
-    python scripts/ask.py knows  --book B --run R --char C         what C knows
+    python scripts/ask.py knows  --book B --run R --char C [--about X]   what C knows (about a person, place or group)
+    python scripts/ask.py who    --book B --run R --about X        who in the run's cast knows anything about X
     python scripts/ask.py state  --book B --run R --char C         C's state
     python scripts/ask.py edges  --book B --run R --char C --with D   how C stands toward D
     python scripts/ask.py facts  --book B --run R --subject S      the facts in force on a subject
@@ -26,7 +27,26 @@ from src.engine.errors import EngineError                           # noqa: E402
 from src.engine.ledger import Ledger                                # noqa: E402
 
 _NEEDS = {"where": (), "scene": ("run", "turn"), "knows": ("run", "char"), "state": ("run", "char"),
-          "edges": ("run", "char", "with_"), "facts": ("run", "subject"), "place": ("run", "place")}
+          "edges": ("run", "char", "with_"), "facts": ("run", "subject"), "place": ("run", "place"),
+          "who": ("run", "about")}
+
+
+def _who(led, run, about, at):
+    """Who in the run's pinned cast holds any belief about `about` (gate knowledge-fold): the liar test as a question -
+    a stranger who only says he is from the village holds nothing about it."""
+    from src.engine import bible
+    pinned = bible.for_run(led.con, run)
+    cast = sorted((pinned[2] if pinned else {}) or {})
+    holders, none = [], []
+    for cid in cast:
+        got = read_api.knows(led.con, run, cid, at, about=about)
+        if got.rows:
+            holders.append({"char": cid, "beliefs": len(got.rows),
+                            "claims": [r["belief"].get("claim") for r in got.rows]})
+        else:
+            none.append(cid)
+    return {"about": about, "as_of": at, "holders": holders, "hold_nothing": none,
+            "note": "" if pinned else "this run pinned no bible - only acquired beliefs could be read"}
 
 
 def _where(book_dir, led):
@@ -45,7 +65,9 @@ def _read(a, led):
     if a.what == "scene":
         return {"said": read_api.said(led.con, a.run, a.turn).as_dict(),
                 "scene": read_api.scene_of(led.con, a.run, a.turn).as_dict()}
-    call = {"knows": lambda: read_api.knows(led.con, a.run, a.char, at),
+    if a.what == "who":
+        return _who(led, a.run, a.about, at)
+    call = {"knows": lambda: read_api.knows(led.con, a.run, a.char, at, about=a.about),
             "state": lambda: read_api.state(led.con, a.run, a.char, at),
             "edges": lambda: read_api.edges(led.con, a.run, a.char, a.with_, at),
             "facts": lambda: read_api.established(led.con, a.run, [a.subject], at),
@@ -66,6 +88,7 @@ def main(argv=None):
     ap.add_argument("--with", dest="with_")
     ap.add_argument("--subject")
     ap.add_argument("--place")
+    ap.add_argument("--about", help="a person, place or group: what is known about it (knows), or who knows it (who)")
     ap.add_argument("--as-of", dest="as_of", type=int, default=None)
     a = ap.parse_args(argv)
     missing = ["--" + f.rstrip("_") for f in _NEEDS[a.what] if getattr(a, f) is None]

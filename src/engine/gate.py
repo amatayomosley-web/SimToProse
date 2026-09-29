@@ -438,10 +438,10 @@ def run_gate(triggers, vault, skills, goals, condition, current_turn=0, relation
     for c in candidates:
         i = c.get("idx")
         b = vault[i] if isinstance(i, int) and 0 <= i < len(vault) else None
+        if isinstance(b, dict) and b.get("learned_days"):
+            c["learned_days"] = b["learned_days"]            # its age, told in words (a faded link, a dated acquaintance)
         if isinstance(b, dict) and b.get("shared"):
             c["cost"] = _knowledge.shared_cost(b, c["cost"])
-            if b.get("learned_days"):
-                c["learned_days"] = b["learned_days"]
             shared.append(c)
         else:
             own.append(c)

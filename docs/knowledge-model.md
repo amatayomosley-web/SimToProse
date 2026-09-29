@@ -129,6 +129,18 @@ three a beat - because a belief's cost is 1 - confidence and the gate orders by 
 otherwise take every slot from a character's own memory at .70 (Fable review 3, B1, reproduced). A book with no
 `knowledge` and no `memberships` recalls exactly as before (Beck Hollow's frozen actor prompts rebuild byte-identical).
 
-Not built yet (the rest of the plan): a table for facts and links; tellings in play that write links (hearsay ranked
-below what was seen); matching on what a fact is about instead of its words; dated acquaintance and one person under
-two identities; norms and language.
+**One fold for "what does P know" (gate knowledge-fold).** `read_api.knows` reads every link a character has: the
+run's pinned sheet (their own beliefs, and the links their groups made when the book loaded) and what they acquired
+in play, each row marked `sheet` or `acquired`. Before it read `acquisitions` only - empty in every run of the owner's
+book - so the question answered nothing even for a character holding a village's worth of facts. `scripts/ask.py
+knows --about X` keeps what is about a person, place or group; `ask.py who --about X` names who in the cast holds
+anything about X (the liar test as a question: the stranger who only claims the village holds nothing about it).
+
+**Dated acquaintance.** A relationship edge may carry `last_seen` (`<n>d/w/y`): the character then holds "You know
+<name>" as their own lived belief, told to the actor with its age in words ("you last knew it years ago") - the
+owner's example of the guild hunter who last saw the village's old sheriff ten years ago. Leave it out for someone
+they see every day.
+
+Not built yet (the rest of the plan): a table for facts and links (with the tellings that first write one); tellings
+in play that write links (hearsay ranked below what was seen); matching on what a fact is about instead of its words;
+one person under two identities; norms and language.

@@ -171,19 +171,39 @@ def state(con, run_id, char_id, as_of):
     return res
 
 
-def knows(con, run_id, char_id, as_of, contains=None):
+def knows(con, run_id, char_id, as_of, contains=None, about=None):
     """What this character BELIEVES as of a turn — their vault slice, never
-    world-truth. The perspective wall: a false belief here is correct data."""
+    world-truth. The perspective wall: a false belief here is correct data.
+
+    ONE FOLD (gate knowledge-fold, 2026-09-28; Fable review 3 M2, M6): what the run's PINNED sheet gave them — their
+    own beliefs and the links their groups made when the book loaded (knowledge.materialise ran before the pin) —
+    known from the run's start, then what they acquired in play. This read acquisitions only, which no run of the
+    owner's book ever wrote, so it answered nothing for everyone. `about` keeps the beliefs about one person, place
+    or group (knowledge.knows_about); `contains` is the raw text filter it always was."""
     _known_run(con, run_id)
     as_of = _int_as_of(as_of)
-    res = ReadResult([], ["knows: acquisitions WHERE char=%s AND turn<=%d" % (char_id, as_of)],
-                     as_of=as_of, perspective="char:%s" % char_id)
+    res = ReadResult([], ["knows: the pinned sheet's vault, then acquisitions WHERE char=%s AND turn<=%d"
+                          % (char_id, as_of)], as_of=as_of, perspective="char:%s" % char_id)
+    from . import bible, knowledge
+    pinned = bible.for_run(con, run_id)
+    sheet = ((pinned[2] if pinned else {}) or {}).get(char_id) or {}
+    seed = [{"acquisition_id": None, "turn": 0, "belief": b, "source": "sheet"}
+            for b in ((sheet.get("current") or {}).get("vault") or []) if isinstance(b, dict)]
+    res.step("the pinned sheet holds %d belief(s) - their own and their groups' links" % len(seed)
+             if pinned else "no pinned bible for this run: acquired beliefs only")
     rows = _rows(con.execute(
         "SELECT acquisition_id, turn, belief FROM acquisitions "
         "WHERE run_id=? AND char_id=? AND turn<=? ORDER BY turn, acquisition_id",
         (run_id, char_id, as_of)))
     for r in rows:
         r["belief"] = _loads(r.get("belief"), {})
+        r["source"] = "acquired"
+    rows = seed + rows
+    if about:
+        keep = {id(b) for b in knowledge.knows_about({"current": {"vault": [r["belief"] for r in rows]}}, about)}
+        before = len(rows)
+        rows = [r for r in rows if id(r["belief"]) in keep]
+        res.step("filtered by about=%r: %d -> %d" % (about, before, len(rows)))
     if contains:
         needle = str(contains).lower()
         before = len(rows)

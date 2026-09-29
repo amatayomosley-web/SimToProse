@@ -76,10 +76,6 @@ EXEMPT = {
     # The READ TIER is a public API for consumers outside this repo. Since gate partner-contracts, scripts/ask.py
     # serves it to the author's partner (state, knows, said, edges, scene_of, place); snapshot_at has no caller yet.
     ("read_api.py", "snapshot_at"):  "read tier: public API for external consumers, not engine-internal",
-    # WHO HOLDS WHAT (gate knowledge-links, 2026-09-28): the query behind the liar test - a stranger who only SAYS he is
-    # from the village holds no link to it (tests/test_knowledge.py test_links). Its reader in the tools is the next
-    # gate's: scripts/ask.py serves it once links are stored, not only loaded.
-    ("knowledge.py", "knows_about"): "the liar-test query (tests/test_knowledge.py test_links); scripts/ask.py serves it from gate 2",
 
     # ORCHESTRATOR SURFACES (Mode B). Each is named by a doc or an agent as the thing the agent
     # layer calls, and the scripts (Mode A) do not: moved here from the ratchet 2026-09-10 when the

@@ -225,11 +225,47 @@ def links_for(char, world):
     return out
 
 
+def validate_last_seen(value):
+    """A relationship edge's `last_seen` -> None, or raise: an age like any other (<n>d, <n>w, <n>y)."""
+    if value is not None:
+        days(value, "last_seen")
+    return None
+
+
+def acquaintances(char, world):
+    """A DATED ACQUAINTANCE (Fable review 3, M4; gate knowledge-fold): for each relationship edge that says when the
+    character last saw that person (`last_seen`), one belief of their own - "You know Ambrose: the sheriff of Millbrook." -
+    about that person, lived, and aged. The edge stays the feeling; this is the knowing, and it is what a scene's
+    mention of an absent person reaches. An edge with no `last_seen` adds nothing (the edge itself renders when the
+    person is present)."""
+    cur = char.get("current") if isinstance(char, dict) else None            # a draft loads whatever its shape:
+    rels = cur.get("relationships") if isinstance(cur, dict) else None       # a malformed sheet is the contracts'
+    if not isinstance(rels, dict):                                           # finding, never a crash at load
+        return []
+    roster = world.get("people") if isinstance(world, dict) else None
+    people = {str(p.get("id")): p for p in (roster if isinstance(roster, list) else []) if isinstance(p, dict) and p.get("id")}
+    out = []
+    for pid, edge in rels.items():
+        if not isinstance(edge, dict):
+            continue
+        ago = _safe_days(edge.get("last_seen"))
+        if ago is None:
+            continue
+        p = people.get(str(pid), {})
+        name = str(p.get("name") or str(pid).replace("_", " ").title())
+        what = str(p.get("what") or "").strip()
+        out.append({"claim": "You know %s%s." % (name, (": " + what) if what else ""), "confidence": 0.9,
+                    "provenance": "lived", "durability": "durable", "links": [str(pid)],
+                    "acquaintance": str(pid), "learned_days": ago})
+    return out
+
+
 def materialise(world, chars):
-    """Link every character to what their groups hold, appending to current.vault -> {char_id: links added}."""
+    """Link every character to what their groups hold and to the people they last saw long ago, appending to
+    current.vault -> {char_id: links added}."""
     added = {}
     for cid, char in (chars or {}).items():
-        links = links_for(char, world or {})
+        links = links_for(char, world or {}) + acquaintances(char, world or {})
         if links:
             char["current"] = dict(char["current"], vault=list(char["current"].get("vault") or []) + links)
         added[cid] = len(links)

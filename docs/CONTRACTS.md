@@ -74,6 +74,8 @@ Which model fills each role - and why - is `docs/guide-model-roles.md`.
 ## 4. Ask the engine yourself
 
 `python scripts/ask.py <what> --book "<book>" [...]` answers one question as JSON, reading only:
-`where` (the record's state, open drafts, each run's turns) · `scene --run R --turn T` · `knows --run R --char C` ·
-`state --run R --char C` · `edges --run R --char C --with D` · `facts --run R --subject S` · `place --run R --place P`
+`where` (the record's state, open drafts, each run's turns) · `scene --run R --turn T` · `knows --run R --char C
+[--about X]` (everything C holds - their sheet's beliefs, the links their groups give them, and what they learned in
+play; `--about` keeps what is about a person, place or group) · `who --run R --about X` (who in the cast holds anything
+about X - a stranger who only says he is from a village holds nothing about it) · `state --run R --char C` · `edges --run R --char C --with D` · `facts --run R --subject S` · `place --run R --place P`
 · `--db "<draft>"` to read a draft · `--as-of T` for an earlier turn.

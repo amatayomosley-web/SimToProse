@@ -69,6 +69,11 @@ def _attachments(block, sheet, ctx):
     attachments.validate_block(block, registered=ctx.get("registered"))
 
 
+def _last_seen(value, sheet, ctx):
+    from . import knowledge
+    knowledge.validate_last_seen(value)
+
+
 def _memberships(rows, sheet, ctx):
     from . import knowledge
     knowledge.validate_memberships(rows, ctx.get("registered"))
@@ -220,6 +225,9 @@ SHEET = (
     F("current.relationships.<id>.known_as", "text", reader="gate.scope_names; faithfulness; acquisition",
       doc="what they call someone whose name they do not know"),
     F("current.relationships.<id>.history", "any", status="unread", doc="copied onto the edge; no prompt renders it"),
+    F("current.relationships.<id>.last_seen", "any", check=_last_seen, reader="knowledge.acquaintances",
+      doc="how long ago they last saw this person (<n>d, <n>w, <n>y): a dated 'You know <name>' belief the actor is told "
+          "the age of - leave it out for someone they see every day"),
     F("current.relationships.<id>.their_view", "map", status="runtime", reader="bonds.reflect; direction"),
     F("current.relationships.<id>.their_view.<name>", "unit", status="runtime", reader="direction"),
     F("current.attachments", "delegated", check=_attachments, reader="attachments; connection; scene._build_holds",
@@ -255,6 +263,8 @@ SHEET = (
     F("current.vault[].shared", "text", status="runtime", reader="gate.run_gate",
       doc="the group or place a link came from (knowledge.materialise); priced apart"),
     F("current.vault[].familiarity", "text", status="runtime", reader="knowledge.shared_cost"),
+    F("current.vault[].acquaintance", "text", status="runtime", reader="knowledge.acquaintances",
+      doc="the person a dated acquaintance belief is about (from a relationship edge's last_seen)"),
     F("current.vault[].learned_days", "number", status="runtime", reader="gate.run_gate; prompt (its age, in words)",
       doc="how long since a member who left last shared the group's life; readiness, never sureness"),
     F("current.memberships", "list", check=_memberships, reader="knowledge.links_for",

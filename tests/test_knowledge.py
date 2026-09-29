@@ -89,7 +89,8 @@ def _book(tmp):
     with open(os.path.join(book, "characters", "Aren.md"), "w", encoding="utf-8") as fh:
         fh.write(_sheet("Aren", [{"of": "loc.the_city"}, {"of": "grp.hunters-guild"}, {"of": "loc.millbrook", "left": "10y"}],
                         beliefs=[("0.7", "lived", OWN + " [[millbrook]]")],
-                        relationships={"ambrose": {"trust": 0.7, "affinity": 0.6, "respect": 0.7, "debt": 0.0}}))
+                        relationships={"ambrose": {"trust": 0.7, "affinity": 0.6, "respect": 0.7, "debt": 0.0,
+                                               "last_seen": "10y"}}))
     with open(os.path.join(book, "characters", "Quentin.md"), "w", encoding="utf-8") as fh:
         fh.write(_sheet("Quentin", [{"of": "loc.the_city"}]))
     return book
@@ -204,10 +205,30 @@ def test_links(book):
     check("Aren does hold Millbrook links", len(knowledge.knows_about(aren, "millbrook")) >= 2)
     check("Quentin holds the city's festival", any(b.get("claim") == FESTIVAL for b in quentin["current"]["vault"]))
     check("a sheet with no memberships gets nothing", knowledge.links_for({"current": {}}, world) == [])
+    acq = [b for b in aren["current"]["vault"] if b.get("acquaintance") == "ambrose"]
+    check("an edge with last_seen gives a dated acquaintance of Aren's own (not a group's link)",
+          len(acq) == 1 and acq[0].get("learned_days") == 3650.0 and not acq[0].get("shared")
+          and acq[0]["claim"] == "You know Ambrose: the sheriff of Millbrook.", acq)
+    check("an edge with no last_seen adds nothing", knowledge.acquaintances(
+        {"current": {"relationships": {"ambrose": {"trust": 0.5}}}}, world) == [])
+    odd = {"a": "not a sheet", "b": {"current": "not an object"}, "c": {"current": {"relationships": ["ambrose"]}}}
+    try:
+        got = knowledge.materialise(world, odd)
+    except Exception as e:                                             # the crash IS the finding here
+        got = "%s: %s" % (type(e).__name__, e)
+    check("a malformed sheet links nothing and loads (a draft loads whatever its shape)",
+          got == {"a": 0, "b": 0, "c": 0}, got)
+    for bad in ("soon", "0y"):
+        try:
+            knowledge.validate_last_seen(bad)
+            check("last_seen refuses %r" % bad, False)
+        except RecordError as e:
+            check("last_seen refuses %r" % bad, "KNOWLEDGE_AGE_NOT_A_SPAN" in str(e) or getattr(e, "code", "") == "KNOWLEDGE_AGE_NOT_A_SPAN", e)
     import lint_book
     findings = json.dumps(lint_book.lint(world, chars), default=str)
-    check("lint reads the new fields as declared (no finding names knowledge or memberships)",
-          "knowledge" not in findings.lower() and "memberships" not in findings.lower(), findings[:600])
+    check("lint reads the new fields as declared (no field of the fixture is undeclared)",
+          "not declared" not in findings.lower() and "knowledge" not in findings.lower()
+          and "memberships" not in findings.lower(), findings[:600])
 
 
 def test_prompts(book):
@@ -220,6 +241,43 @@ def test_prompts(book):
     check("his own Millbrook memory comes up beside the village's", OWN in home, home)
     check("Ambrose's death never comes up", "died" not in home, home)
     check("no digit in what comes to mind", not re.search(r"\d", home), home)
+    check("naming Ambrose brings up that Aren knows him, and how long ago he last saw him (a dated acquaintance)",
+          re.search(r"You know Ambrose: the sheriff of Millbrook\. \(lived — [^)]*you last knew it years ago\)", home), home)
+
+
+def _ask(*argv):
+    """scripts/ask.py as the partner runs it, a command -> its JSON answer."""
+    import subprocess
+    p = subprocess.run([sys.executable, os.path.join(REPO, "scripts", "ask.py")] + list(argv), capture_output=True,
+                       text=True, encoding="utf-8", errors="replace")
+    try:
+        return json.loads(p.stdout)
+    except ValueError:
+        return {"error": (p.stdout + p.stderr)[-800:], "rc": p.returncode}
+
+
+def test_ask(book):
+    """The one fold through the partner's info request (scripts/ask.py -> read_api.knows)."""
+    import sqlite3
+    db = os.path.join(book, "runs", "millbrook.db")
+    con = sqlite3.connect(db)
+    run = con.execute("SELECT run_id FROM runs").fetchone()[0]
+    con.close()
+    base = ("--book", book, "--run", run, "--db", db, "--as-of", "0")
+    got = _ask("knows", *base, "--char", "aren", "--about", "millbrook")
+    claims = [r["belief"].get("claim", "") for r in got.get("rows", [])]
+    check("ask knows --about millbrook: Aren's own memory and his village links, from the pinned sheet",
+          any(c.startswith(OWN[:20]) for c in claims) and SHERIFF in claims and PELLINGS in claims
+          and all(r.get("source") == "sheet" for r in got.get("rows", [])), got)
+    check("ask knows --about millbrook: never the death Aren's links did not reach", DEATH not in claims, claims)
+    got = _ask("knows", *base, "--char", "quentin", "--about", "millbrook")
+    check("ask knows --about millbrook: the stranger holds nothing", got.get("rows") == [], got)
+    got = _ask("who", *base, "--about", "millbrook")
+    check("ask who --about millbrook: Aren holds it, the stranger does not",
+          [h["char"] for h in got.get("holders", [])] == ["aren"] and "quentin" in got.get("hold_nothing", []), got)
+    got = _ask("knows", *base, "--char", "quentin")
+    check("ask knows without --about: the stranger's whole sheet, the city's festival among it",
+          FESTIVAL in [r["belief"].get("claim") for r in got.get("rows", [])], got)
 
 
 def test_crowding():
@@ -256,6 +314,7 @@ def main():
         book = _book(tmp)
         test_links(book)
         test_prompts(book)
+        test_ask(book)
         import gc
         gc.collect()
     print("\n%d passed, %d failed" % (len(PASS), len(FAIL)))
