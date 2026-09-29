@@ -1,7 +1,7 @@
 # MAP — what is in this project and what owns what
 
-**Why this file exists.** `docs/` holds 128 design docs, `src/engine/` 77 modules,
-`tests/` 133 suites. Nobody — human or agent — can hold that in their head, and reading it all every
+**Why this file exists.** `docs/` holds 128 design docs, `src/engine/` 78 modules,
+`tests/` 134 suites. Nobody — human or agent — can hold that in their head, and reading it all every
 session is not practical. **The failure this prevents is real and happened:** a session spent hours
 reasoning about the decision layer from four docs and inference, invented a parallel vocabulary
 ("vectors"), and rebuilt a worse version of the buff/debuff registry that `decision-engine.md`
@@ -234,7 +234,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `world-model` | the other half of the loop (SEED — to co-design) |
 | `world-state-ledger` | the live now (design the machinery; the line items are runtime) |
 
-## src/engine/ — 77 modules (normative for what IS)
+## src/engine/ — 78 modules (normative for what IS)
 
 | src | lines | owns |
 |---|---|---|
@@ -280,6 +280,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `identity_view` | the STABLE identity prefix, said in words. |
 | `injuries` | bodily injuries as dated STATE that heals over story time (the `injuries` system). |
 | `integrity` | what is WRONG with a database that a fresh one could not be wrong about. |
+| `knowledge` | what a group knows, written once, linked to each member (gate knowledge-links, 2026-09-28). |
 | `law` | what the world PERMITS. The ruling half of the bible. |
 | `ledger` | the event-sourced spine: append-only log + atomic turn-commit + pure fold + resume. |
 | `levers` | the effective-levers tier (the buff/debuff catalog). |
@@ -328,7 +329,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `narrate` | 232 | the narrator (design.md layer 7, narration.md): a canonized scene -> POV-bound prose. |
 | `scene` | 393 | the multi-agent scene runner (the director sets the scene; the agents push it). |
 
-## tests/ — 133 suites (each is a PROOF of the gate it names)
+## tests/ — 134 suites (each is a PROOF of the gate it names)
 
 | tests | lines | owns |
 |---|---|---|
@@ -395,6 +396,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `test_integrity` |  |
 | `test_keeper` |  |
 | `test_keeper_replies` |  |
+| `test_knowledge` |  |
 | `test_laws` |  |
 | `test_laws_preflight` | the world refuses something. |
 | `test_ledger` |  |

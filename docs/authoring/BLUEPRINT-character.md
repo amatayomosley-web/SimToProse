@@ -211,6 +211,14 @@ the prose is a defect.
 | `current.vault[].last_recalled_turn` | number | no | runtime | decay |  |
 | `current.vault[].recall_count` | number | no | runtime | decay |  |
 | `current.vault[].supersedes` | any | no | runtime | acquisition |  |
+| `current.vault[].shared` | text | no | runtime | gate.run_gate | the group or place a link came from (knowledge.materialise); priced apart |
+| `current.vault[].familiarity` | text | no | runtime | knowledge.shared_cost |  |
+| `current.vault[].learned_days` | number | no | runtime | gate.run_gate; prompt (its age, in words) | how long since a member who left last shared the group's life; readiness, never sureness |
+| `current.memberships` | list | no | active | knowledge.links_for | the groups and places a character belongs to, for what they know: `of` grp.<tag> / loc.<id>; `left` how long ago they left (<n>d, <n>w, <n>y); `familiarity` everyday / familiar / faded overrides the derived word |
+| `current.memberships[]` | map | no | active | knowledge.links_for |  |
+| `current.memberships[].of` | text | no | active | knowledge.links_for |  |
+| `current.memberships[].left` | any | no | active | knowledge.links_for |  |
+| `current.memberships[].familiarity` | text | no | active | knowledge.links_for |  |
 | `current.vault[].superseded_by` | any | no | runtime | acquisition |  |
 | `current.vault[].timestamp` | any | no | unread | - |  |
 | `current.targets` | map | no | runtime | targets; scene | what each path's feeling is about now |

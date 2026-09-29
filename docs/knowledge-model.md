@@ -111,3 +111,24 @@ characters; extend it (see the transmission rule below, which does).
 
 ## Belief dynamics — lift the Talk of the Town taxonomy (don't reinvent)
 Acquisition (above) is only half of belief life. **Talk of the Town (Ryan et al. 2015) named the full mechanism set a decade ago** (`prior-art.md` — fetched/quoted, verification pass incomplete; confirm against the primary on first use): false beliefs arise by **lying** (ours already), **confabulation** (invented detail filling a gap), and **transference** (attributes of one entity mis-attached to another); held beliefs degrade by **mutation** (deterioration of a value in place) and terminate by **forgetting** — with mutation/forgetting governed by a per-character **memory attribute × facet salience**, computed by the engine, never authored per-incident. Slots directly into our fidelity spectrum: acquisition channels are MVP; lying is the "+ drama" layer; **confabulation/transference/mutation/forgetting are the "+ Full" layer's missing mechanics** — adopt their taxonomy and parameterization shape (per-character memory trait feeds from genotype/traits, `baseline-generation.md`) rather than designing our own.
+
+## Shared knowledge — what a group knows, linked to each member (built 2026-09-28, gate knowledge-links)
+
+The owner's model (2026-09-28): a person's knowledge is the set of facts they are LINKED to. A fact a whole village
+holds is written once, in the world's `knowledge`, with the groups and places that hold it; a character who belongs to
+one (`current.memberships`) is linked to it when the book loads (`src/engine/knowledge.py`). Groups believe nothing -
+they are how links are made - and the registry is the one that already existed: `grp.<people[].groups tag>` and
+`loc.<locations id>`. What is familiar belongs to the person, not the fact ("what's familiar to a tax collector may be
+obscure for a farmer"): a link is `everyday` when its topic is one the character's position names, `familiar`
+otherwise, and `faded` when the membership ended. A member who left holds only what the group knew before they left.
+
+Age is READINESS, not sureness: a faded link keeps its confidence (Aren is sure Ambrose was sheriff; his knowledge is old,
+not doubtful), is told to the actor with its age in words ("you last knew it years ago"), and costs more to recall.
+Shared links are priced apart from a character's own memories - their own budget, a floor so none is free, at most
+three a beat - because a belief's cost is 1 - confidence and the gate orders by confidence: 150 shared facts at .90
+otherwise take every slot from a character's own memory at .70 (Fable review 3, B1, reproduced). A book with no
+`knowledge` and no `memberships` recalls exactly as before (Beck Hollow's frozen actor prompts rebuild byte-identical).
+
+Not built yet (the rest of the plan): a table for facts and links; tellings in play that write links (hearsay ranked
+below what was seen); matching on what a fact is about instead of its words; dated acquaintance and one person under
+two identities; norms and language.

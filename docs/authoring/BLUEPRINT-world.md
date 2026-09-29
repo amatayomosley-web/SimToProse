@@ -84,6 +84,16 @@ checked by their own modules (`law.py`, `tensions.py`, `systems.py`), which have
 | `systems` | delegated | no | active | systems.for_book | switch a system on or off for this book |
 | `tensions` | delegated | no | active | tensions.from_world; keeper | standing tensions the world keeps |
 | `standing_facts` | any | no | active | critic (out of the loop; never perception) | facts only the critic reads |
+| `knowledge` | list | no | active | knowledge.materialise | facts a group or place holds, written once; each member is linked to them when the book loads |
+| `knowledge[]` | map | no | active | knowledge.links_for |  |
+| `knowledge[].claim` | text | no | active | knowledge.links_for |  |
+| `knowledge[].held_by` | list | no | active | knowledge.links_for | grp.<tag> / loc.<id>: who holds it |
+| `knowledge[].held_by[]` | text | no | active | knowledge.links_for |  |
+| `knowledge[].about` | list | no | active | knowledge.links_for | the people, places or groups it is about - the names a scene reaches it by |
+| `knowledge[].about[]` | text | no | active | knowledge.links_for |  |
+| `knowledge[].topic` | text | no | active | knowledge.links_for | a lexicon attribute class: the fact's domain |
+| `knowledge[].since` | any | no | active | knowledge.links_for | how long ago its holders came to know it (<n>d, <n>w, <n>y); a member who left before then cannot hold it |
+| `knowledge[].confidence` | number | no | active | knowledge.links_for | how sure a member is; .85 when absent |
 <!-- END GENERATED -->
 
 ---

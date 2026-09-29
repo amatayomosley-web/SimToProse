@@ -62,3 +62,20 @@ _DECLARE_F = {
     "CLAIM_SPEAKER_RESERVED":  "a claim was recorded as spoken by `author` under a tier other than authored - that name speaks only the owner's own facts (scripts/declare.py), so any other claim under it would read as the owner's hand",
     "KEEPER_RULING_AUTHORED":  "a keeper's ruling named an authored fact - the owner's own fact binds as written and is ruled by nobody",
 }
+
+# ---- KNOWLEDGE_* — what a group or place knows, linked to each member (src/engine/knowledge.py, gate knowledge-links) ----
+_KNOWLEDGE_F = {
+    "KNOWLEDGE_NOT_A_LIST":            "world.knowledge is not a list of facts",
+    "KNOWLEDGE_ENTRY_NOT_A_DICT":      "a world.knowledge entry is not an object with a claim and its holders",
+    "KNOWLEDGE_CLAIM_EMPTY":           "a world.knowledge entry has no claim - there is nothing to know",
+    "KNOWLEDGE_HELD_BY_EMPTY":         "a world.knowledge entry names no holder - a fact nobody holds is the author's truth, not knowledge",
+    "KNOWLEDGE_HOLDER_UNREGISTERED":   "a fact's holder is not a registered group or place (grp.<a people[].groups tag> or loc.<a locations id>)",
+    "KNOWLEDGE_ABOUT_UNREGISTERED":    "a fact is about a name the world does not register - register the person, place or group with the fact",
+    "KNOWLEDGE_TOPIC_UNKNOWN":         "a fact's topic is not one of the lexicon's attribute classes - the domain is the world's own vocabulary",
+    "KNOWLEDGE_AGE_NOT_A_SPAN":        "an age (a fact's `since`, a membership's `left`) is not <n>d, <n>w or <n>y, or is not more than nothing",
+    "KNOWLEDGE_CONFIDENCE_RANGE":      "a fact's confidence is not a number in (0, 1]",
+    "KNOWLEDGE_MEMBERSHIPS_NOT_A_LIST": "current.memberships is not a list",
+    "KNOWLEDGE_MEMBERSHIP_NOT_A_DICT": "a current.memberships entry is not an object with `of`",
+    "KNOWLEDGE_MEMBERSHIP_UNREGISTERED": "a membership names a group or place the world does not register - a member of nothing knows nothing by it",
+    "KNOWLEDGE_FAMILIARITY_UNKNOWN":   "a membership's familiarity is not everyday, familiar or faded",
+}

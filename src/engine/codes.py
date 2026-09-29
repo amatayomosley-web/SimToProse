@@ -113,6 +113,7 @@ from .code_families import (
 _RUNG,
     )
 from .code_families_lifecycle import _DRAFT_F, _LINEAGE_F, _DECLARE_F   # a book's life after adoption (gates draft-flow, author-declarations)
+from .code_families_lifecycle import _KNOWLEDGE_F                       # what a group knows (gate knowledge-links)
 
 _FAMILIES = (
     _APPRAISER_F,
@@ -168,6 +169,7 @@ _FAMILIES = (
     _DRAFT_F,
     _LINEAGE_F,
     _DECLARE_F,
+    _KNOWLEDGE_F,
 )
 
 # The families live in `code_families.py` — data that grows, split from the contract above.

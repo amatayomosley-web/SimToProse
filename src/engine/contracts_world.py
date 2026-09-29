@@ -54,6 +54,12 @@ def _laws(rows, world, ctx):
     _project_laws(world)
 
 
+def _knowledge(rows, world, ctx):
+    """What a group or place holds (gate knowledge-links): the loader's own reading of it, refusing what it cannot link."""
+    from .knowledge import validate_world
+    validate_world(dict(world, knowledge=rows))
+
+
 def _cue_classes(names, world, ctx):
     lex = world.get("lexicon")
     classes = lex.get("attribute_classes") if isinstance(lex, dict) else None
@@ -140,4 +146,19 @@ WORLD = (
     F("systems", "delegated", check=_systems, reader="systems.for_book", doc="switch a system on or off for this book"),
     F("tensions", "delegated", check=_tensions, reader="tensions.from_world; keeper", doc="standing tensions the world keeps"),
     F("standing_facts", "any", reader="critic (out of the loop; never perception)", doc="facts only the critic reads"),
+    # ---- what a group or place knows (gate knowledge-links) ---------------------------------------------------------
+    F("knowledge", "list", check=_knowledge, reader="knowledge.materialise",
+      doc="facts a group or place holds, written once; each member is linked to them when the book loads",
+      absent="EMPTY - a character knows only what their own sheet says"),
+    F("knowledge[]", "map", reader="knowledge.links_for"),
+    F("knowledge[].claim", "text", reader="knowledge.links_for"),
+    F("knowledge[].held_by", "list", reader="knowledge.links_for", doc="grp.<tag> / loc.<id>: who holds it"),
+    F("knowledge[].held_by[]", "text", reader="knowledge.links_for"),
+    F("knowledge[].about", "list", reader="knowledge.links_for",
+      doc="the people, places or groups it is about - the names a scene reaches it by"),
+    F("knowledge[].about[]", "text", reader="knowledge.links_for"),
+    F("knowledge[].topic", "text", reader="knowledge.links_for", doc="a lexicon attribute class: the fact's domain"),
+    F("knowledge[].since", "any", reader="knowledge.links_for",
+      doc="how long ago its holders came to know it (<n>d, <n>w, <n>y); a member who left before then cannot hold it"),
+    F("knowledge[].confidence", "number", reader="knowledge.links_for", doc="how sure a member is; .85 when absent"),
 )

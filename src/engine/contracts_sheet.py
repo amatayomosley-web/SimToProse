@@ -69,6 +69,11 @@ def _attachments(block, sheet, ctx):
     attachments.validate_block(block, registered=ctx.get("registered"))
 
 
+def _memberships(rows, sheet, ctx):
+    from . import knowledge
+    knowledge.validate_memberships(rows, ctx.get("registered"))
+
+
 def _rates(update, sheet, ctx):
     from . import bonds
     bonds.rates_of({"update": update})
@@ -247,6 +252,19 @@ SHEET = (
     F("current.vault[].last_recalled_turn", "number", status="runtime", reader="decay"),
     F("current.vault[].recall_count", "number", status="runtime", reader="decay"),
     F("current.vault[].supersedes", "any", status="runtime", reader="acquisition"),
+    F("current.vault[].shared", "text", status="runtime", reader="gate.run_gate",
+      doc="the group or place a link came from (knowledge.materialise); priced apart"),
+    F("current.vault[].familiarity", "text", status="runtime", reader="knowledge.shared_cost"),
+    F("current.vault[].learned_days", "number", status="runtime", reader="gate.run_gate; prompt (its age, in words)",
+      doc="how long since a member who left last shared the group's life; readiness, never sureness"),
+    F("current.memberships", "list", check=_memberships, reader="knowledge.links_for",
+      doc="the groups and places a character belongs to, for what they know: `of` grp.<tag> / loc.<id>; `left` how long "
+          "ago they left (<n>d, <n>w, <n>y); `familiarity` everyday / familiar / faded overrides the derived word",
+      absent="none - the character holds only the beliefs typed into this sheet"),
+    F("current.memberships[]", "map", reader="knowledge.links_for"),
+    F("current.memberships[].of", "text", reader="knowledge.links_for"),
+    F("current.memberships[].left", "any", reader="knowledge.links_for"),
+    F("current.memberships[].familiarity", "text", reader="knowledge.links_for"),
     F("current.vault[].superseded_by", "any", status="runtime", reader="acquisition"),
     F("current.vault[].timestamp", "any", status="unread"),
     F("current.targets", "map", status="runtime", reader="targets; scene", doc="what each path's feeling is about now"),

@@ -1272,6 +1272,23 @@ each carrying every plant, dealt round-robin so a model's draws spread; `score` 
 judges missed a plant. Evidence: a scratch rebuild identical to the frozen items, and a synthetic score over split
 packets (a reference failing only `names_pulls` drops exactly its packet).
 
+**2026-09-28 — what a group knows, linked to each member (gate `knowledge-links`, step 1 of the shared-knowledge
+build):** the owner - "the logic is more of links to knowledge", "what's familiar to a tax collector may be obscure for
+a farmer". `src/engine/knowledge.py`: the world's `knowledge` (each fact written once, `held_by` the registered
+`grp.`/`loc.` names that know it) is linked into each member's vault by `vault.load_book` from the sheet's
+`current.memberships`; a link carries its holder (`shared`), a per-person `familiarity` (everyday when its topic is
+one the character's position names, familiar, faded for a membership that ended) and, for a member who left, its age
+(`learned_days`), which withholds anything the group learned after and is told to the actor in words, never digits.
+Age is readiness, not sureness: it does not feed `decay` (a year takes a belief to its floor, which would render old
+knowledge as doubt). `gate.run_gate` prices shared links apart - a floor, a familiarity price, their own budget after a
+character's own memories, at most `SHARED_SLOTS` a beat - because a belief's cost is 1 - confidence and the order is
+by confidence: 150 shared facts at .90 took every slot from a character's own memory at .70 (Fable review 3, B1,
+reproduced with `run_gate`). Evidence: `tests/test_knowledge.py` (an invented guild hunter raised in a village he
+left ten years ago: the festival, registration and village questions through `scripts/scene.py`'s own main; the
+sheriff's later death never surfaces; the stranger who only claims the village holds no link; the crowding case),
+14 mutants each killed by the check that states its claim, and Beck Hollow's six frozen actor prompts rebuilt
+byte-identical.
+
 **2026-09-27 — the session profile: which model fills each role, set once per session (gate `session-profile`):** the
 owner - "Variable, use OS model, open router and subagent", then "we can set it per session ... and then it continues
 until close", and "the show runner can't be a qwen 7B". `src/engine/roles.py` is the table behind

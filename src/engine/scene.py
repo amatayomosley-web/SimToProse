@@ -563,6 +563,7 @@ def _recall_for_packet(r):
     }
     if r.get("target_actor"): out["target_actor"] = r["target_actor"]
     if r.get("epistemic_stance"): out["epistemic_stance"] = r["epistemic_stance"]
+    if r.get("learned_days"): out["learned_days"] = r["learned_days"]     # a link's age, rendered as words (knowledge-links)
     return out
 
 

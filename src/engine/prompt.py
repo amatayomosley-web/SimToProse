@@ -17,6 +17,7 @@ from .direction import (direct_condition, direct_edge, direct_facts, direct_hold
 from .identity_view import direct_goals, direct_identity, direct_percepts
 from .state import _DIM_TO_PATH
 from .gate import scope_names
+from .knowledge import age_words      # a link's age as words (gate knowledge-links)
 
 # Types the ACTOR may self-tag: pure-appraisal catalog rows (no world fold) that are not
 # system-emitted. System types are the engine's own records, never an actor's claim.
@@ -128,7 +129,10 @@ def build_turn_messages(packet, event_text, temperament, relationships=None, act
                 phrase = "you believe %s knows: %s" % (tgt, r["claim"])
             second_order.append("%s (%s)" % (phrase, sure))
         else:
-            first_order.append("%s (%s — %s)" % (r["claim"], r.get("provenance", ""), sure))
+            # a link learned before the story carries its age IN WORDS (gate knowledge-links; hard rule 5)
+            age = age_words(r.get("learned_days"))
+            first_order.append("%s (%s — %s%s)" % (r["claim"], r.get("provenance", ""), sure,
+                                                   ("; you last knew it " + age) if age else ""))
     parts = []
     if first_order: parts.append("; ".join(first_order))
     if second_order: parts.append("What others believe: " + "; ".join(second_order))

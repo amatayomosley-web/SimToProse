@@ -428,19 +428,50 @@ def run_gate(triggers, vault, skills, goals, condition, current_turn=0, relation
         triggers, vault, goals, budget, current_turn=current_turn,
         relationships=relationships, recall_history=recall_history, elapsed=elapsed)
 
+    # WHAT A GROUP KNOWS IS PRICED APART (gate knowledge-links, 2026-09-28; Fable review 3 B1): a link a group or
+    # place made (`shared`, knowledge.materialise) costs its own price and is recalled from its own budget, after
+    # the character's own memories and never more than knowledge.SHARED_SLOTS of them - so confident common
+    # knowledge cannot take the slots the faint personal chain needs. A vault with no shared link takes the
+    # branch below exactly as before.
+    from . import knowledge as _knowledge
+    own, shared = [], []
+    for c in candidates:
+        i = c.get("idx")
+        b = vault[i] if isinstance(i, int) and 0 <= i < len(vault) else None
+        if isinstance(b, dict) and b.get("shared"):
+            c["cost"] = _knowledge.shared_cost(b, c["cost"])
+            if b.get("learned_days"):
+                c["learned_days"] = b["learned_days"]
+            shared.append(c)
+        else:
+            own.append(c)
+
     # Phase 2: sort by salience descending (goal-bearing first, then by confidence)
     # relevancy-gate.md: "Explore from triggers by ascending cost / descending salience"
-    candidates.sort(key=lambda c: (0 if c["is_goal_bearing"] else 1, -c.get("confidence_eff", c["confidence"])))
+    own.sort(key=lambda c: (0 if c["is_goal_bearing"] else 1, -c.get("confidence_eff", c["confidence"])))
 
     # Phase 3: spend budget — inject until budget exhausted
     injected = []
     spent    = 0.0
-    for c in candidates:
+    for c in own:
         if spent + c["cost"] <= budget:
             injected.append(c)
             spent += c["cost"]
         # else: budget exhausted for this connection; it does NOT fire
         # (relevancy-gate.md: "when the budget runs out, remaining matches DON'T fire")
+
+    # Phase 4: the shared links - cheapest first, their own budget, a count cap
+    shared.sort(key=lambda c: (0 if c["is_goal_bearing"] else 1, c["cost"],
+                               -c.get("confidence_eff", c["confidence"])))
+    s_spent = 0.0
+    s_count = 0
+    for c in shared:
+        if s_count >= _knowledge.SHARED_SLOTS:
+            break
+        if s_spent + c["cost"] <= budget:
+            injected.append(c)
+            s_spent += c["cost"]
+            s_count += 1
 
     return injected
 

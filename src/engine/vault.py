@@ -170,6 +170,11 @@ def load_book(book_dir):
     # Additive: an author's own [[links]] are merged, never replaced. A belief whose subject is a
     # PRONOUN ("He will come up that hill one day") resolves to nothing and stays that way — that
     # one only the writer can settle, and guessing it would fire the belief in the wrong scenes.
+    # WHAT THEIR GROUPS KNOW (gate knowledge-links, 2026-09-28): a fact the world writes once, with the groups and
+    # places that hold it, is linked into each member's vault here - before stamping, so a link is stamped like any
+    # belief. A world with no `knowledge` and a sheet with no `memberships` add nothing.
+    from .knowledge import materialise as _materialise
+    _materialise(world, chars)
     from .facets import stamp as _stamp_facets
     for _ch in chars.values():
         # a DRAFT LOADS whatever its shape (gate run-start-refusal): a `current` that is not an object is the sheet
