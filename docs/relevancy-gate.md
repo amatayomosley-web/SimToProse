@@ -52,6 +52,16 @@ You can't pre-enumerate every relevant fact — you don't need to. **Pre-mark th
 ## Storage requirement
 Trigger-matching needs the vault **indexed by entity / symbol / skill-domain** — a knowledge graph. Scribe's KùzuDB (facts keyed to entities) is exactly this; reuse it.
 
+**As built (2026-09-29, gate knowledge-about-index):** a trigger meets a belief when it is a WORD of the claim or its
+links (at word boundaries, a plural either way - raw substring had let "low" qualify a belief about the Hollow and "out"
+one that says "about"), or when it names what the belief is ABOUT (its `about` ids). `about` is the KNOWER's referent:
+a recognized person reaches what this character holds about that id, even where the prose says "he"; one person under
+two identities is two ids, and nothing joins them but a fact that says so. Referents share one spelling for anchors
+and triggers (a registry namespace dropped, underscores as spaces), so `loc.millbrook` meets "millbrook" and `old_man`
+meets "old man". Measured on seeded synthetic vaults (12 triggers): candidates 130 -> 106 at 150 links, 258 -> 210 at
+300 - the difference is the accidents. Hub down-weighting waits for measured need; topics (lexicon classes) are not
+matched directly, since every belief of a class would fire on every event of that class.
+
 ## Hard parts (honest)
 - **Trigger extraction is fuzzy** — explicit triggers (a symbol shown) are easy; implicit ones (a dialect phrase that only matters if you know the dialect) are hard. Authored hinges cover plot-critical; emergent extraction is imperfect.
 - **The proxy can miss/over-include** — trigger-matching ≈ counterfactual relevance but isn't identical. Hinges catch the plot-critical misses; the rest is acceptable noise.

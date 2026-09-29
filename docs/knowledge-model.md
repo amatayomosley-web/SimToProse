@@ -141,6 +141,9 @@ anything about X (the liar test as a question: the stranger who only claims the 
 owner's example of the guild hunter who last saw the village's old sheriff ten years ago. Leave it out for someone
 they see every day.
 
+**Recall reaches a fact by what it is about (gate knowledge-about-index).** A scene reaches a link through its words
+(whole words, never the inside of one) or through what it is ABOUT - and `about` is the KNOWER's referent, so one
+person under two identities is two ids until a fact joins them (`docs/relevancy-gate.md`, "As built").
+
 Not built yet (the rest of the plan): a table for facts and links (with the tellings that first write one); tellings
-in play that write links (hearsay ranked below what was seen); matching on what a fact is about instead of its words;
-one person under two identities; norms and language.
+in play that write links (hearsay ranked below what was seen); one person under two identities; norms and language.

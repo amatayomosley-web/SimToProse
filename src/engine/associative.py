@@ -21,6 +21,38 @@ from .gate import _normalize, belief_id
 
 MIN_STEP_COST = 0.05
 RUNTIME_MAX_HOPS = 16
+_NAMESPACES = ("loc.", "grp.", "entity.")
+
+
+def _referent(s):
+    """One spelling of a referent for anchors, `about` ids and triggers alike (gate knowledge-about-index): lower-cased
+    and accent-folded, a registry namespace dropped ("loc.millbrook" -> "millbrook"), underscores as spaces
+    ("old_man" -> "old man", the spelling extract_triggers gives a recognized person). Before, an anchor kept its raw
+    spelling and a namespaced or multi-word referent never met its trigger."""
+    t = _normalize(str(s or "")).strip()
+    for p in _NAMESPACES:
+        if t.startswith(p):
+            t = t[len(p):]
+            break
+    return " ".join(t.replace("_", " ").split())
+
+
+def _word_hit(trigger):
+    """A trigger's matcher: it meets text at WORD boundaries, never inside another word, and a single word meets its
+    plural either way ("hunter" / "hunters"). Raw substring let 'low' qualify a belief about the Hollow and 'out' one
+    that says "about" - the accidents facets.py closed at the write on 2026-08-30 and this step kept making. A phrase
+    must appear whole. -> compiled pattern, or None for an empty trigger."""
+    t = _referent(trigger)
+    if not t:
+        return None
+    forms = {t}
+    if " " not in t:
+        forms |= {t + "s", t + "es"}
+        if len(t) > 4 and t.endswith("es"):
+            forms.add(t[:-2])
+        if len(t) > 3 and t.endswith("s"):
+            forms.add(t[:-1])
+    return re.compile(r"(?<![0-9a-z])(?:%s)(?![0-9a-z])" % "|".join(sorted(re.escape(f) for f in forms)))
 
 
 def _keyword_overlap(claim_norm, text_norm):
@@ -64,10 +96,10 @@ def build_vault_graph(vault, current_turn=0, relationships=None, recall_history=
         anchors = set()
         for l in (b.get("links") or []):
             if l:
-                anchors.add(_normalize(str(l)).strip())
+                anchors.add(_referent(l))
         for a in (b.get("about") or []):
             if a:
-                anchors.add(_normalize(str(a)).strip())
+                anchors.add(_referent(a))
 
         for anc in sorted(anchors):
             if not anc:
@@ -100,8 +132,12 @@ def find_associative_candidates(triggers, vault, goals, budget, current_turn=0,
 
     candidates = []
     seen_bids = set()
+    matchers = [(trig, _referent(trig), _word_hit(trig)) for trig in triggers]
 
-    # --- Step 1: Direct 1-Hop Matching (Surface word & [[links]] overlap) ---
+    # --- Step 1: Direct 1-Hop Matching (words of the claim and its [[links]], or what it is ABOUT) ---
+    # A belief is a direct candidate when a trigger is a WORD of it, or when a trigger names what it is about - its
+    # `about` ids, the KNOWER's referent (Fable review 3, M3): "He will come up that hill one day", stamped about tam,
+    # is reached when tam is recognized though it never names him. Two identities are two ids and stay apart.
     for idx, b in enumerate(vault):
         if not isinstance(b, dict):
             continue
@@ -113,9 +149,11 @@ def find_associative_candidates(triggers, vault, goals, budget, current_turn=0,
             b, current_turn=current_turn, relationships=relationships,
             recall_history=recall_history, elapsed=elapsed)
         cost = max(0.0, 1.0 - eff_conf)
-        surface = _normalize(claim) + " " + " ".join(_normalize(str(l)) for l in (b.get("links") or []))
+        surface = _normalize(claim) + " " + " ".join(_referent(l) for l in (b.get("links") or []))
+        about = {_referent(a) for a in (b.get("about") or []) if a}
 
-        matched = [trig for trig in triggers if _normalize(trig) in surface]
+        matched = [trig for trig, ref, pat in matchers
+                   if (ref and ref in about) or (pat is not None and pat.search(surface))]
         if matched or b.get("must_surface"):
             bid = b.get("bid") or belief_id(b)
             seen_bids.add(bid)
@@ -142,7 +180,7 @@ def find_associative_candidates(triggers, vault, goals, budget, current_turn=0,
 
     # --- Step 2: Multi-Hop Dijkstra Expansion from Triggers ---
     if budget > 0.0 and triggers:
-        norm_triggers = [_normalize(str(t)).strip() for t in triggers if t]
+        norm_triggers = [_referent(t) for t in triggers if t]
         start_nodes = set()
         for nt in norm_triggers:
             if nt in adj:

@@ -1272,6 +1272,19 @@ each carrying every plant, dealt round-robin so a model's draws spread; `score` 
 judges missed a plant. Evidence: a scratch rebuild identical to the frozen items, and a synthetic score over split
 packets (a reference failing only `names_pulls` drops exactly its packet).
 
+**2026-09-29 — recall meets a belief by its words or by what it is about (gate `knowledge-about-index`, step 3 of
+the shared-knowledge build):** Fable review 3 section 6, "index by `about` and retire the substring step, then measure
+candidates". `associative.find_associative_candidates` step 1 matched a trigger by raw substring over the claim and
+its links and never read `about`: "low" qualified a belief about the Hollow, "out" one that says "about" - the
+accidents `facets.py` closed at the write on 2026-08-30 - and a belief about a recognized person that says "he" was
+reachable only by the traversal, which does not run when the character is exhausted, while the same belief naming him
+surfaced. Now a trigger meets a claim's WORDS (boundaries, a plural either way) or its `about` ids, the knower's
+referent (M3); `_referent` gives anchors and triggers one spelling (namespace dropped, underscores as spaces), so
+`loc.millbrook` and `old_man` meet "millbrook" and "old man". Evidence: `tests/test_recall_about.py` 14 checks, 7 of
+them red against the old matcher; 9 mutants each killed by the check that states its claim (one through
+`test_gate_multihop`); candidates on seeded synthetic vaults 130 -> 106 at 150 links and 258 -> 210 at 300. Hub
+down-weighting waits for measured need.
+
 **2026-09-28 — one fold for "what does P know", and dated acquaintance (gate `knowledge-fold`, step 2 of the
 shared-knowledge build):** Fable review 3 found `read_api.knows` read `acquisitions` only - zero rows in every run of
 the owner's book - so the question answered nothing, and never saw the authored vault (M2); and two stores for one
