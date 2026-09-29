@@ -217,6 +217,8 @@ the prose is a defect.
 | `current.vault[].acquaintance` | text | no | runtime | knowledge.acquaintances | the person a dated acquaintance belief is about (from a relationship edge's last_seen) |
 | `current.vault[].learned_days` | number | no | runtime | gate.run_gate; prompt (its age, in words) | how long since a member who left last shared the group's life; readiness, never sureness |
 | `current.vault[].same_as` | list | no | active | knowledge.same_ids | two or more ids of the world's people this character holds as ONE person (the beekeeper is the basket-seller): recall and `ask.py knows --about` join them for this character alone |
+| `current.vault[].evidence` | text | no | runtime | read_api.knows | the world note's words a linked fact was kept from (scripts/facts.py) |
+| `current.vault[].source` | text | no | runtime | read_api.knows | the note it was kept from |
 | `current.vault[].norm` | text | no | runtime | knowledge.links_for | the group whose way this is (a norm linked from world.knowledge) |
 | `current.vault[].readiness` | unit | no | runtime | associative._ready | how readily a telling comes back, apart from how far it is believed (tellings.READINESS); recall is priced by it |
 | `current.vault[].told` | any | no | runtime | read_api.knows | who told it, to whom, at which beat and what it cost the teller (tellings.told_beliefs) |

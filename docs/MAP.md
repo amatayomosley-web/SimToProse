@@ -1,7 +1,7 @@
 # MAP — what is in this project and what owns what
 
-**Why this file exists.** `docs/` holds 128 design docs, `src/engine/` 79 modules,
-`tests/` 138 suites. Nobody — human or agent — can hold that in their head, and reading it all every
+**Why this file exists.** `docs/` holds 128 design docs, `src/engine/` 80 modules,
+`tests/` 139 suites. Nobody — human or agent — can hold that in their head, and reading it all every
 session is not practical. **The failure this prevents is real and happened:** a session spent hours
 reasoning about the decision layer from four docs and inference, invented a parallel vocabulary
 ("vectors"), and rebuilt a worse version of the buff/debuff registry that `decision-engine.md`
@@ -234,7 +234,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `world-model` | the other half of the loop (SEED — to co-design) |
 | `world-state-ledger` | the live now (design the machinery; the line items are runtime) |
 
-## src/engine/ — 79 modules (normative for what IS)
+## src/engine/ — 80 modules (normative for what IS)
 
 | src | lines | owns |
 |---|---|---|
@@ -291,6 +291,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `presence` | being NAMED to someone is not being IN THE ROOM with them. |
 | `profiles` | profiles.py ? the formative profiles library and composition gate. |
 | `prompt` | the reasoning-contract layer as MACHINERY (gate 6, machine/content separation). |
+| `proposals` | facts proposed from a world note, each held to the words it came from (gate knowledge-proposals). |
 | `read_api` | the orchestrator's typed read surface over the run DB. |
 | `readings` | what the appraiser saw, stored so the state stays derivable. |
 | `records` | typed record contracts for everything the engine writes (record-contract.md). |
@@ -330,7 +331,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `narrate` | 232 | the narrator (design.md layer 7, narration.md): a canonized scene -> POV-bound prose. |
 | `scene` | 393 | the multi-agent scene runner (the director sets the scene; the agents push it). |
 
-## tests/ — 138 suites (each is a PROOF of the gate it names)
+## tests/ — 139 suites (each is a PROOF of the gate it names)
 
 | tests | lines | owns |
 |---|---|---|
@@ -383,6 +384,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `test_edl` |  |
 | `test_effective` | the effective-levers tier (src/engine/levers.py). |
 | `test_errors` | the coded refusal channel, and the registry's two-way rule. |
+| `test_facts` |  |
 | `test_faithful_turn` |  |
 | `test_faults` |  |
 | `test_floor` |  |

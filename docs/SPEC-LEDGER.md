@@ -1272,6 +1272,18 @@ each carrying every plant, dealt round-robin so a model's draws spread; `score` 
 judges missed a plant. Evidence: a scratch rebuild identical to the frozen items, and a synthetic score over split
 packets (a reference failing only `names_pulls` drops exactly its packet).
 
+**2026-09-29 — world sessions: facts kept from a note, one by one (gate `knowledge-proposals`):** Fable review 3, M7:
+reuse the composition pass's rule that a classifier copies its evidence verbatim, fence author-only truth, approve per
+note with per-fact veto, check only the mechanical. `src/engine/proposals.py` (pure): `visible_text` (no frontmatter,
+no engine block, nothing between `%% truth %%` and `%% /truth %%`; an unclosed fence hides the rest), `prompt` (the
+admission tests, the world's holders/people/topics, the reply contract), `check` (FACTS_EVIDENCE_MISSING,
+FACTS_EVIDENCE_IS_AUTHOR_TRUTH, FACTS_EVIDENCE_NOT_IN_NOTE, FACTS_TWO_FACTS, FACTS_FIELD_UNKNOWN, FACTS_ALREADY_KNOWN,
+and the world's own KNOWLEDGE_* check), `note_text`. `scripts/facts.py` propose / check / approve (the author's words
+required; only kept numbers; a note changed since its check is refused; no duplicate) / list, writing
+`<book>/knowledge/<note>.md`, which `vault.load_book` merges after the world note's own `knowledge`; `evidence` and
+`source` ride onto each member's link. Evidence: `tests/test_facts.py` 25 checks through the CLI as a subprocess and the
+loader; 14 mutants each killed by the check that states its claim. No LLM in either: the partner answers the prompt.
+
 **2026-09-29 — a group's norms (gate `knowledge-norms`):** the 09-09 design's kinds: a norm carries a SANCTION, costs
 standing, and "does not decay at all (it is replaced when you move)"; the owner, 2026-09-28: a character from another
 land must speak from their people's beliefs; Fable review 3 step 5, "norms now, language when a scene places a speaker

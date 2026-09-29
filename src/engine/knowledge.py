@@ -285,6 +285,9 @@ def links_for(char, world):
                 link["same_as"] = [str(i) for i in f["same_as"]]      # an identity the group holds, joined for its members
             if norm:
                 link["norm"] = holder
+            for key in ("evidence", "source"):          # the note's words it was kept from (scripts/facts.py approve)
+                if isinstance(f.get(key), str) and f[key].strip():
+                    link[key] = f[key]
             out.append(link)
     return out
 

@@ -179,4 +179,15 @@ never fades - a custom is replaced when you move, not forgotten. A member who le
 actor, told the custom when the scene touches it, performs what a breach feels like; the seat does not yet report who
 broke which norm, or what it cost them in standing (a seat-contract change for a live gate).
 
+**World sessions: facts kept from a note, one by one (gate knowledge-proposals).** A world note is prose; a character
+knows only what is linked to them. `scripts/facts.py` builds a proposer's prompt from a note's VISIBLE prose - never
+what the author fenced as author-only truth between `%% truth %%` and `%% /truth %%` - then checks each proposed fact
+mechanically (`src/engine/proposals.py`): its evidence must be the note's own sentence, copied (a paraphrase is
+refused, as the composition pass refuses one), one fact per claim, its holders and subjects registered, nothing the
+world already holds. The author keeps what they approve, in their own words, and the facts are written to
+`<book>/knowledge/<note>.md` - the author's own notes are never written - which the book loads after the world note's
+own `knowledge`. A kept fact carries its `evidence` and `source` onto every member's link, so `ask.py knows` shows the
+words each piece of knowledge came from. Whether a fact is worth keeping is the author's call; only the mechanical is
+checked (Fable review 3, M7).
+
 Language waits until a scene places a speaker of another tongue (Fable review 3, step 5).

@@ -79,3 +79,17 @@ Which model fills each role - and why - is `docs/guide-model-roles.md`.
 play; `--about` keeps what is about a person, place or group) · `who --run R --about X` (who in the cast holds anything
 about X - a stranger who only says he is from a village holds nothing about it) · `state --run R --char C` · `edges --run R --char C --with D` · `facts --run R --subject S` · `place --run R --place P`
 · `--db "<draft>"` to read a draft · `--as-of T` for an earlier turn.
+
+## 5. Keep facts from a world note - the author approves each one
+
+In a world session the author writes prose; a character knows only the facts linked to them. `scripts/facts.py`
+turns one note into facts the author keeps one by one (gate knowledge-proposals):
+1. `python scripts/facts.py propose --book "<book>" --note "<note>"` prints the proposer's prompt - the note's visible
+   prose (never what the author fenced between `%% truth %%` and `%% /truth %%`) and the world's holders, people and
+   topics. Answer it yourself, or hand it to ONE agent; save the JSON reply to a file.
+2. `python scripts/facts.py check --book "<book>" --note "<note>" --reply <file>` numbers each proposal and keeps or
+   refuses it by name: evidence must be the note's own sentence, one fact per claim, holders registered, nothing the
+   world already holds.
+3. Show the author the kept ones - claim, who holds it, the sentence it came from - and ask which to keep.
+4. `python scripts/facts.py approve --book "<book>" --note "<note>" --keep 1,3 --words "<the author's words>"` writes
+   them to `<book>/knowledge/<note>.md`, which the book loads. Without the author's words nothing is written.

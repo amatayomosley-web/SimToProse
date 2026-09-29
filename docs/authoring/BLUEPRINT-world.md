@@ -98,6 +98,8 @@ checked by their own modules (`law.py`, `tensions.py`, `systems.py`), which have
 | `knowledge[].same_as[]` | text | no | active | knowledge.links_for |  |
 | `knowledge[].norm` | bool | no | active | knowledge.links_for | true: the way this group does things, not a fact - never fades, everyday to every member (gate knowledge-norms) |
 | `knowledge[].sanction` | text | no | active | knowledge.links_for | a norm's cost: what breaking it brings |
+| `knowledge[].evidence` | text | no | active | knowledge.links_for | the sentence of a world note this fact was kept from, copied (scripts/facts.py); shown by ask.py knows |
+| `knowledge[].source` | text | no | active | knowledge.links_for | the note the fact was kept from |
 <!-- END GENERATED -->
 
 ---

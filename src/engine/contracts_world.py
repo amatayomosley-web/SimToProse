@@ -167,4 +167,7 @@ WORLD = (
     F("knowledge[].norm", "bool", reader="knowledge.links_for",
       doc="true: the way this group does things, not a fact - never fades, everyday to every member (gate knowledge-norms)"),
     F("knowledge[].sanction", "text", reader="knowledge.links_for", doc="a norm's cost: what breaking it brings"),
+    F("knowledge[].evidence", "text", reader="knowledge.links_for",
+      doc="the sentence of a world note this fact was kept from, copied (scripts/facts.py); shown by ask.py knows"),
+    F("knowledge[].source", "text", reader="knowledge.links_for", doc="the note the fact was kept from"),
 )

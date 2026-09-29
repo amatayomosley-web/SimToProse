@@ -81,3 +81,19 @@ _KNOWLEDGE_F = {
     "KNOWLEDGE_NORM_INVALID":          "a knowledge entry's `norm` is not true/false, or its `sanction` is not words or stands on a plain fact",
     "KNOWLEDGE_SAME_AS_INVALID":       "an identity (`same_as`) does not list two or more ids of the world's people - each name a person goes by is a people[] entry of its own",
 }
+
+# ---- FACTS_* — facts proposed from a world note, kept by the author (src/engine/proposals.py, scripts/facts.py) ----
+_FACTS_F = {
+    "FACTS_REPLY_NOT_AN_OBJECT":       "the proposer's reply is not JSON of the shape {\"facts\": [objects]}",
+    "FACTS_EVIDENCE_MISSING":          "a proposed fact gives no sentence of the note it came from",
+    "FACTS_EVIDENCE_IS_AUTHOR_TRUTH":  "a proposed fact quotes the note's fenced author-only truth, which nobody in the world knows",
+    "FACTS_EVIDENCE_NOT_IN_NOTE":      "a proposed fact's evidence is not the note's own words - it must be copied, never paraphrased",
+    "FACTS_TWO_FACTS":                 "a proposed claim holds more than one sentence - one fact per claim, the reason its own fact",
+    "FACTS_FIELD_UNKNOWN":             "a proposed fact carries a key that is not a field of a fact",
+    "FACTS_ALREADY_KNOWN":             "a proposed claim is one the world already holds",
+    "FACTS_NOTE_MISSING":              "the note named to propose from, check or approve is not in the book",
+    "FACTS_NO_PROPOSALS":              "approve was asked for a note whose proposals were never checked",
+    "FACTS_WORDS_MISSING":             "approve was given no words of the author's - a fact is kept only by the author's own approval",
+    "FACTS_KEEP_REFUSED":              "approve was asked to keep a proposal the check refused, or one it never numbered",
+    "FACTS_KNOWLEDGE_NOTE_INVALID":    "a note in <book>/knowledge/ carries no engine block with a `knowledge` list",
+}

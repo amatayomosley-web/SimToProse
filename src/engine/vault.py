@@ -173,6 +173,20 @@ def load_book(book_dir):
     # WHAT THEIR GROUPS KNOW (gate knowledge-links, 2026-09-28): a fact the world writes once, with the groups and
     # places that hold it, is linked into each member's vault here - before stamping, so a link is stamped like any
     # belief. A world with no `knowledge` and a sheet with no `memberships` add nothing.
+    # WHAT A WORLD SESSION KEPT (gate knowledge-proposals): <book>/knowledge/*.md, one per source note, written by
+    # scripts/facts.py approve from the author's own notes and only on the author's words. Each engine block's
+    # `knowledge` list follows the world note's own; the world contract checks the merged list like any other.
+    kept = []
+    for k in notes_in("knowledge"):
+        if (k["type"] or "knowledge") != "knowledge":
+            continue
+        rows = k["engine"].get("knowledge") if isinstance(k["engine"], dict) else None
+        if not isinstance(rows, list):
+            raise VaultError("FACTS_KNOWLEDGE_NOTE_INVALID",
+                             "knowledge note %r has no engine block with a `knowledge` list" % k["id"])
+        kept.extend(rows)
+    if kept and (world.get("knowledge") is None or isinstance(world.get("knowledge"), list)):
+        world["knowledge"] = list(world.get("knowledge") or []) + kept
     from .knowledge import materialise as _materialise
     _materialise(world, chars)
     from .facets import stamp as _stamp_facets
