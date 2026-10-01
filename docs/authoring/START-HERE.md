@@ -41,7 +41,9 @@ YourBook/
                 `reference` is kept for you and never loaded (BLUEPRINT-world.md §7.1a).
   chapters/     your outline, if you keep one. Nothing reads it — but an untyped file left in
                 world/ counts as a second world note and stops the book loading. Outlines go here.
-  runs/         the engine writes here. Never you, never by hand.
+  runs/         the engine writes here. Never you, never by hand. `python scripts/catalog.py
+                --book <slug>` writes runs/catalog.md: everyone, every place, group and thing,
+                ranked by how much the book uses them. Regenerate it; never edit it.
 ```
 
 Make `world/`, `characters/`, and `scenes/` before you write anything. The rest can wait.

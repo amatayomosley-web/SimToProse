@@ -1,7 +1,7 @@
 # MAP — what is in this project and what owns what
 
 **Why this file exists.** `docs/` holds 129 design docs, `src/engine/` 80 modules,
-`tests/` 139 suites. Nobody — human or agent — can hold that in their head, and reading it all every
+`tests/` 140 suites. Nobody — human or agent — can hold that in their head, and reading it all every
 session is not practical. **The failure this prevents is real and happened:** a session spent hours
 reasoning about the decision layer from four docs and inference, invented a parallel vocabulary
 ("vectors"), and rebuilt a worse version of the buff/debuff registry that `decision-engine.md`
@@ -332,7 +332,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `narrate` | 232 | the narrator (design.md layer 7, narration.md): a canonized scene -> POV-bound prose. |
 | `scene` | 393 | the multi-agent scene runner (the director sets the scene; the agents push it). |
 
-## tests/ — 139 suites (each is a PROOF of the gate it names)
+## tests/ — 140 suites (each is a PROOF of the gate it names)
 
 | tests | lines | owns |
 |---|---|---|
@@ -352,6 +352,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `test_canon_digest` | the digest must equal the DB it digests. |
 | `test_canonical_members` |  |
 | `test_capability_claims` | a mechanism a doc NAMES as available must have a code path. |
+| `test_catalog` | a book's people, places, groups and things, by level and by use (scripts/catalog.py). |
 | `test_checkout_role` |  |
 | `test_citation` |  |
 | `test_citations` | the docs' `file.py:NN` references must point at what they claim. |
