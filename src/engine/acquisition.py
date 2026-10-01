@@ -15,6 +15,7 @@ from .records import RecordError   # rule 6's bad-input type
 
 from .consolidation import is_durable
 from .facets import stamp as _stamp_facets
+from .presence import mentions, names_of
 
 # The durability predicate is imported, never re-spelled. This module used to carry
 # `_DURABLE = ("durable", "marking", "reshaping")` — a THIRD vocabulary, accepting two values
@@ -205,23 +206,41 @@ def overheard_names(text, relationships, people):
     DESCRIPTOR — transmission: hearing a name said in the scene is how a bystander learns it
     (knowledge-model.md transmission; rides on witness-propagation). Returns [(entity_id, first_name)]
     for the caller to reveal_name + persist. The canonical name comes from the people registry, never
-    guessed; matched on the first name token (what gets spoken). Pure, deterministic. An entity the
-    witness already names, or has no edge to, is skipped — new-entity acquisition is a separate path.
+    guessed. Heard on any of `presence.names_of` as a word (the list perception reads), and what is learned
+    is what was HEARD: a form holding the id's first word teaches the spoken word (the word of `name` that
+    is the id's first word, else the name's first word - "Corby Bisset" said aloud teaches "Corby"); any other
+    form, an alias, teaches itself ("Quill" teaches "Quill", never a first name nobody said). A form whose
+    words all sit inside the descriptor the witness already uses teaches nothing ("the old man" never
+    learns from "Old"). One name per person per text: the first form heard, in names_of's order. Pure,
+    deterministic. An entity the witness already names, or has no edge to, is skipped — new-entity
+    acquisition is a separate path.
     """
     if not isinstance(text, str) or not isinstance(relationships, dict):
         return []
-    name_by_id = {p["id"]: str(p.get("name", "")) for p in (people or [])
-                  if isinstance(p, dict) and p.get("id")}
+    by_id = {p["id"]: p for p in (people or []) if isinstance(p, dict) and p.get("id")}
+    t = _normalize(text)
     out = []
     for eid, rel in relationships.items():
-        if not isinstance(rel, dict) or not rel.get("known_as"):
+        if not isinstance(rel, dict) or not rel.get("known_as") or eid not in by_id:
             continue                                       # no edge data, or they already know the name natively
-        first = (name_by_id.get(eid, "") or "").split(" ")[0].strip()
-        if len(first) < 2 or _normalize(first) == _normalize(str(rel["known_as"])):
-            continue                                       # known_as already IS the name -> nothing to learn
-        if re.search(r"\b%s\b" % re.escape(first), text, re.IGNORECASE):
-            out.append((eid, first))
+        person = by_id[eid]
+        words = str(person.get("name", "") or "").split()
+        head = _normalize((str(eid).replace("_", " ").split() or [""])[0])
+        spoken = next((w for w in words if _normalize(w) == head), "")   # the id's first word, as `name` spells it
+        canon = spoken or (words[0] if words else "")
+        known = set(_normalize(str(rel["known_as"])).split())
+        if len(canon) < 2 or _normalize(canon) in known:
+            continue                                       # known_as already holds the name -> nothing to learn
+        for f in names_of(person):
+            fw = [w for w in _normalize(f).split() if w not in _FILLER]
+            if fw and not set(fw) <= known and mentions(f, t, _normalize):
+                heard = f if f != f.lower() else " ".join(w.capitalize() for w in f.split())   # an id-made form
+                out.append((eid, spoken if spoken and head in _normalize(f).split() else heard))
+                break
     return out
+
+
+_FILLER = ("the", "a", "an", "of")   # words a descriptor and an alias may share without either naming anyone
 
 
 # ---- Track 1: Belief Revision & Contradiction Helpers ----

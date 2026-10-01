@@ -43,9 +43,11 @@ checked by their own modules (`law.py`, `tensions.py`, `systems.py`), which have
 | `season` | any | no | unread | - | nothing reads it; a season that must reach a character goes in the scene |
 | `people` | list | no | active | presence; bible; attachments; acquisition | everyone a character can perceive or name |
 | `people[]` | map | no | active | presence.named_in |  |
-| `people[].id` | text | no | active | presence.named_in; bible; scene.subject_groups | the join: its first word is the name the text is searched for |
+| `people[].id` | text | no | active | presence.names_of; presence.named_in; bible; scene.subject_groups | the join; its first word is the word people say - one of the names presence.names_of looks for |
 | `people[].what` | text | no | active | presence (shown on a passed insight check); bible; critic |  |
-| `people[].name` | text | no | active | facets; scene._display_names; acquisition.overheard_names | the name said aloud; the id, title-cased, when absent |
+| `people[].name` | text | no | active | presence.names_of; facets; scene._display_names; acquisition.overheard_names | the name said aloud; the id, title-cased, when absent |
+| `people[].aliases` | list | no | active | presence.names_of | other names EVERYONE uses for them - a surname, a given name, a nickname - matched as words by perception, a witness's beliefs and a bystander learning a name. Never a post (the next holder inherits it), never an old name, never a family name given to the whole family; what ONE character calls them is that relationship's known_as |
+| `people[].aliases[]` | text | no | active | presence.names_of |  |
 | `people[].groups` | list | no | active | attachments.names_for; scene.subject_groups | group tags - grp.<tag> attachments and regard; a LIST (a string is read letter by letter) |
 | `people[].groups[]` | text | no | active | attachments.names_for |  |
 | `locations` | list | no | active | gate._lookup_location; attachments; bible; critic |  |
@@ -693,7 +695,8 @@ Three rules keep this clean:
 - **The frontmatter `aliases` are yours, for finding the note** — surnames, nicknames, titles, old
   spellings. The engine never reads them (the frontmatter reader takes flat keys only, and a list
   arrives as one string: `src/engine/vault.py:54-63`), and it must not: an old name matched in a
-  scene would name the wrong person.
+  scene would name the wrong person. The engine's own list is a different one — `aliases` inside the
+  person's JSON block, for names everyone uses today (§7.3a).
 - **Promotion is one edit.** When a scene needs someone to be seen or named, change `type: reference`
   to `type: person` and add the small JSON block (`id`, `name`, `what`). Do not ALSO add them to the
   world note's inline list: two entries are two homes and two `what`s, and they will drift.
@@ -709,15 +712,24 @@ and which still needs a person entry, see above).
 Worked examples: `tam`, `nell`, `orrin` (`Beck Hollow/world/BeckHollow.md:69-85`), and `faron`
 (`Beck Hollow/people/Faron.md:3`).
 
-**The rule that catches everyone: the id's FIRST WORD is the name matched in your event text.**
-The engine takes the id, splits it on underscores, and looks for the *first* token in the event
-text — `first_name = name_parts[0]`, then `if first_name and _normalize(first_name) in t`
-(`src/engine/gate.py:443-446`). So if your scenes say "Edda", the id must begin `edda`. An id of
-`the_baker` will be searched for as the word "the", which matches almost every sentence in
-English.
+**The rule that catches everyone: the id's FIRST WORD is the word people say.** A scene names this
+person when any of their names stands in the event text as a whole word: the id's first word, the
+id as words, the whole `name`, and each of their `aliases` (§7.3a) — one list, `presence.names_of`
+(`src/engine/presence.py:93-121`), matched by `presence.mentions` (`src/engine/presence.py:72-90`)
+and read the same way by perception, by the beliefs a witness forms, and by a bystander learning a
+name. So if your scenes say "Edda", the id must begin `edda`. An id of `the_baker` will be searched
+for as the word "the", which matches almost every sentence in English.
+
+A whole word, never part of one: until 2026-10-01 the first word was found inside longer words, and
+in a live run an ordinary word that happened to contain a short name named a person who was nowhere
+in the scene, for four beats. The
+possessive still counts ("Nell's"); a plural does not ("the Nells"). The other words of `name` do
+NOT count on their own — a surname a family shares would name all of them; list a surname in
+`aliases` when people really do call this one person by it.
 
 >> **HOW THIS IS USED:** three things at once. It is the key that produces an entity percept
-when this person is named in a scene (`src/engine/gate.py:430-451`). It is the key a character's
+when this person is named in a scene (`src/engine/presence.py:124-145`, called from
+`src/engine/gate.py:230`). It is the key a character's
 relationship record must point at, or that edge never surfaces
 (`scripts/lint_book.py:162-164`; also `scripts/direct.py:258-261`). And it is registered in the
 book's pinned entity store, so a citation naming this person resolves as real rather than
@@ -732,9 +744,12 @@ fabricated (`src/engine/bible.py:94-98`).
 **REQUIRED.** The full name a person in the room would say aloud.
 
 **Write it together with the id.** The id's first word is the word people say (§7.2), and `name` is
-the full personal name with that word in it — `nell` and "Nell Harrow". No titles: a name-learning
-character listens for the first word of `name` (`src/engine/acquisition.py:213-222`), so "Captain
-Odile Quill" would be heard as "Captain". A title or post belongs in `what`.
+the full personal name with that word in it — `nell` and "Nell Harrow". A bystander who hears the
+id's first word, or the whole name, learns the word of `name` that matches it, as written there
+(`src/engine/acquisition.py:204-240`); any other alias they hear teaches the alias itself ("Old
+Odile" holds the first word and teaches "Odile"; "Quill" teaches "Quill"). No titles: the
+name is what witnesses' memories are worded with, and a title or post changes hands — it belongs in
+`what`.
 
 Worked example: `"name": "Nell Harrow"` (`Beck Hollow/world/BeckHollow.md:77`).
 
@@ -750,8 +765,8 @@ Worked example: `"name": "Nell Harrow"` (`Beck Hollow/world/BeckHollow.md:77`).
 > 3. It is how a name gets *learned* mid-scene. If a character knows somebody only by a
 >    descriptor — "the man with the dogs" — and then hears the real name spoken aloud, they
 >    learn it, and the canonical name comes from this field, never guessed
->    (`src/engine/acquisition.py:158-179`, especially `name_by_id` at `:168-169`, driven from
->    `scripts/scene.py:534-536`).
+>    (`acquisition.overheard_names`, `src/engine/acquisition.py:204-240`, driven from
+>    `scripts/scene.py:1193`).
 >
 > It also goes to the continuity critic's "WHO" line (`scripts/critic.py:43-46` and `:83`).
 
@@ -760,6 +775,29 @@ Worked example: `"name": "Nell Harrow"` (`Beck Hollow/world/BeckHollow.md:77`).
 
 *(Footnote 4: an earlier audit of this engine recorded `people[].name` as reaching only the
 optional critic. That is wrong — the three consumers above are all live.)*
+
+## 7.3a `people[].aliases`
+
+**OPTIONAL.** A list of the other names *everyone* uses for this person — a surname, a given name,
+a nickname: `"aliases": ["Quill", "Old Odile"]`. Each is matched as a whole word by perception, by a
+witness's beliefs and by a bystander learning a name (§7.2), so "Old Odile came in" names her, and a
+bystander who hears "Quill" learns "Quill".
+
+>> **HOW THIS IS USED:** read by `presence.names_of` (`src/engine/presence.py:93-121`), and declared
+in the world contract (`src/engine/contracts_world.py:98-102`) — an undeclared key would refuse the run.
+What an alias does NOT reach: the wall that hides a name from someone who doesn't know it, the check
+for a name leaking into a character's words, and the grouping of people who share a first word all
+still read the id's first word only (`src/engine/gate.py:573-593`, `src/engine/faithfulness.py:16-35`,
+`src/engine/presence.py:155`). So an alias is never hidden from a character who doesn't know it.
+
+Do not give a family name to everyone in the family as an alias: it would name all of them at once.
+Give it to the one people actually call by it.
+
+Two things it is NOT for. **A post** ("the harbourmaster"): the next holder inherits it, so it would
+name the wrong person the day the post changes hands — a post belongs in `what`. **What one character
+calls them** ("the man with the dogs"): that is that relationship's `known_as`, and it differs from
+one knower to the next. And never an old name: it would name them in a scene where nobody says it.
+Only a LIST is read; a single string is the contract's to refuse.
 
 ## 7.4 `people[].what`
 
@@ -793,7 +831,7 @@ entity register (`src/engine/bible.py:102`) and the "WHO" line the critic gets
 (`scripts/critic.py:83`).
 
 **IF YOU LEAVE IT BLANK:** recognition still fires, but hands over the person's first name and
-nothing else (`src/engine/gate.py:447-449` falls back to the first name when `what` is empty).
+nothing else (`src/engine/presence.py:142` falls back to the first name when `what` is empty).
 
 ## 7.5 `people[].groups` — OPTIONAL, and more useful than it looks
 
@@ -1880,7 +1918,7 @@ loop at `:126-136`. Both routes work, and they combine.
 It reaches three live paths: display naming for the whole run
 (`scripts/scene.py:77-92`), the wording of beliefs that witnesses form about each other
 (`scripts/scene.py:518` into `src/engine/acquisition.py:109-114`), and the mid-scene learning of
-a name by someone who knew only a descriptor (`src/engine/acquisition.py:158-179`).
+a name by someone who knew only a descriptor (`src/engine/acquisition.py:204-240`).
 
 **5. Line citations inside `docs/world-authoring-rules.md` are stale.**
 That document cites `vault.py:81-88` for the json-block rule and `vault.py:92-93` for the

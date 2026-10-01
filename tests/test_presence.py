@@ -33,7 +33,7 @@ def check(name, condition, detail=""):
         FAIL.append(name)
         msg = "  FAIL  %s" % name
         if detail:
-            msg += "  - " + detail
+            msg += "  - " + str(detail)       # a list or tuple as detail used to crash the run at the first failure
         print(msg)
 
 
@@ -139,6 +139,69 @@ def test_edge_from_rel():
           "respect" not in edge and "debt" not in edge, edge)
     check("their_view carries through when present",
           P.edge_from_rel("x", {"their_view": {"affinity": 0.8}})["their_view"] == {"affinity": 0.8})
+
+
+def test_names_one_rule():
+    print("\n[8] NAMES_OF + MENTIONS - one list of names, matched as whole words, read by every name path")
+    from src.engine import acquisition, contracts, contracts_world, facets
+    from src.engine.gate import _normalize
+    ned = {"id": "ned", "what": "the carter"}
+    tobit = {"id": "tobit_wendle", "name": "Tobit Wendle", "what": "the reeve"}
+    corby = {"id": "corby_bisset", "name": "Corby Bisset", "what": "the tallyman", "aliases": ["Corbs", "Big Corby"]}
+    fran = {"id": "fran", "name": "Fran", "what": "the weaver"}
+    world = {"people": [ned, tobit, corby, fran]}
+    named = lambda text: [h[0] for h in P.named_in(text, world, _normalize)]
+    # a name inside a longer word names no one: measured on a live run, 2026-10-01, a short id inside an ordinary word
+    # put a person who was not in the scene into four beats' percepts
+    check("a name inside a longer word is not a mention ('turned' does not name ned)", named("She turned away.") == [])
+    check("nor 'Tobitha' tobit", named("Tobitha came in.") == [])
+    check("nor a phrase that runs into a longer word ('a big corbyn')", named("A big corbyn sat.") == [])
+    check("nor a name before a letter outside a-z ('François')", named("François came in.") == [])
+    check("the possessive still names ('Ned's')", named("Ned's cart was empty.") == ["ned"])
+    check("a whole name names, across any run of spaces", named("Corby   Bisset came late.") == ["corby_bisset"])
+    check("an alias names", named("Corbs counted coins.") == ["corby_bisset"])
+    check("a word of `name` alone names no one unless it is an alias (a shared surname would name a family)",
+          named("Wendle signed the tally.") == [])
+    check("a post nobody declared names no one", named("The reeve's clerk counted coins.") == [])
+    check("names_of: the id's first word, the id as words, the whole name, then the aliases, deduped, in order",
+          P.names_of({"id": "tam_rill", "name": "Tam Rill", "aliases": ["Rill", "Tam", "Tammy"]})
+          == ["tam", "tam rill", "Rill", "Tammy"],
+          P.names_of({"id": "tam_rill", "name": "Tam Rill", "aliases": ["Rill", "Tam", "Tammy"]}))
+    check("names_of reads only a LIST of aliases (a string is the contract's to refuse, not letters to match)",
+          P.names_of({"id": "ned", "aliases": "Neddy"}) == ["ned"])
+    check("belief-stamping reads the same list (an alias stamps)",
+          facets.entities_in("Corbs counted coins.", world) == ["corby_bisset"])
+    check("belief-stamping: a name inside a longer word stamps no one",
+          facets.entities_in("She turned away.", world) == [])
+    rels = {"tobit_wendle": {"known_as": "the reeve"}, "corby_bisset": {"known_as": "the tallyman"},
+            "ned": {"known_as": "the carter"}}
+    quill = {"id": "odile_quill", "name": "Odile Quill", "what": "x", "aliases": ["Quill", "Old"]}
+    people = [dict(ned, name="Ned"), tobit, corby, quill, {"id": "tansy_old", "name": "Tansy", "what": "x", "aliases": ["the tallyman"]}]
+    check("hearing the whole name teaches the spoken word",
+          acquisition.overheard_names("Tobit Wendle signed it.", rels, people) == [("tobit_wendle", "Tobit")],
+          acquisition.overheard_names("Tobit Wendle signed it.", rels, people))
+    check("a surname that is no alias is not heard", acquisition.overheard_names("Wendle signed it.", rels, people) == [])
+    check("an alias holding the id's first word teaches the spoken word",
+          acquisition.overheard_names("Big Corby counted.", rels, people) == [("corby_bisset", "Corby")])
+    check("any other alias teaches itself, never a name nobody said",
+          acquisition.overheard_names("Quill came in.", {"odile_quill": {"known_as": "the dyer"}}, people)
+          == [("odile_quill", "Quill")])
+    check("an alias whose words all sit inside the witness's descriptor teaches nothing",
+          acquisition.overheard_names("The old man sat.", {"odile_quill": {"known_as": "the old woman"}}, people) == []
+          and acquisition.overheard_names("The tallyman sat.", {"tansy_old": {"known_as": "tallyman"}}, people) == [])
+    check("a name inside a longer word is not heard",
+          acquisition.overheard_names("She turned away.", rels, people) == [])
+    check("a name beside an underscore still names (markdown italics, an id label)",
+          named("_Ned_ left.") == ["ned"] and named("ned_carter: Yes.") == ["ned"])
+    check("hearing the id's first word, when `name` lacks it, teaches what was heard, not a name nobody said",
+          acquisition.overheard_names("Uncle Osric came.", {"osric_uncle": {"known_as": "the old man"}},
+                                      [{"id": "osric_uncle", "name": "Agnes Bright", "what": "x"}])
+          == [("osric_uncle", "Osric")])
+    check("a cue PHRASE (wounds, topics) still reads by containment - only names are bounded",
+          facets._mentions("the mill", _normalize("down by the millpond")) is True)
+    findings = contracts.check({"people": [corby]}, contracts_world.WORLD)
+    check("the world contract declares people[].aliases (an undeclared key would refuse the run)",
+          not [f for f in findings if "aliases" in str(f.get("path"))], findings)
 
 
 def main():

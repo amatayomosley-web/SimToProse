@@ -90,11 +90,17 @@ WORLD = (
       absent="EMPTY - entity recognition has nothing to recognize, and every relationship edge is disabled with it; "
              "people/*.md notes load only when their frontmatter says type: person"),
     F("people[]", "map", check=_person, reader="presence.named_in"),
-    F("people[].id", "text", reader="presence.named_in; bible; scene.subject_groups",
-      doc="the join: its first word is the name the text is searched for"),
+    F("people[].id", "text", reader="presence.names_of; presence.named_in; bible; scene.subject_groups",
+      doc="the join; its first word is the word people say - one of the names presence.names_of looks for"),
     F("people[].what", "text", reader="presence (shown on a passed insight check); bible; critic"),
-    F("people[].name", "text", reader="facets; scene._display_names; acquisition.overheard_names",
+    F("people[].name", "text", reader="presence.names_of; facets; scene._display_names; acquisition.overheard_names",
       doc="the name said aloud; the id, title-cased, when absent"),
+    F("people[].aliases", "list", reader="presence.names_of",
+      doc="other names EVERYONE uses for them - a surname, a given name, a nickname - matched as words by "
+          "perception, a witness's beliefs and a bystander learning a name. Never a post (the next holder inherits "
+          "it), never an old name, never a family name given to the whole family; what ONE character calls them is "
+          "that relationship's known_as"),
+    F("people[].aliases[]", "text", reader="presence.names_of"),
     F("people[].groups", "list", reader="attachments.names_for; scene.subject_groups",
       doc="group tags - grp.<tag> attachments and regard; a LIST (a string is read letter by letter)"),
     F("people[].groups[]", "text", reader="attachments.names_for"),

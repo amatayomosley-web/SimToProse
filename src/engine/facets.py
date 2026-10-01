@@ -33,29 +33,25 @@ from __future__ import annotations
 import re
 
 from .gate import _lexicon, _normalize
+from .presence import mentions, names_of
 
 
 def _mentions(word, text):
-    """Word-boundary containment, never raw substring.
+    """Word-boundary containment for a cue word, never raw substring - `presence.mentions` with gate's normaliser.
 
     `levers.py` learned this the expensive way: raw `in` fired a row keyed on a short word against
-    two unrelated words that merely contained it. A single token must match as a WORD; a
-    multi-word phrase keeps substring semantics because it cannot collide by accident.
+    two unrelated words that merely contained it. The rule itself lives in presence.py since 2026-10-01; a cue
+    PHRASE here keeps containment (`bounded_phrases=False`), as wounds and topics always read it.
     """
-    w = _normalize(word).strip()
-    if not w:
-        return False
-    if " " in w:
-        return w in text
-    return re.search(r"(?<![0-9a-z])%s(?![0-9a-z])" % re.escape(w), text) is not None
+    return mentions(word, text, _normalize, bounded_phrases=False)
 
 
 def entities_in(text, world):
     """-> [entity_id] for every person the world knows who is NAMED in this text.
 
-    Matches the person's id-derived name and their authored display name, both at word boundaries.
-    Absence is a real answer: a belief that refers to someone only as "he" resolves to nothing here,
-    and that is precisely the case only the writer can settle.
+    Matches every form `presence.names_of` gives (the id's first word, the id, the whole name, the aliases), each
+    as bounded words - the list and the rule perception reads too. Absence is a real answer: a belief that refers
+    to someone only as "he" resolves to nothing here, and that is precisely the case only the writer can settle.
     """
     t = _normalize(str(text or ""))
     found = []
@@ -63,14 +59,7 @@ def entities_in(text, world):
         if not isinstance(person, dict):
             continue
         pid = str(person.get("id", "") or "")
-        if not pid:
-            continue
-        candidates = [pid.replace("_", " ")]
-        name = str(person.get("name", "") or "")
-        if name:
-            candidates.append(name)
-            candidates.extend(name.split())          # "Tam Rill" also matches on "Tam"
-        if any(_mentions(c, t) for c in candidates):
+        if pid and any(mentions(c, t, _normalize) for c in names_of(person)):
             found.append(pid)
     return sorted(set(found))
 

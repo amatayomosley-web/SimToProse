@@ -25,6 +25,8 @@ from __future__ import annotations
 
 __layer__ = "engine"
 
+import re
+
 from .records import PATHS, RecordError, RELATIONSHIP_AXES
 
 
@@ -67,12 +69,65 @@ def display_name(entity_id):
     return " ".join(w.capitalize() for w in str(entity_id).split("_") if w) or str(entity_id)
 
 
+def mentions(word, text, normalize, bounded_phrases=True):
+    """Does `text` (already normalised) mention `word` — as a WORD, never as part of a longer one?
+
+    The one matching rule for a name in a text. A token must stand alone: until 2026-10-01 a name was found by raw
+    containment, and in a live run an ordinary word that happened to contain a short name named a person who was
+    nowhere in the scene, for four beats. A phrase is bounded the same way at both
+    ends, with any run of spaces between its words ("a big corbyn" does not name a Big Corby). The boundary is any
+    letter or digit, not just a-z, so "Fran" is not named inside "François"; an underscore is not one, so a name in
+    markdown italics ("_Ned_") or an id label ("ned_carter:") still names. The possessive survives ("Ned's"); a
+    plural does not ("the Corbys"). `bounded_phrases=False` is the cue-word reading `facets._mentions` keeps for
+    wounds and topics: a phrase there is matched by containment, as it always was.
+    """
+    w = " ".join(normalize(str(word or "")).split())
+    if not w:
+        return False
+    if " " in w and not bounded_phrases:
+        return w in text
+    body = r"\s+".join(re.escape(p) for p in w.split(" "))
+    return re.search(r"(?<![^\W_])%s(?![^\W_])" % body, text) is not None   # a letter or digit, never "_", is a wall
+
+
+def names_of(person):
+    """Every form a text may name this person by, in a fixed order: the id's first word (the word people say, and
+    the join key), the whole id as words, the whole `name`, then each world-level `alias`. Deduped case-blind; a
+    form under two letters is dropped.
+
+    ONE list, read by perception (`named_in`), belief-stamping (`facets.entities_in`) and hearing
+    (`acquisition.overheard_names`). Before it they read three different keys, so a surname-first id with a
+    given-name-first `name` was perceived, remembered and heard as three people (the Fable review, 2026-10-01).
+    The words of `name` are NOT forms on their own: a surname a family shares, or an "Old" or a "Will", would name
+    every holder wherever the word appears (the code review of the same day). A surname counts only when the author
+    lists it in `aliases`. Only a LIST of aliases is read: a string is the world contract's to refuse.
+    """
+    if not isinstance(person, dict):
+        return []
+    pid = str(person.get("id", "") or "")
+    head = (pid.replace("_", " ").split() or [""])[0]
+    forms = [head, pid.replace("_", " ")]
+    name = str(person.get("name", "") or "")
+    if name:
+        forms.append(name)
+    aliases = person.get("aliases")
+    if isinstance(aliases, (list, tuple)):
+        forms += [a for a in aliases if isinstance(a, str)]
+    out, seen = [], set()
+    for f in (f.strip() for f in forms):
+        if len(f) >= 2 and f.lower() not in seen:
+            seen.add(f.lower())
+            out.append(f)
+    return out
+
+
 def named_in(text, world, normalize):
     """Return [(entity_id, entity_label, [observable_attrs])] for known entities mentioned.
 
     Identity derives from world.people. NAMING is all this establishes — whether they are HERE is
     `match`'s question, and conflating the two is the defect this module exists to prevent.
     `normalize` is passed in rather than duplicated, so there is one spelling of it (gate.py's).
+    A person is named when any of `names_of` stands in the text as a word (`mentions`).
     """
     t = normalize(text)
     results = []
@@ -80,10 +135,8 @@ def named_in(text, world, normalize):
     for person in world.get("people", []):
         pid   = person.get("id", "")
         what  = person.get("what", "")
-        # Check if this person's name appears in the event text
-        name_parts = pid.replace("_", " ").split()
-        first_name = name_parts[0] if name_parts else ""
-        if first_name and normalize(first_name) in t:
+        first_name = (pid.replace("_", " ").split() or [""])[0]
+        if first_name and any(mentions(f, t, normalize) for f in names_of(person)):
             # Observable attributes: role/description from world (not secret)
             # We expose only the role description, not inner motivations
             observable = [what] if what else [first_name]
