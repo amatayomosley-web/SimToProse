@@ -159,4 +159,5 @@ Two checks the linter will not run for you:
 `docs/guide-content.md` for the field-by-field shape of the notes · `docs/world-authoring-rules.md`
 for the contract in full · `.claude/skills/worldbuilding-frameworks/` for the library (keep it even
 if you skip the agents — it is reference an author reads, not code an agent runs) ·
-`docs/guide-user-path.md` for what happens after the world is built.
+`docs/guide-user-path.md` for what happens after the world is built · `docs/guide-building-a-cast.md`
+for inventing the people who live in it.
