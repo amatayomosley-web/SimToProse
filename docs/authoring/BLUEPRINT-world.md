@@ -637,12 +637,12 @@ frontmatter and its own small JSON block.
 The loader **starts from the inline array and then appends the files**:
 
 ```
-people = list(world.get("people", []))          # vault.py:125 — the INLINE array, FIRST
-for p in notes_in("people"):                    # vault.py:126 — then the files
+people = list(world.get("people", []))          # vault.py:131 — the INLINE array, FIRST
+for p in notes_in("people"):                    # vault.py:132 — then the files
     ...
-    people.append(entry)                        # vault.py:136
+    people.append(entry)                        # vault.py:142
 ```
-(`src/engine/vault.py:125-138`)
+(`src/engine/vault.py:131-144`)
 
 So the two routes do not compete — they combine, inline first. Use whichever suits: inline for a
 name that needs one line, a file for someone who needs a paragraph of prose you will re-read.
@@ -654,17 +654,53 @@ from `people/*.md` **only**. That is wrong, and the line above is why.)*
 
 **Route B's own rules**, if you use it:
 
-- The frontmatter **must** say `type: person`, or say nothing at all. An explicit `type: concept`
-  makes the note invisible — `if (p["type"] or "person") != "person": continue`
-  (`src/engine/vault.py:126-128`).
+- The frontmatter **must** say `type: person`, or say nothing at all. Any other type makes the
+  note invisible — `if (p["type"] or "person") != "person": continue`
+  (`src/engine/vault.py:133-134`). §7.1a uses that on purpose.
 - If you give no `id`, one is made from the filename, lowercased, spaces to underscores
-  (`src/engine/vault.py:130`).
+  (`src/engine/vault.py:136`).
 - If you give no `what`, the **first prose line** of the note becomes it — the first non-blank
-  line that is not a heading, a bullet, or a code fence (`src/engine/vault.py:131-135`).
+  line that is not a heading, a bullet, or a code fence (`src/engine/vault.py:137-141`).
 
 Here is the reference book's whole person note, which is as short as one can be
 (`Beck Hollow/people/Faron.md:1-12`): frontmatter saying `type: person` and `id: faron`, one
 paragraph of prose, and a one-line JSON block giving `id`, `name`, and `what`.
+
+## 7.1a People the engine does not read yet — `type: reference`
+
+A world holds more people than its scenes need: the miller's cousin, a drover's family down the beck, a
+whole household invented so the place feels lived in. Keep each of them in **one** note in
+`people/`, typed so the loader passes over it:
+
+```
+---
+type: reference
+id: odile
+aliases: [Odile Quill, the dyer's widow]
+---
+# Odile Quill
+(as much prose as you like — the loader never reads it)
+```
+
+>> **HOW THIS IS USED:** it is not, and that is the point. Any type but `person` (or none) is
+skipped (`src/engine/vault.py:133-134`), so a reference note adds no one to `world.people`, nothing
+for a character to perceive, and no change to the bible a run is pinned to (`src/engine/bible.py:62-82`).
+
+Three rules keep this clean:
+
+- **Write the type.** A note in `people/` with *no* type loads as a person, with an id made from its
+  filename (`src/engine/vault.py:133-136`). A subfolder is not a substitute for the type line.
+- **The frontmatter `aliases` are yours, for finding the note** — surnames, nicknames, titles, old
+  spellings. The engine never reads them (the frontmatter reader takes flat keys only, and a list
+  arrives as one string: `src/engine/vault.py:54-63`), and it must not: an old name matched in a
+  scene would name the wrong person.
+- **Promotion is one edit.** When a scene needs someone to be seen or named, change `type: reference`
+  to `type: person` and add the small JSON block (`id`, `name`, `what`). Do not ALSO add them to the
+  world note's inline list: two entries are two homes and two `what`s, and they will drift.
+
+The levels, then: a **reference** note (kept for you; the engine ignores it), a **person** (seen and
+named — §7.1, Route A or B), and a **character** (a sheet in `characters/`, which the engine acts —
+and which still needs a person entry, see above).
 
 ## 7.2 `people[].id`
 
@@ -694,6 +730,11 @@ fabricated (`src/engine/bible.py:94-98`).
 ## 7.3 `people[].name`
 
 **REQUIRED.** The full name a person in the room would say aloud.
+
+**Write it together with the id.** The id's first word is the word people say (§7.2), and `name` is
+the full personal name with that word in it — `nell` and "Nell Harrow". No titles: a name-learning
+character listens for the first word of `name` (`src/engine/acquisition.py:213-222`), so "Captain
+Odile Quill" would be heard as "Captain". A title or post belongs in `what`.
 
 Worked example: `"name": "Nell Harrow"` (`Beck Hollow/world/BeckHollow.md:77`).
 

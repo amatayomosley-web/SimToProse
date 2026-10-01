@@ -37,7 +37,8 @@ YourBook/
   characters/   one .md file per person the engine acts.  BLUEPRINT-character.md builds these.
   scenes/       one .json file per scene.  BLUEPRINT-scene.md builds these.
   people/       optional. One .md file per walk-on, if you prefer files to the world note's
-                inline `people` list. Both routes work and they combine.
+                inline `people` list. Both routes work and they combine. A note typed
+                `reference` is kept for you and never loaded (BLUEPRINT-world.md §7.1a).
   chapters/     your outline, if you keep one. Nothing reads it — but an untyped file left in
                 world/ counts as a second world note and stops the book loading. Outlines go here.
   runs/         the engine writes here. Never you, never by hand.
