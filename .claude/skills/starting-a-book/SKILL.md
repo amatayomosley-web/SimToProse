@@ -199,6 +199,10 @@ and expensive to skip:
 grounds invented elements in real-world analogs. This map tells you *which* step you are on;
 that skill helps you *do* it.
 
+**For one people or one place inside steps 3–4:** `docs/guide-building-a-nation.md` and
+`docs/guide-building-a-settlement.md` are the sheets, part by part, and they show what a people or
+a place you have already written is missing.
+
 ---
 
 ## 4. Then: characters, then run it

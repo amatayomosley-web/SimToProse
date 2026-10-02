@@ -8,6 +8,10 @@ commands that prove your book works.
 
 Read this page once. It is short. Then open the world blueprint.
 
+Building a whole people or a place before the forms? `docs/guide-building-a-nation.md` and
+`docs/guide-building-a-settlement.md` are the sheets for that, part by part, and they show what a people or a place
+you have already written is missing.
+
 ---
 
 ## The order, and why it is not arbitrary

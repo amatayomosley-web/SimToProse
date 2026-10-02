@@ -118,6 +118,7 @@ Sessions built one at a time drift apart. Before the author reviews the cast, ch
 
 ## Where to go next
 
-`docs/guide-building-a-world.md` for the world the cast lives in · `docs/character-authoring-rules.md` for what a
+`docs/guide-building-a-world.md` for the world the cast lives in · `docs/guide-building-a-nation.md` and
+`docs/guide-building-a-settlement.md` for the people and the places they come from · `docs/character-authoring-rules.md` for what a
 character note must hold for the engine · `docs/world-authoring-rules.md` for how the world note lists its people ·
 `docs/guide-emotional-authoring.md` for the inner life the engine reads.

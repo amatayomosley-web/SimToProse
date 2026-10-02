@@ -72,7 +72,9 @@ Four documents bind what you author. They are contracts, not advice:
 
 **The PROCEDURE is `guide-building-a-world.md`.** The row above is the CONTRACT — what the
 machine accepts. Until 2026-09-01 nothing walked a blank page to a loadable world, so an author
-arriving here had a linter and a framework library and no order to decide things in.
+arriving here had a linter and a framework library and no order to decide things in. For one people
+or one place inside that world, part by part and with its gaps shown, the sheets are
+`guide-building-a-nation.md` and `guide-building-a-settlement.md`.
 | `character-authoring-rules.md` | character notes + the `## Beliefs` vault | `scripts/lint_book.py` |
 | `scene-authoring-rules.md` | scene configs, drives, props, magnitudes | `scripts/lint_scene.py` (rules 1–3 only; 4–7 are unmechanized) |
 | **`standard-vectors.md`** | **every number that describes an event** | none — read §3 |

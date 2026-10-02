@@ -1,6 +1,6 @@
 # MAP — what is in this project and what owns what
 
-**Why this file exists.** `docs/` holds 129 design docs, `src/engine/` 80 modules,
+**Why this file exists.** `docs/` holds 131 design docs, `src/engine/` 80 modules,
 `tests/` 140 suites. Nobody — human or agent — can hold that in their head, and reading it all every
 session is not practical. **The failure this prevents is real and happened:** a session spent hours
 reasoning about the decision layer from four docs and inference, invented a parallel vocabulary
@@ -102,7 +102,7 @@ the system already names, stop and search this table.**
 that lets narrated prose write state (`design.md` three boundaries).
 
 ---
-## docs/ — 128 design docs (normative for what SHOULD BE)
+## docs/ — 130 design docs (normative for what SHOULD BE)
 
 | docs | lines | owns |
 |---|---|---|
@@ -164,6 +164,8 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `goal-alignment-review` | the spider test against the shipped engine |
 | `grounding` | how the orchestrator is kept speaking from facts |
 | `guide-building-a-cast` | the procedure |
+| `guide-building-a-nation` | the sheet and the gap list |
+| `guide-building-a-settlement` | the sheet for a village, town or city |
 | `guide-building-a-world` | the procedure |
 | `guide-content` | authoring a book's inputs |
 | `guide-continuing-the-story` | what to author for each generation step (LLM guide) |

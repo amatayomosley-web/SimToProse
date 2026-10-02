@@ -33,6 +33,21 @@ The routing, when a decision must actually reach an actor:
 | someone who exists whether or not they act | a **person** |
 | something one character believes | a **belief on that character**, not a world fact |
 | true only right now, in this scene | the **event text** |
+| something a whole people, trade or place knows | **knowledge**, held by a group or a place (`scripts/facts.py` proposes it from a note) |
+| the way a group does things, and what breaking it costs | a **knowledge** entry marked `norm`, with its `sanction`; a **law** in the custom domain instead when a scene will attempt the act and the breaking must be recorded |
+| a people, class, trade or faction | a **group** tag on its members in `people` (with no tagged member, the group does not exist for the engine) |
+| a standing grievance between named parties | a **tension**, with what it watches and whose interests it touches (`world-authoring-rules.md` §2a) |
+| a number or date a draft must not break | a **standing fact** (only the critic reads it) |
+
+Three things the nation and settlement sheets (`guide-building-a-nation.md`, `guide-building-a-settlement.md`) trip
+on if nobody says them:
+
+- **A filled sheet is a note of `type: concept`.** An untyped note in `world/` counts as a second world note, and the
+  book will not load.
+- **What only the author may know goes between a `%% truth %%` line and a `%% /truth %%` line.** `scripts/facts.py`
+  proposes knowledge from a note's open text; anything outside the fence may be offered as something a group knows.
+- **Groups come first.** A fact a people knows reaches a character only through a group, and a group exists only when
+  the world note tags at least one person with it.
 
 ## The order, and why it is this order
 
@@ -160,4 +175,5 @@ Two checks the linter will not run for you:
 for the contract in full · `.claude/skills/worldbuilding-frameworks/` for the library (keep it even
 if you skip the agents — it is reference an author reads, not code an agent runs) ·
 `docs/guide-user-path.md` for what happens after the world is built · `docs/guide-building-a-cast.md`
-for inventing the people who live in it.
+for inventing the people who live in it · `docs/guide-building-a-nation.md` and
+`docs/guide-building-a-settlement.md` for a people and a place, part by part, and what each is missing.
