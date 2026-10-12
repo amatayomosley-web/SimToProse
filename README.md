@@ -1,4 +1,4 @@
-# Simulated World Evolve
+# Simulation into Prose
 
 Simulate worlds, record them, and write books from the lives inside them.
 
