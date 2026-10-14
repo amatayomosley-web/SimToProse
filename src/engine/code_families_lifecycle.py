@@ -96,6 +96,13 @@ _BANDS_F = {
     "BANDS_NOTE_INVALID":       "a note in <book>/bands/ carries no engine block with a `bands` list",
 }
 
+# ---- PLACE_* — placing a person in the bands whose rules they meet (scripts/place.py, gate place-a-person) ----
+_PLACE_F = {
+    "PLACE_WORDS_MISSING":            "confirm was given no words of the author's - a person is placed in a band only on the author's say",
+    "PLACE_BAND_UNREGISTERED":        "confirm was asked to place a person in a band or place the world does not register",
+    "PLACE_MEMBERSHIPS_NOTE_INVALID": "a note in <book>/memberships/ has no `memberships` list, or is not named for a character of the book",
+}
+
 # ---- FACTS_* — facts proposed from a world note, kept by the author (src/engine/proposals.py, scripts/facts.py) ----
 _FACTS_F = {
     "FACTS_REPLY_NOT_AN_OBJECT":       "the proposer's reply is not JSON of the shape {\"facts\": [objects]}",

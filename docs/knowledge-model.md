@@ -147,6 +147,15 @@ the band was found by a place or nation its rule does not type, `check` reports 
 so placing a person from that town finds the band. It is reported, never written. A note with no default is refused a
 holderless fact as before.
 
+**Placing a person (gate place-a-person).** `scripts/place.py candidates --person P` reads P's typed facts - where
+they are, the places they belong or belonged to (`loc.` memberships, even one they left), their people (`fixed.people`)
+- and lists the bands whose `requires` they meet, with why. A band whose rule is plain words only, or whose `requires`
+names a ROLE, is listed for the author to judge, with the reason: the sheet has no structured role, and `fixed.position`
+is prose told to the actor word for word, so a match is never claimed from it. `confirm --keep ... --words ...` writes
+the confirmed bands to `<book>/memberships/<person>.md`, which `vault.load_book` appends to the sheet's
+`current.memberships` (the sheet is never written); `knows` lists what the person then holds, by band. The next gap: a
+structured role field on the sheet, so office and guild bands can be matched too.
+
 **One fold for "what does P know" (gate knowledge-fold).** `read_api.knows` reads every link a character has: the
 run's pinned sheet (their own beliefs, and the links their groups made when the book loaded) and what they acquired
 in play, each row marked `sheet` or `acquired`. Before it read `acquisitions` only - empty in every run of the owner's

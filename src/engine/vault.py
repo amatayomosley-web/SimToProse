@@ -197,6 +197,21 @@ def load_book(book_dir):
         banded.extend(rows)
     if banded and (world.get("bands") is None or isinstance(world.get("bands"), list)):
         world["bands"] = list(world.get("bands") or []) + banded
+    # WHERE A PERSON WAS PLACED (gate place-a-person): <book>/memberships/<person>.md, written by scripts/place.py
+    # confirm on the author's words, each row appended to that character's current.memberships after the sheet's own
+    # (a band the sheet already names is not added twice). The sheet itself is never written.
+    for n in notes_in("memberships"):
+        rows = n["engine"].get("memberships") if isinstance(n["engine"], dict) else None
+        cid = n["id"].lower().replace(" ", "_")
+        if not isinstance(rows, list) or cid not in chars:
+            raise VaultError("PLACE_MEMBERSHIPS_NOTE_INVALID", "memberships note %r needs an engine block with a "
+                             "`memberships` list, named for a character of this book" % n["id"])
+        cur = chars[cid].get("current")
+        if not isinstance(cur, dict) or not (cur.get("memberships") is None or isinstance(cur.get("memberships"), list)):
+            continue                                  # a malformed sheet is the contract's finding, never a crash here
+        have = {str(m.get("of")) for m in (cur.get("memberships") or []) if isinstance(m, dict)}
+        extra = [r for r in rows if isinstance(r, dict) and str(r.get("of")) not in have]
+        chars[cid]["current"] = dict(cur, memberships=list(cur.get("memberships") or []) + extra)
     from .knowledge import materialise as _materialise
     _materialise(world, chars)
     from .facets import stamp as _stamp_facets
