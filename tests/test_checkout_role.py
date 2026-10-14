@@ -198,21 +198,17 @@ def test_chronicles_are_ignored_at_every_depth():
 
 def test_a_bom_hides_no_entry():
     """PowerShell 5.1 saves text with a BOM. Read as plain utf-8 it glued itself to the FIRST entry, which then never
-    matched: the first private term went unswept, silently (clone-role review 1, pre-existing), and the first
-    name-review header went unread. Through the sweep's own readers."""
+    matched: the first private term went unswept, silently (clone-role review 1, pre-existing). Through the
+    sweep's own reader."""
     tmp = tempfile.mkdtemp(prefix="swe_bomctl_")
     try:
         terms = os.path.join(tmp, "terms.txt")
         io.open(terms, "w", encoding="utf-8-sig").write("zzqbom\nzzqsecond\n")
         toks, _src = _with_env({"SWE_PRIVATE_TERMS": terms}, G._private_terms)
         assert toks[:1] == ["zzqbom"], "a BOM hid the first private term: %r" % toks[:1]
-        review = os.path.join(tmp, "review.txt")
-        io.open(review, "w", encoding="utf-8-sig").write("[public-books]\nPub Book\n[ordinary]\nword\n")
-        public, ordinary, _src = _with_env({"SWE_NAME_REVIEW": review}, G._name_review)
-        assert public == {"Pub Book"} and ordinary == {"word"}, "a BOM hid the first review header: %r" % public
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
-    return "a BOM hides neither the first private term nor the first review header"
+    return "a BOM does not hide the first private term"
 
 
 def main():

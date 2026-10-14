@@ -53,7 +53,6 @@ One red test should mean exactly one thing.
 
 Stdlib only, script-style. Exit 0 = clean.
 """
-import collections
 import os
 import re
 import subprocess
@@ -308,133 +307,6 @@ def test_no_private_content_in_tracked_files():
             % (len(files), _PRIVATE_SOURCE, role, why, left))
 
 
-# ---- THE LIST MUST KEEP UP WITH THE BOOKS (2026-09-23, gate leak-guards) ----------------------------
-#
-# Every check above is exactly as good as the private-terms list, and on 2026-09-23 that list was found
-# 53 names behind the books: a place name from a private book had sat on the public remote for weeks
-# under a sweep that reported PASS, because nobody had written the name down. A hand-kept list lags the
-# thing it lists. So this reads the BOOKS: every name a private book defines — its note files' names, the
-# ids in its JSON, the capitalised words mid-sentence in its prose — must be either on the private list or
-# on the vault's reviewed-ordinary list. A word any PUBLIC book in the vault uses (the public-domain
-# novels, the demo) is ordinary English and needs no ruling. A new name in a book fails this suite until
-# someone classifies it, and both lists live beside the books, never here.
-_REVIEW_ENV = "SWE_NAME_REVIEW"
-_WORD = re.compile(r"[A-Za-z][A-Za-z'-]*")
-_MIDCAP = re.compile(r"(?<=[a-z,;:] )([A-Z][a-z]{2,})")
-_ID = re.compile(r'"id"\s*:\s*"([^"]+)"')
-_NOTE_DIRS = ("characters", "people", "world", "cast")
-
-
-def _name_review():
-    """-> (public book folders, reviewed-ordinary words, source) from the vault's review file, or
-    (None, None, why) when there is none — said plainly, never a silent pass."""
-    path = os.environ.get(_REVIEW_ENV)
-    if not path:
-        root = os.environ.get("SWE_BOOKS")
-        path = os.path.join(os.path.dirname(root), "name-review.txt") if root else None
-    if not path or not os.path.isfile(path):
-        return None, None, "NO name-review file (%s unset and none beside $SWE_BOOKS)" % _REVIEW_ENV
-    sections, cur = {"public-books": set(), "ordinary": set()}, None
-    with open(path, encoding="utf-8-sig") as fh:          # -sig: a BOM must not eat the first header
-        for line in fh:
-            line = line.split("#")[0].strip()
-            if line.startswith("[") and line.endswith("]"):
-                cur = sections.setdefault(line[1:-1].strip().lower(), set())
-            elif line and cur is not None:
-                cur.add(line)
-    return sections["public-books"], {w.lower() for w in sections["ordinary"]}, path
-
-
-def _book_texts(book_dir):
-    for dirpath, dirs, files in os.walk(book_dir):
-        rel = os.path.relpath(dirpath, book_dir).replace(os.sep, "/")
-        if rel.split("/")[0] == "runs":               # run records: the engine's output, not the book's names
-            dirs[:] = []
-            continue
-        for f in sorted(files):
-            if f.endswith((".md", ".json", ".txt")):
-                with open(os.path.join(dirpath, f), encoding="utf-8", errors="replace") as fh:
-                    yield rel, f, fh.read()
-
-
-def _parts(s):
-    """'CamelCaseName' / 'snake_case_name' / 'grp.x' -> lower-case word parts."""
-    return [w.lower() for w in re.findall(r"[A-Z]?[a-z]+|[A-Z]+(?![a-z])", s)]
-
-
-def book_name_candidates(books_root, public_books, known, ordinary):
-    """{private book: {name: first file}} for every name a private book uses at least twice that is on
-    neither list and in no public book's vocabulary."""
-    books = sorted(d for d in os.listdir(books_root) if os.path.isdir(os.path.join(books_root, d)))
-    public_dirs = [os.path.join(books_root, b) for b in books if b in public_books]
-    # A book under this repo's examples/ is public by being here (CLAUDE.md "One public test book", 2026-09-27) -
-    # its words are public vocabulary wherever the books root is. Before it moved here it sat among the books and
-    # was named public in the review list; the move must not turn its ordinary words into private-book names.
-    examples = os.path.join(REPO, "examples")
-    if os.path.isdir(examples):
-        public_dirs += [os.path.join(examples, d) for d in sorted(os.listdir(examples))
-                        if os.path.isdir(os.path.join(examples, d))]
-    common = set()
-    for d in public_dirs:
-        for _rel, _f, txt in _book_texts(d):
-            common.update(w.lower() for w in _WORD.findall(txt))
-    out = {}
-    for b in books:
-        if b in public_books:
-            continue
-        seen, where = collections.Counter(), {}
-        for rel, f, txt in _book_texts(os.path.join(books_root, b)):
-            found = _parts(os.path.splitext(f)[0]) * 2 if rel.split("/")[0] in _NOTE_DIRS else []
-            found += [m.group(1).lower() for m in _MIDCAP.finditer(txt)]
-            for m in _ID.finditer(txt):
-                found += _parts(m.group(1))
-            for w in found:
-                seen[w] += 1
-                where.setdefault(w, "%s/%s" % (rel, f))
-        miss = {w: where[w] for w, c in seen.items() if c >= 2 and len(w) >= 3 and w.isalpha()
-                and w not in known and w not in ordinary and w not in common}
-        if miss:
-            out[b] = miss
-    return out
-
-
-def test_the_name_check_can_fire():
-    """Negative control on a synthetic vault: an unlisted invented name fails; either list silences it;
-    a word a public book uses never needs a ruling."""
-    tmp = tempfile.mkdtemp(prefix="swe_namectl_")
-    try:
-        os.makedirs(os.path.join(tmp, "Private Book", "characters"))
-        os.makedirs(os.path.join(tmp, "Public Book"))
-        io.open(os.path.join(tmp, "Private Book", "characters", "Quistrel.md"), "w", encoding="utf-8").write(
-            "the ship reached Quelmoor at dawn, and then Quelmoor burned.\n")
-        io.open(os.path.join(tmp, "Public Book", "novel.txt"), "w", encoding="utf-8").write(
-            "the ship reached the harbour at dawn and then it burned\n")
-        got = book_name_candidates(tmp, {"Public Book"}, set(), set()).get("Private Book", {})
-        assert "quelmoor" in got and "quistrel" in got, "the check missed an unlisted invented name: %s" % got
-        assert "ship" not in got and "burned" not in got, "a public book's word needed a ruling: %s" % got
-        assert not book_name_candidates(tmp, {"Public Book"}, {"quelmoor", "quistrel"}, set()), "a listed name fired"
-        assert not book_name_candidates(tmp, {"Public Book"}, {"quistrel"}, {"quelmoor"}), "a reviewed word fired"
-        # ...and THROUGH the suite's own check, so its failure branch is exercised, not just the extractor
-        review = os.path.join(tmp, "review.txt")
-        io.open(review, "w", encoding="utf-8").write("[public-books]\nPublic Book\n[ordinary]\n")
-        saved = {k: os.environ.get(k) for k in ("SWE_BOOKS", _REVIEW_ENV)}
-        os.environ.update(SWE_BOOKS=tmp, **{_REVIEW_ENV: review})
-        try:
-            test_the_list_keeps_up_with_the_books()
-            raise AssertionError("the suite's check passed a vault holding an unlisted invented name")
-        except AssertionError as exc:
-            assert "quelmoor" in str(exc), "the suite's check failed without naming the name: %s" % exc
-        finally:
-            for k, v in saved.items():
-                if v is None:
-                    os.environ.pop(k, None)
-                else:
-                    os.environ[k] = v
-    finally:
-        shutil.rmtree(tmp, ignore_errors=True)
-    return "fires on an unlisted invented name, through the suite's own check; quiet once it is on either list"
-
-
 def test_fused_and_respelled_names_are_seen():
     """A name fused into an identifier, or written with `_` where the list has `-`, must still be seen —
     through `_scan`, the function the sweep runs (2026-09-23: the fourth read found a private note name
@@ -459,29 +331,11 @@ def test_fused_and_respelled_names_are_seen():
     return "a CamelCase-fused name and an underscore-respelled one are both seen; a buried one is not"
 
 
-def test_the_list_keeps_up_with_the_books():
-    root = os.environ.get("SWE_BOOKS")
-    public, ordinary, source = _name_review()
-    if not root or not os.path.isdir(root) or public is None:
-        return ("NOT CHECKED — no books on this machine or %s; this run proves nothing about whether the "
-                "list keeps up with the books" % source)
-    missing = book_name_candidates(root, public, set(_PRIVATE), ordinary)
-    if missing:
-        rows = ["    %s: %s  (%s)" % (b, w, f) for b, m in sorted(missing.items()) for w, f in sorted(m.items())]
-        raise AssertionError(
-            "%d name(s) the private books use are on neither the private list nor the reviewed-ordinary list "
-            "— add each to one (both live beside the books, never in this repo):\n%s%s"
-            % (len(rows), "\n".join(rows[:40]), "\n    ..." if len(rows) > 40 else ""))
-    return "every name the private books use is classified [%s; review: %s]" % (_PRIVATE_SOURCE, source)
-
-
 def main():
     print("test_no_private_content.py — the repo carries no private content\n")
     failed = 0
     for t in (test_negative_control, test_the_sweep_can_see_where_the_leak_was,
-              test_no_private_content_in_tracked_files, test_fused_and_respelled_names_are_seen,
-              test_the_name_check_can_fire,
-              test_the_list_keeps_up_with_the_books):
+              test_no_private_content_in_tracked_files, test_fused_and_respelled_names_are_seen):
         try:
             detail = t()
             print("  PASS  %s\n          %s" % (t.__name__, detail))

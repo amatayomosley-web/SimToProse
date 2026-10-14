@@ -208,10 +208,12 @@ carried an old snapshot past every branch check, and the terms list had fallen 5
   for exactly that commit, not that it was good. It fails closed: no terms list or no review folder
   refuses. `git push --no-verify` skips it, visibly. Proven through real `git push` runs in
   `tests/test_push_guard.py`.
-- **The list keeps up with the books** — `test_no_private_content.py` now reads the books themselves:
-  every name a private book uses must be on the terms list or on the vault's reviewed-ordinary list
-  (`$SWE_NAME_REVIEW`, default `<parent of $SWE_BOOKS>/name-review.txt`). A new name in a book fails the
-  suite until someone classifies it. Both lists live beside the books, never here.
+- **The list keeps up with the books — RETIRED 2026-10-13.** The check (`test_the_list_keeps_up_with_the_books`
+  and its negative control) read the private books and failed the suite on any name on neither the terms
+  list nor the vault's reviewed-ordinary list. The owner, 2026-10-13: *"This guard is bad design, just need
+  better hygiene"* (and: *"the goal is to write many books"*). Removed, not redesigned. The cost, accepted:
+  an unlisted book name that lands in the repo is now caught only by the per-push review record
+  (`scripts/push_guard.py`). The terms list still feeds the tree sweep and the push guard.
 - **A write-time block** in the author's own agent config refuses any edit to this tree that carries a
   private term, at the moment it is written. It is machine-local, so it is described here, not shipped.
 
