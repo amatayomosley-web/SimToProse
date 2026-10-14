@@ -138,6 +138,15 @@ half of its rule in `requires` ({nation, place, role}) and the notes it is drawn
 Why: "the world is so big it will be easy to forget what the world contains" - a tale saved for a town, then a
 character from that town written as never having heard it.
 
+**A fact's holder defaults from where it is written (gate facts-default-holder).** `scripts/facts.py propose` names
+the note's DEFAULT HOLDER (`proposals.default_holder`): a band whose `defines` names the note; else a registered place
+the note or a folder is named for - the band typed for it (`requires.place`), a place-folk band named `<place id>-...`,
+or the place itself; else a people band whose nation a folder is named for. A proposal with no `held_by` is held by it
+and marked `defaulted`; the author names only the exceptions and keeps the batch with `approve --keep defaulted`. When
+the band was found by a place or nation its rule does not type, `check` reports `band_requires` - the `requires` to add,
+so placing a person from that town finds the band. It is reported, never written. A note with no default is refused a
+holderless fact as before.
+
 **One fold for "what does P know" (gate knowledge-fold).** `read_api.knows` reads every link a character has: the
 run's pinned sheet (their own beliefs, and the links their groups made when the book loaded) and what they acquired
 in play, each row marked `sheet` or `acquired`. Before it read `acquisitions` only - empty in every run of the owner's

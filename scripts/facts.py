@@ -7,6 +7,7 @@ entries the author approves fact by fact (src/engine/proposals.py says why and w
     python scripts/facts.py propose --book B --note N              the proposer's prompt, from the note's visible prose
     python scripts/facts.py check   --book B --note N --reply R    each proposal kept or refused, numbered, by name
     python scripts/facts.py approve --book B --note N --keep 1,3 --words "<the author's own words>"
+    python scripts/facts.py approve --book B --note N --keep defaulted --words "..."   every kept fact the default holds
     python scripts/facts.py list    --book B                       the knowledge notes and what each holds
 
 `--note` is a path inside the book, or a note's name. The partner answers the prompt (or hands it to one agent) and
@@ -60,7 +61,8 @@ def _staging(book_dir, note_id):
 def _propose(book_dir, a):
     path, note_id = _note(book_dir, a.note)
     world, _chars = vault.load_book(book_dir)
-    msgs = proposals.prompt(note_id, _text(path), world)
+    dh = proposals.default_holder(os.path.relpath(path, book_dir), world)
+    msgs = proposals.prompt(note_id, _text(path), world, default=dh)
     return "\n\n".join("=== %s ===\n%s" % (m["role"].upper(), m["content"]) for m in msgs)
 
 
@@ -68,9 +70,12 @@ def _check(book_dir, a):
     path, note_id = _note(book_dir, a.note)
     world, _chars = vault.load_book(book_dir)
     text = _text(path)
-    verdicts = proposals.check(_text(a.reply), text, world)
+    dh = proposals.default_holder(os.path.relpath(path, book_dir), world)
+    verdicts = proposals.check(_text(a.reply), text, world, default=dh["holder"])
     out = {"note": os.path.relpath(path, book_dir), "note_id": note_id, "digest": _digest(text),
-           "checked_at": datetime.datetime.now().isoformat(timespec="seconds"), "verdicts": verdicts}
+           "checked_at": datetime.datetime.now().isoformat(timespec="seconds"), "default_holder": dh, "verdicts": verdicts}
+    if dh["requires"]:              # the typed rule the default band lacks: reported for the author, never written
+        out["band_requires"] = {"band": dh["holder"], "requires": dh["requires"]}
     with open(_staging(book_dir, note_id), "w", encoding="utf-8") as fh:
         json.dump(out, fh, indent=1, ensure_ascii=False)
     return out
@@ -90,10 +95,13 @@ def _approve(book_dir, a):
     if checked.get("digest") != _digest(_text(path)):
         raise EngineError("FACTS_NO_PROPOSALS", "%s changed after its proposals were checked - check again" % note_id)
     by_n = {v["n"]: v for v in checked.get("verdicts") or []}
-    try:
-        keep = sorted({int(x) for x in str(a.keep).split(",") if x.strip()})
-    except ValueError:
-        raise EngineError("FACTS_KEEP_REFUSED", "--keep is a list of proposal numbers, like 1,3,4")
+    if str(a.keep).strip().lower() == "defaulted":     # a band's facts approved as one batch (gate facts-default-holder)
+        keep = sorted(n for n, v in by_n.items() if v.get("ok") and v.get("defaulted"))
+    else:
+        try:
+            keep = sorted({int(x) for x in str(a.keep).split(",") if x.strip()})
+        except ValueError:
+            raise EngineError("FACTS_KEEP_REFUSED", "--keep is a list of proposal numbers, like 1,3,4, or `defaulted`")
     bad = [n for n in keep if n not in by_n or not by_n[n]["ok"]]
     if not keep or bad:
         raise EngineError("FACTS_KEEP_REFUSED", "keep only numbered proposals the check kept; not %s" % (bad or "nothing"))
@@ -143,7 +151,7 @@ def main(argv=None):
     ap.add_argument("--book", required=True, help="the book's slug or folder")
     ap.add_argument("--note", help="a note inside the book: its path, or its name")
     ap.add_argument("--reply", help="check: the proposer's JSON reply, as a file")
-    ap.add_argument("--keep", help="approve: the proposal numbers to keep, like 1,3,4")
+    ap.add_argument("--keep", help="approve: the proposal numbers to keep, like 1,3,4 - or `defaulted`")
     ap.add_argument("--words", help="approve: the author's own words of approval")
     a = ap.parse_args(argv)
     need = {"propose": ("note",), "check": ("note", "reply"), "approve": ("note", "keep", "words"), "list": ()}[a.what]

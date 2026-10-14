@@ -64,8 +64,59 @@ def _registry(world):
     return holders, people, topics
 
 
-def prompt(note_id, note_text, world):
-    """The proposer's messages for one note: the admission tests, the world's registry and the reply contract."""
+def _norm(text):
+    return squash(text).replace("_", " ").replace("-", " ")
+
+
+def default_holder(note_rel, world):
+    """Where a note is written -> who holds its facts unless the author says otherwise (gate facts-default-holder):
+    {"holder": "grp.<band>" | "loc.<id>" | None, "why": words, "requires": {..} | None}.
+
+    In order: a band whose `defines` names the note; a registered place the note or one of its folders is named for
+    (the band typed for that place - `requires.place` - or else a place-folk band whose id is "<place id>-...", or else
+    the place itself); a people band whose nation a folder or the note is named for. `requires` is the typed rule the
+    chosen band LACKS for the place or nation it was found by (the parent session's addition, 2026-10-13), so placing
+    a person from that town finds the band; it is reported, never written - the author's band notes stay the author's.
+    Matching is on registered ids and names, whole, case and -/_ folded - never on the note's prose."""
+    from .bands import rows
+    parts = [p for p in str(note_rel or "").replace(chr(92), "/").split("/") if p]
+    if not parts:
+        return {"holder": None, "why": "no note", "requires": None}
+    stem = parts[-1][:-3] if parts[-1].lower().endswith(".md") else parts[-1]
+    names = [stem] + parts[:-1][::-1]                 # the note first, then its folders from the nearest
+    keys = {_norm(n) for n in names} | {_norm("/".join(parts[:-1] + [stem]))}
+    bands = rows(world)
+    for b in bands:
+        if any(_norm(d) in keys for d in (b.get("defines") or []) if isinstance(d, str)):
+            return {"holder": "grp." + str(b["id"]), "why": "band %s defines this note" % b["id"], "requires": None}
+    locs = [loc for loc in (world.get("locations") or []) if isinstance(loc, dict) and loc.get("id")]
+    for n in names:
+        for loc in locs:
+            lid = str(loc["id"])
+            if _norm(n) not in (_norm(lid), _norm(loc.get("name") or "")):
+                continue
+            typed = [b for b in bands if (b.get("requires") or {}).get("place") == lid]
+            if typed:
+                return {"holder": "grp." + str(typed[0]["id"]), "why": "band %s is the folk of %s" % (typed[0]["id"], lid),
+                        "requires": None}
+            folk = [b for b in bands if b.get("kind") == "place-folk" and _norm(str(b.get("id"))).startswith(_norm(lid) + " ")]
+            if folk:
+                return {"holder": "grp." + str(folk[0]["id"]), "why": "the note is %s's, and band %s is named for it"
+                        % (lid, folk[0]["id"]), "requires": {"place": lid}}
+            return {"holder": "loc." + lid, "why": "the note is named for the place %s" % lid, "requires": None}
+    for n in names:
+        for b in bands:
+            nation = (b.get("requires") or {}).get("nation") or b.get("nation")
+            if b.get("kind") == "people" and isinstance(nation, str) and _norm(nation) == _norm(n):
+                lacks = None if (b.get("requires") or {}).get("nation") else {"nation": nation}
+                return {"holder": "grp." + str(b["id"]), "why": "band %s is the people of %s" % (b["id"], nation),
+                        "requires": lacks}
+    return {"holder": None, "why": "nothing the world registers is named by this note or its folders", "requires": None}
+
+
+def prompt(note_id, note_text, world, default=None):
+    """The proposer's messages for one note: the admission tests, the world's registry and the reply contract. With a
+    `default` (default_holder's answer), the proposer leaves `held_by` out of a fact the default holds."""
     holders, people, topics = _registry(world)
     nl = "\n"
     system = (
@@ -94,6 +145,9 @@ def prompt(note_id, note_text, world):
             "THE HOLDERS: " + (", ".join(holders) or "(none registered - add groups or places to the world first)") + nl +
             "THE PEOPLE: " + (", ".join(people) or "(none)") + nl +
             "THE TOPICS: " + (", ".join(topics) or "(none)"))
+    if default and default.get("holder"):
+        user += (nl + nl + "THE DEFAULT HOLDER: %s (%s). Leave `held_by` out of a fact this holder knows; name holders only "
+                 "for the exceptions - a fact only some of them know, or one others know too." % (default["holder"], default["why"]))
     return [{"role": "system", "content": system}, {"role": "user", "content": user}]
 
 
@@ -102,12 +156,14 @@ def _refusal(code, message):
     return "%s: %s" % (code, message)
 
 
-def check(reply, note_text, world):
+def check(reply, note_text, world, default=None):
     """A proposer's reply -> [{"n", "fact", "ok", "why"}], one verdict per proposal, numbered from 1.
 
     Refused by name: FACTS_EVIDENCE_MISSING, FACTS_EVIDENCE_IS_AUTHOR_TRUTH, FACTS_EVIDENCE_NOT_IN_NOTE, FACTS_TWO_FACTS,
     FACTS_FIELD_UNKNOWN, FACTS_ALREADY_KNOWN, and any KNOWLEDGE_* the world's own check raises. Raises
-    FACTS_REPLY_NOT_AN_OBJECT for a reply that is not {"facts": [objects]}."""
+    FACTS_REPLY_NOT_AN_OBJECT for a reply that is not {"facts": [objects]}. With a `default` holder (default_holder's
+    "holder"), a proposal with no `held_by` is held by it and its verdict marked `defaulted`; without one it is refused
+    as before (KNOWLEDGE_HELD_BY_EMPTY)."""
     if isinstance(reply, str):
         try:
             reply = json.loads(reply)
@@ -122,6 +178,9 @@ def check(reply, note_text, world):
     out = []
     for n, r in enumerate(rows, 1):
         fact = {k: r[k] for k in FIELDS if k in r}
+        defaulted = bool(default) and not r.get("held_by")
+        if defaulted:
+            fact["held_by"] = [default]
         why = ""
         ev = squash(r.get("evidence"))
         extra = sorted(k for k in r if k not in FIELDS)
@@ -144,7 +203,7 @@ def check(reply, note_text, world):
                 validate_world(dict(world, knowledge=[{k: v for k, v in fact.items() if k != "evidence"}]))
             except RecordError as e:
                 why = str(e)
-        out.append({"n": n, "fact": fact, "ok": not why, "why": why})
+        out.append({"n": n, "fact": fact, "ok": not why, "why": why, "defaulted": defaulted})
     return out
 
 
