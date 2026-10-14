@@ -117,7 +117,7 @@ Acquisition (above) is only half of belief life. **Talk of the Town (Ryan et al.
 The owner's model (2026-09-28): a person's knowledge is the set of facts they are LINKED to. A fact a whole village
 holds is written once, in the world's `knowledge`, with the groups and places that hold it; a character who belongs to
 one (`current.memberships`) is linked to it when the book loads (`src/engine/knowledge.py`). Groups believe nothing -
-they are how links are made - and the registry is the one that already existed: `grp.<people[].groups tag>` and
+they are how links are made - and the registry is `grp.<people[].groups tag>`, `grp.<world.bands id>` and
 `loc.<locations id>`. What is familiar belongs to the person, not the fact ("what's familiar to a tax collector may be
 obscure for a farmer"): a link is `everyday` when its topic is one the character's position names, `familiar`
 otherwise, and `faded` when the membership ended. A member who left holds only what the group knew before they left.
@@ -128,6 +128,15 @@ Shared links are priced apart from a character's own memories - their own budget
 three a beat - because a belief's cost is 1 - confidence and the gate orders by confidence: 150 shared facts at .90
 otherwise take every slot from a character's own memory at .70 (Fable review 3, B1, reproduced). A book with no
 `knowledge` and no `memberships` recalls exactly as before (Beck Hollow's frozen actor prompts rebuild byte-identical).
+
+**Bands exist before anyone belongs to them (gate band-register, 2026-10-13).** The owner's "Yes" reverses Fable
+review 3's M1 ("no parallel registry"): `world.bands` (and `<book>/bands/*.md` notes, merged after the world's own)
+registers each band as `grp.<id>` on its own, so a fact is held by the folk of a town before anyone from the town is in
+the cast. A band has an `id`, a `kind` (people, government, office, guild, order, conspiracy, place-folk), a `rule` in
+plain words (who belongs - what the author checks a person against), and optionally a `parent`, a `nation`, the typed
+half of its rule in `requires` ({nation, place, role}) and the notes it is drawn from in `defines` (`src/engine/bands.py`).
+Why: "the world is so big it will be easy to forget what the world contains" - a tale saved for a town, then a
+character from that town written as never having heard it.
 
 **One fold for "what does P know" (gate knowledge-fold).** `read_api.knows` reads every link a character has: the
 run's pinned sheet (their own beliefs, and the links their groups made when the book loaded) and what they acquired

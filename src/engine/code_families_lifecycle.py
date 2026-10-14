@@ -82,6 +82,20 @@ _KNOWLEDGE_F = {
     "KNOWLEDGE_SAME_AS_INVALID":       "an identity (`same_as`) does not list two or more ids of the world's people - each name a person goes by is a people[] entry of its own",
 }
 
+# ---- BANDS_* — the band register: groups that exist before anyone belongs to them (src/engine/bands.py) ----
+_BANDS_F = {
+    "BANDS_NOT_A_LIST":         "world.bands is not a list of bands",
+    "BANDS_ENTRY_NOT_A_DICT":   "a world.bands entry is not an object with an id, a kind and a rule",
+    "BANDS_ID_INVALID":         "a band's id is empty, holds a dot or a space - it is the one word after grp.",
+    "BANDS_ID_DUPLICATE":       "two bands in the register share an id",
+    "BANDS_KIND_UNKNOWN":       "a band's kind is not people, government, office, guild, order, conspiracy or place-folk",
+    "BANDS_RULE_EMPTY":         "a band has no rule - who belongs to it, in words, is what the author checks a person against",
+    "BANDS_PARENT_UNKNOWN":     "a band's parent is not a band in the register",
+    "BANDS_REQUIRES_INVALID":   "a band's requires is not {nation, place, role} of words, or its place is not a world.locations id",
+    "BANDS_DEFINES_INVALID":    "a band's defines is not a list of the notes or rows it is drawn from",
+    "BANDS_NOTE_INVALID":       "a note in <book>/bands/ carries no engine block with a `bands` list",
+}
+
 # ---- FACTS_* — facts proposed from a world note, kept by the author (src/engine/proposals.py, scripts/facts.py) ----
 _FACTS_F = {
     "FACTS_REPLY_NOT_AN_OBJECT":       "the proposer's reply is not JSON of the shape {\"facts\": [objects]}",

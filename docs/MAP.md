@@ -1,7 +1,7 @@
 # MAP — what is in this project and what owns what
 
-**Why this file exists.** `docs/` holds 131 design docs, `src/engine/` 80 modules,
-`tests/` 140 suites. Nobody — human or agent — can hold that in their head, and reading it all every
+**Why this file exists.** `docs/` holds 131 design docs, `src/engine/` 81 modules,
+`tests/` 141 suites. Nobody — human or agent — can hold that in their head, and reading it all every
 session is not practical. **The failure this prevents is real and happened:** a session spent hours
 reasoning about the decision layer from four docs and inference, invented a parallel vocabulary
 ("vectors"), and rebuilt a worse version of the buff/debuff registry that `decision-engine.md`
@@ -237,7 +237,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `world-model` | the other half of the loop (SEED — to co-design) |
 | `world-state-ledger` | the live now (design the machinery; the line items are runtime) |
 
-## src/engine/ — 80 modules (normative for what IS)
+## src/engine/ — 81 modules (normative for what IS)
 
 | src | lines | owns |
 |---|---|---|
@@ -245,6 +245,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `arc` | the Arc Engine: durable baseline change over the story (docs/arc-engine.md). |
 | `associative` | Track 2 & 3: Multi-Hop Associative Graph Traversal with Temporal Decay. |
 | `attachments` | what a person holds that is not a person: the price table, the sheet block, the |
+| `bands` | the world's register of bands: groups that exist before anyone belongs to them (gate band-register, 2026-10-13). |
 | `bible` | pin the authored bible into the run DB, and make entities exact. |
 | `body` | a strength each character carries, and what each act costs the body (the `body` system). |
 | `bond_rest` | the REST half of the relationship tier: where an edge relaxes to, and the fold that |
@@ -334,7 +335,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `narrate` | 232 | the narrator (design.md layer 7, narration.md): a canonized scene -> POV-bound prose. |
 | `scene` | 393 | the multi-agent scene runner (the director sets the scene; the agents push it). |
 
-## tests/ — 140 suites (each is a PROOF of the gate it names)
+## tests/ — 141 suites (each is a PROOF of the gate it names)
 
 | tests | lines | owns |
 |---|---|---|
@@ -343,6 +344,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `test_appraiser` | the two seats: what each is shown, and what each refuses. |
 | `test_arc` |  |
 | `test_attachments` |  |
+| `test_bands` |  |
 | `test_belief_facets` | a belief must carry what it is ABOUT, stamped when it is written. |
 | `test_belief_identity` | a recorded belief reference must still name that belief tomorrow. |
 | `test_belief_revision` |  |

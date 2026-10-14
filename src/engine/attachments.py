@@ -112,7 +112,8 @@ def rubric():
 def names_for(world):
     """The world's attachable names -> sorted ["grp.<tag>", ..., "loc.<id>", ...]: what the seat is
     shown and what lint registers. A location is registered by existing in `world.locations`; a group
-    by appearing as a `groups` tag on at least one `people[]` entry — no new world field."""
+    by appearing as a `groups` tag on at least one `people[]` entry, or as a band in `world.bands` - a
+    band exists before anyone belongs to it (bands.py; the owner, 2026-10-13, reversing Fable review 3 M1)."""
     if not isinstance(world, dict):
         raise RecordError("ATTACH_WORLD_NOT_A_DICT", "attachments.names_for: world must be a dict, got %r" % type(world).__name__)
     names = set()
@@ -125,6 +126,8 @@ def names_for(world):
             t = str(tag or "").strip()
             if t:
                 names.add(GRP + t)
+    from .bands import band_ids
+    names.update(GRP + b for b in band_ids(world))
     return sorted(names)
 
 

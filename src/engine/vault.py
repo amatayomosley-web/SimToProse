@@ -187,6 +187,16 @@ def load_book(book_dir):
         kept.extend(rows)
     if kept and (world.get("knowledge") is None or isinstance(world.get("knowledge"), list)):
         world["knowledge"] = list(world.get("knowledge") or []) + kept
+    # THE BAND REGISTER (gate band-register): <book>/bands/*.md, each engine block's `bands` after the world note's own.
+    # A band is a registered holder before anyone belongs to it (src/engine/bands.py).
+    banded = []
+    for n in notes_in("bands"):
+        rows = n["engine"].get("bands") if isinstance(n["engine"], dict) else None
+        if not isinstance(rows, list):
+            raise VaultError("BANDS_NOTE_INVALID", "bands note %r has no engine block with a `bands` list" % n["id"])
+        banded.extend(rows)
+    if banded and (world.get("bands") is None or isinstance(world.get("bands"), list)):
+        world["bands"] = list(world.get("bands") or []) + banded
     from .knowledge import materialise as _materialise
     _materialise(world, chars)
     from .facets import stamp as _stamp_facets

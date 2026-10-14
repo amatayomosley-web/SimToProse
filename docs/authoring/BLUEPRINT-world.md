@@ -102,6 +102,19 @@ checked by their own modules (`law.py`, `tensions.py`, `systems.py`), which have
 | `knowledge[].sanction` | text | no | active | knowledge.links_for | a norm's cost: what breaking it brings |
 | `knowledge[].evidence` | text | no | active | knowledge.links_for | the sentence of a world note this fact was kept from, copied (scripts/facts.py); shown by ask.py knows |
 | `knowledge[].source` | text | no | active | knowledge.links_for | the note the fact was kept from |
+| `bands` | list | no | active | attachments.names_for | bands registered as grp.<id> on their own, so a fact can be held by one before anyone is placed in it |
+| `bands[]` | map | no | active | bands.validate_bands |  |
+| `bands[].id` | text | no | active | bands.band_ids | the name after grp. |
+| `bands[].kind` | text | no | active | bands.validate_bands | people, government, office, guild, order, conspiracy or place-folk |
+| `bands[].rule` | text | no | active | scripts/place.py | who belongs, in plain words - what the author checks a person against |
+| `bands[].parent` | text | no | active | bands.validate_bands | the band this one sits inside |
+| `bands[].nation` | text | no | active | scripts/place.py | the nation the band belongs to, in words |
+| `bands[].requires` | map | no | active | scripts/place.py | the typed half of the rule: nation (words), place (a locations id), role (words) |
+| `bands[].requires.nation` | text | no | active | scripts/place.py |  |
+| `bands[].requires.place` | text | no | active | scripts/place.py |  |
+| `bands[].requires.role` | text | no | active | scripts/place.py |  |
+| `bands[].defines` | list | no | active | proposals.default_holder | the notes or sheet rows the band is drawn from |
+| `bands[].defines[]` | text | no | active | proposals.default_holder |  |
 <!-- END GENERATED -->
 
 ---

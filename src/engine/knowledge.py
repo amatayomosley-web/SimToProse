@@ -7,9 +7,11 @@ to the PERSON, not the fact: "What's familiar to a tax collector may be obscure 
 own familiarity word, and a member who LEFT holds only what the group knew before they left, aged by how long ago that
 was — "last saw him ten years ago" is a link's age, and a later death is a fact the link-maker never reached.
 
-THE REGISTRY IS THE ONE THAT EXISTS (Fable review 3, M1): a group is `grp.<people[].groups tag>` and a place is
+THE REGISTRY (Fable review 3, M1, REVERSED by the owner 2026-10-13): a group is `grp.<people[].groups tag>` OR
+`grp.<world.bands id>` - a band registered on its own, before anyone belongs to it (bands.py) - and a place is
 `loc.<locations id>`, exactly `attachments.names_for`; the domain is the lexicon's attribute classes (`topics`, the
-words `facets` already stamps). No parallel registry.
+words `facets` already stamps). M1 said "no parallel registry"; a band nobody in the cast had reached could then hold
+no fact, and a big world forgets what it holds.
 
 WHAT A LINK IS: a vault belief like any other — decay, the gate, the bible pin and the prompt already carry it — with
 keys of its own: `shared` (the holder that made it), `familiarity`, `learned_days` (a member who left: how long since
@@ -117,7 +119,7 @@ def validate_world(world):
         for h in held:
             if str(h) not in holders:
                 raise RecordError("KNOWLEDGE_HOLDER_UNREGISTERED", "%s: holder %r is not a registered group or place "
-                                  "(grp.<a people[].groups tag> or loc.<a locations id>)" % (where, h))
+                                  "(grp.<a people[].groups tag or world.bands id> or loc.<a locations id>)" % (where, h))
         for a in (f.get("about") or []):
             if str(a) not in about:
                 raise RecordError("KNOWLEDGE_ABOUT_UNREGISTERED", "%s: %r is not a person, place or group this world "

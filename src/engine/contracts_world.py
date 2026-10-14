@@ -60,6 +60,12 @@ def _knowledge(rows, world, ctx):
     validate_world(dict(world, knowledge=rows))
 
 
+def _bands(rows, world, ctx):
+    """The band register (gate band-register): bands.py's own reading of it."""
+    from .bands import validate_bands
+    validate_bands(dict(world, bands=rows))
+
+
 def _cue_classes(names, world, ctx):
     lex = world.get("lexicon")
     classes = lex.get("attribute_classes") if isinstance(lex, dict) else None
@@ -176,4 +182,21 @@ WORLD = (
     F("knowledge[].evidence", "text", reader="knowledge.links_for",
       doc="the sentence of a world note this fact was kept from, copied (scripts/facts.py); shown by ask.py knows"),
     F("knowledge[].source", "text", reader="knowledge.links_for", doc="the note the fact was kept from"),
+    # ---- the band register: groups that exist before anyone belongs to them (gate band-register) --------------------
+    F("bands", "list", check=_bands, reader="attachments.names_for",
+      doc="bands registered as grp.<id> on their own, so a fact can be held by one before anyone is placed in it",
+      absent="EMPTY - a group is registered only by a people[].groups tag"),
+    F("bands[]", "map", reader="bands.validate_bands"),
+    F("bands[].id", "text", reader="bands.band_ids", doc="the name after grp."),
+    F("bands[].kind", "text", reader="bands.validate_bands", doc="people, government, office, guild, order, conspiracy or place-folk"),
+    F("bands[].rule", "text", reader="scripts/place.py", doc="who belongs, in plain words - what the author checks a person against"),
+    F("bands[].parent", "text", reader="bands.validate_bands", doc="the band this one sits inside"),
+    F("bands[].nation", "text", reader="scripts/place.py", doc="the nation the band belongs to, in words"),
+    F("bands[].requires", "map", reader="scripts/place.py",
+      doc="the typed half of the rule: nation (words), place (a locations id), role (words)"),
+    F("bands[].requires.nation", "text", reader="scripts/place.py"),
+    F("bands[].requires.place", "text", reader="scripts/place.py"),
+    F("bands[].requires.role", "text", reader="scripts/place.py"),
+    F("bands[].defines", "list", reader="proposals.default_holder", doc="the notes or sheet rows the band is drawn from"),
+    F("bands[].defines[]", "text", reader="proposals.default_holder"),
 )
