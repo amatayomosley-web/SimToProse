@@ -410,7 +410,7 @@ def llm_turn(packet, event_text, temperament, model, stub, think=True, seed=None
     return _parse_reply(_openrouter(messages, model))
 
 
-def faithful_turn(packet, event_text, temperament, model, stub, think=True, seed=None, relationships=None, max_retries=2, acts=(), information=None, char_id=None, brief=""):
+def faithful_turn(packet, event_text, temperament, model, stub, think=True, seed=None, relationships=None, max_retries=2, acts=(), information=None, char_id=None, brief="", vault=None, world=None):
     """llm_turn + the ACTIVE faithfulness guard. If the actor emits a name it does not hold (a latent
     weights-leak the masking wall can't prevent — faithfulness.check_name_leaks), re-call with an
     explicit correction, up to max_retries. An empty/unparseable draw (no action — a stochastic
@@ -440,7 +440,11 @@ def faithful_turn(packet, event_text, temperament, model, stub, think=True, seed
         # knower of is the same offence one level out. `information=None` (every pre-2026-09-01
         # caller) makes this a no-op, so nothing already running changes.
         fact_leaks = faithfulness.check_fact_leaks(emitted, char_id, information or {})
-        if not leaks and not fact_leaks:
+        # THE OTHER DIRECTION (gate denial-check): a THOUGHT that denies what the character holds - "I have never heard
+        # of Saltmarsh" from a Saltmarsh child. The thought only: a denial they SPEAK may be a lie, which is theirs to
+        # tell. `vault=None` (every caller before the gate) makes this a no-op.
+        denials = faithfulness.check_fact_denials(str(turn.get("thought", "")), vault, world) if vault else []
+        if not leaks and not fact_leaks and not denials:
             return turn, []
         if leaks:
             corrections.append({"role": "user", "content": (
@@ -453,7 +457,12 @@ def faithful_turn(packet, event_text, temperament, model, stub, think=True, seed
                 "your ENTIRE reply (same JSON shape) without it — they may act on what they can "
                 "see and what they were told, and on nothing else."
                 % "; ".join("%r" % f for f, _k in fact_leaks))})
-        leaks = list(leaks) + [(f, "not a knower") for f, _k in fact_leaks]
+        if denials:
+            corrections.append({"role": "user", "content": (
+                "Your character's own thoughts deny knowing something they know: %s. They may hide it from others, "
+                "but not from themselves. Rewrite your ENTIRE reply (same JSON shape) with thoughts true to what they know."
+                % "; ".join("%s - they know: %r" % (t, c) for t, c, _s in denials))})
+        leaks = list(leaks) + [(f, "not a knower") for f, _k in fact_leaks] + [(t, "denied a held fact") for t, _c, _s in denials]
     return turn, leaks
 
 
@@ -654,7 +663,7 @@ def run_turn(led, run_id, char, world, groups_index, profile, temperament, affec
         turn, leaks = faithful_turn(packet, event_text, temperament, model, stub, seed=turn_no, brief=brief,
                                     relationships=rels,
                                     information=(led.fold(run_id, max(turn_no - 1, 0)) or {}).get("information"),
-                                    char_id=actor)
+                                    char_id=actor, vault=char["current"].get("vault"), world=world)
       except Exception as exc:                       # degrade, never crash; no silent skips
         log_compose_usage(led, run_id, turn_no)       # a failed beat's composer calls were still paid for
         led.record_turn_skipped(run_id, turn_no, actor, str(exc))

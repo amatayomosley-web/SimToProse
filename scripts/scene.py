@@ -698,7 +698,7 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
                                         seed=seed_base * 1000 + beat, acts=_law_acts,
                                         relationships=rels,
                                         information=(led.fold(run_id, max(turn_no - 1, 0)) or {}).get("information"),
-                                        char_id=speaker)
+                                        char_id=speaker, vault=a["char"]["current"].get("vault"), world=world)
         direct.log_compose_usage(led, run_id, turn_no, scene=cfg.get("name"))   # paid for, committed or not
         if leaks:                                       # a leak survived retries -> skip this beat; never commit one
             led.record_turn_skipped(run_id, turn_no, speaker, "faithfulness: %s" % ", ".join(n for n, k in leaks))

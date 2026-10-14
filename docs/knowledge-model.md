@@ -156,6 +156,14 @@ the confirmed bands to `<book>/memberships/<person>.md`, which `vault.load_book`
 `current.memberships` (the sheet is never written); `knows` lists what the person then holds, by band. The next gap: a
 structured role field on the sheet, so office and guild bands can be matched too.
 
+**The denial check (gate denial-check).** The faithfulness guard watched only the leak direction. Now
+`faithfulness.check_fact_denials` flags a sentence that both denies acquaintance ("never heard of", "don't know her",
+"know nothing of", a closed list - never a bare "don't know", which "I don't know where she went" would trip) and names the subject of a belief the speaker holds (an `about` name as the world writes it, or a word of its
+topic). `direct.faithful_turn` regenerates a turn whose THOUGHT does it - nobody lies to themselves - and leaves a
+spoken denial alone, because that may be a lie the character tells. Its limit, stated: a vague denial that names
+nothing, a paraphrased subject, or a denial worded outside the list escapes; placing the person (`scripts/place.py`)
+is the real guard.
+
 **One fold for "what does P know" (gate knowledge-fold).** `read_api.knows` reads every link a character has: the
 run's pinned sheet (their own beliefs, and the links their groups made when the book loaded) and what they acquired
 in play, each row marked `sheet` or `acquired`. Before it read `acquisitions` only - empty in every run of the owner's

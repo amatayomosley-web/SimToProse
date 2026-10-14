@@ -113,7 +113,7 @@ def _prompt(book, name, situation):
     real = scene.faithful_turn
 
     def fake(packet, event_text, temperament, model, stub, think=True, brief="", seed=None, acts=(),
-             relationships=None, information=None, char_id=None, max_retries=2):
+             relationships=None, information=None, char_id=None, max_retries=2, **_kw):
         raise _Captured(scene.build_turn_messages(packet, event_text, temperament, relationships, acts=acts,
                                                   rung_direction=direct.rung_direction(packet, brief=brief, model=model,
                                                                                        stub=stub)))

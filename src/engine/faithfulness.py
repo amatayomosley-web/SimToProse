@@ -80,3 +80,61 @@ def check_fact_leaks(text, char_id, information):
         if re.search(r"\b%s\b" % re.escape(fact), text, re.IGNORECASE):
             leaks.append((fact, sorted(known)))
     return leaks
+
+
+# what a denial of ACQUAINTANCE sounds like [JUDGMENT - a closed list, so what it does not hold is a miss, never a guess].
+# "don't know" alone is not on it: "I don't know where Maud went" is a thought about where she is, not a denial of
+# knowing her, and regenerating it would punish an honest thought.
+_DENIAL = re.compile(r"\b(?:(?:never|not|haven't|have not|hasn't|has not) heard of|never knew (?:of|him|her|them|it)|"
+                     r"(?:don't|do not|didn't|did not|doesn't|does not) know (?:of|about|him|her|them|it)\b|"
+                     r"knows? nothing (?:of|about)|not familiar with)", re.IGNORECASE)
+_SENTENCE = re.compile(r"(?<=[.!;])\s+")       # "?" does not end one: "Saltmarsh? Never heard of it." is one denial
+
+
+def _subject_terms(belief, world):
+    """A held belief -> the words that name what it is about: each `about` name as the world writes it (a person's
+    name, a place's name, a group's tag in words) and its id in words, then its topic's lexicon words."""
+    people = {str(p.get("id")): p for p in (world.get("people") or []) if isinstance(p, dict) and p.get("id")}
+    places = {str(p.get("id")): p for p in (world.get("locations") or []) if isinstance(p, dict) and p.get("id")}
+    terms = []
+    for a in belief.get("about") or []:
+        tail = str(a).split(".", 1)[-1]
+        named = (people.get(tail) or places.get(tail) or {}).get("name")
+        terms += [t for t in (named, tail.replace("_", " ").replace("-", " ")) if t]
+    topic = belief.get("topic")
+    classes = (world.get("lexicon") or {}).get("attribute_classes") or {}
+    if topic and isinstance(classes.get(topic), list):
+        terms += [str(w) for w in classes[topic]]
+    return list(dict.fromkeys(t for t in terms if len(t) >= 2))
+
+
+def check_fact_denials(text, vault, world=None):
+    """Return [(subject, claim, sentence)] for every sentence of `text` that DENIES knowing and NAMES the subject of a
+    belief the speaker holds - the other direction from `check_fact_leaks` (gate denial-check, 2026-10-13).
+
+    The owner's case: a tale saved for town X, then a character from town X written as never having heard of it. A
+    sentence counts when it holds a phrase of a closed list of denials of acquaintance ("never heard of", "don't know
+    her", "know nothing of", "not familiar with" - never a bare "don't know") and a
+    word naming what a held belief is `about` (a person's or place's name as the world writes it, a group's tag) or a
+    word of its topic. Only beliefs with an `about` or a `topic` can be denied; the sentence is the unit, and "?" does
+    not end one ("Saltmarsh? Never heard of it." is one denial).
+
+    WHAT THIS MISSES, said plainly (the brief: word overlap does not read meaning): a vague denial that names nothing
+    ("I know nothing of that") does not match, a paraphrased subject ("the town on stilts") escapes, and a denial
+    phrased outside the list escapes. And it cannot tell a lie from a lapse - the caller decides (scripts/direct.py
+    `faithful_turn` checks only the character's own thought, where nobody lies). Placing a person in their bands
+    (scripts/place.py) is the real guard; this catches the plain case. Pure, deterministic."""
+    if not isinstance(text, str) or not isinstance(vault, list) or not text.strip():
+        return []
+    world = world if isinstance(world, dict) else {}
+    held = [(b, _subject_terms(b, world)) for b in vault
+            if isinstance(b, dict) and str(b.get("claim") or "").strip() and (b.get("about") or b.get("topic"))]
+    out = []
+    for sentence in _SENTENCE.split(text.replace("\u2019", "'")):
+        if not _DENIAL.search(sentence):
+            continue
+        for b, terms in held:
+            hit = next((t for t in terms if re.search(r"\b%s\b" % re.escape(t), sentence, re.IGNORECASE)), None)
+            if hit and (hit, b["claim"]) not in [(h, c) for h, c, _s in out]:
+                out.append((hit, str(b["claim"]), sentence.strip()))
+    return out
