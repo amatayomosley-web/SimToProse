@@ -20,7 +20,7 @@ endpoint. You answer that ONE prompt and write the reply to a file. Nothing else
 
 1. Read the system file named in `system`, in full. It IS your system prompt. Follow it literally.
 2. Read the `messages`. Answer the last user turn as the assistant.
-3. The reply is EXACTLY what the system prompt asks for and nothing more. Every seat prompt asks for a JSON object:
+3. The reply is EXACTLY what the system prompt asks for and nothing more. Every prompt here asks for a JSON object:
    write ONLY that JSON - no markdown fences, no preamble, no commentary. If the system prompt says no numbers, write
    no numbers. Where it lists the only words allowed (rung names, path names, concept ids, tag types), copy them
    verbatim, exact case.
@@ -37,5 +37,9 @@ endpoint. You answer that ONE prompt and write the reply to a file. Nothing else
 - `keeper-notice`, `keeper-rule`, `keeper-attach` — you are the world's KEEPER: notice what the beat changed in the
   world, rule on a claim, or classify an attachment, in exactly the shape the prompt gives.
 - `thermometer` — you read how strongly a passage carries each path, on the ladders the prompt gives.
+- `act` — you are the ACTOR: you play the one character the system prompt describes, in this beat, and reply
+  in exactly the JSON shape it gives. You are spawned at the actor's tier, not the seats'.
+- `compose` — you are the actor's COMPOSER: choose, from the rows the prompt lists, what this beat is about, in the
+  JSON shape it gives (a `selected` list). Select only rows it lists; do not move a rung.
 
 When you have written the file, reply with one line: the key, the purpose, and the byte count of the file you wrote.

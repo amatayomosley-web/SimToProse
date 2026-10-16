@@ -80,21 +80,32 @@ def _record_step(d):
 
 def _session(path, profile, book):
     """The session profile as the showrunner's brief carries it: where every scene.py call gets its models, the tier each
-    specialist is spawned at, and - for subagent seats - the loop that answers them (gate session-profile)."""
+    specialist is spawned at, and - for a subagent actor or seats - the loop that answers them (gates session-profile,
+    act-replay)."""
     path = os.path.abspath(path).replace(os.sep, "/")
     tiers = ", ".join("%s %s" % (r, t) for r, t in profile.items() if roles.ROLES[r][0] == "agent" and r != "showrunner")
     out = ("\n\n## Session profile - the author's choices for this session\n\n"
            "- Every `scene.py` call carries `--profile \"%s\"` (it sets the actor's model and the seats).\n"
-           "- Spawn each specialist at its tier, as the Agent tool's `model`: %s.\n- Seats: `%s`.\n"
-           % (path, tiers, profile["seats"]))
-    if profile["seats"].startswith("subagent:"):
+           "- Spawn each specialist at its tier, as the Agent tool's `model`: %s.\n- Actor: `%s`. Seats: `%s`.\n"
+           % (path, tiers, profile["actor"], profile["seats"]))
+    # THE ACTOR ON SUBAGENTS TOO (gate act-replay): its `act` and `compose` prompts land in the seats' folder, so one
+    # loop answers both - each key at the tier of the role it belongs to, which the loop reads off the PENDING line.
+    tier = {r: profile[r][len("subagent:"):] for r in ("actor", "seats") if profile[r].startswith("subagent:")}
+    if tier:
         folder = os.path.join(books.resolve(book), "runs", "seats").replace(os.sep, "/")
-        out += ("- The seats are answered by subagents: the run writes each seat prompt to `%s` and waits for its "
+        who = {("actor",): "The actor is", ("seats",): "The seats are",
+               ("actor", "seats"): "The actor and the seats are"}[tuple(tier)]
+        at = []
+        if "actor" in tier:
+            at.append("a key whose purpose is `act` or `compose` at `%s` (the actor)" % tier["actor"])
+        if "seats" in tier:
+            at.append("%s at `%s` (the seats)" % ("every other key" if "actor" in tier else "each key", tier["seats"]))
+        out += ("- %s answered by subagents: the run writes each prompt to `%s` and waits for its "
                 "answer. Run `scene.py` in the background with its output to a log file; then, until the run ends, "
                 "repeat `python scripts/seats.py pending \"%s\" --log <that log> --wait 60`, and for each `PENDING` key "
-                "spawn ONE fresh subagent at `%s` whose whole prompt is `python scripts/seats.py brief \"%s\" <key>`. "
+                "spawn ONE fresh subagent - %s - whose whole prompt is `python scripts/seats.py brief \"%s\" <key>`. "
                 "Never give one agent two prompts. `ENDED` means the run has stopped.\n"
-                % (folder, folder, profile["seats"][len("subagent:"):], folder))
+                % (who, folder, folder, "; ".join(at), folder))
     return out
 
 

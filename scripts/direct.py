@@ -108,11 +108,11 @@ def _env_path():
 
 # ---- LLM dispatch (harness-layer twin of the probe's; the engine never calls models) ----
 
-def _openrouter(messages, model, max_tokens=750):
+def _openrouter(messages, model, max_tokens=750, purpose="act"):
     """The actor's OpenRouter call, through THE seam (scripts/provider.py, 2026-09-11). The actor's
     sampling stays the model's default (no temperature pin: the actor performs; the SEATS are the
-    ones pinned at 0). `LAST_USAGE` is kept for the two readers that log it after the fact."""
-    text = _provider.call(messages, model, "act", max_tokens=max_tokens, temperature=None, cache=True)
+    ones pinned at 0). `LAST_USAGE` is kept for its readers; the composer passes `compose` (act-replay)."""
+    text = _provider.call(messages, model, purpose, max_tokens=max_tokens, temperature=None, cache=True)
     LAST_USAGE.clear()
     LAST_USAGE.update(_provider.LAST_USAGE)
     return text
@@ -361,7 +361,7 @@ def _compose_selection(rows, brief, model, stub):
         if model.startswith("ollama/"):
             raw = _ollama(msgs, model[len("ollama/"):], max_tokens=700, think=False)
         else:
-            raw = _openrouter(msgs, model, max_tokens=700)
+            raw = _openrouter(msgs, model, max_tokens=700, purpose="compose")
         COMPOSE_USAGE.append(dict(LAST_USAGE))          # before the actor's call overwrites it (gate composer-usage)
         # NOT `_parse_reply` -- that one is shaped for the ACTOR's reply and coerces every result
         # into {action, thought, exit, addressee, act, tags}, so a composer selection came back

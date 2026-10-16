@@ -214,7 +214,7 @@ def _faked(composer=(), actor=()):
     real = d._openrouter
     q = {"composer": list(composer), "actor": list(actor)}
 
-    def fake(messages, model, max_tokens=750):
+    def fake(messages, model, max_tokens=750, purpose="act"):
         item = q["composer" if max_tokens == 700 else "actor"].pop(0)
         return item if isinstance(item, str) else _json.dumps(item)
     d._openrouter = fake
@@ -364,7 +364,7 @@ def _usage_faked(reply):
     turn = {"action": "She trims the wick and says nothing.", "thought": "", "exit": False, "addressee": "",
             "tags": {"type": "mundane", "summary": "trims the wick", "dimensions": {}, "durability": "transient"}}
 
-    def fake(messages, model, max_tokens=750):
+    def fake(messages, model, max_tokens=750, purpose="act"):
         n[0] += 1
         d.LAST_USAGE.clear()
         d.LAST_USAGE.update({"model": model, "tokens_in": 100 * n[0], "tokens_out": 10 * n[0]})

@@ -134,6 +134,121 @@ def backends(tmp):
     os.environ.pop("SWE_ENV_FILE", None)
 
 
+def _answer_all(folder, stop, seen):
+    """The out-of-process answerer, in a thread: every prompt the run emits gets a reply, as a fresh agent would write."""
+    import glob
+    import time
+    while not stop.is_set():
+        for p in glob.glob(os.path.join(folder, "*.prompt.json")):
+            key = os.path.basename(p)[:-len(".prompt.json")]
+            reply = os.path.join(folder, key + ".reply.txt")
+            if os.path.exists(reply):
+                continue
+            try:
+                with io.open(p, encoding="utf-8") as fh:
+                    row = json.load(fh)
+            except (OSError, ValueError):
+                continue
+            seen.append((row["purpose"], row["model"]))
+            with io.open(reply, "w", encoding="utf-8") as fh:
+                fh.write('{"answered": "%s"}' % row["purpose"])
+        time.sleep(0.05)
+
+
+def actor_replay(tmp):
+    print("\n[3b] provider.py: a subagent ACTOR replays its calls through the seats' folder (gate act-replay)")
+    import threading
+    import direct
+    import provider
+    from src.engine.ledger import Ledger
+    settle = provider._SETTLE_SECONDS
+    provider._SETTLE_SECONDS = 0.1
+    empty = os.path.join(tmp, "no-key-act.env")
+    io.open(empty, "w", encoding="utf-8").close()
+    os.environ["SWE_ENV_FILE"] = empty
+
+    def reset():
+        provider.use_replies(None)
+        provider._REPLAY_ONLY = None
+        provider._SEAT_MODEL = None
+
+    def one_beat(folder, actor, seats):
+        """One act call down the actor's real dispatch (direct._openrouter, as llm_turn makes it) and one seat call, each
+        logged the way scene.py logs it -> (the llm_calls rows, what the answerer saw, the act's text, the seat's)."""
+        reset()
+        stop, seen = threading.Event(), []
+        th = threading.Thread(target=_answer_all, args=(folder, stop, seen), daemon=True)
+        th.start()
+        led = Ledger(folder + ".db")
+        led.create_run("t", {"catalog_version": 1, "profile": {"actor": actor, "seats": seats}})
+        try:
+            provider.configure_seats(seats, replies=folder, wait=20)
+            provider.configure_actor(actor, replies=folder, wait=20)
+            try:
+                act = direct._openrouter([{"role": "system", "content": "be Mira"},
+                                          {"role": "user", "content": "the lamp gutters"}], actor)
+                led.log_llm_call("t", 1, "act", direct.LAST_USAGE["model"], direct.LAST_USAGE.get("tokens_in"),
+                                 direct.LAST_USAGE.get("tokens_out"))
+            except RecordError as e:
+                act = e.code
+            try:
+                seat = provider.call([{"role": "user", "content": "what arose?"}], provider.seat_model(),
+                                     "appraise-emotion", led=led, run_id="t", turn=1)
+            except RecordError as e:
+                seat = e.code
+            rows = [tuple(r) for r in led.con.execute("SELECT purpose, model, tokens_in FROM llm_calls ORDER BY rowid")]
+        finally:
+            stop.set()
+            th.join(2)
+            led.con.close()
+            reset()
+        return rows, seen, act, seat
+
+    rows, seen, act, seat = one_beat(os.path.join(tmp, "both-subagents"), "subagent:sonnet", "subagent:opus")
+    check("both-on-subagents:-the-act-and-the-seat-are-each-emitted-and-replayed-from-one-folder",
+          act == '{"answered": "act"}' and seat == '{"answered": "appraise-emotion"}'
+          and sorted(seen) == [("act", "subagent:sonnet"), ("appraise-emotion", "subagent:opus")], (act, seat, seen))
+    check("...and-llm_calls-names-what-answered:-act-subagent:sonnet,-the-seat-subagent:opus,-no-token-counts",
+          rows == [("act", "subagent:sonnet", None), ("appraise-emotion", "subagent:opus", None)], rows)
+    rows, seen, act, seat = one_beat(os.path.join(tmp, "actor-only"), "subagent:sonnet", "anthropic/claude-opus-5")
+    check("a-subagent-actor-with-OpenRouter-seats:-the-act-replays,-the-seat-goes-to-the-network-(no-key-here)",
+          act == '{"answered": "act"}' and seat == "PROVIDER_NO_KEY" and seen == [("act", "subagent:sonnet")]
+          and rows == [("act", "subagent:sonnet", None)], (act, seat, seen, rows))
+    rows, seen, act, seat = one_beat(os.path.join(tmp, "openrouter-actor"), "anthropic/claude-sonnet-4.6",
+                                     "subagent:opus")
+    check("control:-an-OpenRouter-actor-is-NOT-replayed-beside-subagent-seats-(no-prompt,-PROVIDER_NO_KEY)",
+          act == "PROVIDER_NO_KEY" and seat == '{"answered": "appraise-emotion"}'
+          and seen == [("appraise-emotion", "subagent:opus")] and rows == [("appraise-emotion", "subagent:opus", None)],
+          (act, seat, seen, rows))
+    calls = []
+
+    def fake_ollama(messages, model, max_tokens=4096, think=True, temperature=1.0, seed=None):
+        calls.append(model)
+        direct.LAST_USAGE.clear()
+        direct.LAST_USAGE.update({"model": "ollama/" + model, "tokens_in": 5, "tokens_out": 3})
+        return '{"action": "local"}'
+
+    real = direct._ollama
+    direct._ollama = fake_ollama
+    folder = os.path.join(tmp, "ollama-actor")
+    try:
+        reset()
+        provider.configure_seats("subagent:opus", replies=folder, wait=0)
+        provider.configure_actor("ollama/local-actor", replies=folder)
+        local = provider.call([{"role": "user", "content": "the lamp gutters"}], "ollama/local-actor", "act")
+        emitted = os.path.isdir(folder) and os.listdir(folder)
+        check("control:-an-ollama-actor-is-NOT-replayed-(the-local-client-answers,-nothing-emitted)",
+              local == '{"action": "local"}' and calls == ["local-actor"] and not emitted, (local, calls, emitted))
+    finally:
+        direct._ollama = real
+        reset()
+    check("a-subagent-model-with-no-replay-folder-refuses-by-name-instead-of-reaching-the-network",
+          _code(lambda: provider.call([{"role": "user", "content": "x"}], "subagent:sonnet", "act"))
+          == "PROVIDER_REPLY_MISSING")
+    os.environ.pop("SWE_ENV_FILE", None)
+    provider._SETTLE_SECONDS = settle
+
+
 def carried(tmp, profile_file):
     print("\n[4] scene.py and brief.py carry the profile")
     book = _mk_vault(os.path.join(tmp, "profiled"))
@@ -154,6 +269,28 @@ def carried(tmp, profile_file):
     check("brief.py-gives-the-showrunner-the-tiers-and-the-subagent-seat-loop", rc == 0
           and "## Session profile" in out and "director opus" in out and "--profile" in out
           and "seats.py pending" in out and "spawn the showrunner at sonnet" in out, out[-600:])
+    both = os.path.join(tmp, "act-sub.json")
+    _run(os.path.join("scripts", "profile.py"), "new", "--out", both, "--preset", "subagents",
+         "--set", "actor=subagent:sonnet")
+    rc, out = _run(os.path.join("scripts", "brief.py"), direction, "--profile", both)
+    check("brief.py-names-the-tier-for-act-keys-and-the-tier-for-seat-keys", rc == 0
+          and "The actor and the seats are answered by subagents" in out
+          and "`act` or `compose` at `sonnet` (the actor)" in out and "every other key at `opus` (the seats)" in out,
+          out[-900:])
+    only = os.path.join(tmp, "act-only.json")
+    _run(os.path.join("scripts", "profile.py"), "new", "--out", only, "--set", "actor=subagent:sonnet")
+    rc, out = _run(os.path.join("scripts", "brief.py"), direction, "--profile", only)
+    check("...and-a-subagent-actor-on-OpenRouter-seats-still-gets-the-loop,-for-the-actor's-keys-only", rc == 0
+          and "The actor is answered by subagents" in out and "(the seats)" not in out and "seats.py pending" in out,
+          out[-900:])
+    acted = _mk_vault(os.path.join(tmp, "acted"))
+    rc, out = _run(os.path.join("scripts", "scene.py"), "--book", acted, "--scene", _scene_cfg(tmp), "--stub",
+                   "--budget", "1", "--no-keeper", "--profile", both)
+    con = sqlite3.connect(books.db_path(acted))
+    cfg = json.loads(con.execute("SELECT config FROM runs").fetchone()[0])
+    con.close()
+    check("scene.py-runs-on-a-subagent-actor-profile-and-records-it-(stub:-no-call-is-made)", rc == 0
+          and cfg.get("profile", {}).get("actor") == "subagent:sonnet", out[-400:])
 
 
 def waiting(tmp):
@@ -183,6 +320,7 @@ def main():
         table()
         local = cli(tmp)
         backends(tmp)
+        actor_replay(tmp)
         carried(tmp, local)
         waiting(tmp)
     print("\n%s: %d failure(s)" % ("OK" if not FAILS else "FAIL", len(FAILS)))

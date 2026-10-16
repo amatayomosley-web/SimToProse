@@ -55,6 +55,12 @@ the 2026-09-11 "no local models" is now a floor the guide ADVISES (docs/guide-mo
 `configure_seats` takes the profile's `seats` value: an `ollama/` model answers through `_local` (the actor's own
 Ollama client - one local client in the repo), `subagent:<tier>` replays the seat purposes only, and anything else is
 an OpenRouter id, as before. Without a profile nothing changes.
+THE ACTOR ON SUBAGENTS (2026-10-16, gate act-replay). The owner: "Actors are sonnet, use the SWE workflows" - with no
+OpenRouter key on the machine. A profile's `actor=subagent:<tier>` failed PROVIDER_NO_KEY on the first beat: the replay
+check read the PURPOSE only, and a subagent seat profile replays the seat purposes, never `act`. So a call whose MODEL
+is `subagent:...` now always replays - no network or local client can answer that label, so anything else would be a
+call the row then mislabels - and `configure_actor` points it at the seats' folder, so one loop answers both. Each row
+records the label of what answered: act and compose as the actor's tier, the seats as theirs.
 Nothing here is imported by `src/engine/` (hard rule 3).
 """
 from __future__ import annotations
@@ -174,6 +180,9 @@ def emit(messages, model, purpose, out_dir, meta=None):
 def _replay(messages, model, purpose, led, run_id, turn, scene):
     """The replay backend: the answer written for this exact prompt, or PROVIDER_REPLY_MISSING."""
     d = replies_dir()
+    if not d:
+        raise RecordError("PROVIDER_REPLY_MISSING", "%s: %s answers through the replay folder and none is set "
+                          "(a session profile sets it: configure_seats / configure_actor)" % (purpose, model))
     key = prompt_key(messages)
     p = reply_path(d, key)
     if not os.path.isfile(p):
@@ -251,6 +260,22 @@ def configure_seats(value, replies=None, wait=None):
     return value
 
 
+def configure_actor(value, replies=None, wait=None):
+    """A session profile's `actor` value -> this process's actor backend; returns the label every act call records.
+    `subagent:<tier>`: the actor's calls (`act`, and the composer's `compose`) replay from `replies` - the seats' own
+    folder, so one loop answers both - each missing answer emitted and waited for while a fresh agent of that tier
+    writes it. The seats keep their own backend: with them on OpenRouter or ollama nothing replays by purpose, only by
+    the subagent label. Anything else changes nothing here - `call` routes `ollama/` and OpenRouter ids as before."""
+    global _REPLAY_ONLY
+    if value.startswith("subagent:"):
+        if not replies:
+            raise ValueError("a subagent actor needs the folder its prompts are written to")
+        use_replies(replies, wait=SUBAGENT_WAIT if wait is None else wait)
+        if _REPLAY_ONLY is None:
+            _REPLAY_ONLY = frozenset()
+    return value
+
+
 def _local(messages, model, purpose, led, run_id, turn, scene, max_tokens):
     """A seat answered by a local model through Ollama - by the actor's own client (`direct._ollama`), so the repo keeps
     one local client. think=False: the reply is one JSON object, and a thinking trace can spend the whole token budget
@@ -295,7 +320,7 @@ def call(messages, model, purpose, led=None, run_id=None, turn=None, scene=None,
     """messages -> the reply text. Logs the call on `led` when given. Raises by name on a bad reply.
     With a replay root in force (SWE_SEAT_REPLIES / use_replies) the answer comes from the file
     written for this exact prompt and neither the network nor the key file is touched."""
-    if replies_dir() and (_REPLAY_ONLY is None or purpose in _REPLAY_ONLY):
+    if model.startswith("subagent:") or (replies_dir() and (_REPLAY_ONLY is None or purpose in _REPLAY_ONLY)):
         return _replay(messages, model, purpose, led, run_id, turn, scene)
     if model.startswith("ollama/"):
         return _local(messages, model, purpose, led, run_id, turn, scene, max_tokens)

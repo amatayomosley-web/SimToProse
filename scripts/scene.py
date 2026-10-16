@@ -1456,6 +1456,8 @@ def main():
         raise SystemExit(str(e))
     if _profile:                          # subagent seats write their prompts beside the book, never into this repo
         _provider.configure_seats(_roles.model_id(_profile["seats"]), replies=os.path.join(book_dir, "runs", "seats"))
+        if args.model.startswith("subagent:"):    # a subagent actor answers through the same folder (gate act-replay)
+            _provider.configure_actor(args.model, replies=os.path.join(book_dir, "runs", "seats"))
     world, chars = load_book(book_dir)
     # THE CONTRACTS, AT RUN START (gate run-start-refusal, G4): the world, the scene's cast and the scene file AS
     # WRITTEN - `load_scene_cfg` rewrites it - each against its contract, before a sheet is stamped and before the
