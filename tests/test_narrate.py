@@ -14,6 +14,7 @@ sys.path.insert(0, REPO)
 sys.path.insert(0, os.path.join(REPO, "scripts"))
 
 import copy                                                  # noqa: E402
+import io                                                    # noqa: E402
 import json                                                  # noqa: E402
 import tempfile                                              # noqa: E402
 
@@ -76,6 +77,9 @@ def main():
 
     # 6. the scene's setting and what the POV knows (gate narrator-context)
     _context()
+
+    # 7. the source contract: wording free, substance fixed, the thought record is evidence (gate narrator-source-contract)
+    _source_contract()
 
     if FAILS:
         print("\ntest_narrate: FAIL")
@@ -170,8 +174,9 @@ def _book_narration():
     # green. So the rendered PROMPT is checked, per actor, against who actually has interiority.
     for know in narrate.KNOWLEDGE:
         blob = narrate.build_narration_prompt(TURNS, "maren", WORLD, knowledge=know)[1]["content"]
-        thinkers = {ln.split(" (privately thinks)")[0]
-                    for ln in blob.splitlines() if "(privately thinks)" in ln}
+        # the label is `beat N · THOUGHT (<name>, private; ...)` since gate narrator-source-contract
+        thinkers = {ln.split(" · THOUGHT (")[1].split(",")[0]
+                    for ln in blob.splitlines() if " · THOUGHT (" in ln}
         expected = ({t["actor"] for t in TURNS} if know == "omniscient" else {"maren"})
         check("%s-transcript-gives-interiority-to-EXACTLY-the-right-actors" % know,
               thinkers == expected, "rendered %s, expected %s" % (sorted(thinkers), sorted(expected)))
@@ -389,6 +394,79 @@ def _context():
           len(seen) == 2 and seen[0][0] == SETTING and seen[0][1] == facts, str(seen)[:600])
     check("...and-a-scene-with-no-pin-no-setting-(unknown,-not-invented)",
           len(seen) == 2 and seen[1][0] is None, str(seen)[-300:])
+
+
+TURNS_SRC = TURNS + [
+    {"turn": 2, "actor": "maren", "action": "She read the gauge and said, \"Six. That's how high it is.\"",
+     "thought": "Two pulls. Keep the peace, or name the flood. The flood wins. So I read it and say the number."},
+    {"turn": 3, "actor": "edda", "thought": "She is tired; keep her talking.",
+     "action": "Edda talked for a long while about the ford and the miller and the spring floods " * 7},
+]
+_LOAD_BEARING = ("source material, not a script", "never text for the page", "Do not copy a recorded speech")
+
+
+def _source_contract():
+    print("\n[source] the narrator's source contract (gate narrator-source-contract)")
+    names = {"maren": "Maren", "edda": "Edda"}
+    sys_, user = (m["content"] for m in narrate.build_narration_prompt(TURNS_SRC, "maren", WORLD, pov_name="Maren",
+                                                                      names=names))
+    lines = user.splitlines()
+    check("the-transcript-labels-each-kind-of-source",
+          any(" · THOUGHT (Maren, private" in ln for ln in lines) and any(" · DID/SAID (Maren)" in ln for ln in lines)
+          and any(" · DID/SAID (Edda, as Maren saw and heard it" in ln for ln in lines)
+          and not any(" · THOUGHT (Edda" in ln for ln in lines), user[-1200:])
+    check("...and-the-old-testimony-labels-are-gone",
+          "(privately thinks)" not in user and "(observed to do/say)" not in user)
+    check("the-pov-thought-precedes-the-act-it-explains",
+          user.index("beat 1 · THOUGHT (Maren") < user.index("beat 1 · DID/SAID (Maren)")
+          and user.index("beat 3 · THOUGHT (Maren") < user.index("beat 3 · DID/SAID (Maren)"))
+    blob = sys_ + "\n" + user
+    check("the-contract-frees-wording-and-fixes-substance", "free in wording" in user
+          and "Do not copy a recorded speech onto the page" in sys_
+          and "Nothing is said on the page that the record does not say" in sys_)
+    legend_thought = next((ln for ln in lines if ln.startswith("  THOUGHT (")), "")
+    check("the-thought-record-is-named-as-machinery", "THE THOUGHT RECORD" in sys_
+          and "never text for the page" in sys_ and "evidence" in legend_thought.lower(), legend_thought)
+    edda_long = [ln for ln in lines if " · DID/SAID (Edda" in ln and "long speech" in ln]
+    check("long-speeches-get-the-rule-and-the-long-turn-is-flagged", "LONG SPEECHES" in sys_ and len(edda_long) == 1
+          and not any("long speech" in ln for ln in lines if " · DID/SAID (Maren)" in ln), str(edda_long))
+    check("the-wall-holds-under-the-new-labels", "SECRET-EDDA-DOUBT" not in blob)
+    omni = narrate.build_narration_prompt(TURNS_SRC, "maren", WORLD, pov_name="Maren", names=names,
+                                          knowledge="omniscient")
+    check("...and-omniscient-gives-Edda-her-THOUGHT-line", " · THOUGHT (Edda" in omni[1]["content"]
+          and "SECRET-EDDA-DOUBT" in omni[1]["content"])
+    check("names-not-ids-reach-the-narrator", "DID/SAID (Edda," in user and not any(
+        tok in user for tok in ("(edda", "(maren", "edda (", "maren (")), user[-600:])
+    check("...and-an-actor-without-a-name-is-shown-by-id",
+          " · DID/SAID (edda, as Maren" in narrate.build_narration_prompt(TURNS_SRC, "maren", WORLD,
+                                                                            pov_name="Maren")[1]["content"])
+    spine = "SPINE-TEXT a plain close third."
+    book = {"spines": {"a": spine}, "default_spine": "a", "casting": {"maren": spine}}
+    lens = narrate.narration_lens("maren", {}, {}, book)
+    sent = narrate.build_narration_prompt(TURNS, "maren", WORLD, pov_name="Maren", lens=lens)[0]["content"]
+    check("a-lens-whose-author-equals-its-spine-is-sent-once", lens["author"] is None and sent.count(spine) == 1
+          and narrate.narration_lens("maren", {}, {}, dict(book, casting={"maren": "plain, clipped"}))["author"]
+          == "plain, clipped", sent[-400:])
+    osys = omni[0]["content"]
+    check("the-omniscient-prompt-keeps-the-source-contract", "Do not copy a recorded speech onto the page" in osys
+          and "Nothing is said on the page that the record does not say" in osys and "THE THOUGHT RECORD" in osys
+          and "never text for the page" in osys and "LONG SPEECHES" in osys)
+    role = io.open(os.path.join(REPO, ".claude", "agents", "narrator.md"), encoding="utf-8").read()
+    contract = blob                              # the RENDERED prompt (source literals wrap mid-phrase)
+    check("the-load-bearing-phrases-are-in-both-the-prompt-and-the-role-file",
+          all(ph in contract and ph in role for ph in _LOAD_BEARING),
+          str([ph for ph in _LOAD_BEARING if ph not in contract or ph not in role]))
+    import narration_contract as nc
+    copied = "The room was dim. " + " ".join(TURNS[0]["action"].split()[:8]) + " and then the light went."
+    hits = nc.copied_runs(copied, TURNS)
+    check("copied_runs-finds-an-8-word-run-copied-from-an-action",
+          len(hits) == 1 and hits[0][:2] == ("maren", "action") and len(hits[0][2].split()) == 8, str(hits))
+    para = "She put the cup down and told them the fever would be gone by morning."
+    check("...and-none-in-a-paraphrase", nc.copied_runs(para, TURNS) == [], str(nc.copied_runs(para, TURNS)))
+    from_thought = "Then: " + TURNS[0]["thought"]
+    check("...and-names-the-thought-when-the-run-is-copied-from-one",
+          [h[:2] for h in nc.copied_runs(from_thought, TURNS)] == [("maren", "thought")],
+          str(nc.copied_runs(from_thought, TURNS)))
 
 
 if __name__ == "__main__":

@@ -33,6 +33,7 @@ from src.engine import narration_modes
 from src.engine.ledger import Ledger                                 # noqa: E402
 from direct import _openrouter                                      # noqa: E402  (strong-model dispatch)
 from critic import scene_turns                                      # noqa: E402  (the committed-turn read)
+import narration_contract as _contract                              # noqa: E402  (the source contract's texts)
 
 # Strong-stage model. PRIMARY path is Claude-in-the-loop (--prompt-only — key-free; the script emits
 # the prompt, Claude-in-a-session writes the prose). This OpenRouter slug is the key-GATED fallback
@@ -106,6 +107,8 @@ def narration_lens(pov, world, chars, cfg):
     spines = cfg.get("spines") or {}
     spine = spines.get(world.get("timeline") or cfg.get("default_spine"))
     author = (cfg.get("casting") or {}).get(pov)
+    if author and author == spine:              # a casting that copies the spine is sent once (narrator-source-contract)
+        author = None
     voice = ((chars.get(pov) or {}).get("baseline") or {}).get("voice")
     return {"spine": spine, "author": author, "voice": voice}
 
@@ -195,32 +198,25 @@ def _context_block(povn, setting, background):
 
 
 def build_narration_prompt(turns, pov, world, pov_name=None, retrospective=False, lens=None,
-                           voice=DEFAULT_VOICE, knowledge=DEFAULT_KNOWLEDGE, setting=None, background=None):
-    """The narrator messages: the adapter contract + the POV-split scene. Other characters appear
+                           voice=DEFAULT_VOICE, knowledge=DEFAULT_KNOWLEDGE, setting=None, background=None,
+                           names=None):
+    """The narrator messages: the source contract + the POV-split scene. Other characters appear
     observable-only, so the model literally cannot render their interiors (the wall is in the input).
     `lens` (from narration_lens) is {spine, author, voice} — the timeline register, the POV's assigned
     author, and the POV's voice block; any field may be None, in which case it is simply omitted.
-    `setting` ({situation, props}) and `background` (claims) come from `scene_context`; with neither,
-    the prompt is exactly what it was before they existed."""
+    `setting` ({situation, props}) and `background` (claims) come from `scene_context`. `names` maps an
+    actor id to the name the narrator is given (`_names`); an actor it lacks is shown by id."""
     povn = pov_name or pov
-    lines = []
-    for e in pov_split(turns, pov, knowledge):
-        who = e["actor"]
-        if "thought" in e:
-            lines.append("%s (does/says): %s\n%s (privately thinks): %s" % (who, e["action"], who, e["thought"]))
-        else:
-            lines.append("%s (observed to do/say): %s" % (who, e["action"]))
-    transcript = "\n".join(lines)
+    names = dict(names or {})
+    names.setdefault(pov, povn)
+    legend, transcript = _contract.transcript(pov_split(turns, pov, knowledge), pov, povn, names, knowledge)
     lens = lens or {}
     if voice not in VOICES:
         raise ValueError("narrate: voice must be one of %s, got %r" % (sorted(VOICES), voice))
     parts = [
-        "You are a NOVELIST adapting one recorded scene into %s. The POV character is %s."
-        % (VOICES[voice], povn),
-        "The recorded scene is your SOURCE, not your script — like a film adapted from a true story, you "
-        "do not render it one-to-one. You MAY compress, cut, reorder, heighten, and choose what to "
-        "dramatize versus summarize. You may NOT change what a character chose or did, who they are, or "
-        "what causally happened. Adapt the telling; never the person or the choice.",
+        "You are a NOVELIST. Your job is to take what the simulation generated and turn it into the story: "
+        "one recorded scene becomes %s. The POV character is %s." % (VOICES[voice], povn),
+        _contract.SOURCE,
     ]
     if knowledge == "omniscient":
         parts.append(
@@ -228,12 +224,16 @@ def build_narration_prompt(turns, pov, world, pov_name=None, retrospective=False
             "interiority, because the author chose omniscient narration. What you may NOT do is invent "
             "interiority — render only what a character is recorded as thinking, and read no mind the "
             "transcript leaves silent. Omniscience over this record is not omniscience over the world.")
+        parts.append(_contract.THOUGHT_RECORD % {"who": "each character", "whom": "that character",
+                                                 "idiom": "that character's own idiom"})
     else:
         parts.append(
             "Bind strictly to %s's knowledge: render %s's perceptions and interiority AND the OBSERVABLE "
             "actions and words of everyone else — never another character's private thoughts or true motives, "
             "only how %s reads them. This POV wall is the source of the scene's dramatic irony; do NOT "
             "head-hop into anyone else's mind." % (povn, povn, povn))
+        parts.append(_contract.THOUGHT_RECORD % {"who": povn, "whom": povn, "idiom": "%s's own idiom" % povn})
+    parts.append(_contract.LONG_SPEECHES % {"p": povn})
     if lens.get("spine"):
         parts.append("VOICE — the section's authorial spine (every passage in this section shares it): %s"
                      % lens["spine"])
@@ -257,16 +257,22 @@ def build_narration_prompt(turns, pov, world, pov_name=None, retrospective=False
             if retrospective else
             "Tell it in real time — the narrator knows only up to this moment, no foreshadowing.")
     user_msg = (
-        "WORLD: %s\n\n%sRECORDED SCENE (POV = %s; everyone else is shown observable-only):\n%s\n\n%s\n\n"
+        "WORLD: %s\n\n%s%s\n%s\n\n%s\n\n"
         "Render this scene as a passage of %s from %s's point of view."
-        % (str(world.get("world", "")), _context_block(povn, setting, background), povn, transcript, when,
+        % (str(world.get("world", "")), _context_block(povn, setting, background), legend, transcript, when,
            VOICES[voice], povn))
     return [{"role": "system", "content": sys_msg}, {"role": "user", "content": user_msg}]
 
 
+def _names(chars, turns):
+    """Every actor in `turns` -> the display name on their sheet (the id when the sheet has none)."""
+    return {t["actor"]: (((chars or {}).get(t["actor"]) or {}).get("fixed") or {}).get("name") or t["actor"]
+            for t in turns}
+
+
 def narrate(turns, pov, world, model=DEFAULT_NARRATOR_MODEL, stub=False, pov_name=None,
             retrospective=False, lens=None, voice=DEFAULT_VOICE, knowledge=DEFAULT_KNOWLEDGE,
-            setting=None, background=None):
+            setting=None, background=None, names=None):
     """Render the scene to POV-bound prose. Stub: the POV's own actions strung as plain sentences
     (deterministic, no API) — enough to prove the wiring. Empty scene -> empty string."""
     if not turns:
@@ -275,7 +281,7 @@ def narrate(turns, pov, world, model=DEFAULT_NARRATOR_MODEL, stub=False, pov_nam
         acts = [str(t["action"]).strip() for t in turns if t["actor"] == pov]
         return " ".join(a for a in acts if a) or "(the scene passes quietly)"
     messages = build_narration_prompt(turns, pov, world, pov_name, retrospective, lens,
-                                      voice, knowledge, setting=setting, background=background)
+                                      voice, knowledge, setting=setting, background=background, names=names)
     return _openrouter(messages, model, max_tokens=2000)
 
 
@@ -350,7 +356,7 @@ def narrate_book(led, run_id, world, chars, model=DEFAULT_NARRATOR_MODEL, stub=F
             s_know  = knowledge or sc.get("knowledge") or DEFAULT_KNOWLEDGE
             setting, background = scene_context(led, run_id, sc["scene_no"], chars.get(pov))
             prose = narrate(seg, pov, world, model, stub, pov_name, retrospective, lens,
-                            s_voice, s_know, setting=setting, background=background)
+                            s_voice, s_know, setting=setting, background=background, names=_names(chars, seg))
             title = sc["label"] or ("Scene %d" % sc["scene_no"])
             if e.get("placement") == "flashback":
                 title = "%s (flashback)" % title
@@ -369,7 +375,7 @@ def narrate_book(led, run_id, world, chars, model=DEFAULT_NARRATOR_MODEL, stub=F
         s_know  = knowledge or s.get("knowledge") or DEFAULT_KNOWLEDGE
         setting, background = scene_context(led, run_id, s["scene_no"], chars.get(pov))
         prose = narrate(seg, pov, world, model, stub, pov_name, retrospective, lens, s_voice, s_know,
-                        setting=setting, background=background)
+                        setting=setting, background=background, names=_names(chars, seg))
         title = s["label"] or ("Scene %d" % s["scene_no"])
         passages.append("## %s\n\n%s" % (title, prose))
     return "\n\n".join(passages)
@@ -426,7 +432,7 @@ def main():
                                 seg, pov, world, pov_name, args.retrospective, lens,
                                 args.voice or s.get("voice") or DEFAULT_VOICE,
                                 args.knowledge or s.get("knowledge") or DEFAULT_KNOWLEDGE,
-                                setting=setting, background=background)})
+                                setting=setting, background=background, names=_names(chars, seg))})
             print(json.dumps(out, indent=2))
             return 0
         manuscript = narrate_book(led, args.run, world, chars, args.model, args.stub,
@@ -458,11 +464,11 @@ def main():
         print(json.dumps(build_narration_prompt(
             turns, args.pov, world, pov_name, args.retrospective, lens,
             args.voice or DEFAULT_VOICE, args.knowledge or DEFAULT_KNOWLEDGE,
-            setting=setting, background=background), indent=2))
+            setting=setting, background=background, names=_names(chars, turns)), indent=2))
         return 0
     prose = narrate(turns, args.pov, world, args.model, args.stub, pov_name, args.retrospective, lens,
                     args.voice or DEFAULT_VOICE, args.knowledge or DEFAULT_KNOWLEDGE,
-                    setting=setting, background=background)
+                    setting=setting, background=background, names=_names(chars, turns))
     print(prose)
     return 0
 
