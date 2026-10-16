@@ -100,20 +100,108 @@ def narration_lens(pov, world, chars, cfg):
     """Assemble the POV's render lens (the adapter licence above): the timeline SPINE
     (cfg.spines[world.timeline]), the POV's assigned AUTHOR (cfg.casting[pov]), and the POV's VOICE
     block from the sheet (reused — register/tic/rule). Any piece may be absent; build_narration_prompt
-    omits what is None and degrades to a neutral render. Pure."""
+    omits what is None and degrades to a neutral render. Pure. A world that sets no timeline takes the
+    book's `default_spine` (a key into `spines`, gate narrator-context) - it was written and never read."""
     cfg = cfg or {}
-    spine = (cfg.get("spines") or {}).get(world.get("timeline"))
+    spines = cfg.get("spines") or {}
+    spine = spines.get(world.get("timeline") or cfg.get("default_spine"))
     author = (cfg.get("casting") or {}).get(pov)
     voice = ((chars.get(pov) or {}).get("baseline") or {}).get("voice")
     return {"spine": spine, "author": author, "voice": voice}
 
 
+# ---- THE SCENE'S SETTING AND WHAT THE POV KNOWS (gate narrator-context, 2026-10-16) ------------
+# The owner wants the world woven into the prose through what the character knows and handles; the
+# scenes came out with no atmosphere because the narrator saw only the transcript and one
+# WORLD line. The cfg's situation and props were pinned with the scene (scene_cfg.for_scene) and the
+# POV's band facts sat on the sheet (current.vault, `shared` rows) - neither was ever handed over.
+#
+# THE BOUND. A character can hold over a thousand band facts, most of them tales of a nation
+# they are one of millions in. All of them would bury the scene; none leaves the narrator nothing to
+# render the margins with. BACKGROUND_CAP facts is about what a scene can carry in passing.
+# HOW THEY ARE CHOSEN: facts sharing a word with the scene's situation and props first (the lamp,
+# the hearth, the cracked cup), most shared words first; then, to fill the cap, facts held
+# through the NARROWEST holder - the band that holds the fewest facts is the most particular to this
+# person (the village before the nation). Ties keep the sheet's order. Deterministic: no model picks.
+# NO DIGIT: a claim carrying one is left out. The actor reads claims verbatim (hard rule 5 bans only
+# decimals), but the narrator renders to the reader and a figure in a fact is the author's ledger,
+# not the character's speech; the claims without one are the bulk.
+BACKGROUND_CAP = 8
+_STOP = frozenset("that this with from have were they them their there what when which into over only than "
+                  "then also been your just each other some such very more most will would could should".split())
+
+
+def _words(text):
+    """Content words, crudely stemmed (a plural s dropped), for overlap only - never shown anywhere."""
+    out = set()
+    for w in "".join(c.lower() if c.isalpha() else " " for c in str(text or "")).split():
+        if len(w) >= 4 and w not in _STOP:
+            out.add(w[:-1] if w.endswith("s") and len(w) > 4 else w)
+    return out
+
+
+def held_background(char, setting=None, cap=BACKGROUND_CAP):
+    """The POV's held facts the narrator may render as background -> at most `cap` claims (the bound
+    and the choice are explained above). `char` is the sheet; only `shared` rows (what a band or place
+    holds) count - the character's own beliefs are the run's to surface, through the turns."""
+    rows = [b for b in (((char or {}).get("current") or {}).get("vault") or [])
+            if isinstance(b, dict) and b.get("shared") and str(b.get("claim") or "").strip()]
+    rows = [b for b in rows if not any(c.isdigit() for c in str(b["claim"]))]
+    size = {}
+    for b in rows:
+        size[str(b["shared"])] = size.get(str(b["shared"]), 0) + 1
+    scene = _words(" ".join([str((setting or {}).get("situation") or "")] + list((setting or {}).get("props") or [])))
+    seen, ranked = set(), []
+    for i, b in enumerate(rows):
+        claim = " ".join(str(b["claim"]).split())
+        if claim in seen:                         # one fact held through two bands is one fact
+            continue
+        seen.add(claim)
+        ranked.append((-len(_words(claim) & scene), size[str(b["shared"])], i, claim))
+    return [c for *_k, c in sorted(ranked)[:max(0, int(cap))]]
+
+
+def scene_context(led, run_id, scene_no, char):
+    """(setting, background) for one recorded scene: the situation and props of the cfg it ran
+    against, and the POV's held facts chosen by `held_background`. A scene recorded before cfg pinning
+    has no setting (None - unknown, not empty); the facts are still chosen, without the scene's words."""
+    from src.engine import scene_cfg
+    cfg = scene_cfg.for_scene(led.con, run_id, scene_no) or {}
+    setting = None
+    if str(cfg.get("situation") or "").strip() or cfg.get("props"):
+        setting = {"situation": str(cfg.get("situation") or "").strip(),
+                   "props": [str(p).strip() for p in (cfg.get("props") or []) if str(p).strip()]}
+    return setting, held_background(char, setting)
+
+
+def _context_block(povn, setting, background):
+    """The two marked sections between WORLD and the recorded scene; '' when there is neither."""
+    out = ""
+    if setting and (setting.get("situation") or setting.get("props")):
+        out += ("SETTING (atmosphere, not events) - what is true as the scene opens: the place, the light, "
+                "the weather, the things to hand. Render it through what %s sees and handles. Nothing here "
+                "happens in the scene; the recorded turns below are the only events.\n" % povn)
+        if setting.get("situation"):
+            out += "%s\n" % setting["situation"]
+        if setting.get("props"):
+            out += "Things in the scene:\n%s\n" % "\n".join("- %s" % p for p in setting["props"])
+        out += "\n"
+    if background:
+        out += ("WHAT %s KNOWS (background, not events) - facts of %s's world that %s holds. Let them surface "
+                "in passing, in what %s handles, pays, fears or takes for granted; never stop to explain "
+                "them. None of them happens in this scene:\n%s\n\n"
+                % (povn.upper(), povn, povn, povn, "\n".join("- %s" % c for c in background)))
+    return out
+
+
 def build_narration_prompt(turns, pov, world, pov_name=None, retrospective=False, lens=None,
-                           voice=DEFAULT_VOICE, knowledge=DEFAULT_KNOWLEDGE):
+                           voice=DEFAULT_VOICE, knowledge=DEFAULT_KNOWLEDGE, setting=None, background=None):
     """The narrator messages: the adapter contract + the POV-split scene. Other characters appear
     observable-only, so the model literally cannot render their interiors (the wall is in the input).
     `lens` (from narration_lens) is {spine, author, voice} — the timeline register, the POV's assigned
-    author, and the POV's voice block; any field may be None, in which case it is simply omitted."""
+    author, and the POV's voice block; any field may be None, in which case it is simply omitted.
+    `setting` ({situation, props}) and `background` (claims) come from `scene_context`; with neither,
+    the prompt is exactly what it was before they existed."""
     povn = pov_name or pov
     lines = []
     for e in pov_split(turns, pov, knowledge):
@@ -169,14 +257,16 @@ def build_narration_prompt(turns, pov, world, pov_name=None, retrospective=False
             if retrospective else
             "Tell it in real time — the narrator knows only up to this moment, no foreshadowing.")
     user_msg = (
-        "WORLD: %s\n\nRECORDED SCENE (POV = %s; everyone else is shown observable-only):\n%s\n\n%s\n\n"
+        "WORLD: %s\n\n%sRECORDED SCENE (POV = %s; everyone else is shown observable-only):\n%s\n\n%s\n\n"
         "Render this scene as a passage of %s from %s's point of view."
-        % (str(world.get("world", "")), povn, transcript, when, VOICES[voice], povn))
+        % (str(world.get("world", "")), _context_block(povn, setting, background), povn, transcript, when,
+           VOICES[voice], povn))
     return [{"role": "system", "content": sys_msg}, {"role": "user", "content": user_msg}]
 
 
 def narrate(turns, pov, world, model=DEFAULT_NARRATOR_MODEL, stub=False, pov_name=None,
-            retrospective=False, lens=None, voice=DEFAULT_VOICE, knowledge=DEFAULT_KNOWLEDGE):
+            retrospective=False, lens=None, voice=DEFAULT_VOICE, knowledge=DEFAULT_KNOWLEDGE,
+            setting=None, background=None):
     """Render the scene to POV-bound prose. Stub: the POV's own actions strung as plain sentences
     (deterministic, no API) — enough to prove the wiring. Empty scene -> empty string."""
     if not turns:
@@ -185,7 +275,7 @@ def narrate(turns, pov, world, model=DEFAULT_NARRATOR_MODEL, stub=False, pov_nam
         acts = [str(t["action"]).strip() for t in turns if t["actor"] == pov]
         return " ".join(a for a in acts if a) or "(the scene passes quietly)"
     messages = build_narration_prompt(turns, pov, world, pov_name, retrospective, lens,
-                                      voice, knowledge)
+                                      voice, knowledge, setting=setting, background=background)
     return _openrouter(messages, model, max_tokens=2000)
 
 
@@ -258,8 +348,9 @@ def narrate_book(led, run_id, world, chars, model=DEFAULT_NARRATOR_MODEL, stub=F
             lens = narration_lens(pov, world, chars, cfg)
             s_voice = voice or sc.get("voice") or DEFAULT_VOICE
             s_know  = knowledge or sc.get("knowledge") or DEFAULT_KNOWLEDGE
+            setting, background = scene_context(led, run_id, sc["scene_no"], chars.get(pov))
             prose = narrate(seg, pov, world, model, stub, pov_name, retrospective, lens,
-                            s_voice, s_know)
+                            s_voice, s_know, setting=setting, background=background)
             title = sc["label"] or ("Scene %d" % sc["scene_no"])
             if e.get("placement") == "flashback":
                 title = "%s (flashback)" % title
@@ -276,7 +367,9 @@ def narrate_book(led, run_id, world, chars, model=DEFAULT_NARRATOR_MODEL, stub=F
         # per-scene by default; the argument overrides the whole manuscript when the caller passes one
         s_voice = voice or s.get("voice") or DEFAULT_VOICE
         s_know  = knowledge or s.get("knowledge") or DEFAULT_KNOWLEDGE
-        prose = narrate(seg, pov, world, model, stub, pov_name, retrospective, lens, s_voice, s_know)
+        setting, background = scene_context(led, run_id, s["scene_no"], chars.get(pov))
+        prose = narrate(seg, pov, world, model, stub, pov_name, retrospective, lens, s_voice, s_know,
+                        setting=setting, background=background)
         title = s["label"] or ("Scene %d" % s["scene_no"])
         passages.append("## %s\n\n%s" % (title, prose))
     return "\n\n".join(passages)
@@ -327,11 +420,13 @@ def main():
                 pov = s["pov"] or seg[0]["actor"]
                 pov_name = chars.get(pov, {}).get("fixed", {}).get("name", pov)
                 lens = narration_lens(pov, world, chars, cfg)
+                setting, background = scene_context(led, args.run, s["scene_no"], chars.get(pov))
                 out.append({"scene": s["label"], "pov": pov,
                             "prompt": build_narration_prompt(
                                 seg, pov, world, pov_name, args.retrospective, lens,
                                 args.voice or s.get("voice") or DEFAULT_VOICE,
-                                args.knowledge or s.get("knowledge") or DEFAULT_KNOWLEDGE)})
+                                args.knowledge or s.get("knowledge") or DEFAULT_KNOWLEDGE,
+                                setting=setting, background=background)})
             print(json.dumps(out, indent=2))
             return 0
         manuscript = narrate_book(led, args.run, world, chars, args.model, args.stub,
@@ -349,13 +444,25 @@ def main():
         raise SystemExit("%s (run %r)" % (e, args.run))
     pov_name = chars.get(args.pov, {}).get("fixed", {}).get("name", args.pov)
     lens = narration_lens(args.pov, world, chars, cfg)
+    # This mode narrates EVERY turn of the run, so one scene's setting fits it only when the run has one
+    # scene; a run of several takes no setting here (--book gives each scene its own).
+    scenes = led.scenes_for(args.run)
+    if len(scenes) == 1:
+        setting, background = scene_context(led, args.run, scenes[0]["scene_no"], chars.get(args.pov))
+    else:
+        setting, background = None, held_background(chars.get(args.pov))
+        if scenes:
+            print("narrate: %d scenes in run %r - no setting given (use --book for each scene's own)"
+                  % (len(scenes), args.run), file=sys.stderr)
     if args.prompt_only:                              # Claude-in-the-loop: emit the prompt, Claude writes the prose
         print(json.dumps(build_narration_prompt(
             turns, args.pov, world, pov_name, args.retrospective, lens,
-            args.voice or DEFAULT_VOICE, args.knowledge or DEFAULT_KNOWLEDGE), indent=2))
+            args.voice or DEFAULT_VOICE, args.knowledge or DEFAULT_KNOWLEDGE,
+            setting=setting, background=background), indent=2))
         return 0
     prose = narrate(turns, args.pov, world, args.model, args.stub, pov_name, args.retrospective, lens,
-                    args.voice or DEFAULT_VOICE, args.knowledge or DEFAULT_KNOWLEDGE)
+                    args.voice or DEFAULT_VOICE, args.knowledge or DEFAULT_KNOWLEDGE,
+                    setting=setting, background=background)
     print(prose)
     return 0
 

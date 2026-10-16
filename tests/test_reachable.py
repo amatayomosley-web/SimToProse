@@ -83,7 +83,6 @@ EXEMPT = {
     ("citation.py", "verify_envelope"):  "the grounding contract's enforcement, named by SPEC-LEDGER as the orchestrator's check on an answer envelope",
     ("claims.py", "tested"):             "keeper-of-truth's first collapse trigger (docs/keeper-of-truth.md); the keeper seat asks it, the scripts do not",
     ("severity.py", "rubric"):           "the severity-word rubric the appraiser and keeper seats are shown (.claude/agents/appraiser.md)",
-    ("scene_cfg.py", "for_scene"):       "the v14 pin's read surface — a replay names its inputs by this; the resume path passes the cfg explicitly",
 
     # `compounds.py:recognise` LEFT THIS LIST 2026-09-08, and not by being wired. When the eight
     # paths replaced the Panksepp primitives as the stored state, every compound recipe stopped
@@ -163,7 +162,8 @@ UNWIRED_AT_FIRST_MEASUREMENT = {
     # THREE MORE LEFT 2026-09-10, by retirement not wiring: bonds.replay,
     # decay.record_belief_recall, toward.apply_deltas — bodies and reasons in
     # staging/src/engine/RETIRED-DEAD-FUNCTIONS-2026-09-10.py. And FIVE moved to EXEMPT above as
-    # orchestrator surfaces: verify_envelope, resolve, tested, rubric, for_scene.
+    # orchestrator surfaces: verify_envelope, resolve, tested, rubric, for_scene (for_scene WIRED 2026-10-16:
+    # scripts/narrate.py scene_context reads each scene's pinned setting - gate narrator-context).
     # FOUR compounds.py ENTRIES REMOVED 2026-09-08 (blend, recipe_sum, separability, validate).
     # The ratchet's rule is that an entry leaves when its function gets WIRED; these left by the
     # other door -- the module was retired to staging with the primitive set it is keyed to. That

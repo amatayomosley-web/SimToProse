@@ -74,6 +74,9 @@ def main():
     # 5. book-scale: narrate a whole multi-scene chronicle, POV per recorded scene
     _book_narration()
 
+    # 6. the scene's setting and what the POV knows (gate narrator-context)
+    _context()
+
     if FAILS:
         print("\ntest_narrate: FAIL")
         for f in FAILS:
@@ -309,6 +312,83 @@ def _book_narration():
               sorted({v for v, _k in seen}) == ["close-third", "first"], str(seen))
     finally:
         narrate.narrate = _real_narrate
+
+
+SETTING = {"situation": "Rain over the ford. The kettle is on the hob.",
+           "props": ["the copper kettle, dented", "a bundle of feverfew drying by the door"]}
+
+
+def _sheet_with_facts():
+    """A sheet whose vault holds band facts (`shared`), one own belief, a digit, and a duplicate."""
+    rows = [{"claim": "Ashford folk tell of a drowned miller.", "shared": "grp.ashford"},
+            {"claim": "The ford floods each spring.", "shared": "grp.ashford"},
+            {"claim": "A healer's kettle is never left cold.", "shared": "grp.ashford"},
+            {"claim": "Feverfew is cut before it flowers.", "shared": "grp.healers"},
+            {"claim": "A fever bed costs 3 pennies a night.", "shared": "grp.healers"},
+            {"claim": "Ashford folk tell of a drowned miller.", "shared": "grp.healers"},
+            {"claim": "My own private belief.", "confidence": 0.9}]
+    return {"current": {"vault": rows}}
+
+
+def _context():
+    print("\n[context] the scene's setting and what the POV knows (gate narrator-context)")
+    plain = narrate.build_narration_prompt(TURNS, "maren", WORLD, pov_name="Maren")
+    check("control:-no-setting-and-no-facts-builds-the-same-prompt",
+          narrate.build_narration_prompt(TURNS, "maren", WORLD, pov_name="Maren", setting=None, background=[])
+          == plain == narrate.build_narration_prompt(TURNS, "maren", WORLD, pov_name="Maren",
+                                                     setting={"situation": "", "props": []}, background=None)
+          and "WORLD: %s\n\nRECORDED SCENE" % WORLD["world"] in plain[1]["content"])
+    facts = narrate.held_background(_sheet_with_facts(), SETTING)
+    check("held_background:-scene-words-first,-then-the-narrowest-band,-no-digit,-no-own-belief,-no-duplicate",
+          facts == ["Feverfew is cut before it flowers.", "The ford floods each spring.",
+                    "A healer's kettle is never left cold.", "Ashford folk tell of a drowned miller."], facts)
+    check("held_background:-bounded", len(narrate.held_background(_sheet_with_facts(), SETTING, cap=2)) == 2
+          and narrate.BACKGROUND_CAP == 8)
+    check("held_background:-no-sheet-or-no-vault-is-no-facts",
+          narrate.held_background(None) == [] and narrate.held_background({"current": {}}) == [])
+    user = narrate.build_narration_prompt(TURNS, "maren", WORLD, pov_name="Maren", setting=SETTING,
+                                          background=facts)[1]["content"]
+    check("the-prompt-carries-the-situation-and-every-prop,-marked-as-atmosphere-not-events",
+          "SETTING (atmosphere, not events)" in user and SETTING["situation"] in user
+          and all("- %s" % p in user for p in SETTING["props"]) and "the only events" in user, user[:900])
+    check("...and-the-facts,-marked-as-background-not-events,-before-the-recorded-scene",
+          "WHAT MAREN KNOWS (background, not events)" in user and all("- %s" % f in user for f in facts)
+          and user.index("WHAT MAREN KNOWS") < user.index("RECORDED SCENE"), user[:1200])
+    check("no-digit-from-a-held-fact-reaches-the-prompt", "3 pennies" not in user)
+    book = {"spines": {"a": "SPINE-A", "b": "SPINE-B"}, "default_spine": "a"}
+    check("default_spine-is-the-spine-when-the-world-sets-no-timeline",
+          narrate.narration_lens("maren", {}, {}, book)["spine"] == "SPINE-A")
+    check("...and-the-world's-timeline-still-wins-when-it-sets-one",
+          narrate.narration_lens("maren", {"timeline": "b"}, {}, book)["spine"] == "SPINE-B"
+          and narrate.narration_lens("maren", {}, {}, {"spines": {"a": "SPINE-A"}})["spine"] is None)
+
+    # the plumbing: narrate_book hands each scene its OWN pinned situation and props, and the POV's facts
+    world, chars = _book_chars()
+    chars["maren"].setdefault("current", {})["vault"] = _sheet_with_facts()["current"]["vault"]
+    led = Ledger(os.path.join(tempfile.mkdtemp(prefix="narrate_ctx_"), "chronicle.db"))
+    led.create_run("cx", {"catalog_version": 1, "models": {"turn": "stub"}, "prompt_versions": {"turn": 1}})
+    for cid in ("maren", "edda"):
+        led.register_character("cx", cid, chars[cid]["fixed"], chars[cid]["baseline"])
+    cfg = {"name": "fireside", "at": {"day": 1, "time": "09:00"}, "situation": SETTING["situation"],
+           "props": SETTING["props"], "subject": (None, None),
+           "opening_tags": {"type": "mundane", "dimensions": {}, "durability": "transient"},
+           "cast": [{"id": "maren", "drive": "rest"}, {"id": "edda", "drive": "talk"}]}
+    nt0 = scene.run_scene(world, copy.deepcopy(chars), cfg, led, "cx", 0, "stub", True, 2, think=False)
+    led.append_scene("cx", 0, "fireside", "maren", 0, nt0 - 1, cfg=dict(cfg, subject=None))
+    nt1 = scene.run_scene(world, copy.deepcopy(chars), dict(cfg, props=[], situation="Later."), led, "cx", nt0,
+                          "stub", True, 2, think=False)
+    led.append_scene("cx", 1, "later", "maren", nt0, nt1 - 1)                # recorded with no cfg pinned
+    seen = []
+    real = narrate.narrate
+    try:
+        narrate.narrate = lambda *a, **kw: seen.append((kw.get("setting"), kw.get("background"))) or "x"
+        narrate.narrate_book(led, "cx", world, chars, stub=True)
+    finally:
+        narrate.narrate = real
+    check("narrate_book-hands-a-pinned-scene-its-situation-and-props-and-the-POV's-facts",
+          len(seen) == 2 and seen[0][0] == SETTING and seen[0][1] == facts, str(seen)[:600])
+    check("...and-a-scene-with-no-pin-no-setting-(unknown,-not-invented)",
+          len(seen) == 2 and seen[1][0] is None, str(seen)[-300:])
 
 
 if __name__ == "__main__":
