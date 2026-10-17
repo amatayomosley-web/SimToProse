@@ -929,8 +929,12 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
                                                   1.0 / _cap[_b])
         if _acted and word != "hold":                 # an act held in silence is not a turn at speaking (recency)
             a["last_spoke"] = committed
+        # A MOVE - the speaker's, a listener's take, or a word on the forced floor - offers the floor; `move` and `cut`
+        # (a cut-in the round licensed) are what the settled stop counts (gate settled-stop).
+        _is_move = stance == "speaker" or word == "take" or bool(_flags.get("forced") and word == "interject")
         log.append({"who": speaker, "action": turn["action"], "thought": turn["thought"], "tags": tags,
-                    "floor": word, "addressee": str(turn.get("addressee") or "")})
+                    "floor": word, "addressee": str(turn.get("addressee") or ""),
+                    "move": _is_move, "cut": bool(_flags.get("interrupt"))})
 
         # bonds: EVERY OTHER PERSON IN THE ROOM re-reads the speaker. This is the loop the engine
         # did not have — arc runs on the speaker, and relationships.md:5 says an edge is the
@@ -1273,7 +1277,6 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
         # THE ROUND DECIDES NOW (gate round-loop): a move - the speaker's, a listener's take, or a word on the forced
         # floor - offers the floor to the listeners by urge; an interjection or a hold lets the round go on. In a
         # two-hander every move is to the other person (design v1 s3), so the urge reads them as addressed.
-        _is_move = stance == "speaker" or word == "take" or (_flags.get("forced") and word == "interject")
         _others = [i for i in present if i != speaker]
         _addr_floor = _others[0] if len(_others) == 1 else addressee
         nxt, urges, ended_because = None, {}, None
@@ -1306,6 +1309,11 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
             break
         if ended_because == "settled":
             print("\n== settled — asked again with the floor theirs, %s held. ==" % names.get(speaker, speaker))
+            ended = "settled"
+            break
+        if _is_move and _floor.settled(log, urges):     # after the forced hold, before the ceiling (design v2 s3)
+            print("\n== settled — %d moves in a row said nothing new, and nobody is moved to cut in. =="
+                  % _floor.SETTLED_MOVES)
             ended = "settled"
             break
         _st, _who, _fl = _next

@@ -377,6 +377,37 @@ def test_the_round_asks_keeps_and_settles():
           and floor.Round("a").skipped(["a", "b"]) == ("speaker", "b", {}))
 
 
+def test_settled_is_four_nothing_new_moves_and_no_heat():
+    """gate settled-stop (design v1 s3 rule 3, v2 s3): a move is nothing new when every content word it SAID was
+    already said by that speaker this scene, and it is neither a question nor a cut-in; four in a row, with no
+    listener above INTERRUPT_THRESHOLD, and the scene has settled."""
+    def mv(who, said, **kw):
+        return dict({"who": who, "action": 'She looks at the sea. "%s"' % said if said else "She looks at the sea.",
+                     "move": True, "cut": False}, **kw)
+    calm, hot = {"b": (0.2, 0, 0)}, {"b": (floor.INTERRUPT_THRESHOLD + 0.01, 0, 0)}
+    opening = [mv("a", "The boat stays tied tonight."), mv("b", "The boat goes out at dawn.")]
+    again = [mv("a", "Tonight the boat stays tied."), mv("b", "At dawn, the boat goes out."),
+             mv("a", "The boat stays."), mv("b", "Dawn.")]
+    check("settled-four-moves-saying-nothing-new-and-no-heat", floor.settled(opening + again, calm) is True)
+    check("settled-not-under-heat:-an-argument-that-repeats-is-not-over", floor.settled(opening + again, hot) is False)
+    check("settled-not-on-three", floor.settled(opening + again[1:], calm) is False)
+    check("settled-a-new-word-breaks-the-run",
+          floor.settled(opening + again[:3] + [mv("b", "Dawn, and the pier.")], calm) is False)
+    check("settled-a-question-is-not-nothing-new",
+          floor.settled(opening + again[:3] + [mv("b", "The boat?")], calm) is False)
+    check("settled-a-cut-in-is-not-nothing-new",
+          floor.settled(opening + again[:3] + [mv("b", "Dawn.", cut=True)], calm) is False)
+    check("settled-a-bare-No.-has-no-content-words-and-counts-as-nothing-new",
+          floor.settled(opening + again[:3] + [mv("b", "No.")], calm) is True)
+    check("settled-a-move-with-no-speech-at-all-is-a-body-at-work-and-breaks-the-run",
+          floor.settled(opening + again[:3] + [mv("b", "")], calm) is False)
+    check("settled-another-speaker's-words-are-not-yours",
+          floor.settled(opening + [mv("a", "At dawn the boat goes out.")] + again[1:], calm) is False)
+    holds = [dict(mv("b", "New words entirely here."), move=False)]
+    check("settled-counts-moves-only:-an-interjection-between-them-is-skipped",
+          floor.settled(opening + again[:2] + holds + again[2:], calm) is True)
+
+
 def main():
     print("test_floor.py — the turn-taking economy\n")
     for fn in sorted((v for k, v in globals().items()

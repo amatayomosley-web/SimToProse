@@ -27,6 +27,9 @@ from __future__ import annotations
 
 __layer__ = "engine"
 
+import re
+
+from .claims import spoken                                 # the settled stop reads what a move SAID, quoted spans only
 from .records import PATHS
 from .state import appraise
 from . import bonds
@@ -303,3 +306,37 @@ class Round:
             return "empty"
         self.forced = leader(here)                # every asked listener held after a yield: one more ask
         return self._go(("listener", self.forced, {"forced": True}))
+
+
+# ---- THE SETTLED STOP (design v1 s3 rule 3, v2 s3; gate settled-stop) -----------------------------------------
+# A two-hander never lulls (every move asks the other), so a talk that has run out must be noticed another way: the
+# moves stop carrying anything their speaker had not already said. Heat overrides it - an argument repeats itself.
+SETTLED_MOVES = 4
+STOP_WORDS = frozenset(("the", "and", "you", "your", "but", "not", "for", "with", "that", "this", "are", "was", "were",
+                        "have", "has", "had", "its", "it's", "his", "her", "him", "she", "they", "them", "then", "there",
+                        "what", "all", "can", "will", "just", "now", "too", "out", "our", "from", "into", "don't"))
+
+
+def _said(action):
+    """-> (content words, asked, spoke) of what a move SAID: its quoted spans, words of three letters or more off the stop
+    list, and whether any span asks a question. Narration is not speech (`claims.spoken`)."""
+    spans = spoken(str(action or ""))
+    words = {w for w in re.findall(r"[a-z']+", " ".join(spans).lower()) if len(w.strip("'")) >= 3 and w not in STOP_WORDS}
+    return words, any("?" in s for s in spans), bool(spans)
+
+
+def settled(log, urges):
+    """True when the last SETTLED_MOVES moves in `log` each said nothing new and no listener's urge for the move just
+    made is above INTERRUPT_THRESHOLD. A row is a move when its `move` is true. A move is nothing new when every
+    content word of its quoted speech was said by the same speaker on an earlier row this scene, and it is not a
+    question and not a cut-in (`cut`); a move with no content words is nothing new (a bare "No." ends a thread). A
+    move that SAID nothing - no quoted speech, a body at work - is not talk running out, and breaks the run."""
+    if any(v[0] > INTERRUPT_THRESHOLD for v in (urges or {}).values()):
+        return False
+    said, run = {}, 0
+    for row in log:
+        words, asked, spoke = _said(row.get("action"))
+        if row.get("move"):
+            run = run + 1 if (spoke and not asked and not row.get("cut") and words <= said.get(row.get("who"), set())) else 0
+        said.setdefault(row.get("who"), set()).update(words)
+    return run >= SETTLED_MOVES

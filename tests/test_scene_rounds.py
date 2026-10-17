@@ -191,6 +191,28 @@ def test_a_long_move_is_drawn_again_once_and_flagged(tmp):
           and rows[0]["validation"].get("tripwire") == {"words": 100, "redrawn_words": 3}, rows[0])
 
 
+def test_a_talk_that_has_run_out_settles(tmp):
+    """gate settled-stop: a two-hander never lulls, so a talk going round in circles ends when four moves in a row
+    say nothing their speaker had not said; one saying something new each move runs to its budget."""
+    lines = {"mira": ('"The boat stays tied tonight."', '"Tonight. The boat stays tied."'),
+             "ada": ('"The boat goes out at dawn."', '"At dawn the boat goes out."')}
+
+    def circling(who, stance, flags, n, steer):
+        return ("%s says, %s" % (who.title(), lines[who][min(n, 1)]), "-",
+                "yield" if stance == "speaker" else "take", _other(who))
+    out, exited, calls, rows = _run(os.path.join(tmp, "circling"), ("mira", "ada"), circling, 12)
+    check("a-two-hander-going-round-in-circles-ends-settled-after-four-repeated-moves",
+          exited is None and "said nothing new" in out and "scene ended: settled" in out and len(rows) == 6,
+          (exited, len(rows), out[-400:]))
+
+    def fresh(who, stance, flags, n, steer):
+        return ('%s says, "Point number %s."' % (who.title(), "abcdefghijkl"[n] * 3), "-",
+                "yield" if stance == "speaker" else "take", _other(who))
+    out, exited, calls, rows = _run(os.path.join(tmp, "fresh"), ("mira", "ada"), fresh, 6)
+    check("...and-one-saying-something-new-each-move-runs-to-its-budget",
+          exited is None and len(rows) == 6 and "said nothing new" not in out, (exited, len(rows), out[-400:]))
+
+
 def test_the_exchange_shows_the_thread_and_your_own_lines(tmp):
     def script(who, stance, flags, n, steer):
         return ("%s line %d." % (who.title(), n), "-", "yield" if stance == "speaker" else "take", _other(who))
