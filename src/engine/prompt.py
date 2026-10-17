@@ -52,7 +52,51 @@ def direct_established(rows):
     return out
 
 
-def build_turn_messages(packet, event_text, temperament, relationships=None, acts=(), rung_direction=None):
+STANCES = ("speaker", "listener")
+
+# THE TWO REPLY CONTRACTS (conversation design v2 section 7B). A move is one point, one paragraph, or one act;
+# the floor word says what it did to the floor (records.FLOORS). The skeleton offers the word a silent default
+# would mean: a speaker who says nothing of it goes on, a listener who says nothing of it holds.
+_FLOOR_SLOT = {"speaker": ", \"floor\": \"keep\"", "listener": ", \"floor\": \"hold\""}
+_FLOOR_RULE = {
+    "speaker": ("floor = keep or yield. Make your move one point, one paragraph, or one act - then stop where "
+                "they would answer; keep if you have more to say after it, yield if that was the last of it.\n"),
+    "listener": ("floor = take, interject or hold. You have just heard the last line. Take the floor, put in a "
+                 "word and let them go on, hold your tongue, or do something; hold with nothing to say and "
+                 "nothing to do is allowed and means it. take = the floor is yours now and your action is your "
+                 "answer or your cut-in; interject = a short line, and they go on; hold = silence, or an act "
+                 "with no words, and they go on.\n"),
+}
+_MEMORY_LINE = ("What is under your own name you have already said. Do not say it again: press it, drop it, "
+                "or change tack.\n")
+_FLAG_LINES = (   # (flag, the stance it belongs to, its line) - placed by the director or licensed by the floor
+    ("hold_open", "speaker", "The room is yours; no one will answer until you finish.\n"),
+    ("resumed", "speaker", "Go on from where you stopped; do not restate.\n"),
+    ("interrupt", "listener", "You are moved enough to cut in before they finish.\n"),
+    ("forced", "listener", "They have stopped and no one has answered: the floor is yours; answer, act, or leave.\n"),
+)
+
+
+def _floor_parts(stance, flags, last_thought):
+    """-> (skeleton slot, contract lines, thinking-last section) for a stance; all three empty for stance=None,
+    so a caller that names no stance gets the prompt as it was before the reply contracts."""
+    if stance is not None and stance not in STANCES:
+        raise RecordError("PROMPT_STANCE_UNKNOWN", "build_turn_messages: stance %r is not one of %s" % (stance, STANCES))
+    wrong = [f for f, owner, _ in _FLAG_LINES if flags[f] and owner != stance]
+    if wrong or (stance is None and last_thought):
+        raise RecordError("PROMPT_STANCE_FLAG", "build_turn_messages: %s given for stance %r"
+                          % (", ".join(wrong) or "last_thought", stance))
+    if stance is None:
+        return "", "", ""
+    rule = _FLOOR_RULE[stance] + "".join(line for f, _, line in _FLAG_LINES if flags[f]) + _MEMORY_LINE
+    # Own mind only (the wall holds): the actor's previous thought, so a deliberation is carried, not restarted.
+    last = " ".join(str(last_thought or "").split()) or "nothing yet; this is your first move here"
+    return _FLOOR_SLOT[stance], rule, "What you were thinking last: %s\n" % last
+
+
+def build_turn_messages(packet, event_text, temperament, relationships=None, acts=(), rung_direction=None,
+                        stance=None, hold_open=False, resumed=False, interrupt=False, forced=False,
+                        last_thought=None):
     """packet + the moment -> the one-pass turn messages (system = cacheable identity prefix;
     user = volatile body as directions + structured content + the same-pass tag instruction).
 
@@ -74,6 +118,8 @@ def build_turn_messages(packet, event_text, temperament, relationships=None, act
     # the right answer for most beats. Injected ONLY when the world declares laws.
     _acts = [a for a in (acts or []) if a]
     _act_slot = (", \"act\": \"\"" if _acts else "")
+    _floor_slot, _floor_rule, _last = _floor_parts(
+        stance, {"hold_open": hold_open, "resumed": resumed, "interrupt": interrupt, "forced": forced}, last_thought)
     _act_rule = (("act = the ONE token from this list that names what you just did, or empty if "
                   "none fits - most beats are none. Copy it exactly, do not invent one: "
                   + ", ".join(_acts) + "\n") if _acts else "")
@@ -184,8 +230,9 @@ def build_turn_messages(packet, event_text, temperament, relationships=None, act
            "for. What changed hands you saw happen: act consistently with it. What was said is only "
            "what you heard said, not proof that it is true): %s\n"
            "Those present, as you stand with them: %s\n"
+           "%s"
            "The moment: %s\n"
-           "Reply as ONE JSON object: {\"action\": \"...\", \"thought\": \"...\", \"exit\": false, \"addressee\": \"\", \"tags\": {\"type\": "
+           "Reply as ONE JSON object: {\"action\": \"...\", \"thought\": \"...\", \"exit\": false, \"addressee\": \"\"%s, \"tags\": {\"type\": "
            "\"...\", \"summary\": \"...\", \"subject\": \"\", \"dimensions\": {%s}, "
            "\"durability\": \"transient|durable\", \"confidence\": 0..1, \"attribution\": \"\"}%s}.\n"
            "action = what you do or say; thought = your private inner line.\n"
@@ -199,6 +246,7 @@ def build_turn_messages(packet, event_text, temperament, relationships=None, act
            "stand with them') — copy its id exactly; leave \"\" if you address the room or only yourself. "
            "This is WHO you speak to, distinct from tags.subject (who the moment is about). "
            "Only someone here can be addressed — never a person merely spoken of.\n"
+           "%s"
            "tags.type = exactly ONE word from: %s (the event's dominant objective class — if real "
            "danger is present, the type is threat, even during care work; if the event is a social "
            "slight, insult, dismissal, or status conflict, the type is affront; never combine types).\n"
@@ -234,12 +282,15 @@ def build_turn_messages(packet, event_text, temperament, relationships=None, act
                holds,                                                # 6  What is yours here (2026-09-19)
                facts,                                               # 7  What has happened here (2026-09-22)
                edges,                                               # 8  Those present
-               event_text,                                          # 9  The moment:
-               ", ".join('"%s": "<severity>"' % d for d in _DIMS),  # 10 reply "dimensions": {...}
-               _act_slot,                                           # 11 reply skeleton act field
-               _act_rule,                                           # 12 the act instruction
-               ", ".join(ACTOR_TAG_TYPES),                           # 13 tags.type vocabulary
-               severity_gloss()))                                    # 14 the severity ladder, defined
+               _last,                                               # 9  What you were thinking last (stance only)
+               event_text,                                          # 10 The moment:
+               _floor_slot,                                         # 11 reply skeleton floor field (stance only)
+               ", ".join('"%s": "<severity>"' % d for d in _DIMS),  # 12 reply "dimensions": {...}
+               _act_slot,                                           # 13 reply skeleton act field
+               _act_rule,                                           # 14 the act instruction
+               _floor_rule,                                         # 15 the reply contract (stance only)
+               ", ".join(ACTOR_TAG_TYPES),                           # 16 tags.type vocabulary
+               severity_gloss()))                                    # 17 the severity ladder, defined
     # final name-hygiene wall: mask, across the WHOLE prompt (identity/voice, recall, moment, edges),
     # the name of anyone this actor knows only by a descriptor — a name never acquired never reaches
     # the model. relationships carry `known_as`; the canonical id stays engine-side (the seam law).

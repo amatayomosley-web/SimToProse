@@ -33,6 +33,7 @@ _MARK_CLAIM = "ZZ_RECALL_MARKER_ZZ"
 _MARK_EDGE = "ZZ_EDGE_MARKER_ZZ"
 _MARK_HOLDS = "ZZ_HOLDS_MARKER_ZZ"
 _MARK_FACTS = "ZZ_FACTS_MARKER_ZZ"
+_MARK_LAST = "ZZ_LAST_THOUGHT_MARKER_ZZ"
 
 
 def _packet():
@@ -70,7 +71,10 @@ _LABELS = ("Active goals:", "What you perceive THIS moment", "What it brings to 
            # `_after`'s window spills across it and reads the next section's content as this one's,
            # which is the exact confusion this suite exists to detect.
            "What has happened here, as you saw it",
-           "Those present, as you stand with them:", "The moment:", "Reply as ONE JSON object")
+           "Those present, as you stand with them:",
+           # 2026-10-16, gate reply-contracts: rendered only under a stance (speaker or listener).
+           "What you were thinking last:",
+           "The moment:", "Reply as ONE JSON object")
 
 
 def _after(text, label, n=400):
@@ -193,6 +197,22 @@ def test_reply_skeleton_retired_the_social_key():
     assert '"social"' not in skeleton, (
         "reply skeleton still offers \"social\" — retired 2026-09-17, removed 2026-09-19, "
         "nothing reads it; got: %r" % skeleton[:300])
+
+
+def test_thinking_last_section_holds_its_own_argument():
+    """gate reply-contracts: under a stance the actor's own previous thought gets its own section, between
+    those present and the moment, and nothing else lands in it or moves out of place."""
+    temperament = {p: {"mean": 0.3, "variability": 0.1} for p in PATHS}
+    for stance in ("speaker", "listener"):
+        u = build_turn_messages(_packet(), _MARK_EVENT, temperament, stance=stance,
+                                last_thought=_MARK_LAST)[1]["content"]
+        _check(u, "What you were thinking last:", _MARK_LAST,
+               [_MARK_GOAL, _MARK_PERCEPT, _MARK_CLAIM, _MARK_EDGE, _MARK_HOLDS, _MARK_FACTS, _MARK_EVENT])
+        _check(u, "Those present, as you stand with them:", _MARK_EDGE, [_MARK_LAST, _MARK_EVENT])
+        _check(u, "The moment:", _MARK_EVENT, [_MARK_LAST, _MARK_EDGE])
+        assert u.index(_MARK_LAST) < u.index(_MARK_EVENT) < u.index("Reply as ONE JSON object")
+        u0 = build_turn_messages(_packet(), _MARK_EVENT, temperament, stance=stance)[1]["content"]
+        _check(u0, "What you were thinking last:", "nothing yet; this is your first move here", [_MARK_EDGE])
 
 
 if __name__ == "__main__":

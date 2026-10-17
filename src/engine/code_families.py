@@ -425,6 +425,8 @@ _GATE_F = {
 _PROMPT_F = {
     "PROMPT_EVENT_TEXT_EMPTY":  "the moment handed to the turn-message builder carries no event text, so the actor would be staged into a scene with nothing happening",
     "PROMPT_PACKET_INCOMPLETE": "the packet handed to the turn-message builder carries no stable half, no volatile half, or both, so there are no facts to stage into the reasoning contract",
+    "PROMPT_STANCE_FLAG":       "a reply-contract flag was handed to the turn-message builder for a stance it does not belong to (hold_open or resumed off a speaker, interrupt or forced off a listener, a last thought with no stance), so the actor would be told a floor it is not on",
+    "PROMPT_STANCE_UNKNOWN":    "the stance handed to the turn-message builder is neither speaker nor listener, so there is no reply contract to put the actor under",
 }
 
 # ---- SCENE_* — assembling the packet an actor is handed (src/engine/scene.py) ----
