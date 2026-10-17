@@ -242,6 +242,38 @@ def test_through_the_driver(tmp):
     hidden = [t for t, m in mans if actors[t] == "ada" and (m.get("tells") or {}).get("hidden")]
     noticed = [t for t, m in mans if actors[t] == "mira" and (m.get("tells") or {}).get("noticed")]
     check("each-beat-records-what-was-hidden-and-what-was-caught", hidden and noticed, (hidden, noticed))
+    # THE NARRATOR GETS THE TELLS THE POV CAUGHT (gate tells-narrated): the record says who caught each row's tell
+    # (a later manifest's tells.noticed names it); a POV's narration shows another's tell only where the POV caught
+    # it, the POV's own only behind narration_contract.OWN_TELL_SHOWN (William's call, off by default), and
+    # omniscient narration shows every tell
+    import critic
+    import narrate
+    import narration_contract
+    from src.engine.ledger import Ledger
+    led = Ledger(db)
+    turns = critic.scene_turns(led, con.execute("SELECT run_id FROM turns LIMIT 1").fetchone()[0])
+    caught = {t["turn"]: (t["actor"], t["caught"]) for t in turns}
+    check("the-record-says-the-sharp-keeper-caught-ada-s-tell-and-nobody-caught-mira-s",
+          any(a == "ada" and c == ["mira"] for a, c in caught.values())
+          and all(c == [] for a, c in caught.values() if a == "mira"), caught)
+    names = {"mira": "Mira", "ada": "Ada"}
+
+    def told(pov, knowledge="pov"):
+        return "\n".join(m["content"] for m in narrate.build_narration_prompt(
+            turns, pov, {}, pov_name=names[pov], names=names, knowledge=knowledge))
+    check("mira-s-telling-carries-ada-s-sign-and-not-her-own", ADA_TELL in told("mira") and MIRA_TELL not in told("mira"),
+          told("mira")[-900:])
+    check("ada-s-telling-carries-no-sign-she-missed-and-not-her-own", ADA_TELL not in told("ada")
+          and MIRA_TELL not in told("ada"), told("ada")[-900:])
+    check("omniscient-carries-every-sign", ADA_TELL in told("ada", "omniscient") and MIRA_TELL in told("ada", "omniscient"))
+    saved_own = narration_contract.OWN_TELL_SHOWN
+    narration_contract.OWN_TELL_SHOWN = True
+    try:
+        check("the-one-switch-shows-the-pov-its-own-sign", MIRA_TELL in told("mira") and ADA_TELL in told("ada")
+              and MIRA_TELL not in told("ada"))
+    finally:
+        narration_contract.OWN_TELL_SHOWN = saved_own
+    led.con.close()
     # THE FEELING READS THE WHOLE WINDOW AS ITS OWNER DID (gate tells-feel): both keepers in one window (Mira keeps
     # the floor, Ada puts in a word after each move), and each one's emotion read is given the window through to its
     # close, through their own eye - Ada's last word, after Mira's last row, reaches Mira's feeling with the sign

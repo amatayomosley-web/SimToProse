@@ -51,10 +51,17 @@ DEFAULT_CRITIC_MODEL = "anthropic/claude-sonnet-4.6"
 
 
 def scene_turns(led, run_id):
-    """The committed turns of a run, in turn order, with floor word, addressee (v36) and tell (v37); '' before."""
-    rows = led.con.execute("SELECT turn, actor, action, thought, floor, addressee, tell FROM turns WHERE run_id=? "
-                           "ORDER BY turn", (run_id,)).fetchall()
-    return [dict(r) for r in rows]
+    """The committed turns of a run, in turn order, with floor word, addressee (v36) and tell (v37); '' before. `caught`
+    (gate tells-narrated): who caught the row's tell - each actor a later manifest of whose `tells.noticed` names it."""
+    rows = [dict(r) for r in led.con.execute("SELECT turn, actor, action, thought, floor, addressee, tell FROM turns "
+                                             "WHERE run_id=? ORDER BY turn", (run_id,)).fetchall()]
+    seen = [(t, a, {(n.get("who"), n.get("tell")) for n in ((json.loads(m).get("tells") or {}).get("noticed") or [])})
+            for t, a, m in (led.con.execute("SELECT turn, actor, manifest FROM decision_manifests WHERE run_id=?",
+                                            (run_id,)).fetchall() if any(r["tell"] for r in rows) else [])]
+    for r in rows:
+        key = (r["actor"], " ".join(str(r["tell"] or "").split()))
+        r["caught"] = sorted({a for t, a, n in seen if t > r["turn"] and key in n}) if key[1] else []
+    return rows
 
 
 def _name_of(p):

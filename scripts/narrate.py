@@ -81,6 +81,12 @@ def pov_split(turns, pov, knowledge=DEFAULT_KNOWLEDGE):
             out.append({"actor": t["actor"], "action": t["action"]})       # observable only — no thought
         # the floor word and whom it was said to (gate narrator-labels): observable, so every actor keeps them
         out[-1].update({k: t.get(k) or "" for k in ("floor", "addressee")})
+        # A TELL THE POV CAUGHT (gate tells-narrated): another's sign where the record says the POV caught it
+        # (critic.scene_turns `caught`), the POV's own behind narration_contract.OWN_TELL_SHOWN, every sign omniscient
+        tell = " ".join(str(t.get("tell") or "").split())
+        if tell and (knowledge == "omniscient" or (_contract.OWN_TELL_SHOWN if t["actor"] == pov
+                                                   else pov in (t.get("caught") or ()))):
+            out[-1]["tell"] = tell
     return out
 
 

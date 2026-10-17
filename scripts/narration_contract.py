@@ -73,6 +73,11 @@ SPEECHES = (
 EXCHANGE = (
     "EXCHANGE. Single SAID rows that take in turn are a conversation. Render them as one: wording free, substance "
     "fixed (THE SOURCE). Two consecutive SAID rows by one speaker with nothing between them may be one line.")
+# THE POV'S OWN TELL (gate tells-narrated): under pov knowledge a sign the POV gave away without meaning to is not
+# something the POV saw. Whether the telling shows it anyway is William's call (asked via the showrunner 2026-10-17);
+# until he rules it is not shown. One switch: narrate.pov_split reads it.
+OWN_TELL_SHOWN = False
+TELL_MARK = " (without meaning to: %s)"
 _VERB = {"keep": "keeps", "yield": "yields", "take": "takes", "interject": "interjects"}
 
 
@@ -99,6 +104,7 @@ def transcript(entries, pov, povn, names, knowledge):
     lines, others = [], []
     for i, e in enumerate(entries, 1):
         name = names.get(e["actor"], e["actor"])
+        shown = str(e["action"]) + (TELL_MARK % e["tell"] if e.get("tell") else "")     # a sign caught (tells-narrated)
         long_ = LEGACY_FLAG if len(str(e["action"]).split()) > LONG_SPEECH_WORDS else ""
         if "thought" in e:
             lines.append("beat %d · THOUGHT (%s, private; engine deliberation record - evidence, never text for "
@@ -107,17 +113,17 @@ def transcript(entries, pov, povn, names, knowledge):
             if e["actor"] != pov and name not in others:
                 others.append(name)
             lab = _floor_label(e, name, names, pov)
-            lines.append("beat %d · %s: %s" % (i, lab, e["action"]) if str(e["action"]).strip()
+            lines.append("beat %d · %s: %s" % (i, lab, shown.strip()) if shown.strip()
                          else "beat %d · %s" % (i, lab))
             continue
         if e["actor"] == pov:
-            lines.append("beat %d · DID/SAID (%s)%s: %s" % (i, name, long_, e["action"]))
+            lines.append("beat %d · DID/SAID (%s)%s: %s" % (i, name, long_, shown))
             continue
         if name not in others:
             others.append(name)
         closed = "" if "thought" in e else "; %s's mind is closed" % name
         lines.append("beat %d · DID/SAID (%s, as %s saw and heard it%s)%s: %s"
-                     % (i, name, povn, closed, long_, e["action"]))
+                     % (i, name, povn, closed, long_, shown))
     omni = knowledge == "omniscient"
     legend = ["RECORDED SCENE (POV = %s). One actor turn per beat, in order. The labels say what each line is:" % povn,
               "  THOUGHT (%s, private)  %s before acting, in the engine's deliberation format. Evidence of "
@@ -134,6 +140,9 @@ def transcript(entries, pov, povn, names, knowledge):
                    "is what %s saw and heard." % povn,
                    "  HELD (who; acts | silent)  a listener holding their tongue: what they did while the other spoke, "
                    "or a silence."]
+    if any(e.get("tell") for e in entries):
+        legend.append("  (without meaning to: ...)  a sign the character gave away and %s caught. Fixed, like an act; "
+                      "show it, never name it as a tell." % ("the reader sees" if omni else povn))
     for o in others:
         legend.append(("  DID/SAID (%s, as %s saw and heard it)  another character's observable act and words, "
                        "same rule.%s" if old else "  %s, as %s saw and heard them: observable acts and words only.%s")
