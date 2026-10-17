@@ -227,6 +227,7 @@ def build_narration_prompt(turns, pov, world, pov_name=None, retrospective=False
         "You are a NOVELIST. Your job is to take what the simulation generated and turn it into the story: "
         "one recorded scene becomes %s. The POV character is %s." % (VOICES[voice], povn),
         _contract.SOURCE,
+        _contract.SELECTION,                     # the novelist keeps what the story needs (gate narrator-compression)
     ]
     if knowledge == "omniscient":
         parts.append(
@@ -266,6 +267,7 @@ def build_narration_prompt(turns, pov, world, pov_name=None, retrospective=False
         "'not X but Y', no em-dash pileups, no summarizing a paragraph in its last sentence; never use "
         "delve, testament, tapestry, crucial, paramount, leverage, beacon, symphony, underscore, foster, "
         "nuanced, profound, or shattered.")
+    parts.append(_contract.NEVER_DO)
     sys_msg = " ".join(parts)
     when = ("Tell it retrospectively — the narrator knows how it turned out and may foreshadow."
             if retrospective else

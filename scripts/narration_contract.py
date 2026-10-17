@@ -25,7 +25,8 @@ import sys
 # tests/test_narrate.py holds the load-bearing phrases in both files.
 SOURCE = (
     "THE SOURCE. The recorded scene below is source material, not a script. FIXED, and you may not change, "
-    "add or drop it: who is present; every act and what changed hands; every choice and which way it went; "
+    "add or drop it: who is present; every act that changes something - what changed hands, a blow, a door, an "
+    "exit; every choice and which way it went; "
     "the order in which one person's words or acts answer another's; and the SUBSTANCE of what was said - "
     "every claim, order, question, refusal, name and amount a character put into words, and the stance it "
     "was said with. Nothing is said on the page that the record does not say. Nothing one character told "
@@ -38,6 +39,26 @@ SOURCE = (
     "which beats you dramatize and which you summarize; repetition - a gesture or an order the record "
     "repeats appears once unless the repetition means something; and the actor's own descriptions (its "
     "similes, its 'as if') - the gesture is the fact, the actor's phrasing of it is not.")
+# THE NOVELIST SELECTS (gate narrator-compression, 2026-10-17; William's "Go" via the showrunner): a telling of a
+# replayed two-hander kept the record's shape - one paragraph per row, every line wrapped in a gesture, the same gesture
+# in every row - because the contract made every act undroppable and placed every listener's act and silence. The
+# record is every beat the simulation ran; the story is what the novelist keeps of it.
+SELECTION = (
+    "THE NOVELIST SELECTS. The record is every row the simulation ran; the story is not. Decide which rows to "
+    "dramatize in full, which to compress into summary (a sentence can carry an exchange), which to merge, and "
+    "which gestures to drop. A run of near-identical gestures - the same hand, the same look, the same sound - "
+    "is rendered once or not at all; business that changes nothing is yours to cut. What you may not cut: an act "
+    "that changes something (what changed hands, a blow, a door, an exit), a fact one character tells another, a "
+    "choice and which way it went, and a line the story turns on. The test for a line you drop: if a later line "
+    "answers it, refers back to it, or makes no sense without it, it stays - kept, shortened or reported. A line "
+    "you keep says what the record's line says. Add nothing: no fact, act, line or feeling the record does not hold.")
+NEVER_DO = (
+    "NEVER DO (each example is invented, to show the shape): a paragraph that ends on a saying ('She hung the lamp "
+    "back on its hook. Some lights burn longer than others.'); explaining the subtext you just showed ('She kept her eyes "
+    "on the window. She did not want him to see how much it mattered.' - the first sentence already said it); "
+    "fragment runs and triads ('The rain. The road. The long walk home.'; 'cold, wet and tired'); the same epithet "
+    "or gesture in paragraph after paragraph because the record repeats it ('the tall gardener' every time he is "
+    "named; a hand to the jaw before every line).")
 THOUGHT_RECORD = (
     "THE THOUGHT RECORD. Lines marked THOUGHT are the engine's record of what %(who)s weighed before "
     "acting, written by the actor to a contract that makes it name its competing pulls and which one won "
@@ -55,8 +76,7 @@ LONG_SPEECHES = (
     "%(p)s's recorded acts, perceptions and reactions fall between the points they answer. An act recorded "
     "at the end of a beat may happen during the other person's speech when nothing it answers comes later; "
     "a reply stays after what it answers. You may not give %(p)s a word the record does not hold. A silence "
-    "is not a reaction: when %(p)s said nothing, show what %(p)s did, handled, or saw, never 'he said "
-    "nothing'.")
+    "may pass unmarked; when you mark one, show it through what %(p)s does or sees, never 'he said nothing'.")
 LONG_SPEECH_WORDS = 60     # a LEGACY turn longer than this is flagged on its label for the LONG SPEECHES rule
 LEGACY_FLAG = " · long move, recorded before floor words; break it"
 # THE ROUND'S ROWS (gate narrator-labels; conversation design v2 s6). A row recorded with a floor word is a move
@@ -65,11 +85,11 @@ LEGACY_FLAG = " · long move, recorded before floor words; break it"
 # before floor words (floor ''), whose flag still reads "break it": an old scene renders as it did.
 SPEECHES = (
     "SPEECHES. Consecutive SAID rows by one speaker, with only HELD and interjects rows between them, are one speech. "
-    "Keep it whole, in its order and its rhythm; trim only, and drop no point that carries a fact told. The HELD rows "
-    "inside it are where the listener's acts, looks and silences fall: put them there and nowhere else. An interjects "
+    "Keep it whole, in its order and its rhythm; trim only, and drop no point that carries a fact told. A listener's "
+    "act or look you keep falls where its HELD row stands, not elsewhere; you need not keep them all. An interjects "
     "row is spoken where it stands and the speech goes on. A row that takes while the previous row keeps is a cut-in: "
-    "the previous move ends unfinished on the page. A HELD row with no act is a silence: render what the listener "
-    "did, handled or saw, or the POV's recorded thought; never 'he said nothing'.")
+    "the previous move ends unfinished on the page. A HELD row with no act is a silence: it may pass unmarked; if "
+    "you mark it, show it, never 'he said nothing'.")
 EXCHANGE = (
     "EXCHANGE. Single SAID rows that take in turn are a conversation. Render them as one: wording free, substance "
     "fixed (THE SOURCE). Two consecutive SAID rows by one speaker with nothing between them may be one line.")
@@ -126,7 +146,8 @@ def transcript(entries, pov, povn, names, knowledge):
         if e.get("room"):                     # under the row it rides (gate narrator-room)
             lines.append("beat %d · THE ROOM: %s" % (i, e["room"]))
     omni = knowledge == "omniscient"
-    legend = ["RECORDED SCENE (POV = %s). One actor turn per beat, in order. The labels say what each line is:" % povn,
+    legend = ["RECORDED SCENE (POV = %s). One actor turn per beat, in order. This is the record, row by row; the story "
+              "you write from it is not (THE NOVELIST SELECTS). The labels say what each line is:" % povn,
               "  THOUGHT (%s, private)  %s before acting, in the engine's deliberation format. Evidence of "
               "motive and direction. Never text for the page."
               % ("each character" if omni else povn, "each character's private weighing" if omni
