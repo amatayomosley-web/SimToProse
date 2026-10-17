@@ -221,9 +221,15 @@ def next_speaker(actors, present, speaker, applied, target, tgroup, addressee, b
 # each asked listener decides what to do with it (take, interject, hold); a speaker nobody interrupted decides
 # whether to go on (keep, yield). The model is asked to be the person; who is asked is never the model's call.
 INTERRUPT_THRESHOLD = 0.45   # a listener moved this far is told it may cut in (design v2 s3; a recorded scene's 0.22-0.41 must not)
-MOVE_WORDS = 80              # a move longer than this is regenerated once with the tripwire line (design v2 s2)
+MOVE_WORDS = 80              # a move that SAYS more than this is regenerated once with the tripwire line (design v2 s2;
+                             # spoken words only since gate tripwire-spoken: most drafts it cut in a replay were under 80 said)
 SPEAKER_WORDS = ("keep", "yield")
 LISTENER_WORDS = ("take", "interject", "hold")
+
+
+def spoken_words(action):
+    """How many words a move SAID: the quoted spans of its action (`claims.spoken`), stage business not counted."""
+    return sum(len(s.split()) for s in spoken(str(action or "")))
 
 
 def ask_order(urges):

@@ -187,14 +187,54 @@ def test_a_crowd_asks_the_addressed_first_and_a_take_ends_the_round(tmp):
 def test_a_long_move_is_drawn_again_once_and_flagged(tmp):
     def script(who, stance, flags, n, steer):
         if who == "mira" and not steer and n == 0:
-            return (" ".join(["word"] * 100), "-", "yield", "ada")
-        return ("A short line.", "-", "yield" if stance == "speaker" else "take", _other(who))
+            return ('"%s"' % " ".join(["word"] * 100), "-", "yield", "ada")
+        return ('"A short line."', "-", "yield" if stance == "speaker" else "take", _other(who))
     out, exited, calls, rows = _run(tmp, ("mira", "ada"), script, 2)
     steered = [c for c in calls if c[4]]
-    check("a-100-word-move-is-redrawn-with-the-tripwire-line", len(steered) == 1 and "one point" in steered[0][4]
-          and "stop where they would answer" in steered[0][4], [c[4] for c in calls])
-    check("...the-second-draw-commits-and-the-record-says-why", rows[0]["action"] == "A short line."
-          and rows[0]["validation"].get("tripwire") == {"words": 100, "redrawn_words": 3}, rows[0])
+    check("a-100-spoken-word-move-is-redrawn-with-the-tripwire-line", len(steered) == 1
+          and "pushing for and why" in steered[0][4] and "one point" not in steered[0][4], [c[4] for c in calls])
+    check("...the-second-draw-commits-and-the-record-counts-spoken-words", rows[0]["action"] == '"A short line."'
+          and rows[0]["validation"].get("tripwire") == {"words": 100, "redrawn_words": 3, "counted": "spoken"}, rows[0])
+
+
+def test_stage_business_does_not_trip_the_wire(tmp):
+    """Gate tripwire-spoken (replay critique E1): the wire counts what was SAID. Most of the drafts it cut in a replay ran
+    past 80 words on stage business, under it in speech."""
+    business = " ".join(["He sets the cup down on the bench and looks at it."] * 9)
+
+    def script(who, stance, flags, n, steer):
+        if who == "mira" and n == 0:
+            return ('%s "Sit down, because the tea is hot."' % business, "-", "yield", "ada")
+        return ('"A short line."', "-", "yield" if stance == "speaker" else "take", _other(who))
+    out, exited, calls, rows = _run(tmp, ("mira", "ada"), script, 2)
+    check("100-words-of-action-with-7-spoken-commits-as-drawn,-unsteered",
+          exited is None and not any(c[4] for c in calls) and rows[0]["action"].startswith(business)
+          and "tripwire" not in rows[0]["validation"], ([c[4] for c in calls], rows[:1]))
+
+
+def test_every_redraw_is_on_the_record(tmp):
+    """Gate tripwire-spoken (replay critique E7): a row was drawn three times - long, then a hold that spoke, then a
+    take - and its record named only the first redraw. Each redraw is recorded, the last describing what committed."""
+    import scene
+
+    def script(who, stance, flags, n, steer):
+        if stance == "speaker":
+            return ('"%s says a thing %d."' % (who.title(), n), "-", "yield", _other(who))
+        if not steer:
+            return ('"%s"' % " ".join(["no"] * 90), "-", "take", _other(who))
+        if steer == scene.TRIPWIRE_LINE:
+            return ('"The boats are not out."', "-", "hold", _other(who))
+        return ('"The boats are not out until the tide turns again."', "-", "take", _other(who))
+    out, exited, calls, rows = _run(tmp, ("mira", "ada"), script, 2)
+    v = rows[1]["validation"] if len(rows) > 1 else {}
+    check("drawn-three-times:-long,-then-a-hold-that-spoke,-then-a-take",
+          [c[4] for c in calls if c[1] == "listener"][:3] == [None, scene.TRIPWIRE_LINE, scene.HOLD_SPOKE_LINE],
+          [c[:2] + (c[4],) for c in calls])
+    check("...the-record-names-both-redraws,-the-last-describing-the-committed-draft",
+          rows[1:2] and rows[1]["action"] == '"The boats are not out until the tide turns again."'
+          and v.get("tripwire") == {"words": 90, "redrawn_words": 5, "counted": "spoken"}
+          and v.get("hold_spoke") == {"said": "hold", "redrawn": "take", "redrawn_words": 10}
+          and "floor_corrected" not in v, rows[1:2])
 
 
 def test_a_talk_that_has_run_out_settles(tmp):

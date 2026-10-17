@@ -113,8 +113,10 @@ _ADDRESSED_BONUS = _floor.ADDRESSED_BONUS
 _RECENCY_PENALTY = _floor.RECENCY_PENALTY
 _INHIBITION      = _floor.INHIBITION
 _FLOOR_THRESHOLD = _floor.FLOOR_THRESHOLD
-# the tripwire's one line (conversation design v2 s2), added after the prompt when a move runs past floor.MOVE_WORDS
-TRIPWIRE_LINE = ("That ran long. Make it one point, then stop where they would answer. Rewrite your ENTIRE reply "
+# the tripwire's one line (conversation design v2 s2), added after the prompt when a move SAYS more than
+# floor.MOVE_WORDS. It keeps the reason (gate tripwire-spoken: "one point, then stop" cut it, and the lines read as riddles)
+TRIPWIRE_LINE = ("That ran long. Say what you are pushing for and why, once; cut the repetition and the stage business. "
+                 "If it reaches a point the other would have to answer, end there. Rewrite your ENTIRE reply "
                  "(same JSON shape).")
 # the line for a listener's hold that spoke (gate hold-that-spoke), drawn once more with it
 HOLD_SPOKE_LINE = ("You held but spoke. Hold means you say and do nothing now; take or interject if you speak. Rewrite "
@@ -751,24 +753,28 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
             turn, leaks = faithful_turn(packet, event_text, a["temperament"], model, stub, **_act_kw)
             # THE TRIPWIRE (design v2 s2): a move over MOVE_WORDS is drawn once more with the line; the second draw is
             # kept whatever its length, and the validation record says so. A word count flags, it never defines a move.
-            _words = len(str(turn.get("action", "")).split())
+            # It counts what was SAID (gate tripwire-spoken): stage business is the narrator's to trim, not the actor's.
+            _words = _floor.spoken_words(turn.get("action"))
             if not leaks and _words > _floor.MOVE_WORDS:
                 turn, leaks = faithful_turn(packet, event_text, a["temperament"], model, stub, steer=TRIPWIRE_LINE,
                                             **_act_kw)
-                _tripwire = {"words": _words, "redrawn_words": len(str(turn.get("action", "")).split())}
+                _tripwire = {"words": _words, "redrawn_words": _floor.spoken_words(turn.get("action")),
+                             "counted": "spoken"}
         direct.log_compose_usage(led, run_id, turn_no, scene=cfg.get("name"))   # paid for, committed or not
         _acted = bool(str(turn.get("action", "")).strip())
         word, _overridden = _floor.floor_word(stance, turn.get("floor"), _acted)
         # A HOLD THAT SPOKE IS NOT A HOLD (gate hold-that-spoke; design v2 s2: a hold says and does nothing now). A
         # listener's hold whose act carries quoted speech is drawn once more with the line that names it; one that still
         # speaks is read as the take it is, and the record says so. A wordless act while holding stays a hold (s1.7).
-        _corrected = None
+        # Every redraw is on the record, the last describing the draft that commits (a replayed scene's turn 11, critique E7).
+        _corrected, _spoke = None, None
         if stance == "listener" and word == "hold" and not leaks and claims.spoken(str(turn.get("action") or "")):
             if _act_kw is not None:
                 turn, leaks = faithful_turn(packet, event_text, a["temperament"], model, stub, steer=HOLD_SPOKE_LINE,
                                             **_act_kw)
                 _acted = bool(str(turn.get("action", "")).strip())
                 word, _overridden = _floor.floor_word(stance, turn.get("floor"), _acted)
+                _spoke = {"said": "hold", "redrawn": word, "redrawn_words": _floor.spoken_words(turn.get("action"))}
             if not leaks and word == "hold" and claims.spoken(str(turn.get("action") or "")):
                 word, _corrected = "take", {"said": "hold", "kept": "take"}
                 print("   [held but spoke - read as a take]")
@@ -827,6 +833,8 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
             _checks["reply_floor_read_as"] = {"said": _overridden, "read": word}
         if _tripwire:
             _checks["tripwire"] = _tripwire
+        if _spoke:
+            _checks["hold_spoke"] = _spoke
         if _corrected:
             _checks["floor_corrected"] = _corrected
         if _aimed and _aimed["said"] != _aimed["directed"]:
