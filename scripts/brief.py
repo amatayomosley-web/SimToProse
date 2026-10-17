@@ -103,8 +103,10 @@ def _session(path, profile, book):
         out += ("- %s answered by subagents: the run writes each prompt to `%s` and waits for its "
                 "answer. Run `scene.py` in the background with its output to a log file; then, until the run ends, "
                 "repeat `python scripts/seats.py pending \"%s\" --log <that log> --wait 60`, and for each `PENDING` key "
-                "spawn ONE fresh subagent - %s - whose whole prompt is `python scripts/seats.py brief \"%s\" <key>`. "
-                "Never give one agent two prompts. `ENDED` means the run has stopped.\n"
+                "spawn ONE fresh subagent with subagent_type \"seat\" and the model for its key - %s - whose whole "
+                "prompt is `python scripts/seats.py brief \"%s\" <key>`. If \"seat\" is not an available agent type, "
+                "stop and report it: never fall back to general-purpose (it can edit a reply after the run has read "
+                "it). Never give one agent two prompts. `ENDED` means the run has stopped.\n"
                 % (who, folder, folder, "; ".join(at), folder))
     return out
 

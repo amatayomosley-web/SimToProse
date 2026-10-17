@@ -277,6 +277,9 @@ def carried(tmp, profile_file):
           and "The actor and the seats are answered by subagents" in out
           and "`act` or `compose` at `sonnet` (the actor)" in out and "every other key at `opus` (the seats)" in out,
           out[-900:])
+    check("...each-answerer-is-spawned-as-subagent_type-seat-at-its-tier,-and-a-missing-type-stops-the-run",
+          'subagent_type "seat"' in " ".join(out.split()) and 'If "seat" is not an available agent type' in " ".join(out.split())
+          and "never fall back to general-purpose" in " ".join(out.split()), out[out.find("subagents"):][:900])
     only = os.path.join(tmp, "act-only.json")
     _run(os.path.join("scripts", "profile.py"), "new", "--out", only, "--set", "actor=subagent:sonnet")
     rc, out = _run(os.path.join("scripts", "brief.py"), direction, "--profile", only)
