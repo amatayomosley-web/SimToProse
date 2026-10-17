@@ -155,6 +155,39 @@ def reply_path(out_dir, key):
     return os.path.join(out_dir, "%s.reply.txt" % key)
 
 
+def read_record_path(out_dir, key):
+    """Where the engine keeps what it READ for prompt `key`: <out_dir>/<key>.read.json (gate replay-kept)."""
+    return os.path.join(out_dir, "%s.read.json" % key)
+
+
+def _sha(text):
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def drift(out_dir):
+    """Replies changed since the engine read them -> [(key, sha256 read, sha256 now or None if gone)], by key. The
+    record stays what was read; a reply file edited afterwards is named here, never silently believed (a replayed scene's turn 11:
+    a seat agent edited floor hold to take 2.6s after the read)."""
+    out = []
+    for name in sorted(os.listdir(out_dir)) if os.path.isdir(out_dir) else []:
+        if not name.endswith(".read.json"):
+            continue
+        key = name[:-len(".read.json")]
+        try:
+            with io.open(os.path.join(out_dir, name), encoding="utf-8") as fh:
+                read = json.load(fh).get("sha256")
+        except (OSError, ValueError):
+            continue
+        try:
+            with io.open(reply_path(out_dir, key), encoding="utf-8") as fh:
+                now = _sha(fh.read())
+        except OSError:
+            now = None
+        if now != read:
+            out.append((key, read, now))
+    return out
+
+
 def emit(messages, model, purpose, out_dir, meta=None):
     """Write a prompt for an out-of-process answer -> its key. The constant system text goes once
     per (purpose, content) as system.<purpose>.<hash>.txt and the prompt file carries the user
@@ -203,6 +236,10 @@ def _replay(messages, model, purpose, led, run_id, turn, scene):
                               % (purpose, d, key))
     with io.open(p, encoding="utf-8") as fh:
         text = fh.read()
+    # THE READ IS KEPT (gate replay-kept): the text this call consumed, beside the reply, so a later edit is detectable.
+    with io.open(read_record_path(d, key), "w", encoding="utf-8") as fh:
+        json.dump({"key": key, "purpose": purpose, "sha256": _sha(text), "read_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+                   "turn": turn, "run_id": run_id, "text": text}, fh, ensure_ascii=False, indent=1)
     LAST_USAGE.clear()
     LAST_USAGE.update({"model": model, "tokens_in": None, "tokens_out": None, "tokens_cached": None, "replayed": key})
     if led is not None and run_id is not None:

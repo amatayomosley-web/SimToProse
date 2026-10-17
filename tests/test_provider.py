@@ -163,6 +163,37 @@ def test_the_replay(tmp):
         os.environ.pop("SWE_SEAT_REPLIES", None)
 
 
+def test_the_read_is_kept(tmp):
+    """Gate replay-kept (a replayed scene's turn 11: a seat agent edited its reply 2.6s after the engine read it): the engine keeps
+    what it READ beside the reply, so a later change to the file is a drift a command names, never silent."""
+    print("\n[5b] THE READ IS KEPT — a reply changed after it was read is detectable")
+    import json
+    import subprocess
+    msgs = [{"role": "system", "content": "THE LADDERS"}, {"role": "user", "content": "the kept beat"}]
+    d = os.path.join(tmp, "kept")
+    key = P.emit(msgs, "subagent:test", "act", d)
+    io.open(P.reply_path(d, key), "w", encoding="utf-8").write('{"floor": "hold"}')
+    try:
+        P.use_replies(d)
+        out = P.call(msgs, "subagent:test", "act")
+    finally:
+        P.use_replies(None)
+    rec = json.load(io.open(P.read_record_path(d, key), encoding="utf-8")) if os.path.isfile(
+        P.read_record_path(d, key)) else {}
+    import hashlib
+    check("the-read-writes-the-text-it-consumed-and-its-sha256", out == '{"floor": "hold"}' and rec.get("text") == out
+          and rec.get("sha256") == hashlib.sha256(out.encode("utf-8")).hexdigest(), rec)
+    check("an-unchanged-reply-is-no-drift", P.drift(d) == [], P.drift(d))
+    io.open(P.reply_path(d, key), "w", encoding="utf-8").write('{"floor": "take"}')
+    check("a-reply-edited-after-the-read-is-named", [k for k, _r, _n in P.drift(d)] == [key], P.drift(d))
+    r = subprocess.run([sys.executable, os.path.join(REPO, "scripts", "seats.py"), "drift", d],
+                       capture_output=True, text=True)
+    check("...and-seats.py-drift-prints-it-and-exits-1", r.returncode == 1 and ("DRIFT %s" % key) in r.stdout,
+          (r.returncode, r.stdout, r.stderr[-300:]))
+    seat = io.open(os.path.join(REPO, ".claude", "agents", "seat.md"), encoding="utf-8").read()
+    check("the-seat-brief-says-write-once-never-edit", "never edit" in " ".join(seat.lower().split()), "seat.md")
+
+
 def test_the_wait(tmp):
     print("\n[6] THE WAIT — a missing answer is emitted and waited for, only when asked")
     import glob
@@ -257,6 +288,7 @@ def main():
         test_the_key(tmp)
         test_the_default_model_and_the_boundary()
         test_the_replay(tmp)
+        test_the_read_is_kept(tmp)
         test_the_wait(tmp)
         test_the_act_ceiling()
     finally:

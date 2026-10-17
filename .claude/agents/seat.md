@@ -24,7 +24,9 @@ endpoint. You answer that ONE prompt and write the reply to a file. Nothing else
    write ONLY that JSON - no markdown fences, no preamble, no commentary. If the system prompt says no numbers, write
    no numbers. Where it lists the only words allowed (rung names, path names, concept ids, tag types), copy them
    verbatim, exact case.
-4. Write the JSON to `<key>.reply.txt` (UTF-8), in one write. Touch no other file.
+4. Write the JSON to `<key>.reply.txt` (UTF-8), in one write. Touch no other file. Write the reply file once and never
+   edit it after writing: the engine reads it the moment it lands, and a later change is not what it read (the engine
+   keeps its read, and `seats.py drift` names the change). If you see a mistake after writing, say so in your one-line reply.
 5. Do not read the other prompt or reply files in the folder - each answer must be blind to the others.
 
 ## Purposes you may meet

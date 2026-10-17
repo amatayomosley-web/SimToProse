@@ -14,6 +14,8 @@ first generated scenes this way.
         the run has stopped (exit 2); TIMEOUT when nothing arrived within --wait (exit 3)
     python scripts/seats.py brief DIR KEY
         the answering agent's whole brief: .claude/agents/seat.md with this prompt's files named
+    python scripts/seats.py drift DIR
+        DRIFT <key> per reply changed since the engine read it (gate replay-kept; exit 1), else CLEAN (exit 0)
 """
 import argparse
 import glob
@@ -78,10 +80,21 @@ def main(argv=None):
     br = sub.add_parser("brief", help="print the answering agent's brief for one prompt")
     br.add_argument("folder")
     br.add_argument("key")
+    dr = sub.add_parser("drift", help="name every reply changed since the engine read it")
+    dr.add_argument("folder")
     a = ap.parse_args(argv)
     if a.cmd == "brief":
         print(brief(a.folder, a.key))
         return 0
+    if a.cmd == "drift":
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import provider
+        changed = provider.drift(a.folder)
+        for key, read, now in changed:
+            print("DRIFT %s read=%s now=%s" % (key, (read or "-")[:12], (now or "gone")[:12]))
+        if not changed:
+            print("CLEAN")
+        return 1 if changed else 0
     deadline = time.monotonic() + max(0.0, a.wait)
     while True:
         waiting = pending(a.folder)
