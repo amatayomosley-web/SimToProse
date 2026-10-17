@@ -111,12 +111,14 @@ def compose_prompt(rows, brief):
         "it — which is the single outcome this design exists to prevent.\n"
         "4. NEVER NAME AN ACT. You may say what the beat is ABOUT. You may not say what the character "
         "does about it; that is theirs.\n\n"
+        "Give each selected emotion an `on`: what it is about, as the character would point at it - a "
+        "person, a thing, what was just done or said. Never the emotion's name, never an act.\n\n"
         "Select at most three. Fewer is usual. Selecting none is legitimate when the beat is not "
         "about this character's feelings.")
     usr = ("WHAT IS LIVE for this character (the engine's answer, not yours to change):\n%s\n\n"
            "WHAT THE SCENE NEEDS:\n%s\n\n"
            "Reply as ONE JSON object:\n"
-           '{"selected": [{"path": "...", "rung": 0, "primary": true}], '
+           '{"selected": [{"path": "...", "rung": 0, "primary": true, "on": "what this emotion is about"}], '
            '"about": "what this beat is about for this character, one line, naming no act", '
            '"unavailable": "any emotion the scene asked for that this character is not at, else empty"}'
            % (live, brief.strip() or "(no brief supplied)"))
@@ -163,6 +165,9 @@ def verify(selection, rows):
         if not _whole(row["rung"]):
             raise ComposerError("COMPOSER_FIELD_TYPE", "verify: %r was selected at rung %r, which is not a whole "
                                 "number" % (row["path"], row["rung"]))
+        if row.get("on") is not None and not _replies.text_ok(row["on"]):
+            raise ComposerError("COMPOSER_FIELD_TYPE", "verify: the `on` of %r must be text, got %s - it becomes the "
+                                "line under its state" % (row["path"], _kind(row["on"])))
         if row.get("primary") is not None and not isinstance(row["primary"], bool):
             raise ComposerError("COMPOSER_FIELD_TYPE", "verify: the primary of %r must be true or false, got %r"
                                 % (row["path"], row["primary"]))
@@ -225,7 +230,9 @@ def _refuse_leaks(selection):
     # The rule is about DELIVERED text. `direction_for` reads `about` and nothing else, so
     # `unavailable` never reaches an actor; it is a diagnostic for the operator and the logs, and
     # naming an emotion is the only way it can do its job.
-    text = str(selection.get("about") or "").lower()
+    # AND EACH SELECTION'S `on` (gate composer-on): it is delivered under its block, so it is the same kind of text.
+    text = " \n ".join([str(selection.get("about") or "")] + [str(r.get("on") or "") for r in selection.get("selected")
+                                                              or [] if isinstance(r, dict)]).lower()
     named = sorted(n for n in _forbidden_names() if re.search(r"\b%s\b" % re.escape(n), text))
     if named:
         raise ComposerError("COMPOSER_NAMES_EMOTION", "verify: composer text names %s. The direction says what the "
@@ -310,8 +317,10 @@ def direction_for(rows, selection):
     for i, row in enumerate(picked):
         block = by_key[(row["path"], row["rung"])]["block"]
         lead = "Your state as you come into this moment." if i == 0 else "Also true of you right now."
+        on = str(row.get("on") or "").strip()            # what this one is about (gate composer-on)
         parts.append("%s This is what is true inside you; it is not a list of actions and it does "
-                     "not tell you what to do. Act from it.\n\n%s" % (lead, block))
+                     "not tell you what to do. Act from it.\n\n%s" % (lead, block)
+                     + ("\n\nThis is about: %s" % on if on else ""))
     return "\n\n".join(parts)
 
 
@@ -351,7 +360,8 @@ def record(rows, selection, text, by, fell_back="", descending=None):
         "offered": {r["path"]: r["name"] for r in rows},
         "selected": [{"path": s["path"], "rung": by_key[(s["path"], s["rung"])]["name"], "index": int(s["rung"]),
                       "primary": bool(s.get("primary")), "descending": bool(down.get(s["path"])),
-                      "block": _digest(by_key[(s["path"], s["rung"])]["block"])} for s in picked],
+                      "block": _digest(by_key[(s["path"], s["rung"])]["block"]),
+                      **({"on": str(s["on"])} if str(s.get("on") or "").strip() else {})} for s in picked],
         "about": str(sel.get("about") or ""),
         "text": _digest(text) if text else "",
         "ladders": rungs.fingerprint(),        # the ladders this rung was read from (gate ladder-pin)

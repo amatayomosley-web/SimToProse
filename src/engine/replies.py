@@ -333,7 +333,7 @@ def ruling_extra(obj):
 # THE COMPOSER'S CONTRACT (gate composer-replies): scripts/composer.py compose_prompt states it; scripts/composer.py
 # verify reads it, and tests/test_composer_replies.py holds the two together.
 COMPOSER_KEYS = ("selected", "about", "unavailable")
-COMPOSER_ENTRIES = {"selected": ("path", "rung", "primary")}
+COMPOSER_ENTRIES = {"selected": ("path", "rung", "primary", "on")}   # `on`: gate composer-on
 
 
 def composer_extra(obj):

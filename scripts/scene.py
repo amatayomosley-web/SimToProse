@@ -751,6 +751,7 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
                            information=(led.fold(run_id, max(turn_no - 1, 0)) or {}).get("information"),
                            char_id=speaker, vault=a["char"]["current"].get("vault"), world=world, floor=_floor_kw,
                            kept=_kept.setdefault(speaker, {}))   # this actor's composer keep (gate composer-reuse)
+            _kept[speaker]["moved"] = _moved(log, speaker)   # ...asked again once the others moved (gate composer-on)
             turn, leaks = faithful_turn(packet, event_text, a["temperament"], model, stub, **_act_kw)
             _own_thought = str(turn.get("thought") or "")   # the mind before any steer (gate thought-unsteered)
             # THE TRIPWIRE (design v2 s2): a move over MOVE_WORDS is drawn once more with the line; the second draw is
@@ -1006,6 +1007,12 @@ def park(led, run_id, last):
     """Persist the snapshot cache and park the run. Per INVOCATION, not per scene."""
     led.persist_snapshot(run_id, last, led.fold(run_id, last))
     led.set_status(run_id, "parked")
+
+
+def _moved(log, who):
+    """How far the others have moved in the scene log, as `who`'s composer keep marks it (gate composer-on): their moves
+    and interjections - a hold is no move, the room's line is nobody's. The keep holds while this stands still."""
+    return sum(1 for b in log if b.get("who") not in ("", who) and (b.get("move") or b.get("floor") == "interject"))
 
 
 def _keeper_runs(stub, keeper, keeper_off):

@@ -303,13 +303,16 @@ def rung_direction(packet, brief="", model=None, stub=False, kept=None):
         # driver. Rows and brief identical to the last call's reuse the composer's selection, `by: "kept"`, and make no
         # dispatch - the selection carries forward when nothing moved; the measurement never skips. Only a composer's
         # selection is kept: a floor is a fallback to retry, or a stub's, which costs no dispatch.
-        if isinstance(kept, dict) and kept.get("key") == (rows, brief):
+        # THE OTHER HAS MOVED (gate composer-on): the driver marks the keep `moved` with how far the others have moved; a
+        # keep made before that mark moved is asked again. A keep with no mark compares as before.
+        mark = kept.get("moved") if isinstance(kept, dict) else None
+        if isinstance(kept, dict) and kept.get("key") == (rows, brief, mark):
             sel, by, fell_back = kept["sel"], "kept", ""
         else:
             sel, by, fell_back = _compose_selection(rows, brief, model, stub)
             if isinstance(kept, dict):
                 kept.clear()
-                kept.update({"key": (rows, brief), "sel": sel} if by == "composer" else {})
+                kept.update({"key": (rows, brief, mark), "sel": sel} if by == "composer" else {})
         text = _composer.direction_for(rows, sel)
         rec = _composer.record(rows, sel, text, by, fell_back=fell_back, descending=vs.get("descending"))
     except Exception as exc:

@@ -224,6 +224,77 @@ def test_identical_rows_reuse_the_selection():
         direct._openrouter, sys.stderr = real, err
 
 
+def test_each_feeling_says_what_it_is_on():
+    """Gate composer-on (round 2 ruling 1; a replayed two-hander's state texts carried no object): a selected feeling's
+    `on` is rendered "This is about: <on>" under its own block and kept in the record; it is checked as `about` is - not
+    text, an emotion name or a named act is refused. A selection without one renders as before."""
+    print("\n[11] EACH FEELING SAYS WHAT IT IS ON (composer-on)")
+    rows = C.selectable({p: 0.7 for p in rungs.paths()})
+    a, b = rows[0], rows[1]
+    sel = {"selected": [{"path": a["path"], "rung": a["rung"], "primary": True, "on": "the girl crossing the ford"},
+                        {"path": b["path"], "rung": b["rung"], "primary": False, "on": "the lamp she will not light"}],
+           "about": "", "unavailable": ""}
+    text = " ".join(C.direction_for(rows, C.verify(sel, rows)).split())
+    first, second = " ".join(a["block"].split()), " ".join(b["block"].split())
+    check("each-block-is-followed-by-its-own-on",
+          text.index(first) < text.index("This is about: the girl crossing the ford") < text.index(second)
+          < text.index("This is about: the lamp she will not light"), text[:200])
+    rec = C.record(rows, sel, "x", "composer")
+    check("...and-the-record-keeps-it-per-selection", [s.get("on") for s in rec["selected"]]
+          == ["the girl crossing the ford", "the lamp she will not light"], rec["selected"])
+    bare = {"selected": [{"path": a["path"], "rung": a["rung"], "primary": True}], "about": "", "unavailable": ""}
+    check("a-selection-without-on-renders-as-before", "This is about" not in C.direction_for(rows, bare)
+          and "on" not in C.record(rows, bare, "x", "composer")["selected"][0], C.direction_for(rows, bare)[:80])
+    for name, on, code in (("an-on-that-names-an-emotion", "his rage at the girl", "COMPOSER_NAMES_EMOTION"),
+                           ("an-on-that-names-an-act", "she strikes him", "COMPOSER_NAMES_ACT"),
+                           ("an-on-that-is-not-text", 5, "COMPOSER_FIELD_TYPE")):
+        bad = {"selected": [{"path": a["path"], "rung": a["rung"], "primary": True, "on": on}], "about": ""}
+        try:
+            C.verify(bad, rows)
+            got = None
+        except C.ComposerError as e:
+            got = str(e)
+        check("%s-is-refused" % name, bool(got) and code in got, got)
+
+
+def test_the_keep_expires_when_the_other_moved():
+    """Gate composer-on (round 2 ruling 2b; a replayed two-hander held one character's direction for eight turns while
+    the other refused them): the scene driver marks the keep with how far the other party has moved; the same rows and
+    brief are reused only while that mark stands - a redraw within a beat, or the speaker's own keep - and asked again
+    once it moves. A keep with no mark compares as before."""
+    print("\n[12] THE KEEP EXPIRES WHEN THE OTHER HAS MOVED (composer-on)")
+    import io
+    import json
+    import direct
+    import scene
+    affect = {p: 0.7 for p in rungs.paths()}
+    top = C.selectable(affect)[0]
+    good = json.dumps({"selected": [{"path": top["path"], "rung": top["rung"], "primary": True}],
+                       "about": "the debt she owes him", "unavailable": ""})
+    sent = []
+    real, err = direct._openrouter, sys.stderr
+
+    def call(kept, mark):
+        kept["moved"] = mark
+        packet = {"volatile": {"state": {"affect": affect}}, "manifest": {}}
+        direct.rung_direction(packet, brief="the wheel has split", model="fake/model", kept=kept)
+        return packet["manifest"]["direction"]["by"]
+
+    direct._openrouter, sys.stderr = (lambda msgs, model, **kw: sent.append(1) or good), io.StringIO()
+    try:
+        kept = {}
+        got = [call(kept, 0), call(kept, 0), call(kept, 1), call(kept, 1)]
+        check("same-rows-but-the-other-moved-asks-again", got == ["composer", "kept", "composer", "kept"]
+              and len(sent) == 2, (got, len(sent)))
+    finally:
+        direct._openrouter, sys.stderr = real, err
+    log = [{"who": "ash", "move": True, "floor": "yield"}, {"who": "wren", "move": True, "floor": "take"},
+           {"who": "", "move": False, "floor": ""}, {"who": "ash", "move": True, "floor": "keep"},
+           {"who": "wren", "move": False, "floor": "hold"}, {"who": "wren", "move": False, "floor": "interject"}]
+    check("the-mark-counts-the-others'-moves-and-interjections-not-holds-or-the-room",
+          (scene._moved(log, "ash"), scene._moved(log, "wren")) == (2, 2),
+          (scene._moved(log, "ash"), scene._moved(log, "wren")))
+
 
 def main():
     print("test_composer.py - the gate between composer and actor\n")

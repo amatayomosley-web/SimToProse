@@ -144,7 +144,8 @@ def the_contract():
         set(e) == set(replies.COMPOSER_ENTRIES["selected"]) for e in shape["selected"]), shape["selected"])
     h = hashlib.sha256(json.dumps(C.compose_prompt(ROWS, BRIEF), sort_keys=True, ensure_ascii=False)
                        .encode("utf-8")).hexdigest()[:16]
-    check("compose_prompt's-bytes-are-HEAD's-(computed-on-both-trees-2026-09-26)", h == "7ec8d059f0998667", h)
+    # re-pinned by gate composer-on (2026-10-17): the prompt now asks for each selection's `on`; was 7ec8d059f0998667
+    check("compose_prompt's-bytes-are-pinned-(gate-composer-on-2026-10-17)", h == "108ca450e8714916", h)
 
 
 # ---- [2] ---------------------------------------------------------------------------------------------------------
