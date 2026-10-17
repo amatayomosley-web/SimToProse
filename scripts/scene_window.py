@@ -119,29 +119,34 @@ def _mark(act):
             r["log"]["tags"] = dict(act["applied"])
 
 
-def _seen(ctx, who):
+def _seen(ctx, who, window=()):
     """THE WINDOW AS THIS PARTICIPANT LIVED IT (gate tells-feel): the exchange through to the window's close - the
     scene log ends on its last row when `close` runs - composed for them, their own lines "You", and under the
     `tells` system through their own eye (tells.for_listener: a sign they catch reads after the act, one they miss
-    never does). Their own last row's moment stopped before it, so a word put in after it never reached the feeling."""
-    log = ctx["log"]
+    never does). Their own last row's moment stopped before it, so a word put in after it never reached the feeling.
+    -> (the moment, the signs they caught among the `window` rows: [{turn, who, tell}] - gate tells-caught-at-close,
+    the same eye, kept so the narrator can show what the feeling read)."""
+    log, caught = ctx["log"], []
     if "tells" in ctx["sys"]:
-        log = _tells.for_listener(log, who, _tells.catches(ctx["actors"][who]["char"],
-                                                           tired="condition_flow" in ctx["sys"]))[0]
-    return compose_event(ctx["cfg"]["situation"], log, ctx["names"], me=who)
+        sharp = _tells.catches(ctx["actors"][who]["char"], tired="condition_flow" in ctx["sys"])
+        log = _tells.for_listener(log, who, sharp)[0]
+        caught = [{"turn": r["turn"], "who": r["who"], "tell": t} for r in window if sharp and r["who"] != who
+                  for t in (" ".join(str(r["reply"].get("tell") or "").split()),) if t]
+    return compose_event(ctx["cfg"]["situation"], log, ctx["names"], me=who), caught
 
 
-def _feel(ctx, who, rows, at, present):
+def _feel(ctx, who, rows, at, present, window=()):
     """One participant's emotion read over their rows, in the window as they saw it -> {readings, lands, failed,
-    notes, extra}."""
-    out = {"readings": [], "lands": None, "failed": {}, "notes": [], "extra": []}
+    notes, extra, caught}."""
+    out = {"readings": [], "lands": None, "failed": {}, "notes": [], "extra": [], "caught": []}
     if ctx["stub"]:
         return out
     last = rows[-1]
+    moment, out["caught"] = _seen(ctx, who, window)
     try:
         rd, lands, _conf, missing = appraiser.read_emotion(
             _text(rows, "action"), _text(rows, "thought"), _provider.seat_model(), led=ctx["led"], run_id=ctx["run_id"],
-            turn=at, scene=ctx["cfg"].get("name"), moment=_seen(ctx, who), present=list(present), me=who,
+            turn=at, scene=ctx["cfg"].get("name"), moment=moment, present=list(present), me=who,
             percepts=last["packet"]["volatile"]["percepts"], extra=out["extra"])
         out["readings"], out["lands"] = list(rd), lands
         if missing:
@@ -151,6 +156,12 @@ def _feel(ctx, who, rows, at, present):
         out["failed"].setdefault(k, {})["emotion"] = v
         out["notes"].append("emotion seat %s: %s" % (_replies.SEAT_VERB[k], v[:120]))
     return out
+
+
+def _caught(feel):
+    """-> {"caught": {participant: [{turn, who, tell}]}} for the window manifest, or {} when nobody caught a sign."""
+    c = {x: f["caught"] for x, f in feel.items() if f.get("caught")}
+    return {"caught": c} if c else {}
 
 
 def _spend(ctx, moved, at, tags_of):
@@ -338,7 +349,7 @@ def close(ctx, rows):
     moves = [r for r in rows if r["who"] == spk and not r["silent"]]
     acts = ([_act(ctx, spk, moves, at)] if moves else []) + [_act(ctx, r["who"], [r], at) for r in rows
                                                              if r["who"] != spk and not r["silent"]]
-    feel = {x: _feel(ctx, x, [r for r in rows if r["who"] == x], at, present) for x in parts}
+    feel = {x: _feel(ctx, x, [r for r in rows if r["who"] == x], at, present, rows) for x in parts}
     for act in acts:
         _apply(ctx, act)
         _mark(act)
@@ -432,7 +443,8 @@ def close(ctx, rows):
         tags=row_act["tags"],
         affect=dict(actors[R]["affect"]), condition=cond(R), validation=validation,
         events=ctx["law_events"](last["reply"], R, at) + [_event(a) for a in acts if a is not row_act] + [_event(row_act)],
-        manifest=dict(last["packet"]["manifest"], window=dict(win, reads={x: own[x]["applied"] for x in parts}),
+        manifest=dict(last["packet"]["manifest"], window=dict(win, reads={x: own[x]["applied"] for x in parts},
+                                                                     **_caught(feel)),
                       decay={"minutes": ctx["per_beat"], "here": sorted(here), "bystanders": sorted(by)}),
         recall=last["packet"]["recall_refs"], rel_deltas=rel, wound_deltas=wds, toward_deltas=toward_deltas, wound_mints=mints[R],
         utterances=claims.spoken(str(last["reply"]["action"])), target_binds=binds[R], readings=list(feel[R]["readings"]),

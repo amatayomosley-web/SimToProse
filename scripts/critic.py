@@ -55,12 +55,18 @@ def scene_turns(led, run_id):
     (gate tells-narrated): who caught the row's tell - each actor a later manifest of whose `tells.noticed` names it."""
     rows = [dict(r) for r in led.con.execute("SELECT turn, actor, action, thought, floor, addressee, tell FROM turns "
                                              "WHERE run_id=? ORDER BY turn", (run_id,)).fetchall()]
-    seen = [(t, a, {(n.get("who"), n.get("tell")) for n in ((json.loads(m).get("tells") or {}).get("noticed") or [])})
-            for t, a, m in (led.con.execute("SELECT turn, actor, manifest FROM decision_manifests WHERE run_id=?",
-                                            (run_id,)).fetchall() if any(r["tell"] for r in rows) else [])]
+    mans = [(t, a, json.loads(m)) for t, a, m in (led.con.execute(
+        "SELECT turn, actor, manifest FROM decision_manifests WHERE run_id=?", (run_id,)).fetchall()
+        if any(r["tell"] for r in rows) else [])]
+    seen = [(t, a, {(n.get("who"), n.get("tell")) for n in ((m.get("tells") or {}).get("noticed") or [])})
+            for t, a, m in mans]
+    # and what each participant caught at a window's close, by turn (gate tells-caught-at-close)
+    closed = {(c.get("turn"), x) for _t, _a, m in mans for x, cs in ((m.get("window") or {}).get("caught") or {}).items()
+              for c in cs}
     for r in rows:
         key = (r["actor"], " ".join(str(r["tell"] or "").split()))
-        r["caught"] = sorted({a for t, a, n in seen if t > r["turn"] and key in n}) if key[1] else []
+        r["caught"] = sorted({a for t, a, n in seen if t > r["turn"] and key in n}
+                             | {x for t, x in closed if t == r["turn"]}) if key[1] else []
     return rows
 
 

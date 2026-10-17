@@ -287,6 +287,22 @@ def test_through_the_driver(tmp):
           and closes[0] == max(ada_rows or [-1]) and all(len(v) == 1 for v in felt.values()), (exited, closes, ada_rows))
     check("the-sharp-keeper-s-feeling-reads-every-word-the-other-put-in-with-its-sign",
           [m.count(ADA_TELL) for m in felt["mira"]] == [len(ada_rows)], felt["mira"])
+    # WHAT THE FEELING CAUGHT, THE TELLING SHOWS (gate tells-caught-at-close): the window's close records each
+    # participant's catches, so Ada's last word - after Mira's last call - is caught by Mira in the record and in
+    # Mira's telling, and Ada catches nothing
+    import critic
+    import narrate
+    from src.engine.ledger import Ledger
+    led = Ledger(db)
+    turns = critic.scene_turns(led, sqlite3.connect(db).execute("SELECT run_id FROM turns LIMIT 1").fetchone()[0])
+    last_ada = max(t["turn"] for t in turns if t["actor"] == "ada")
+    check("the-close-records-mira-caught-ada-s-last-sign", [t["caught"] for t in turns if t["turn"] == last_ada]
+          == [["mira"]] and all(t["caught"] == [] for t in turns if t["actor"] == "mira"),
+          [(t["turn"], t["actor"], t["caught"]) for t in turns])
+    mira_told = narrate.build_narration_prompt(turns, "mira", {}, pov_name="Mira", names={"mira": "Mira", "ada": "Ada"})
+    check("...and-mira-s-telling-shows-every-sign-ada-let-slip", mira_told[1]["content"].count(ADA_TELL) == len(ada_rows),
+          mira_told[1]["content"][-700:])
+    led.con.close()
     check("the-dull-keeper-s-feeling-never-reads-the-sharp-one-s-sign",
           any("trims the lamp" in m for m in felt["ada"]) and not any(MIRA_TELL in m for m in felt["ada"]),
           felt["ada"])
