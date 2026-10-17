@@ -116,6 +116,9 @@ _FLOOR_THRESHOLD = _floor.FLOOR_THRESHOLD
 # the tripwire's one line (conversation design v2 s2), added after the prompt when a move runs past floor.MOVE_WORDS
 TRIPWIRE_LINE = ("That ran long. Make it one point, then stop where they would answer. Rewrite your ENTIRE reply "
                  "(same JSON shape).")
+# the line for a listener's hold that spoke (gate hold-that-spoke), drawn once more with it
+HOLD_SPOKE_LINE = ("You held but spoke. Hold means you say and do nothing now; take or interject if you speak. Rewrite "
+                   "your ENTIRE reply (same JSON shape).")
 
 # ---- the default scene config: situation + present acting cast + each actor's DRIVE (genuine, blind to outcome) ----
 DEFAULT_SCENE = {
@@ -587,6 +590,7 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
     # it, puts in a word, or holds. `budget` counts committed rows; a call that commits nothing (a listener's empty
     # hold) is free, so the calls are bounded separately, at one per present person per row.
     rnd = _floor.Round(speaker, held=_held)
+    _end = []                                         # the stop's lines, printed after the last window (hold-that-spoke)
     committed = 0
     # WHOM THE DIRECTION AIMS EACH CHARACTER AT (gate directed-addressee): the scene file's `cast[].to`, checked against
     # the cast by its contract before the run began. Absent, the actor chooses, as before.
@@ -725,7 +729,7 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
                              indent=2))
             direct.log_compose_usage(led, run_id, turn_no, scene=cfg.get("name"))
             return turn_no
-        _tripwire = None
+        _tripwire, _act_kw = None, None
         if supplied is not None:
             # A SUPPLIED TURN PASSES THE SAME WALLS. Shape first, then the name-leak check, then the
             # identical validate/appraise/commit path below. A re-entry that skips the wall is a
@@ -755,6 +759,19 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
         direct.log_compose_usage(led, run_id, turn_no, scene=cfg.get("name"))   # paid for, committed or not
         _acted = bool(str(turn.get("action", "")).strip())
         word, _overridden = _floor.floor_word(stance, turn.get("floor"), _acted)
+        # A HOLD THAT SPOKE IS NOT A HOLD (gate hold-that-spoke; design v2 s2: a hold says and does nothing now). A
+        # listener's hold whose act carries quoted speech is drawn once more with the line that names it; one that still
+        # speaks is read as the take it is, and the record says so. A wordless act while holding stays a hold (s1.7).
+        _corrected = None
+        if stance == "listener" and word == "hold" and not leaks and claims.spoken(str(turn.get("action") or "")):
+            if _act_kw is not None:
+                turn, leaks = faithful_turn(packet, event_text, a["temperament"], model, stub, steer=HOLD_SPOKE_LINE,
+                                            **_act_kw)
+                _acted = bool(str(turn.get("action", "")).strip())
+                word, _overridden = _floor.floor_word(stance, turn.get("floor"), _acted)
+            if not leaks and word == "hold" and claims.spoken(str(turn.get("action") or "")):
+                word, _corrected = "take", {"said": "hold", "kept": "take"}
+                print("   [held but spoke - read as a take]")
         # A DIRECTED MOVE IS RECORDED AS AIMED: the direction's id, whatever the actor wrote, and what it wrote is kept
         # on the validation record below when it differs. A silence is aimed at no one.
         _aimed = None
@@ -810,6 +827,8 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
             _checks["reply_floor_read_as"] = {"said": _overridden, "read": word}
         if _tripwire:
             _checks["tripwire"] = _tripwire
+        if _corrected:
+            _checks["floor_corrected"] = _corrected
         if _aimed and _aimed["said"] != _aimed["directed"]:
             _checks["addressee_directed"] = _aimed
         window.append({"turn": turn_no, "who": speaker, "stance": stance, "word": word, "reply": turn, "silent": _silent,
@@ -881,9 +900,9 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
             ended = "empty"
             break
         if ended_because == "lull":
-            print("\n== lull — no one is moved enough to answer (max urge %.3f, floor %.3f). "
+            _end.append("\n== lull — no one is moved enough to answer (max urge %.3f, floor %.3f). "
                   "The scene settles. ==" % (urges[_floor.leader(urges)][0], _FLOOR_THRESHOLD))
-            print("   urges  : %s   [spoken to: %s]" % (
+            _end.append("   urges  : %s   [spoken to: %s]" % (
                 "  ".join("%s=%.3f%s%s" % (
                     k, v[0], "+addr" if bool(addressee) and norm_id(addressee) == norm_id(k) else "",
                     " ~unreached" if _lands_norm is not None and norm_id(k) not in _lands_norm else "")
@@ -892,11 +911,11 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
             ended = "lull"
             break
         if ended_because == "settled":
-            print("\n== settled — asked again with the floor theirs, %s held. ==" % names.get(speaker, speaker))
+            _end.append("\n== settled — asked again with the floor theirs, %s held. ==" % names.get(speaker, speaker))
             ended = "settled"
             break
         if _is_move and _floor.settled(log, urges):     # after the forced hold, before the ceiling (design v2 s3)
-            print("\n== settled — %d moves in a row said nothing new, and nobody is moved to cut in. =="
+            _end.append("\n== settled — %d moves in a row said nothing new, and nobody is moved to cut in. =="
                   % _floor.SETTLED_MOVES)
             ended = "settled"
             break
@@ -912,6 +931,8 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
             print("   -> %s\n" % _asks)
 
     _scene_window.close(_wctx, window)                # the last window, read and committed (gate window-reads)
+    for _line in _end:                                # why it ended, after its last rows (gate hold-that-spoke)
+        print(_line)
     print("\n== scene ended: %s — %d beats ==" % (ended, len(log)))
     return turn_no
 

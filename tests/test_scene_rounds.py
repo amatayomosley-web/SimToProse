@@ -432,6 +432,52 @@ def test_the_director_holds_the_floor_open(tmp):
           "SCENE_HOLD_OPEN_UNKNOWN" in "%s%s" % (exited, out) and not rows and not calls, (exited, out[-300:]))
 
 
+def test_a_hold_that_speaks_is_a_take(tmp):
+    """Gate hold-that-spoke (the first live replay, 2026-10-17): a listener's hold whose act is a spoken answer
+    is drawn once more with the line that names it; still speaking, it is read as a take - the other party is asked
+    next, and the scene does not end settled on it."""
+    import scene
+    asked = []
+
+    def script(who, stance, flags, n, steer):
+        if stance == "speaker":
+            return ("%s says a thing %d." % (who.title(), n), "-", "yield", _other(who))
+        asked.append(who)
+        if len(asked) == 1:
+            return ('"Is the tide in?" %s asks.' % who.title(), "-", "take", _other(who))
+        return ('"Not yet. Soon," %s says.' % who.title(), "-", "hold", _other(who))
+    out, exited, calls, rows = _run(os.path.join(tmp, "spoke"), ("mira", "ada"), script, 4)
+    lst = [c for c in calls if c[1] == "listener"]
+    check("the-hold-that-spoke-is-drawn-once-more-with-the-line",
+          exited is None and len(lst) > 2 and lst[2][4] == scene.HOLD_SPOKE_LINE and lst[2][0] == lst[1][0],
+          (exited, [c[:2] + (c[4],) for c in calls]))
+    fixed = [r for r in rows if r["validation"].get("floor_corrected")]
+    check("...still-speaking,-it-commits-as-a-take-and-the-record-says-so",
+          fixed and fixed[0]["floor"] == "take" and fixed[0]["validation"]["floor_corrected"] == {"said": "hold", "kept": "take"},
+          [(r["actor"], r["floor"], r["validation"].get("floor_corrected")) for r in rows])
+    check("...the-other-party-is-asked-next,-not-forced,-and-it-does-not-settle",
+          len(lst) > 3 and lst[3][0] != lst[2][0] and not lst[3][2].get("forced") and "== settled" not in out,
+          ([c[:3] for c in calls], out[-300:]))
+
+    def heeds(who, stance, flags, n, steer):
+        if stance == "listener" and steer:
+            return ('"Soon," %s says.' % who.title(), "-", "take", _other(who))
+        return script(who, stance, flags, n, steer)
+    del asked[:]
+    out, exited, calls, rows = _run(os.path.join(tmp, "heeds"), ("mira", "ada"), heeds, 3)
+    check("a-redraw-that-takes-is-kept-as-drawn,-with-no-correction",
+          exited is None and [r["floor"] for r in rows][:3] == ["yield", "take", "take"]
+          and not any(r["validation"].get("floor_corrected") for r in rows), [(r["actor"], r["floor"]) for r in rows])
+
+    def quiet(who, stance, flags, n, steer):
+        if stance == "speaker":
+            return ("%s says a thing %d." % (who.title(), n), "-", "yield", _other(who))
+        return ("", "%s keeps quiet." % who.title(), "hold", _other(who))
+    out, exited, calls, rows = _run(os.path.join(tmp, "quiet"), ("mira", "ada"), quiet, 6)
+    check("a-silent-hold-twice-still-settles,-and-the-line-prints-after-the-last-rows",
+          "== settled" in out and out.index("== settled") > out.rindex("-- beat"), out[-500:])
+
+
 def main():
     print("test_scene_rounds.py - the round, through scripts/scene.py main\n")
     for name, fn in sorted(((k, v) for k, v in globals().items() if k.startswith("test_") and callable(v)),
