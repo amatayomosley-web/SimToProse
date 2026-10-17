@@ -130,7 +130,7 @@ def _run(book, tmp, scenes, walkers=None):
     try:
         for i, (name, day, time, lasts, budget, cast) in enumerate(scenes):
             now["scene"] = name
-            argv = ["scene.py", "--book", book, "--scene",
+            argv = ["scene.py", "--no-direction", "--book", book, "--scene",
                     _cfg(tmp, name, day, time, lasts, {"cast": cast, "situation": SITUATION}),
                     "--budget", str(budget), "--model", "fake/model", "--no-keeper"]
             if i:

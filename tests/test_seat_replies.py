@@ -341,7 +341,8 @@ def _drive(script, book, argv, out=None):
     import scene
     mod = scene if script == "scene" else direct
     saved = sys.argv
-    sys.argv = ["%s.py" % script, "--book", book, "--model", "fake/model", "--no-keeper"] + argv
+    sys.argv = (["%s.py" % script, "--book", book, "--model", "fake/model", "--no-keeper"] + argv
+                + (["--no-direction"] if script == "scene" and "--direction" not in argv else []))
     out = out if out is not None else io.StringIO()
     exited = None
     try:

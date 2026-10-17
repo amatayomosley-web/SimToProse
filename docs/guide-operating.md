@@ -197,11 +197,14 @@ The chair (above) runs ONE actor against placed circumstance. The scene runner r
 several characters push the conversation, the floor passes by URGE (salience + addressed-bonus +
 disruption-stake − recency − inhibition), and each beat commits to the ledger:
 ```bash
-python scripts/scene.py --vault "<book>" --scene <scene.json>                     # a director-authored scene (the canon gate runs by default)
-python scripts/scene.py --vault "<book>" --scene <scene.json> --resume <run_id>   # a LATER scene, same chronicle
-python scripts/scene.py --vault "<book>" --stub                                   # the built-in DEFAULT_SCENE, no API, no canon gate
-python scripts/scene.py --vault "<book>" --scene <scene.json> --no-keeper         # skip the canon gate this scene
+python scripts/scene.py --no-direction --vault "<book>" --scene <scene.json>                     # a director-authored scene (the canon gate runs by default)
+python scripts/scene.py --no-direction --vault "<book>" --scene <scene.json> --resume <run_id>   # a LATER scene, same chronicle
+python scripts/scene.py --no-direction --vault "<book>" --stub                                   # the built-in DEFAULT_SCENE, no API, no canon gate
+python scripts/scene.py --no-direction --vault "<book>" --scene <scene.json> --no-keeper         # skip the canon gate this scene
 ```
+Every run says where its scene came from: `--direction <file>` (the showrunner's run - the scene file must keep
+what the author's direction says, verbatim) or `--no-direction` (a scene run by hand). Neither is refused
+(`HANDOFF_DIRECTION_REQUIRED`), and each turn's manifest records which: the direction's sha256, or `none`.
 The canon gate (2026-09-11; default-on 2026-09-19) notices what was said and rules the tested
 claims — under `--stub` it rules nothing and prints the contested ones; see **the lore licence's
 debt**, above, for the closing `lore:` line either way carries.
@@ -384,7 +387,7 @@ draft-flow).
 ```bash
 python scripts/draft.py adopt   --book "<book>"                  # once, deliberately
 python scripts/draft.py open    --book "<book>" --note "take one" # prints the draft's path
-python scripts/scene.py  --book "<book>" --db "<draft>" --scene <cfg> --budget 5   # every burst on the draft
+python scripts/scene.py  --no-direction --book "<book>" --db "<draft>" --scene <cfg> --budget 5   # every burst on the draft
 python scripts/narrate.py --vault "<book>" --db "<draft>" --run <id> --prompt-only  # a review render -> <book>/prose/<run>/<scene>.md
 python scripts/draft.py promote --book "<book>" --draft <id> --approved "<the author's words>" --by owner
 python scripts/draft.py reject  --book "<book>" --draft <id> --why "<reason>"      # or set it aside

@@ -442,7 +442,7 @@ def _scene_file(tmp, **edit):
 
 
 def _scene(book, cfg, *extra):
-    r = subprocess.run([sys.executable, os.path.join("scripts", "scene.py"), "--book", book, "--scene", cfg, "--stub",
+    r = subprocess.run([sys.executable, os.path.join("scripts", "scene.py"), "--no-direction", "--book", book, "--scene", cfg, "--stub",
                         "--budget", "2", "--no-keeper"] + list(extra), cwd=REPO, capture_output=True, text=True, timeout=600)
     return r.returncode, (r.stdout or "") + (r.stderr or "")
 

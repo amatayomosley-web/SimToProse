@@ -72,7 +72,7 @@ def _cfg(tmp, name, time, lasts):
 
 
 def _cli(*args):
-    r = subprocess.run([sys.executable, os.path.join("scripts", "scene.py")] + list(args), capture_output=True,
+    r = subprocess.run([sys.executable, os.path.join("scripts", "scene.py"), "--no-direction"] + list(args), capture_output=True,
                        text=True, stdin=subprocess.DEVNULL, cwd=REPO, timeout=300)
     return r.returncode, (r.stdout or "") + (r.stderr or "")
 
@@ -152,7 +152,7 @@ def _seated(book, tmp, name, time, lasts, budget, resume=None):
 
     saved = (scene.faithful_turn, scene.appraiser.read_event, scene.appraiser.read_emotion, sys.argv)
     scene.faithful_turn, scene.appraiser.read_event, scene.appraiser.read_emotion = fake_turn, refuse, emotion
-    sys.argv = ["scene.py", "--book", book, "--scene", _cfg(tmp, name, time, lasts), "--budget", str(budget),
+    sys.argv = ["scene.py", "--no-direction", "--book", book, "--scene", _cfg(tmp, name, time, lasts), "--budget", str(budget),
                 "--model", "fake/model", "--no-keeper"] + (["--resume", resume] if resume else [])
     out = io.StringIO()
     try:

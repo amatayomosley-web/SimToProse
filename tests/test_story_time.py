@@ -123,7 +123,7 @@ def _run(tmp, scenes, walker=None, orphan_before=None):
         for i, (name, day, time, lasts, budget, extra) in enumerate(scenes):
             now["scene"] = name
             path = _cfg(tmp, name, day, time, lasts, extra)
-            argv = ["scene.py", "--book", book, "--scene", path, "--budget", str(budget), "--model", "fake/model", "--no-keeper"]
+            argv = ["scene.py", "--no-direction", "--book", book, "--scene", path, "--budget", str(budget), "--model", "fake/model", "--no-keeper"]
             if i:
                 db = glob.glob(os.path.join(book, "runs", "*.db"))[0]
                 con = sqlite3.connect(db)

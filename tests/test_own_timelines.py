@@ -134,7 +134,7 @@ def _run(book, tmp, scenes, walker=None, resume=False):
     try:
         for i, (name, day, time, lasts, budget, cast) in enumerate(scenes):
             now["scene"] = name
-            argv = ["scene.py", "--book", book, "--scene", _cfg(tmp, name, day, time, lasts, {"cast": cast}),
+            argv = ["scene.py", "--no-direction", "--book", book, "--scene", _cfg(tmp, name, day, time, lasts, {"cast": cast}),
                     "--budget", str(budget), "--model", "fake/model", "--no-keeper"]
             if i or resume:
                 argv += ["--resume", sqlite3.connect(glob.glob(os.path.join(book, "runs", "*.db"))[0]).execute(

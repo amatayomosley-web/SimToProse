@@ -228,7 +228,7 @@ def _capture(book, sid, cfg_path, target, db):
         return _replies.actor_reply(ref, supplied=True).as_turn(), []
 
     argv = sys.argv
-    sys.argv = ["scene.py", "--book", book, "--scene", cfg_path, "--stub", "--no-keeper", "--budget",
+    sys.argv = ["scene.py", "--no-direction", "--book", book, "--scene", cfg_path, "--stub", "--no-keeper", "--budget",
                 str(target + 1), "--db", db]
     scene.faithful_turn = fake
     log = io.StringIO()

@@ -162,7 +162,7 @@ def drivers():
                                   {"action": "She sits.", "thought": "tired"}, "REPLY_FIELD_MISSING"),
                                  ("a-file-that-is-not-JSON", "{\"action\": ", "is not valid JSON")):
         book = _book(os.path.join(tmp, "scene-" + label))
-        rc, out = _run(os.path.join("scripts", "scene.py"), "--book", book, "--scene", _scene_cfg(tmp), "--stub",
+        rc, out = _run(os.path.join("scripts", "scene.py"), "--no-direction", "--book", book, "--scene", _scene_cfg(tmp), "--stub",
                        "--budget", "1", "--no-keeper", "--turn-json", _file(tmp, label + ".json", content))
         check("scene.py:-%s-is-refused-before-any-chronicle-exists" % label,
               rc != 0 and want in out and not _dbs(book) and "Traceback" not in out, out[-500:])
@@ -192,7 +192,7 @@ def drivers():
     check("...and-an-act-is-a-contract-key,-never-an-extra-one",
           "reply_extra" not in validations.get("act", {"reply_extra": 1}), validations.get("act"))
     book = _book(os.path.join(tmp, "scene-extra"))
-    rc, out = _run(os.path.join("scripts", "scene.py"), "--book", book, "--scene", _scene_cfg(tmp), "--stub", "--budget", "1",
+    rc, out = _run(os.path.join("scripts", "scene.py"), "--no-direction", "--book", book, "--scene", _scene_cfg(tmp), "--stub", "--budget", "1",
                    "--no-keeper", "--turn-json", _file(tmp, "s-extra.json", dict(TURN, mood="uneasy")))
     got = None
     if rc == 0 and _dbs(book):
@@ -203,7 +203,7 @@ def drivers():
             con.close()
     check("scene.py:-the-supplied-beat-records-its-extra-key-in-its-validation-record", got == [["mood"]],
           (rc, got, out[-400:]))
-    rc, out = _run(os.path.join("scripts", "scene.py"), "--help")
+    rc, out = _run(os.path.join("scripts", "scene.py"), "--no-direction", "--help")
     check("scene.py:-the---turn-json-help-names-act", "addressee?, act?}" in " ".join(out.split()), out[-400:])
     rc, out = _run(os.path.join("scripts", "direct.py"), "--help")
     flat = " ".join(out.split())

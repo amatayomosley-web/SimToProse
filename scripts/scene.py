@@ -365,7 +365,7 @@ def _law_events(led, run_id, world, chars, turn, speaker, location=None, tick=No
 
 
 def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, think=True, seed_base=0,
-              prompt_only=False, supplied=None):
+              prompt_only=False, supplied=None, direction=None):
     """Run the scene, committing each beat to the ledger. Returns the next free turn number
     (start_turn + beats committed). The cast is built from `chars` (already loaded + rehydrated by
     the caller on resume); `led`/`run_id` are the open chronicle. Each beat is a turn-commit keyed
@@ -687,6 +687,8 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
             packet["manifest"]["tells"] = {"hidden": _tells_hidden, "noticed": _tells_noticed}
         if "injuries" in _sys:                 # who this speaker was told is hurt, and how it reads (gate injuries)
             packet["manifest"]["injuries"] = ["%s:%s" % (r["who"], r["stage"]) for r in packet["volatile"]["injuries"]]
+        if direction is not None:             # the direction this run was checked against, or "none" (gate direction-required)
+            packet["manifest"]["direction"] = direction
         if _systems.declared(world):          # the set this beat ran, for the replay; absent = the defaults
             packet["manifest"]["systems"] = sorted(_sys)
         # the names the prompt masks and the leak check reads: only the people this scene's names mean
@@ -1025,8 +1027,11 @@ def main():
     ap.add_argument("--db", default=None, help="chronicle db path (default <vault>/runs/<book>.db)")
     ap.add_argument("--resume", default=None, help="run_id to continue — a later scene in the same chronicle")
     ap.add_argument("--scene", default=None, help="a director-authored scene cfg JSON (default: the built-in DEFAULT_SCENE fixture)")
-    ap.add_argument("--direction", default=None,
-                    help="the partner's direction the scene was written from: the run refuses a scene that drops or changes what it directs")
+    _dir = ap.add_mutually_exclusive_group()
+    _dir.add_argument("--direction", default=None,
+                      help="the partner's direction the scene was written from: the run refuses a scene that drops or changes what it directs")
+    _dir.add_argument("--no-direction", action="store_true", dest="no_direction",
+                      help="a scene run by hand, from no direction (Mode A) - every turn's record says so")
     ap.add_argument("--no-think", action="store_false", dest="think",
                     help="disable model thinking (Ollama) for fast iteration; thinking is ON by default")
     ap.add_argument("--prompt-only", action="store_true", dest="prompt_only",
@@ -1108,11 +1113,21 @@ def main():
         raise SystemExit(str(e))
     if _note:
         print(_note)
-    if args.direction:    # WHAT THE AUTHOR DIRECTED STANDS (gate direction-contract): the director adds, never drops
+    # WHAT THE AUTHOR DIRECTED STANDS (gate direction-contract): the director adds, never drops. A run says which it
+    # is - checked against a direction, or by hand (--no-direction) - and every turn's manifest records it, so a run
+    # made without the check is visible (gate direction-required).
+    if not (args.direction or args.no_direction):
+        raise SystemExit(str(RecordError("HANDOFF_DIRECTION_REQUIRED", "pass --direction <the direction's file> (the "
+                                         "showrunner's run) or --no-direction (a scene run by hand)")))
+    _direction_mark = "none"
+    if args.direction:
         from src.engine import handoff as _handoff
+        import hashlib
         try:
-            with open(args.direction, encoding="utf-8-sig") as fh:
-                _handoff.dropped(json.load(fh), _raw)
+            with open(args.direction, "rb") as fh:
+                _body = fh.read()
+            _direction_mark = hashlib.sha256(_body).hexdigest()
+            _handoff.dropped(json.loads(_body.decode("utf-8-sig")), _raw)
         except (OSError, ValueError) as e:
             raise SystemExit(str(RecordError("HANDOFF_DIRECTION_UNREADABLE", "%s: %s" % (args.direction, e))))
         except RecordError as e:
@@ -1357,7 +1372,7 @@ def main():
 
     next_turn = run_scene(world, chars, scene_cfg, led, run_id, start_turn, args.model, args.stub, args.budget,
                           think=args.think, seed_base=args.seed_base,
-                          prompt_only=args.prompt_only, supplied=supplied)
+                          prompt_only=args.prompt_only, supplied=supplied, direction=_direction_mark)
     if args.prompt_only:                                # outbound half emitted; nothing was acted
         return
     keeper_ran = _keeper_runs(args.stub, args.keeper, args.keeper_off) and next_turn > start_turn

@@ -184,7 +184,7 @@ def _run(tmp, decl, strengths=None, refuse=False, stray=None):
     scene.faithful_turn, scene.appraiser.read_event, scene.appraiser.read_emotion = fake_turn, event, emotion
     try:
         for i, (name, day, time, lasts, budget) in enumerate((("tide-1", 1, "06:00", "1h", 6), ("tide-2", 1, "09:00", "40m", 4))):
-            argv = ["scene.py", "--book", book, "--scene", _cfg(tmp, name, day, time, lasts), "--budget", str(budget),
+            argv = ["scene.py", "--no-direction", "--book", book, "--scene", _cfg(tmp, name, day, time, lasts), "--budget", str(budget),
                     "--model", "fake/model", "--no-keeper"]
             if i:
                 found = glob.glob(os.path.join(book, "runs", "*.db"))

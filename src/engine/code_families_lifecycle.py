@@ -52,6 +52,7 @@ _DECLARE_F = {
     "HANDOFF_FIELD_UNKNOWN":   "a direction carries a field nothing reads - refused, so an instruction is never silently dropped",
     "HANDOFF_CAST_INVALID":    "a scene direction's `cast` is not a list of ids or {id, drive?, to?}, or a member breaks the scene file's own cast contract (a key nothing reads, a `to` aimed at no one in the cast, a character twice)",
     "HANDOFF_DIRECTION_DROPPED": "scene.py --direction: the scene file drops or changes a value the author directed (a cast member, its `to`/`drive`, `at`) - the director may add to the direction, never override it",
+    "HANDOFF_DIRECTION_REQUIRED": "scene.py was run with neither --direction <file> (the showrunner's run, checked against the author's direction) nor --no-direction (a scene run by hand) - every run says which, and its turns record it",
     "HANDOFF_NEEDS_SPAWN":     "brief.py --run was asked for work that needs judgment and a specialist (a scene, a render) - pass the brief to the showrunner or the narrator instead",
     "ASK_NO_CHRONICLE":        "an info request (scripts/ask.py) named a book or draft with no chronicle yet - there is nothing to read, and none is created",
     # ---- ROLES_* — the session profile: which model fills each role (src/engine/roles.py, scripts/profile.py) ----

@@ -120,7 +120,7 @@ the room do not exist to anyone unless the situation prose names them.
 python scripts/lint_book.py --vault "<book folder>"          # before anything
 python scripts/lint_scene.py --book <book> --scene <cfg>     # per scene
 python scripts/direct.py --book "<book>" --char <note>       # the director's chair, one actor
-python scripts/scene.py  --book "<book>" --scene <cfg>       # multi-actor scene
+python scripts/scene.py  --no-direction --book "<book>" --scene <cfg>       # multi-actor scene
 ```
 
 You place **circumstance only** — the tools have no affordance for writing a character's state or

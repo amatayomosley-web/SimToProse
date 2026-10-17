@@ -171,7 +171,7 @@ def _mind(book, who):
             packet, event_text, temperament, kw.get("relationships"), acts=kw.get("acts", ()),
             rung_direction=direct.rung_direction(packet, brief=kw.get("brief", ""), model=model, stub=stub)))
     argv = sys.argv
-    sys.argv = ["scene.py", "--book", book, "--scene", cfg, "--stub", "--no-keeper", "--budget", "1",
+    sys.argv = ["scene.py", "--no-direction", "--book", book, "--scene", cfg, "--stub", "--no-keeper", "--budget", "1",
                 "--db", os.path.join(book, "runs", "stall_%s.db" % who)]
     scene.faithful_turn = fake
     log = io.StringIO()

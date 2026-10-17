@@ -231,7 +231,7 @@ def _seated(tmp, decl):
     scene.faithful_turn, scene.appraiser.read_event, scene.appraiser.read_emotion = fake_turn, refuse, emotion
     try:
         for i, (name, time, lasts, budget) in enumerate((("gale-1", "21:00", "1h", 6), ("gale-2", "22:30", "30m", 4))):
-            argv = ["scene.py", "--book", book, "--scene", _cfg(tmp, name, time, lasts), "--budget", str(budget),
+            argv = ["scene.py", "--no-direction", "--book", book, "--scene", _cfg(tmp, name, time, lasts), "--budget", str(budget),
                     "--model", "fake/model", "--no-keeper"]
             if i:
                 db = glob.glob(os.path.join(book, "runs", "*.db"))[0]

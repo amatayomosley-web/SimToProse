@@ -175,7 +175,7 @@ def refusals(tmp, book, rec):
     rc, out = _turn(book)
     check("direct.py-on-the-record-is-refused-up-front-naming-draft.py-open", rc != 0 and "[DB_IS_RECORD]" in out
           and "is the book's RECORD" in out and "draft.py open --book" in out and _counts(rec) == before, out)
-    rc, out = _run(os.path.join("scripts", "scene.py"), "--book", book, "--scene", _scene_cfg(tmp), "--stub",
+    rc, out = _run(os.path.join("scripts", "scene.py"), "--no-direction", "--book", book, "--scene", _scene_cfg(tmp), "--stub",
                    "--budget", "1", "--no-keeper")
     check("scene.py-on-the-record-is-refused-up-front", rc != 0 and "[DB_IS_RECORD]" in out
           and "is the book's RECORD" in out and "draft.py open --book" in out and _counts(rec) == before, out)
@@ -220,7 +220,7 @@ def promote_flow(tmp, book, rec):
     check("the-driver-writes-the-draft", rc == 0 and _counts(d1)["turns"] > _counts(rec)["turns"], out)
     check("...and-its-resume-line-names-the-draft", "--db" in resume and "d1.db" in resume
           and ('--book "%s"' % book) in resume, resume)
-    rc, out = _run(os.path.join("scripts", "scene.py"), "--book", book, "--db", d1, "--scene", _scene_cfg(tmp), "--stub",
+    rc, out = _run(os.path.join("scripts", "scene.py"), "--no-direction", "--book", book, "--db", d1, "--scene", _scene_cfg(tmp), "--stub",
                    "--budget", "1", "--no-keeper")
     check("...and-scene.py-writes-it-too-(its-continue-line-naming-the-draft)", rc == 0 and "DB_IS_RECORD" not in out
           and "--db" in next((l for l in out.splitlines() if "continue with" in l), ""), out)
@@ -253,7 +253,7 @@ def promote_flow(tmp, book, rec):
     check("a-driver-on-a-promoted-draft's-old-path-is-refused-and-creates-no-file", rc != 0
           and "[DRAFT_NOT_FOUND]" in out and "promoted" in out and not os.path.exists(d1), out)
     never = os.path.join(book, "runs", "drafts", "d99.db")
-    rc, out = _run(os.path.join("scripts", "scene.py"), "--book", book, "--db", never, "--scene", _scene_cfg(tmp),
+    rc, out = _run(os.path.join("scripts", "scene.py"), "--no-direction", "--book", book, "--db", never, "--scene", _scene_cfg(tmp),
                    "--stub", "--budget", "1", "--no-keeper")
     check("...and-so-is-a-draft-path-never-opened", rc != 0 and "[DRAFT_NOT_FOUND]" in out and not os.path.exists(never),
           out)

@@ -436,7 +436,7 @@ def test_both_drivers_log_the_composers_calls():
             open(p, "w", encoding="utf-8").write(txt.replace('"DISPLEASURE": 0.2', '"DISPLEASURE": 0.62'))
         runs = {}
         for label, mod, argv, stdin in (
-                ("scene", scene, ["scene.py", "--book", book, "--scene", _cfg(tmp, "gale", "21:00", "30m"), "--budget", "2",
+                ("scene", scene, ["scene.py", "--no-direction", "--book", book, "--scene", _cfg(tmp, "gale", "21:00", "30m"), "--budget", "2",
                                   "--model", "fake/model", "--no-keeper"], ""),
                 ("chair", direct, ["direct.py", "--book", book, "--char", "Mira", "--model", "fake/model", "--no-keeper",
                                    "--brief", "keep the lamp lit"], "the lamp gutters\nquit\n")):
@@ -520,19 +520,19 @@ def test_both_drivers_pin_the_ladders_and_a_resume_notices():
             con.close()
         return row[0], _json.loads(row[1])
     fp = rungs.fingerprint()
-    run(scene, ["scene.py", "--book", book, "--scene", _cfg(tmp, "gale-1", "21:00", "30m"), "--budget", "1", "--stub", "--no-keeper"])
+    run(scene, ["scene.py", "--no-direction", "--book", book, "--scene", _cfg(tmp, "gale-1", "21:00", "30m"), "--budget", "1", "--stub", "--no-keeper"])
     scene_run, cfg = last_config()
     assert cfg["prompt_versions"].get("ladders") == fp, cfg
     run(direct, ["direct.py", "--book", book, "--char", "Mira", "--stub", "--no-keeper", "--circumstance", "the lamp gutters",
                  "--prompt-only"])
     assert last_config()[1]["prompt_versions"].get("ladders") == fp, last_config()
-    same = run(scene, ["scene.py", "--book", book, "--scene", _cfg(tmp, "gale-2", "22:00", "30m"), "--budget", "1", "--stub",
+    same = run(scene, ["scene.py", "--no-direction", "--book", book, "--scene", _cfg(tmp, "gale-2", "22:00", "30m"), "--budget", "1", "--stub",
                        "--no-keeper", "--resume", scene_run])
     assert "rung ladders changed" not in same, "an unchanged resume cried wolf"
     real = rungs.fingerprint
     rungs.fingerprint = lambda: "0" * 16
     try:
-        moved = run(scene, ["scene.py", "--book", book, "--scene", _cfg(tmp, "gale-3", "23:00", "30m"), "--budget", "1", "--stub",
+        moved = run(scene, ["scene.py", "--no-direction", "--book", book, "--scene", _cfg(tmp, "gale-3", "23:00", "30m"), "--budget", "1", "--stub",
                             "--no-keeper", "--resume", scene_run])
     finally:
         rungs.fingerprint = real

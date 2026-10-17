@@ -153,7 +153,7 @@ def _run(tmp, decl, cfg_extra=None):
         body = json.load(open(cfg_path, encoding="utf-8"))
         body.update(cfg_extra)
         json.dump(body, open(cfg_path, "w", encoding="utf-8"))
-    sys.argv = ["scene.py", "--book", book, "--scene", cfg_path, "--budget", "4",
+    sys.argv = ["scene.py", "--no-direction", "--book", book, "--scene", cfg_path, "--budget", "4",
                 "--model", "fake/model", "--no-keeper"]
     try:
         with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
@@ -267,7 +267,7 @@ def test_the_rooms_cues_dim_alike(tmp):
     for decl, want in (({"condition_flow": True}, True), (None, False)):
         here = os.path.join(tmp, "flow" if want else "legacy")
         book = _book(here, decl)
-        by_scene = _spied_tired(_scene_driver, ["scene.py", "--book", book, "--scene", _cfg(here, "gale", "21:00", "30m"),
+        by_scene = _spied_tired(_scene_driver, ["scene.py", "--no-direction", "--book", book, "--scene", _cfg(here, "gale", "21:00", "30m"),
                                                 "--budget", "1", "--stub", "--no-keeper"])
         by_chair = _spied_tired(_chair, ["direct.py", "--book", book, "--char", "Mira", "--stub", "--no-keeper",
                                          "--circumstance", "the lamp gutters", "--prompt-only"])

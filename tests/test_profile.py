@@ -252,7 +252,7 @@ def actor_replay(tmp):
 def carried(tmp, profile_file):
     print("\n[4] scene.py and brief.py carry the profile")
     book = _mk_vault(os.path.join(tmp, "profiled"))
-    rc, out = _run(os.path.join("scripts", "scene.py"), "--book", book, "--scene", _scene_cfg(tmp), "--stub",
+    rc, out = _run(os.path.join("scripts", "scene.py"), "--no-direction", "--book", book, "--scene", _scene_cfg(tmp), "--stub",
                    "--budget", "1", "--no-keeper", "--profile", profile_file)
     con = sqlite3.connect(books.db_path(book))
     cfg = json.loads(con.execute("SELECT config FROM runs").fetchone()[0])
@@ -284,7 +284,7 @@ def carried(tmp, profile_file):
           and "The actor is answered by subagents" in out and "(the seats)" not in out and "seats.py pending" in out,
           out[-900:])
     acted = _mk_vault(os.path.join(tmp, "acted"))
-    rc, out = _run(os.path.join("scripts", "scene.py"), "--book", acted, "--scene", _scene_cfg(tmp), "--stub",
+    rc, out = _run(os.path.join("scripts", "scene.py"), "--no-direction", "--book", acted, "--scene", _scene_cfg(tmp), "--stub",
                    "--budget", "1", "--no-keeper", "--profile", both)
     con = sqlite3.connect(books.db_path(acted))
     cfg = json.loads(con.execute("SELECT config FROM runs").fetchone()[0])

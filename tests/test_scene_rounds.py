@@ -328,6 +328,37 @@ def test_the_authors_direction_is_kept_or_the_run_is_refused(tmp):
     out, exited, calls, rows = _run(os.path.join(tmp, "kept"), ("mira", "ada"), script, 2, to={"mira": "ada"},
                                     extra=["--direction", direction])
     check("...and-one-that-keeps-it-runs", exited is None and len(rows) == 2, (exited, out[-300:]))
+    import hashlib
+    with open(direction, "rb") as fh:
+        sha = hashlib.sha256(fh.read()).hexdigest()
+    marks = [json.loads(m[0]).get("direction") for m in _db(os.path.join(tmp, "kept", "The Rock")).execute(
+        "SELECT manifest FROM decision_manifests ORDER BY turn")]
+    check("...every-turn's-manifest-names-the-direction-it-was-checked-against", marks == [sha, sha], marks)
+
+
+def test_a_run_says_whether_a_direction_was_checked(tmp):
+    """Neither --direction nor --no-direction is refused by name before a turn (gate direction-required); a run by
+    hand says --no-direction, and its record says so."""
+    import scene
+    def script(who, stance, flags, n, steer):
+        return ("%s says a thing %d." % (who, n), "-", "yield" if stance == "speaker" else "take", _other(who))
+    book, cfg = _book(os.path.join(tmp, "bare"), ("mira", "ada"))
+    saved, sys.argv = sys.argv, ["scene.py", "--book", book, "--model", "fake/model", "--no-keeper", "--scene", cfg,
+                                 "--budget", "2", "--stub"]
+    exited = None
+    try:
+        scene.main()
+    except SystemExit as e:
+        exited = str(e)
+    finally:
+        sys.argv = saved
+    check("neither-flag-is-HANDOFF_DIRECTION_REQUIRED-before-a-turn",
+          "HANDOFF_DIRECTION_REQUIRED" in str(exited) and not _rows(book), exited)
+    out, exited, calls, rows = _run(os.path.join(tmp, "byhand"), ("mira", "ada"), script, 2)
+    marks = [json.loads(m[0]).get("direction") for m in _db(os.path.join(tmp, "byhand", "The Rock")).execute(
+        "SELECT manifest FROM decision_manifests ORDER BY turn")]
+    check("...--no-direction-runs,-and-every-turn's-manifest-says-none", exited is None and marks == ["none", "none"],
+          (exited, marks))
 
 
 def main():

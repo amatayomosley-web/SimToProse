@@ -78,7 +78,7 @@ def test_scene_main_REFUSES_a_cast_the_book_does_not_have(tmp):
     It refuses rather than substituting the book's own cast: the fixture's situation text names its
     people in prose, so pairing it with a different cast would describe people who are not there."""
     book = _mk_vault(tmp)
-    rc, out = _run(os.path.join("scripts", "scene.py"), "--book", book, "--stub", "--budget", "1")
+    rc, out = _run(os.path.join("scripts", "scene.py"), "--no-direction", "--book", book, "--stub", "--budget", "1")
     check("scene.py-refuses-instead-of-CRASHING", rc != 0 and "Traceback" not in out,
           out[-500:])
     check("...and-NAMES-the-missing-cast", "'ruth'" in out, out[-300:])
@@ -204,7 +204,7 @@ def test_the_LAW_DENIAL_path_runs_end_to_end(tmp):
     book = _book_with_a_law(tmp, {"id": "no-flight", "statement": "people do not fly",
                                   "domain": "physical", "modality": "IMPOSSIBLE", "act": "fly"})
     cfg = _scene_cfg(tmp, act="fly")
-    rc, out = _run(os.path.join("scripts", "scene.py"), "--book", book, "--scene", cfg,
+    rc, out = _run(os.path.join("scripts", "scene.py"), "--no-direction", "--book", book, "--scene", cfg,
                    "--stub", "--budget", "1")
     check("a-denied-act-REFUSES-the-scene", rc != 0 and "Traceback" not in out, out[-400:])
     check("...with-the-CODE", "[BIBLE_ACT_IMPOSSIBLE]" in out, out[-300:])
@@ -218,7 +218,7 @@ def test_a_PERMITTED_act_still_runs(tmp):
     book = _book_with_a_law(tmp, {"id": "no-flight", "statement": "people do not fly",
                                   "domain": "physical", "modality": "IMPOSSIBLE", "act": "fly"})
     cfg = _scene_cfg(tmp, act="wait")
-    rc, out = _run(os.path.join("scripts", "scene.py"), "--book", book, "--scene", cfg,
+    rc, out = _run(os.path.join("scripts", "scene.py"), "--no-direction", "--book", book, "--scene", cfg,
                    "--stub", "--budget", "1")
     check("an-unrelated-act-is-NOT-refused", "[BIBLE_ACT_IMPOSSIBLE]" not in out, out[-400:])
     check("...and-the-scene-actually-started", "new chronicle:" in out, out[-400:])
@@ -242,7 +242,7 @@ def test_a_REFUSED_scene_LEAVES_NO_RUN(tmp):
     book = _book_with_a_law(tmp, {"id": "no-flight", "statement": "people do not fly",
                                   "domain": "physical", "modality": "IMPOSSIBLE", "act": "fly"})
     cfg = _scene_cfg(tmp, act="fly")
-    rc, out = _run(os.path.join("scripts", "scene.py"), "--book", book, "--scene", cfg,
+    rc, out = _run(os.path.join("scripts", "scene.py"), "--no-direction", "--book", book, "--scene", cfg,
                    "--stub", "--budget", "1")
     check("the-scene-was-refused", "[BIBLE_ACT_IMPOSSIBLE]" in out, out[-300:])
     check("...and-no-chronicle-was-announced", "new chronicle:" not in out, out[-300:])
@@ -268,9 +268,9 @@ def test_two_scenes_in_one_SECOND_do_not_collide(tmp):
     book = _book_with_a_law(tmp, {"id": "no-flight", "statement": "people do not fly",
                                   "domain": "physical", "modality": "IMPOSSIBLE", "act": "fly"})
     cfg = _scene_cfg(tmp, act="wait")                 # permitted, so both runs are created
-    first = _run(os.path.join("scripts", "scene.py"), "--book", book, "--scene", cfg,
+    first = _run(os.path.join("scripts", "scene.py"), "--no-direction", "--book", book, "--scene", cfg,
                  "--stub", "--budget", "1")[1]
-    second = _run(os.path.join("scripts", "scene.py"), "--book", book, "--scene", cfg,
+    second = _run(os.path.join("scripts", "scene.py"), "--no-direction", "--book", book, "--scene", cfg,
                   "--stub", "--budget", "1")[1]
     check("neither-run-hit-a-CONSTRAINT", "IntegrityError" not in (first + second),
           (first + second)[-300:])
@@ -541,7 +541,7 @@ def test_scene_stub_with_no_quotes_reports_every_saying_noticed(tmp):
     print("\n[L1] lore: EVERY SAYING HAS BEEN NOTICED — the plain fixture has none to notice")
     book = _mk_vault(tmp)
     cfg = _scene_cfg(tmp)
-    rc, out = _run(os.path.join("scripts", "scene.py"), "--book", book, "--scene", cfg,
+    rc, out = _run(os.path.join("scripts", "scene.py"), "--no-direction", "--book", book, "--scene", cfg,
                    "--stub", "--budget", "1")
     check("scene-exits-clean", rc == 0, out[-500:])
     check("no-quoted-saying-reports-as-noticed", "lore: every saying has been noticed" in out, out[-400:])
@@ -574,7 +574,7 @@ def test_scene_stub_with_a_quoted_saying_reports_the_debt(tmp):
             json.dump(cfg, fh)
         return path
 
-    rc, out = _run(os.path.join("scripts", "scene.py"), "--book", book, "--scene", _cfg("bare"),
+    rc, out = _run(os.path.join("scripts", "scene.py"), "--no-direction", "--book", book, "--scene", _cfg("bare"),
                    "--stub", "--budget", "1")
     check("bare-stub-exits-clean", rc == 0, out[-500:])
     check("bare-stub-names-the-count-and-turn",
@@ -583,7 +583,7 @@ def test_scene_stub_with_a_quoted_saying_reports_the_debt(tmp):
           "--no-keeper" in out and "scripts/keeper.py --prompt-only" in out, out[-400:])
     check("the-keeper-did-NOT-run", "KEEPER" not in out, out[-400:])
 
-    rc2, out2 = _run(os.path.join("scripts", "scene.py"), "--book", book, "--scene",
+    rc2, out2 = _run(os.path.join("scripts", "scene.py"), "--no-direction", "--book", book, "--scene",
                      _cfg("forced", at={"day": 1, "time": "09:01"}), "--stub", "--budget", "1", "--keeper")
     check("stub-plus-keeper-exits-clean", rc2 == 0, out2[-500:])
     check("--keeper-STILL-forces-the-gate-under---stub",
@@ -592,7 +592,7 @@ def test_scene_stub_with_a_quoted_saying_reports_the_debt(tmp):
           "lore: 1 saying(s) still unextracted" in out2 and "the keeper asked nothing under --stub" in out2,
           out2[-400:])
 
-    rc3, out3 = _run(os.path.join("scripts", "scene.py"), "--book", book, "--scene",
+    rc3, out3 = _run(os.path.join("scripts", "scene.py"), "--no-direction", "--book", book, "--scene",
                      _cfg("overridden", at={"day": 1, "time": "09:02"}), "--stub", "--budget", "1",
                      "--keeper", "--no-keeper")
     check("no-keeper-WINS-over-keeper-even-under-stub", rc3 == 0 and "KEEPER" not in out3, out3[-500:])

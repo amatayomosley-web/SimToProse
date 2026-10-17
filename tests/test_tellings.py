@@ -108,7 +108,7 @@ def _run(book, name, situation, cast, db, budget, resume=None, capture=None):
                                                               {"what": QUARLES, "to": "linnet", "cost": "none"}])
         return turn, leaks
     argv = sys.argv
-    sys.argv = (["scene.py", "--book", book, "--scene", cfg, "--stub", "--no-keeper", "--budget", str(budget), "--db", db]
+    sys.argv = (["scene.py", "--no-direction", "--book", book, "--scene", cfg, "--stub", "--no-keeper", "--budget", str(budget), "--db", db]
                 + (["--resume", resume] if resume else []))
     scene.faithful_turn = fake
     log = io.StringIO()

@@ -118,7 +118,7 @@ def _prompt(book, name, situation):
                                                   rung_direction=direct.rung_direction(packet, brief=brief, model=model,
                                                                                        stub=stub)))
     argv = sys.argv
-    sys.argv = ["scene.py", "--book", book, "--scene", cfg, "--stub", "--no-keeper", "--budget", "1",
+    sys.argv = ["scene.py", "--no-direction", "--book", book, "--scene", cfg, "--stub", "--no-keeper", "--budget", "1",
                 "--db", os.path.join(book, "runs", name + ".db")]
     scene.faithful_turn = fake
     log = io.StringIO()

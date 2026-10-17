@@ -96,7 +96,7 @@ def _two_scenes(tmp):
     scene.build_profile, passage.open_scene = spy_profile, spy_open
     try:
         for i, (name, day, lasts, budget) in enumerate((("gale-1", 1, "1h", 4), ("gale-2", 30, "30m", 2))):
-            argv = ["scene.py", "--book", book, "--scene", _cfg(tmp, name, day, lasts), "--budget", str(budget),
+            argv = ["scene.py", "--no-direction", "--book", book, "--scene", _cfg(tmp, name, day, lasts), "--budget", str(budget),
                     "--model", "fake/model", "--no-keeper"]
             if i:
                 db = glob.glob(os.path.join(book, "runs", "*.db"))[0]

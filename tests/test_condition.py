@@ -165,7 +165,7 @@ def _run(tmp, decl, scenes, sheet_edit=None):
     scene.faithful_turn, scene.appraiser.read_event, scene.appraiser.read_emotion = fake_turn, refuse, emotion
     try:
         for i, (name, day, time, lasts, budget, extra) in enumerate(scenes):
-            argv = ["scene.py", "--book", book, "--scene", _cfg(tmp, name, day, time, lasts, extra), "--budget", str(budget),
+            argv = ["scene.py", "--no-direction", "--book", book, "--scene", _cfg(tmp, name, day, time, lasts, extra), "--budget", str(budget),
                     "--model", "fake/model", "--no-keeper"]
             if i:
                 db = glob.glob(os.path.join(book, "runs", "*.db"))[0]

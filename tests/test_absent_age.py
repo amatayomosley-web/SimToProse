@@ -93,7 +93,7 @@ def _run(tmp, decl, scenes, walker=None):
     try:
         for i, (name, day, time, lasts, budget, extra) in enumerate(scenes):
             now["scene"] = name
-            argv = ["scene.py", "--book", book, "--scene", _cfg(tmp, name, day, time, lasts, extra), "--budget", str(budget),
+            argv = ["scene.py", "--no-direction", "--book", book, "--scene", _cfg(tmp, name, day, time, lasts, extra), "--budget", str(budget),
                     "--model", "fake/model", "--no-keeper"]
             if i:
                 db = glob.glob(os.path.join(book, "runs", "*.db"))[0]

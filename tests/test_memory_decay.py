@@ -297,7 +297,7 @@ def test_a_live_run_forgets():
     associative.calculate_effective_confidence = spy
     try:
         for i, (name, day, time) in enumerate((("dusk", 1, "18:00"), ("next-dusk", 2, "18:00"))):
-            argv = ["scene.py", "--book", book, "--scene", _cfg(tmp, name, day, time, "1h"), "--budget", "2",
+            argv = ["scene.py", "--no-direction", "--book", book, "--scene", _cfg(tmp, name, day, time, "1h"), "--budget", "2",
                     "--model", "fake/model", "--no-keeper"]
             if i:
                 db = glob.glob(os.path.join(book, "runs", "*.db"))[0]

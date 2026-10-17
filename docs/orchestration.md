@@ -87,7 +87,7 @@ Mode A (a human at the chair) and Mode B (this doc) drive the SAME engine; the c
 | Loop stage | Command | Agent role filled |
 |---|---|---|
 | Lint the book | `python scripts/lint_book.py --vault "<book>"` | — |
-| Turn burst (act) | `python scripts/direct.py --vault "<book>" --char <id>` / `python scripts/scene.py --vault "<book>" --scene <cfg>` | engine-internal LLM (local model) acts today — see seam 1 |
+| Turn burst (act) | `python scripts/direct.py --vault "<book>" --char <id>` / `python scripts/scene.py --no-direction --vault "<book>" --scene <cfg>` | engine-internal LLM (local model) acts today — see seam 1 |
 | Review (judge) | `python scripts/critic.py --vault "<book>" --run <id> --prompt-only` | **continuity-critic** consumes the emitted prompt |
 | Narrate (write) | `python scripts/narrate.py --vault "<book>" --run <id> --pov <char> --prompt-only` | **narrator** consumes the emitted prompt |
 | Dailies (views) | `python scripts/cut.py --vault "<book>" --run <id>` | **cutter** consults the views; the cut is decided in discussion (`cutting-room.md`) |

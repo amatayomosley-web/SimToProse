@@ -180,7 +180,7 @@ differently. This is not a typo in this page; copy each line as written.**
 ```
 python scripts/lint_book.py  --vault "YourBook"
 python scripts/lint_scene.py --book  "YourBook" --scene "YourBook/scenes/<name>.json"
-python scripts/scene.py      --book  "YourBook" --scene "YourBook/scenes/<name>.json" --stub --prompt-only
+python scripts/scene.py      --no-direction --book  "YourBook" --scene "YourBook/scenes/<name>.json" --stub --prompt-only
 ```
 
 1. **`lint_book.py --vault`** reads your world and every character. `--book` means something else
