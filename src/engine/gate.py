@@ -15,7 +15,7 @@ import hashlib
 from .records import RecordError   # rule 6's bad-input type; codes.py GATE_*
 from .condition import mind_view   # the mind's side of a split pool (gate energy-reserves)
 from .presence import (match as _present_match,   # named is not seen — see presence.py
-                       display_name as _display_name,
+                       display_name as _display_name, is_self as _is_self,
                        named_in as _named_in,
                        present_unnamed as _present_unnamed)   # present is seen — see presence.py
 from .scene_slice import of as _slice_of   # the assembler's request, closed and typed (gate slice-contract)
@@ -227,7 +227,7 @@ def perception_scope(scene_slice, world, skills, condition, relationships=None, 
     # the label 'assassin' withheld behind a check" — the granular description is ALSO gated.
     # NAMED IS NOT SEEN (presence.py). The extractor is unchanged; the distinction is drawn HERE,
     # where the scene slice — and so the presence list — is already in scope.
-    named_entities = _named_in(event_text, world, _normalize)
+    named_entities = [e for e in _named_in(event_text, world, _normalize) if not _is_self(e[0], me)]   # never yourself
     for entity_id, entity_label, entity_attrs in named_entities:
         entity_ref = "entity.%s" % entity_id
         here = None if present_set is None else _present_match(entity_id, present_set)

@@ -100,6 +100,10 @@ def test_present_unnamed():
     check("empty present_set -> []", P.present_unnamed(set(), [], world) == [])
     check("the perceiver is never a percept of themself",
           P.present_unnamed({"maren_healer"}, [], world, me="maren_healer") == [])
+    check("is_self: the id, its first part, either way round",
+          P.is_self("maren_healer", "maren") and P.is_self("maren", "maren_healer") and P.is_self("Maren", "maren"))
+    check("is_self: another person, or no perceiver, is not self",
+          not P.is_self("edda_elder", "maren") and not P.is_self("maren", None) and not P.is_self("", "maren"))
 
 
 def test_build_edges():

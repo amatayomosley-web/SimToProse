@@ -330,6 +330,37 @@ def test_referenced_is_not_present():
     check("legacy-still-edges-both", sorted(without) == ["ivo_brandt", "noor"], str(without))
 
 
+def test_reader_is_never_named_to_themself():
+    """A READER NEVER GETS AN EDGE TO THEMSELF (gate self-edge). The exchange in a reader's moment
+    names its speakers; when the reader's own name stood there ("Noor, to Ivo: ..."), the named path
+    made them a percept of themself and `build_edges` an edge wherever their sheet held a row under
+    their id - measured on the cloned fixture in gate round-loop. The unnamed-present path already
+    refused the perceiver; the named path now reads the same rule."""
+    print("")
+    print("[K] THE READER IS NEVER NAMED TO THEMSELF")
+    from src.engine.gate import perception_scope
+    from src.engine.scene import _build_edges
+    world  = {"people": [{"id": "noor_producer", "what": "the station's producer"},
+                         {"id": "ivo_brandt", "what": "the breakfast presenter"}]}
+    skills = {"perception": 0.9, "insight": 0.9}
+    cond   = {"energy": 1.0, "allostatic_load": 0.0}
+    rels   = {"noor_producer": {"trust": 0.7}, "ivo_brandt": {"trust": 0.4}}
+    text   = "Noor, to Ivo: \"The van is gone.\" Ivo, to Noor: \"Then we read the weather from here.\""
+    for me in ("noor", "noor_producer"):
+        got = perception_scope({"event": {"text": text, "kind": "mundane"}, "recent": [], "location": None,
+                                "present": ["noor", "ivo"]}, world, skills, cond, rels, me=me)
+        refs = sorted(p["ref"] for p in got if p["ref"].startswith("entity."))
+        check("no-self-percept-from-own-name me=%s" % me, refs == ["entity.ivo_brandt"], str(refs))
+        edges = [e["target"] for e in _build_edges({"relationships": rels}, got, world)]
+        check("no-self-edge me=%s" % me, edges == ["ivo_brandt"], str(edges))
+    # NEGATIVE CONTROL: with no reader named, both people in the text are still percepts.
+    anon = perception_scope({"event": {"text": text, "kind": "mundane"}, "recent": [], "location": None},
+                            world, skills, cond, rels)
+    check("no-me-keeps-every-named-person",
+          sorted(p["ref"] for p in anon if p["ref"].startswith("entity.")) == ["entity.ivo_brandt", "entity.noor_producer"],
+          str([p["ref"] for p in anon]))
+
+
 def main():
     print("test_gate.py — Gate 3 relevancy-gate machinery (split from test_scene.py)\n")
     test_absence_on_failed_check()
@@ -339,6 +370,7 @@ def main():
     test_name_hygiene()
     test_acquaintance_recognition()
     test_referenced_is_not_present()
+    test_reader_is_never_named_to_themself()
 
     total = len(PASS) + len(FAIL)
     print("\n--- summary ---")

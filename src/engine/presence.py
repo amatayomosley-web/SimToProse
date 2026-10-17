@@ -206,6 +206,13 @@ def rels_meant(relationships, elsewhere):
     return {k: v for k, v in (relationships or {}).items() if k not in drop}
 
 
+def is_self(pid, me):
+    """Is this person id the perceiver? THE ONE SELF RULE (gate self-edge): the id itself, or the same first part,
+    joined as `match` joins - a sheet's short id `noor` is the registry's `noor_producer`. No perceiver, no self."""
+    me_key, key = str(me or "").strip().lower(), str(pid or "").strip().lower()
+    return bool(me_key) and bool(key) and (key == me_key or key.split("_")[0] == me_key.split("_")[0])
+
+
 def present_unnamed(present_set, named_ids, world, me=None):
     """[(entity_id, label, [observable_attrs])] for the people BODILY HERE whom the text did not name.
 
@@ -220,13 +227,12 @@ def present_unnamed(present_set, named_ids, world, me=None):
     """
     if not present_set:
         return []
-    me_key = str(me or "").strip().lower()
-    named = {str(n) for n in (named_ids or ())} | {str(n).split("_")[0] for n in (named_ids or ())}
+    named ={str(n) for n in (named_ids or ())} | {str(n).split("_")[0] for n in (named_ids or ())}
     people = {str(p.get("id", "")): p for p in (world.get("people", []) or []) if isinstance(p, dict) and p.get("id")}
     out = []
     for pid in sorted(str(x) for x in present_set):
         key = pid.strip().lower()
-        if not key or key == me_key or key.split("_")[0] == me_key.split("_")[0]:
+        if not key or is_self(key, me):
             continue
         if pid in named or pid.split("_")[0] in named:
             continue
