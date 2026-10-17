@@ -70,6 +70,7 @@ def _rows(book):
         con.close()
 
 
+THOUGHTS = []      # (who, the last_thought this call was given) - gate thought-unsteered
 KEPT = []          # (who, the id of the composer keep the driver handed this call) - gate composer-reuse
 
 
@@ -82,7 +83,7 @@ def _actor(script, calls):
         who = kw["char_id"]
         floor = dict(kw.get("floor") or {})
         stance = floor.pop("stance", None)
-        floor.pop("last_thought", None)
+        THOUGHTS.append((who, floor.pop("last_thought", None)))
         n = seen[who] = seen.get(who, -1) + 1
         KEPT.append((who, id(kw.get("kept")) if isinstance(kw.get("kept"), dict) else None))
         calls.append((who, stance, floor, event_text, kw.get("steer")))
@@ -235,6 +236,26 @@ def test_every_redraw_is_on_the_record(tmp):
           and v.get("tripwire") == {"words": 90, "redrawn_words": 5, "counted": "spoken"}
           and v.get("hold_spoke") == {"said": "hold", "redrawn": "take", "redrawn_words": 10}
           and "floor_corrected" not in v, rows[1:2])
+
+
+def test_a_steer_never_comes_back_as_the_characters_own_thought(tmp):
+    """Gate thought-unsteered (replay critique E2): a row drawn under the tripwire's line is committed as drawn, but
+    the next "What you were thinking last" carries the first draw's thought - the character's mind before the
+    correction - never the redraw's echo of the steer."""
+    def script(who, stance, flags, n, steer):
+        if who == "mira" and n == 0:
+            return ('"%s"' % " ".join(["go"] * 90), "The boat has to go; Ada must hear why.", "yield", "ada")
+        if who == "mira" and steer:
+            return ('"Go."', "Watch the door.", "yield", "ada")
+        return ('"A short line."', "%s thinks %d." % (who, n), "yield" if stance == "speaker" else "take", _other(who))
+    del THOUGHTS[:]
+    out, exited, calls, rows = _run(tmp, ("mira", "ada"), script, 4)
+    given = [t for w, t in THOUGHTS if w == "mira"]
+    check("the-steered-row-commits-its-own-thought", rows and rows[0]["thought"] == "Watch the door.", rows[:1])
+    check("...but-mira's-next-call-carries-the-unsteered-thought", len(given) > 2
+          and given[2] == "The boat has to go; Ada must hear why.", given)
+    check("...and-an-unsteered-row-carries-its-own-thought-as-before",
+          [t for w, t in THOUGHTS if w == "ada"][1:2] == ["ada thinks 0."], [t for w, t in THOUGHTS if w == "ada"])
 
 
 def test_a_talk_that_has_run_out_settles(tmp):

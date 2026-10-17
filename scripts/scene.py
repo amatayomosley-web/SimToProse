@@ -613,7 +613,8 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
         a = actors[speaker]
         # what this actor was thinking last, its own mind only (design v1 s4: the deliberation is carried, not restarted)
         _floor_kw = dict(_flags, stance=stance,
-                         last_thought=next((b["thought"] for b in reversed(log) if b["who"] == speaker), None))
+                         last_thought=next((b.get("carried", b["thought"]) for b in reversed(log) if b["who"] == speaker),
+                                           None))
         if _directed.get(speaker) in present:         # a directed target who has left directs nothing
             _floor_kw["to"] = (_directed[speaker], names.get(_directed[speaker], _directed[speaker]))
         if speaker in _tells_of and "tells" in _sys:    # what this one gives away, told to them alone
@@ -731,7 +732,7 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
                              indent=2))
             direct.log_compose_usage(led, run_id, turn_no, scene=cfg.get("name"))
             return turn_no
-        _tripwire, _act_kw = None, None
+        _tripwire, _act_kw, _own_thought = None, None, None
         if supplied is not None:
             # A SUPPLIED TURN PASSES THE SAME WALLS. Shape first, then the name-leak check, then the
             # identical validate/appraise/commit path below. A re-entry that skips the wall is a
@@ -751,6 +752,7 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
                            char_id=speaker, vault=a["char"]["current"].get("vault"), world=world, floor=_floor_kw,
                            kept=_kept.setdefault(speaker, {}))   # this actor's composer keep (gate composer-reuse)
             turn, leaks = faithful_turn(packet, event_text, a["temperament"], model, stub, **_act_kw)
+            _own_thought = str(turn.get("thought") or "")   # the mind before any steer (gate thought-unsteered)
             # THE TRIPWIRE (design v2 s2): a move over MOVE_WORDS is drawn once more with the line; the second draw is
             # kept whatever its length, and the validation record says so. A word count flags, it never defines a move.
             # It counts what was SAID (gate tripwire-spoken): stage business is the narrator's to trim, not the actor's.
@@ -861,6 +863,10 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
         log.append({"who": speaker, "action": turn["action"], "thought": turn["thought"], "tags": applied,
                     "floor": word, "addressee": str(turn.get("addressee") or ""), "tell": str(turn.get("tell") or ""),
                     "move": _is_move, "cut": bool(_flags.get("interrupt"))})
+        # A STEER IS NOT THE CHARACTER'S MIND (gate thought-unsteered; replay critique E2): a row drawn under the tripwire's or the
+        # hold-spoke line commits its thought as drawn, but what is carried forward is the first draw's
+        if (_tripwire or _spoke) and _own_thought:
+            log[-1]["carried"] = _own_thought
         window[-1]["log"] = log[-1]                   # the window's reads mark it when it closes
         turn_no += 1                                    # this row is numbered; it commits when its window closes
         committed += 1
