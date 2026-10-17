@@ -94,9 +94,20 @@ def _floor_parts(stance, flags, last_thought):
     return _FLOOR_SLOT[stance], rule, "What you were thinking last: %s\n" % last
 
 
+def _directed_line(to):
+    """`to` (id, name) from the scene direction -> the line that tells the actor whom this move is aimed at; '' for
+    None. The wording stays the actor's; the engine records the id (gate directed-addressee)."""
+    if to is None:
+        return ""
+    if not (isinstance(to, (tuple, list)) and len(to) == 2 and all(isinstance(x, str) and x.strip() for x in to)):
+        raise RecordError("PROMPT_DIRECTED_TO_MALFORMED", "build_turn_messages: to must be (id, name), got %r" % (to,))
+    return ('This move is directed: you are speaking to %s. Set addressee to "%s"; what you say to them, and how, '
+            "is yours.\n" % (to[1], to[0]))
+
+
 def build_turn_messages(packet, event_text, temperament, relationships=None, acts=(), rung_direction=None,
                         stance=None, hold_open=False, resumed=False, interrupt=False, forced=False,
-                        last_thought=None):
+                        last_thought=None, to=None):
     """packet + the moment -> the one-pass turn messages (system = cacheable identity prefix;
     user = volatile body as directions + structured content + the same-pass tag instruction).
 
@@ -120,6 +131,7 @@ def build_turn_messages(packet, event_text, temperament, relationships=None, act
     _act_slot = (", \"act\": \"\"" if _acts else "")
     _floor_slot, _floor_rule, _last = _floor_parts(
         stance, {"hold_open": hold_open, "resumed": resumed, "interrupt": interrupt, "forced": forced}, last_thought)
+    _floor_rule = _directed_line(to) + _floor_rule      # the scene direction names whom (gate directed-addressee)
     _act_rule = (("act = the ONE token from this list that names what you just did, or empty if "
                   "none fits - most beats are none. Copy it exactly, do not invent one: "
                   + ", ".join(_acts) + "\n") if _acts else "")

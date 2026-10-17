@@ -579,6 +579,9 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
     # hold) is free, so the calls are bounded separately, at one per present person per row.
     rnd = _floor.Round(speaker)
     committed = 0
+    # WHOM THE DIRECTION AIMS EACH CHARACTER AT (gate directed-addressee): the scene file's `cast[].to`, checked against
+    # the cast by its contract before the run began. Absent, the actor chooses, as before.
+    _directed = {str(c["id"]): str(c["to"]) for c in cfg["cast"] if c.get("to")}
     for beat in range(budget * (len(ids) + 1)):
         if committed >= budget:
             break
@@ -587,6 +590,8 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
         # what this actor was thinking last, its own mind only (design v1 s4: the deliberation is carried, not restarted)
         _floor_kw = dict(_flags, stance=stance,
                          last_thought=next((b["thought"] for b in reversed(log) if b["who"] == speaker), None))
+        if _directed.get(speaker) in present:         # a directed target who has left directs nothing
+            _floor_kw["to"] = (_directed[speaker], names.get(_directed[speaker], _directed[speaker]))
         # THE MOMENT AS THIS SPEAKER READS IT (gate tells; only when the book runs `tells`): the signs other actors
         # let slip, marked by the event reader, are cut for a speaker who does not catch them and named for one who
         # does. Without the system every speaker reads the log whole, as before.
@@ -724,6 +729,12 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
         direct.log_compose_usage(led, run_id, turn_no, scene=cfg.get("name"))   # paid for, committed or not
         _acted = bool(str(turn.get("action", "")).strip())
         word, _overridden = _floor.floor_word(stance, turn.get("floor"), _acted)
+        # A DIRECTED MOVE IS RECORDED AS AIMED: the direction's id, whatever the actor wrote, and what it wrote is kept
+        # on the validation record below when it differs. A silence is aimed at no one.
+        _aimed = None
+        if _floor_kw.get("to") and _acted:
+            _aimed = {"directed": _floor_kw["to"][0], "said": str(turn.get("addressee") or "")}
+            turn["addressee"] = _aimed["directed"]
         # A LISTENER WHO HOLDS WITH NOTHING IN IT is the cheap no: no row, no read, the round goes on (design v2 s2).
         # One who holds with a thought and no act is a silence worth recording, and is committed below unread.
         _silent = not leaks and not _acted and stance == "listener" and word == "hold"
@@ -844,6 +855,8 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
             validation["reply_floor_read_as"] = {"said": _overridden, "read": word}
         if _tripwire:                                 # the move ran long and was drawn again (gate round-loop)
             validation["tripwire"] = _tripwire
+        if _aimed and _aimed["said"] != _aimed["directed"]:   # the actor aimed elsewhere (gate directed-addressee)
+            validation["addressee_directed"] = _aimed
         # ...AND THE SEATS' (gate seat-replies): what an accepted seat reply carried beyond its questions, and a seat
         # that did not answer - the beat whose tags are the actor's own fallback is told apart from a seated one
         if _seat_extra:

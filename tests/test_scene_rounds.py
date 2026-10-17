@@ -32,7 +32,7 @@ def check(name, ok, detail=""):
         FAILS.append(name)
 
 
-def _book(tmp, who):
+def _book(tmp, who, to=None):
     book = os.path.join(tmp, "The Rock")
     for sub in ("world", "characters", "people"):
         os.makedirs(os.path.join(book, sub), exist_ok=True)
@@ -51,7 +51,8 @@ def _book(tmp, who):
     with open(cfg, "w", encoding="utf-8") as fh:
         json.dump({"name": "gale", "at": {"day": 1, "time": "21:00"}, "lasts": "1h",
                    "situation": "The keepers wait out the gale in the lamp room.",
-                   "cast": [{"id": i, "drive": d} for _n, i, d in cast]}, fh)
+                   "cast": [dict({"id": i, "drive": d}, **({"to": (to or {})[i]} if i in (to or {}) else {}))
+                            for _n, i, d in cast]}, fh)
     return book, cfg
 
 
@@ -88,9 +89,9 @@ def _actor(script, calls):
     return fake
 
 
-def _run(tmp, who, script, budget, stub=True):
+def _run(tmp, who, script, budget, stub=True, to=None):
     import scene
-    book, cfg = _book(tmp, who)
+    book, cfg = _book(tmp, who, to)
     calls, saved = [], scene.faithful_turn
     scene.faithful_turn = _actor(script, calls)
     try:
@@ -211,6 +212,35 @@ def test_a_talk_that_has_run_out_settles(tmp):
     out, exited, calls, rows = _run(os.path.join(tmp, "fresh"), ("mira", "ada"), fresh, 6)
     check("...and-one-saying-something-new-each-move-runs-to-its-budget",
           exited is None and len(rows) == 6 and "said nothing new" not in out, (exited, len(rows), out[-400:]))
+
+
+def test_a_directed_move_is_aimed_where_the_direction_says(tmp):
+    """gate directed-addressee: the scene file's `cast[].to` names whom a character's moves are aimed at. Her prompt is
+    told; her rows record that id even when the actor wrote another, which goes on the validation record; the
+    directed person is asked first. A `to` naming no one in the cast, herself, or blank refuses the run."""
+    def script(who, stance, flags, n, steer):
+        if who == "mira":
+            return ("Mira speaks, %d." % n, "-", "yield" if stance == "speaker" else "take", "ada")
+        return ("%s answers." % who.title(), "-", "take" if stance == "listener" else "yield", "mira")
+    out, exited, calls, rows = _run(os.path.join(tmp, "aimed"), ("mira", "ada", "tomas"), script, 3, to={"mira": "tomas"})
+    mira_calls = [c for c in calls if c[0] == "mira"]
+    check("the-directed-character's-call-carries-whom-she-speaks-to",
+          exited is None and mira_calls and all(c[2].get("to") == ("tomas", "Tomas") for c in mira_calls),
+          (exited, [c[:3] for c in calls], out[-400:]))
+    mira = [r for r in rows if r["actor"] == "mira"]
+    check("...her-rows-record-the-directed-addressee", mira and all(r["addressee"] == "tomas" for r in mira),
+          [(r["actor"], r["addressee"]) for r in rows])
+    check("...and-the-actor's-own-choice-is-on-the-validation-record",
+          mira and all(r["validation"].get("addressee_directed") == {"directed": "tomas", "said": "ada"} for r in mira),
+          [r["validation"] for r in mira])
+    check("...the-directed-person-is-asked-first", len(calls) > 1 and calls[1][0] == "tomas", [c[:2] for c in calls])
+    others = [c for c in calls if c[0] != "mira"]
+    check("...and-nobody-else-is-directed", all("to" not in c[2] for c in others), [c[:3] for c in others])
+    for label, bad in (("not-in-the-cast", "nobody"), ("herself", "mira"), ("blank", "")):
+        out, exited, calls, rows = _run(os.path.join(tmp, label), ("mira", "ada"), script, 2, to={"mira": bad})
+        check("a-to-naming-%s-refuses-the-run-by-name-before-any-row" % label,
+              "SCENE_DIRECTED_TO_UNKNOWN" in "%s%s" % (exited, out) and not rows and not calls,
+              (exited, len(rows), out[-300:]))
 
 
 def test_the_exchange_shows_the_thread_and_your_own_lines(tmp):

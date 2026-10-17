@@ -40,6 +40,11 @@ def _cast(cast, cfg, ctx):
 def _member(c, cfg, ctx):
     if not (str(c.get("id") or "").strip() and str(c.get("drive") or "").strip()):
         _refuse("every cast entry needs both an id and a drive - the loader refuses the scene without them")
+    if "to" in c:                                  # whom the direction aims this character's moves at (gate directed-addressee)
+        to, me = str(c.get("to") or "").strip(), str(c.get("id") or "").strip()
+        if not to or to == me or to not in _cast_ids(cfg):
+            raise RecordError("SCENE_DIRECTED_TO_UNKNOWN", "cast %r: to %r must be the id of another member of the cast "
+                              "(%s)" % (me, c.get("to"), ", ".join(i for i in _cast_ids(cfg) if i != me) or "nobody else"))
 
 
 def _at(at, cfg, ctx):
@@ -131,6 +136,8 @@ SCENE = (
     F("cast[]", "map", check=_member, reader="scene.run_scene"),
     F("cast[].id", "text", reader="scene.main (must be a character of the book)"),
     F("cast[].drive", "text", reader="scene.run_scene", doc="what they want from the others here - replaces their goals"),
+    F("cast[].to", "text", blank=False, reader="scene.run_scene",
+      doc="the cast id this character's moves are aimed at - their prompt is told, the record keeps it; absent, they choose"),
     F("at", "map", required="always", check=_at, reader="clock.parse_at", doc="when the scene opens: {day, time}"),
     F("at.day", "number", reader="clock.parse_at", doc="a whole day; 0 and below are before page one"),
     F("at.time", "text", reader="clock.parse_at", doc="HH:MM"),

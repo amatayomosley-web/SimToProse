@@ -425,6 +425,7 @@ _GATE_F = {
 _PROMPT_F = {
     "PROMPT_EVENT_TEXT_EMPTY":  "the moment handed to the turn-message builder carries no event text, so the actor would be staged into a scene with nothing happening",
     "PROMPT_PACKET_INCOMPLETE": "the packet handed to the turn-message builder carries no stable half, no volatile half, or both, so there are no facts to stage into the reasoning contract",
+    "PROMPT_DIRECTED_TO_MALFORMED": "the scene direction's target handed to the turn-message builder is not an (id, name) pair of non-empty strings, so the actor cannot be told whom the move is aimed at",
     "PROMPT_STANCE_FLAG":       "a reply-contract flag was handed to the turn-message builder for a stance it does not belong to (hold_open or resumed off a speaker, interrupt or forced off a listener, a last thought with no stance), so the actor would be told a floor it is not on",
     "PROMPT_STANCE_UNKNOWN":    "the stance handed to the turn-message builder is neither speaker nor listener, so there is no reply contract to put the actor under",
 }
@@ -437,6 +438,7 @@ _SCENE_F = {
     "SCENE_CHAR_NOT_AN_OBJECT":       "the character handed to scene assembly is not a dict, so no fixed/baseline/current layer can be read from it",
     "SCENE_CHAR_SECTION_MISSING":     "a character sheet omits fixed, baseline or current",
     "SCENE_CONDITION_NOT_AN_OBJECT":  "the condition state (energy, allostatic load, ...) handed to assembly is not a dict",
+    "SCENE_DIRECTED_TO_UNKNOWN":      "a scene file's cast entry aims its character's moves (`to`) at an id that is blank, the character's own, or not in the cast, so there is no one in the room to direct the move to",
     "SCENE_FACTS_NO_ACTOR":           "the POV fact filter was asked whether a beat was witnessed without being told by WHOM; an empty actor would match nothing or everything and either answer is a leak",
     "SCENE_FACTS_ROWS_NOT_A_LIST":     "the POV fact filter was handed something other than a list of fact rows, so no beat could be attributed to anyone",
     "SCENE_SLICE_EVENT_MISSING":      "a scene slice carries no event dict, so the pipeline has nothing for the character to perceive this turn",

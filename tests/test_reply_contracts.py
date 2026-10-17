@@ -95,6 +95,22 @@ def test_a_bad_stance_refuses_by_code():
             raise AssertionError("%r built a prompt; it must refuse %s" % (kw, code))
 
 
+def test_a_directed_move_is_told_whom_it_is_to():
+    """gate directed-addressee: the scene direction may name whom a character's move is aimed at; the prompt says so
+    and asks for that id, in any stance or none; without it, nothing is added; a malformed one refuses by code."""
+    line = 'This move is directed: you are speaking to Tomas. Set addressee to "tomas"'
+    for kw in ({}, {"stance": "speaker"}, {"stance": "listener"}):
+        assert line in _usr(to=("tomas", "Tomas"), **kw), kw
+        assert "This move is directed" not in _usr(**kw), kw
+    for bad in ("tomas", ("tomas",), ("", "Tomas"), ("tomas", "")):
+        try:
+            _usr(to=bad)
+        except RecordError as e:
+            assert e.code == "PROMPT_DIRECTED_TO_MALFORMED", (bad, e.code)
+        else:
+            raise AssertionError("to=%r built a prompt; it must refuse" % (bad,))
+
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_") and callable(fn):

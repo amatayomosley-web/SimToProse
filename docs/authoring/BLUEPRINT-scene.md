@@ -1263,6 +1263,7 @@ anything is written.
 | `cast[]` | map | no | active | scene.run_scene |  |
 | `cast[].id` | text | no | active | scene.main (must be a character of the book) |  |
 | `cast[].drive` | text | no | active | scene.run_scene | what they want from the others here - replaces their goals |
+| `cast[].to` | text | no | active | scene.run_scene | the cast id this character's moves are aimed at - their prompt is told, the record keeps it; absent, they choose |
 | `at` | map | yes | active | clock.parse_at | when the scene opens: {day, time} |
 | `at.day` | number | no | active | clock.parse_at | a whole day; 0 and below are before page one |
 | `at.time` | text | no | active | clock.parse_at | HH:MM |
