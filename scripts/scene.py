@@ -1025,6 +1025,8 @@ def main():
     ap.add_argument("--db", default=None, help="chronicle db path (default <vault>/runs/<book>.db)")
     ap.add_argument("--resume", default=None, help="run_id to continue — a later scene in the same chronicle")
     ap.add_argument("--scene", default=None, help="a director-authored scene cfg JSON (default: the built-in DEFAULT_SCENE fixture)")
+    ap.add_argument("--direction", default=None,
+                    help="the partner's direction the scene was written from: the run refuses a scene that drops or changes what it directs")
     ap.add_argument("--no-think", action="store_false", dest="think",
                     help="disable model thinking (Ollama) for fast iteration; thinking is ON by default")
     ap.add_argument("--prompt-only", action="store_true", dest="prompt_only",
@@ -1106,6 +1108,15 @@ def main():
         raise SystemExit(str(e))
     if _note:
         print(_note)
+    if args.direction:    # WHAT THE AUTHOR DIRECTED STANDS (gate direction-contract): the director adds, never drops
+        from src.engine import handoff as _handoff
+        try:
+            with open(args.direction, encoding="utf-8-sig") as fh:
+                _handoff.dropped(json.load(fh), _raw)
+        except (OSError, ValueError) as e:
+            raise SystemExit(str(RecordError("HANDOFF_DIRECTION_UNREADABLE", "%s: %s" % (args.direction, e))))
+        except RecordError as e:
+            raise SystemExit(str(e))
     # THE LOADER, AND WHAT SPANS FILES, BEFORE THE CHRONICLE TOO (gate run-start-refusal): the loader's own refusal, a
     # cast id that is not a character of this book, a director's hold for someone who is not in it. Each was refused
     # after the chronicle was opened - the hold after the run row was written, leaving an empty run behind.

@@ -47,4 +47,50 @@ def parse_direction(obj):
     if unknown:
         raise RecordError("HANDOFF_FIELD_UNKNOWN", "%s - nothing reads it, so the showrunner would never see it"
                           % ", ".join(unknown))
+    if "cast" in obj:
+        _cast(obj["cast"])
     return obj, playbook
+
+
+def _members(cast):
+    """A direction's cast -> its members as maps; a bare id is {"id": id} (the shorthand docs/CONTRACTS.md shows)."""
+    return [{"id": c} if isinstance(c, str) else c for c in cast]
+
+
+def _cast(cast):
+    """A direction's cast is the scene file's cast as far as the author directed it (gate direction-contract): checked
+    by contracts_scene's own cast declarations - a key nothing reads, a `to` aimed at no one in it, a character twice -
+    with `drive` the one field it may leave to the director. Refused (HANDOFF_CAST_INVALID), every finding named."""
+    from . import contracts, contracts_scene
+    if not isinstance(cast, list):
+        raise RecordError("HANDOFF_CAST_INVALID", "`cast` is a list of ids or {id, drive?, to?}, not %s"
+                          % type(cast).__name__)
+    probe = {"cast": [dict({"drive": "-"}, **m) if isinstance(m, dict) else m for m in _members(cast)]}
+    fields = tuple(f for f in contracts_scene.SCENE if f.path.split(".")[0] in ("cast", "cast[]"))
+    bad = [f for f in contracts.check(probe, fields) if contracts.refuses(f)]
+    if bad:
+        raise RecordError("HANDOFF_CAST_INVALID", "; ".join("%s: %s" % (f["path"], f["message"])
+                                                            for f in bad))
+
+
+def dropped(direction, scene):
+    """The scene cfg AS WRITTEN against the author's direction it was written from (gate direction-contract): every
+    value the author directed - each cast member, its fields, `at` - must stand in the cfg verbatim; the director may
+    add, never drop or change. Raises HANDOFF_DIRECTION_DROPPED naming each one lost; scripts/scene.py calls it before
+    the chronicle opens."""
+    from .contracts import ignored
+    direction, _ = parse_direction(direction)
+    scene = scene if isinstance(scene, dict) else {}
+    have = {c.get("id"): c for c in scene.get("cast") or [] if isinstance(c, dict)}
+    lost = ["at: directed %r, the scene has %r" % (direction["at"], scene.get("at"))
+            for _ in [1] if "at" in direction and scene.get("at") != direction["at"]]
+    for m in _members(direction.get("cast") or []):
+        mine = have.get(m["id"])
+        if mine is None:
+            lost.append("cast %r: directed, and not in the scene's cast" % m["id"])
+            continue
+        lost += ["cast %r: %s directed %r, the scene has %r" % (m["id"], k, v, mine.get(k, "nothing"))
+                 for k, v in m.items() if k != "id" and not ignored(k) and mine.get(k) != v]
+    if lost:
+        raise RecordError("HANDOFF_DIRECTION_DROPPED", "the scene file drops or changes what the author directed - %s"
+                          % "; ".join(lost))

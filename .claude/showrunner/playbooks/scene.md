@@ -10,18 +10,22 @@ is spawned at its tier, and subagent seats are answered by its loop while the sc
 3. **Shape the scene:** write the director's input (the direction's `intent`, `cast`, `where`, `at`; the story
    position from `ask.py where`; the book's `runs/story-map.md` if it has content) and spawn the director. From its
    placement, write the scene cfg to `<book>/scenes/<name>.json` in this shape (the full field guide is
-   `docs/authoring/BLUEPRINT-scene.md`; open it only if a field below does not cover what the director placed):
+   `docs/authoring/BLUEPRINT-scene.md`; open it only if a field below does not cover what the director placed).
+   **What the author directed is copied VERBATIM:** every member of the direction's `cast` with each field it gives
+   (`to` - whom that character's moves are aimed at - and `drive`), and its `at`. The director may add (a drive the
+   direction left open, props, a situation), never drop or change a directed value; the run refuses a cfg that does:
    ```json
    {"name": "scene_01_keeping_the_light", "at": {"day": 1, "time": "21:00"}, "lasts": "40m", "pov": "mira",
     "location": "lamp_room",
     "situation": "Full dark on day one of storm season; Mira is alone in the lamp room while the gale builds...",
     "props": ["the wick guttering each time the draft catches it", "the oil fount at hand, wanting a trim"],
-    "cast": [{"id": "mira", "drive": "get the flame back to full before the next gust finds it"}],
+    "cast": [{"id": "mira", "drive": "get the flame back to full before the next gust finds it", "to": "tomas"},
+             {"id": "tomas", "drive": "keep Mira from climbing the gallery in this wind"}],
     "opening_tags": {"dimensions": {"threat": "moderate"}}}
    ```
    `python scripts/lint_scene.py` is not needed; the run below refuses a malformed cfg by name.
-4. **Run it:** `python scripts/scene.py --book "<book>" --db "<draft>" --scene "<cfg>" --budget <direction budget, at
-   most 5>` - add `--resume <run>` when the direction continues a run, and `--stub` when the direction says `stub`.
+4. **Run it:** `python scripts/scene.py --book "<book>" --db "<draft>" --scene "<cfg>" --direction "<the direction's
+   file, as the brief names it>" --budget <direction budget, at most 5>` - add `--resume <run>` when the direction continues a run, and `--stub` when the direction says `stub`.
 5. **Check it yourself:** `python scripts/critic.py --vault "<book>" --db "<draft>" --run <run> --prompt-only` > a
    file; read it and judge continuity and voice against what it shows, in its own reply shape. Note any flags for the
    summary; do not correct anything.

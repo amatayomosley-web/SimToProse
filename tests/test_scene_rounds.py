@@ -89,14 +89,14 @@ def _actor(script, calls):
     return fake
 
 
-def _run(tmp, who, script, budget, stub=True, to=None):
+def _run(tmp, who, script, budget, stub=True, to=None, extra=()):
     import scene
     book, cfg = _book(tmp, who, to)
     calls, saved = [], scene.faithful_turn
     scene.faithful_turn = _actor(script, calls)
     try:
         if stub:
-            out, exited = _drive("scene", book, ["--scene", cfg, "--budget", str(budget), "--stub"])
+            out, exited = _drive("scene", book, ["--scene", cfg, "--budget", str(budget), "--stub"] + list(extra))
         else:
             seat_calls = []
             with _seats({"appraise-event": [EVENT], "appraise-emotion": [EMOTION]}, seat_calls):
@@ -309,6 +309,25 @@ def test_the_exchange_shows_the_thread_and_your_own_lines(tmp):
     check("the-moment-marks-the-reader's-own-line-and-whom-it-was-to",
           third[0] == "mira" and 'You, to Ada: "Mira line 0."' in third[3]
           and 'Ada, to you: "Ada line 0."' in third[3], third[3][-300:])
+
+
+def test_the_authors_direction_is_kept_or_the_run_is_refused(tmp):
+    """The partner's direction aims Mira at Ada (gate direction-contract); a cfg the director wrote without that `to`
+    is refused before the chronicle opens, and one that keeps it runs."""
+    def script(who, stance, flags, n, steer):
+        return ("%s says a thing %d." % (who, n), "-", "yield" if stance == "speaker" else "take", _other(who))
+    direction = os.path.join(tmp, "direction.json")
+    with open(direction, "w", encoding="utf-8") as fh:
+        json.dump({"book": "The Rock", "kind": "scene", "intent": "the keepers wait out the gale",
+                   "cast": [{"id": "mira", "to": "ada"}, "ada"]}, fh)
+    out, exited, calls, rows = _run(os.path.join(tmp, "dropped"), ("mira", "ada"), script, 2,
+                                    extra=["--direction", direction])
+    check("a-cfg-that-drops-the-directed-to-is-refused,-named,-before-a-turn",
+          "HANDOFF_DIRECTION_DROPPED" in str(exited) and "mira" in str(exited) and not rows and not calls,
+          (exited, len(rows), out[-300:]))
+    out, exited, calls, rows = _run(os.path.join(tmp, "kept"), ("mira", "ada"), script, 2, to={"mira": "ada"},
+                                    extra=["--direction", direction])
+    check("...and-one-that-keeps-it-runs", exited is None and len(rows) == 2, (exited, out[-300:]))
 
 
 def main():

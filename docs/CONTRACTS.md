@@ -25,7 +25,7 @@ profile gives it.
 
 | kind | what it asks | needs (beside `book` and `kind`) | may carry |
 |---|---|---|---|
-| `scene` | run the next scene on a draft and bring it back for review | `intent` - what the author wants from it, in their words | `run` (continue a run), `cast`, `where`, `at` ({"day": 3, "time": "06:00"}), `budget` (turns, at most 5), `stub` (a test: no paid model) |
+| `scene` | run the next scene on a draft and bring it back for review | `intent` - what the author wants from it, in their words | `run` (continue a run), `cast` (ids, or `{id, drive?, to?}` - `to` the cast id that character's moves are aimed at; checked as the scene file's cast, and kept verbatim: the run refuses a scene file that drops or changes it), `where`, `at` ({"day": 3, "time": "06:00"}), `budget` (turns, at most 5), `stub` (a test: no paid model) |
 | `approve` | make a draft the book's record | `draft`, `words` | `in_advance` (the change was dictated before it was written) |
 | `reject` | set a draft aside | `draft` | `words` (why) |
 | `rewind` | return the record to an earlier state | `to`, `words` | |

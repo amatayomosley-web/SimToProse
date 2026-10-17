@@ -185,7 +185,10 @@ def main(argv=None):
         return 1
     print(_body(os.path.join(AGENTS, "showrunner.md")))
     print("\n\n" + _body(os.path.join(PLAYBOOKS, "%s.md" % playbook)) + session)
-    print("\n\n## The direction\n\n```json\n%s\n```" % json.dumps(direction, indent=2, ensure_ascii=False) + _where())
+    kept = ("\n\nThe direction's file: pass `--direction \"%s\"` to every `scene.py` call - the run refuses a scene file "
+            "that drops or changes what it directs (gate direction-contract)."
+            % os.path.abspath(a.direction).replace(os.sep, "/")) if playbook == "scene" else ""
+    print("\n\n## The direction\n\n```json\n%s\n```" % json.dumps(direction, indent=2, ensure_ascii=False) + kept + _where())
     return 0
 
 

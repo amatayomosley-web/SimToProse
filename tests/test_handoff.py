@@ -52,9 +52,22 @@ def briefs(tmp):
                                                      "words": "<the author's words>"}, "HANDOFF_WORDS_MISSING"),
             ("a-field-nothing-reads-is-HANDOFF_FIELD_UNKNOWN", {"book": "x", "kind": "scene", "intent": "x",
                                                                  "mood": "grim"}, "HANDOFF_FIELD_UNKNOWN"),
-            ("not-json-is-HANDOFF_DIRECTION_UNREADABLE", "{", "HANDOFF_DIRECTION_UNREADABLE")):
+            ("not-json-is-HANDOFF_DIRECTION_UNREADABLE", "{", "HANDOFF_DIRECTION_UNREADABLE"),
+            # THE CAST IS THE SCENE FILE'S CAST (gate direction-contract): checked by contracts_scene's own declarations
+            ("a-cast-key-nothing-reads-is-HANDOFF_CAST_INVALID", {"book": "x", "kind": "scene", "intent": "x",
+                                                                  "cast": [{"id": "mira", "mood": "grim"}]},
+             "HANDOFF_CAST_INVALID"),
+            ("...and-so-is-a-to-aimed-at-no-one-in-the-cast", {"book": "x", "kind": "scene", "intent": "x",
+                                                                "cast": [{"id": "mira", "to": "nobody"}, "ada"]},
+             "HANDOFF_CAST_INVALID"),
+            ("...and-a-cast-that-is-not-a-list", {"book": "x", "kind": "scene", "intent": "x", "cast": "mira"},
+             "HANDOFF_CAST_INVALID")):
         rc, out = _brief(tmp, direction)
         check(name, rc == 1 and code in out, out)
+    rc, out = _brief(tmp, {"book": "x", "kind": "scene", "intent": "x", "cast": [{"id": "mira", "to": "ada"}, "ada"]},
+                     "aimed.json")
+    check("a-directed-cast-passes,-and-the-brief-carries-the-direction's-path-for-scene.py",
+          rc == 0 and '--direction "%s"' % os.path.join(tmp, "aimed.json").replace(os.sep, "/") in out, out[-400:])
     rc, out = _run(os.path.join("scripts", "brief.py"), "--specialist", "narrator")
     rc2, out2 = _run(os.path.join("scripts", "brief.py"), "--specialist", "nobody")
     check("a-specialist's-brief-is-its-agent-file-without-front-matter,-and-an-unknown-one-is-refused", rc == 0
