@@ -27,7 +27,7 @@ is spawned at its tier, and subagent seats are answered by its loop while the sc
    ```
    `python scripts/lint_scene.py` is not needed; the run below refuses a malformed cfg by name.
 4. **Run it:** `python scripts/scene.py --book "<book>" --db "<draft>" --scene "<cfg>" --direction "<the direction's
-   file, as the brief names it>" --budget <direction budget, at most 5>` - add `--resume <run>` when the direction continues a run, and `--stub` when the direction says `stub`.
+   file, as the brief names it>"` - add `--budget <the direction's budget>` only when the direction gives one (without it the scene file's `moves`, else 24, is the ceiling), `--resume <run>` when the direction continues a run, and `--stub` when the direction says `stub`.
 5. **Check it yourself:** `python scripts/critic.py --vault "<book>" --db "<draft>" --run <run> --prompt-only` > a
    file; read it and judge continuity and voice against what it shows, in its own reply shape. Note any flags for the
    summary; do not correct anything.

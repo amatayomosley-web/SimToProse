@@ -56,6 +56,7 @@ def _member(c, cfg, ctx):
 
 
 MOVES_MAX = 30                                     # the ceiling a scene file may set (design v2 s3: "at most 30")
+MOVES_DEFAULT = 24                                 # the ceiling when nothing sets one (design v2 s3; showrunner ruling)
 HOLD_WHEN = ("opening",)                          # when a held-open speech begins; absent, at the speaker's first move
 
 
@@ -204,7 +205,7 @@ SCENE = (
     F("attachments[].relation", "text", reader="attachments.RELATION_HOLDS"),
     F("attachments[].note", "text", reader="scene.run_scene"),
     F("moves", "number", check=_moves, reader="scene.main (the ceiling; --budget overrides it)",
-      doc="at most how many rows the scene commits, 1 to 30; absent, 14 (--budget overrides either)"),
+      doc="at most how many rows the scene commits, 1 to 30; absent, 24 (--budget overrides either)"),
     F("hold_open", "map", check=_hold_open, reader="scene.run_scene; floor.Round",
       doc="the director holds the floor open for one speech: nobody is asked while its speaker keeps the floor"),
     F("hold_open.speaker", "text", reader="scene.run_scene", doc="the cast id whose speech the room hears out"),

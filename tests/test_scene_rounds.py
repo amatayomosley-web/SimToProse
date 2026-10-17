@@ -404,6 +404,8 @@ def test_the_director_holds_the_floor_open(tmp):
     turns = [r["turn"] for r in con.execute("SELECT turn FROM turns ORDER BY turn")]
     check("...and-the-reaction-is-an-Event-with-no-actor-on-the-yielding-row",
           len(turns) == 5 and placed == [(turns[2], None, {"text": room})], placed)
+    out, exited, calls, rows = _run(os.path.join(tmp, "open"), ("mira", "ada"), script, None)
+    check("with-no---budget-and-no-moves-the-ceiling-is-24", exited is None and len(rows) == 24, (exited, len(rows)))
     out, exited, calls, rows = _run(os.path.join(tmp, "bad"), ("mira", "ada"), script, 2,
                                     keys={"hold_open": {"speaker": "tomas"}})
     check("a-hold_open-on-someone-not-in-the-cast-refuses-the-run-by-name",

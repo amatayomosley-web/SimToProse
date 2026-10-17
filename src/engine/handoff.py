@@ -49,6 +49,12 @@ def parse_direction(obj):
                           % ", ".join(unknown))
     if "cast" in obj:
         _cast(obj["cast"])
+    if "budget" in obj:                         # the scene's ceiling in moves, as the scene file's `moves` (gate budget-in-moves)
+        from .contracts_scene import MOVES_MAX
+        b = obj["budget"]
+        if isinstance(b, bool) or not isinstance(b, int) or not 1 <= b <= MOVES_MAX:
+            raise RecordError("HANDOFF_BUDGET_INVALID", "budget %r - a whole number of moves from 1 to %d; leave it out "
+                              "and the scene file's moves (else 24) is the ceiling" % (b, MOVES_MAX))
     return obj, playbook
 
 

@@ -1292,7 +1292,7 @@ anything is written.
 | `attachments[].entity` | text | no | active | scene.run_scene | loc.<id> or grp.<tag> |
 | `attachments[].relation` | text | no | active | attachments.RELATION_HOLDS |  |
 | `attachments[].note` | text | no | active | scene.run_scene |  |
-| `moves` | number | no | active | scene.main (the ceiling; --budget overrides it) | at most how many rows the scene commits, 1 to 30; absent, 14 (--budget overrides either) |
+| `moves` | number | no | active | scene.main (the ceiling; --budget overrides it) | at most how many rows the scene commits, 1 to 30; absent, 24 (--budget overrides either) |
 | `hold_open` | map | no | active | scene.run_scene; floor.Round | the director holds the floor open for one speech: nobody is asked while its speaker keeps the floor |
 | `hold_open.speaker` | text | no | active | scene.run_scene | the cast id whose speech the room hears out |
 | `hold_open.when` | text | no | active | scene.run_scene | opening: the speech opens the scene; absent, the hold begins at their first move |

@@ -37,6 +37,8 @@ def briefs(tmp):
     check("a-scene-direction-gets-the-core,-the-scene-playbook-and-the-direction", rc == 0
           and "# Showrunner — core" in out and "# Playbook: scene" in out and "# Playbook: record" not in out
           and '"intent": "Mira keeps the lamp lit"' in out and "run every command from" in out, out)
+    check("...and-the-playbook-passes---budget-only-when-the-direction-gives-one,-never-capped-at-5",
+          "only when the direction gives one" in out and "at most 5" not in out, out)
     book = _mk_vault(os.path.join(tmp, "briefed"))
     rc, out = _brief(tmp, {"book": book, "kind": "approve", "draft": "d1", "words": 'Keep "the lamp" part, $5 well spent.'})
     check("an-approval's-brief-is-only-its-one-command,-the-words-filled-in-for-bash", rc == 0
@@ -61,7 +63,13 @@ def briefs(tmp):
                                                                 "cast": [{"id": "mira", "to": "nobody"}, "ada"]},
              "HANDOFF_CAST_INVALID"),
             ("...and-a-cast-that-is-not-a-list", {"book": "x", "kind": "scene", "intent": "x", "cast": "mira"},
-             "HANDOFF_CAST_INVALID")):
+             "HANDOFF_CAST_INVALID"),
+            # THE BUDGET IS MOVES (gate budget-in-moves): the scene file's own range, 1 to 30
+            ("a-budget-of-0-is-HANDOFF_BUDGET_INVALID", {"book": "x", "kind": "scene", "intent": "x", "budget": 0},
+             "HANDOFF_BUDGET_INVALID"),
+            ("...and-31", {"book": "x", "kind": "scene", "intent": "x", "budget": 31}, "HANDOFF_BUDGET_INVALID"),
+            ("...and-2.5", {"book": "x", "kind": "scene", "intent": "x", "budget": 2.5}, "HANDOFF_BUDGET_INVALID"),
+            ("...and-words", {"book": "x", "kind": "scene", "intent": "x", "budget": "five"}, "HANDOFF_BUDGET_INVALID")):
         rc, out = _brief(tmp, direction)
         check(name, rc == 1 and code in out, out)
     rc, out = _brief(tmp, {"book": "x", "kind": "scene", "intent": "x", "cast": [{"id": "mira", "to": "ada"}, "ada"]},

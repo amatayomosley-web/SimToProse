@@ -1038,7 +1038,7 @@ def main():
     ap.add_argument("--model", default=DEFAULT_MODEL)
     ap.add_argument("--profile", default=None,
                     help="the session profile (scripts/profile.py): the actor's model and the seats' backend")
-    ap.add_argument("--budget", type=int, default=None, help="max beats; absent, the scene file's `moves`, else 14")
+    ap.add_argument("--budget", type=int, default=None, help="max moves; absent, the scene file's `moves`, else 24")
     ap.add_argument("--seed-base", type=int, default=0, dest="seed_base",
                     help="sampling seed base; per-beat seed = base*1000 + beat. Vary it (0..K-1) to draw a "
                          "REAL K-sample: at a fixed base two runs of one cfg reproduce byte-identically. "
@@ -1389,7 +1389,8 @@ def main():
     # never said so.
     print(integrity.startup_line(led.con))
 
-    budget = args.budget if args.budget is not None else int(scene_cfg.get("moves") or 14)   # gate placements
+    from src.engine.contracts_scene import MOVES_DEFAULT   # gates placements, budget-in-moves
+    budget = args.budget if args.budget is not None else int(scene_cfg.get("moves") or MOVES_DEFAULT)
     next_turn = run_scene(world, chars, scene_cfg, led, run_id, start_turn, args.model, args.stub, budget,
                           think=args.think, seed_base=args.seed_base,
                           prompt_only=args.prompt_only, supplied=supplied, direction=_direction_mark)
