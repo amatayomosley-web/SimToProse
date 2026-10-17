@@ -261,16 +261,18 @@ def test_through_the_driver(tmp):
     def told(pov, knowledge="pov"):
         return "\n".join(m["content"] for m in narrate.build_narration_prompt(
             turns, pov, {}, pov_name=names[pov], names=names, knowledge=knowledge))
-    check("mira-s-telling-carries-ada-s-sign-and-not-her-own", ADA_TELL in told("mira") and MIRA_TELL not in told("mira"),
-          told("mira")[-900:])
-    check("ada-s-telling-carries-no-sign-she-missed-and-not-her-own", ADA_TELL not in told("ada")
+    # William's ruling 2026-10-17 (gate own-tell-shown): the POV's own sign is SHOWN, as a body fact it does not name
+    own_line = "gave away without knowing it"
+    check("mira-s-telling-carries-ada-s-caught-sign-and-her-own-as-a-body-fact",
+          ADA_TELL in told("mira") and MIRA_TELL in told("mira") and own_line in told("mira"), told("mira")[-900:])
+    check("ada-s-telling-carries-her-own-sign-and-none-she-missed", ADA_TELL in told("ada")
           and MIRA_TELL not in told("ada"), told("ada")[-900:])
     check("omniscient-carries-every-sign", ADA_TELL in told("ada", "omniscient") and MIRA_TELL in told("ada", "omniscient"))
     saved_own = narration_contract.OWN_TELL_SHOWN
-    narration_contract.OWN_TELL_SHOWN = True
+    narration_contract.OWN_TELL_SHOWN = False
     try:
-        check("the-one-switch-shows-the-pov-its-own-sign", MIRA_TELL in told("mira") and ADA_TELL in told("ada")
-              and MIRA_TELL not in told("ada"))
+        check("the-one-switch-off-hides-the-pov-its-own-sign", MIRA_TELL not in told("mira") and ADA_TELL in told("mira")
+              and own_line not in told("mira"))
     finally:
         narration_contract.OWN_TELL_SHOWN = saved_own
     led.con.close()

@@ -94,9 +94,9 @@ EXCHANGE = (
     "EXCHANGE. Single SAID rows that take in turn are a conversation. Render them as one: wording free, substance "
     "fixed (THE SOURCE). Two consecutive SAID rows by one speaker with nothing between them may be one line.")
 # THE POV'S OWN TELL (gate tells-narrated): under pov knowledge a sign the POV gave away without meaning to is not
-# something the POV saw. Whether the telling shows it anyway is William's call (asked via the showrunner 2026-10-17);
-# until he rules it is not shown. One switch: narrate.pov_split reads it.
-OWN_TELL_SHOWN = False
+# something the POV saw. William's ruling 2026-10-17 (via the showrunner, "you pick" -> SHOW; gate own-tell-shown): it
+# is shown, as a body fact the reader sees and the POV does not notice or name. One switch: narrate.pov_split reads it.
+OWN_TELL_SHOWN = True
 TELL_MARK = " (without meaning to: %s)"
 _VERB = {"keep": "keeps", "yield": "yields", "take": "takes", "interject": "interjects"}
 
@@ -162,9 +162,13 @@ def transcript(entries, pov, povn, names, knowledge):
                    "is what %s saw and heard." % povn,
                    "  HELD (who; acts | silent)  a listener holding their tongue: what they did while the other spoke, "
                    "or a silence."]
-    if any(e.get("tell") for e in entries):
+    if any(e.get("tell") and (omni or e["actor"] != pov) for e in entries):
         legend.append("  (without meaning to: ...)  a sign the character gave away and %s caught. Fixed, like an act; "
                       "show it, never name it as a tell." % ("the reader sees" if omni else povn))
+    if not omni and any(e.get("tell") and e["actor"] == pov for e in entries):
+        legend.append("  (without meaning to: ...) on %s's own row  a sign %s gave away without knowing it. Fixed, like an "
+                      "act: render it as a body fact the reader sees; %s does not notice it or name what it gives away."
+                      % (povn, povn, povn))
     if any(e.get("room") for e in entries):
         legend.append("  THE ROOM  what the room did as the speech above it ended, placed by the director. Fixed, like an "
                       "act, and nobody's line: render it where it stands, as %s saw and heard it." % povn)
