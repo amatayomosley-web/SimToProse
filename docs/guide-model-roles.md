@@ -57,6 +57,13 @@ measured 2026-09-27). Agent roles are Claude subagents and take a Claude model o
   catches its worst failure, and the NUMBERS come from the seats, not from the actor — a weaker actor
   writes flatter beats, which is a quality cost, not a corrupted record. Smaller local models are
   untested here: run the test before trusting one.
+- Since the round loop (2026-10-17) the actor answers in two stances. As **speaker** it makes one move and says
+  `keep` or `yield`. As **listener**, asked after another's move, it says `take`, `interject` or `hold`. The listener
+  stance was measured on 2026-10-16: three frozen prompts, ten draws each, blind Opus judges with planted controls.
+  Sonnet chose fitting floor words and stayed in character (9-10 of 10 on most counts). The local 26B often returned
+  no reply at all, and on the hardest prompt was in character 0 of 10. So the listener stance does **not** meet the
+  Local floor at that size: run it on Sonnet or above. A speaker held open by the director (`hold_open`) is given a
+  1,500-token act ceiling on OpenRouter; every other act call keeps 750.
 - Test a candidate: `tests/actor_bakeoff.py` - the engine's exact actor prompts from two scenes of the public test
   book, frozen so every model answers the same ones, several draws each, judged blind against their own prompts with
   planted violations as the control, and scored fit / marginal / unfit. A live burst compares nothing: after the first
@@ -76,6 +83,9 @@ happened (severity words per dimension); the emotion seat says what arose in the
   reading is recorded as fact, and nothing downstream can tell.
 - Needs: follow a long fixed system prompt (the nine ladders and the concept menu, thousands of
   tokens) to the letter; judge subtext; copy the allowed words exactly.
+- Read per **window** since the round loop: once at the end of one speaker's uninterrupted stretch. The event seat
+  reads the speaker's moves as one act, plus one read per listener act or interjection. The emotion seat reads each
+  participant once. A silent hold gets no event read.
 - Floor: **Top**. Why: "a confidently wrong reading poisons the log for the rest of the book"
   (`docs/constant-register.md`, `DEFAULT_SEAT_MODEL`); the log is append-only; two calls per beat. The
   owner ruled on 2026-09-11 "we need accuracy"; on 2026-09-27 the owner made the seats' backend a choice

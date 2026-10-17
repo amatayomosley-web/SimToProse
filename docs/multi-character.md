@@ -57,6 +57,13 @@ A first runner exists — **`scripts/scene.py`** — implementing the loop and a
 
 So the next build **grows the v1 salience floor into the full urge scheduler this doc already specifies** (`addressed_bonus`, `social_inhibition`, temperature, the dialogue-act `target` field) and wires the storm-out exit. The doc was the spec; the live run found precisely the gaps it predicted — and the `_note`/`note` stable-prefix leak (design notes reaching the prompt) is a separate, still-open fix that inflates how much of the voice is emergent.
 
+## The round loop (conversation design v2, built 2026-10-16/17)
+The scheduler above is now built as a round, not a softmax. Each call is one actor in one stance. The **speaker** makes one move (a paragraph, a point, an act) and says `keep` or `yield`. After every move the listeners whose urge clears the floor are asked, highest first (in a two-hander, always the other one). Each answers `take`, `interject` or `hold`, and the round ends at the first take (`src/engine/floor.py` `Round`, `ask_order`; `scripts/scene.py` `run_scene`).
+- **Interrupt: built.** A listener whose urge clears `INTERRUPT_THRESHOLD` (0.45) while the speaker means to go on is told in words that they are moved enough to cut in. The cut is licensed, never invented, and the row records it (`cut`).
+- **Settled stop: built.** Four speaker moves in a row that say nothing new, with no listener above the interrupt threshold, end the scene (`floor.settled`). This is a two-hander's stop, since a two-hander never lulls.
+- **The director's placements: built.** `hold_open` keeps the floor with one speaker until they yield and nobody is asked meanwhile. Its `reaction` is shown to the next actors as *The room: …* and kept as an Event. The scene file's `moves` sets the ceiling (1 to 30, default 24).
+- **Still the follow-on: the dialogue-act writer.** The floor word (`keep · yield · take · interject · hold`) is **not** a dialogue-act. It says what the speaker did with the floor, not what the line did to the argument. The dialogue-act family (assert · rebut · concede · …) stays the recorder's, and no writer emits it yet.
+
 ## Cross-links / status
 - **Composes:** `scene-assembly` (perceive the words), `recording-model` (thought/action wall = subtext), `state-engine` (per-line appraisal), `relationships` (stance update + backfire), `consolidation-loop` (tagged contributions — the keystone), `decision-engine` (the line is the action).
 - **New mechanics here:** the urge scheduler, addressing, stance dynamics, convergence.

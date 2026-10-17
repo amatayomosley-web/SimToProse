@@ -27,6 +27,15 @@ Beats per run, this session (temp 1.0; cast = present actors; "tensions" = disti
 - **A 2–3-actor scene self-terminates at ~3–6 beats**, by lull or exit. Budget is a ceiling, never a target; the scene stops when the pressure is spent.
 - **Heat extends the tail a little** (a live trigger the character could not call off pushed a 2-actor scene to 5); calm scenes lull sooner. See *Reading the stop* for why.
 
+### Since the round loop (conversation design v2, 2026-10-17)
+The table above counts **beats** from before the round loop. A run now counts **moves**: one paragraph, one point, or one act. After each move the listeners are asked whether to take the floor, put in a word, or hold. A speech is consecutive moves by one speaker that nobody took from them. The table's numbers are history; re-measure before relying on one.
+
+- **The ceiling is `moves`**: the scene file's own, 1 to 30, else 24. `--budget` overrides it, and so does a direction's `budget` (moves, 1 to 30, passed only when the direction gives one). It counts committed rows, the paragraphs of a held speech included. It is still a ceiling, never a target.
+- **The stops, in order after every round**: exit; lull (crowds only); the forced floor held a second time; **settled**, which is four speaker moves in a row that say nothing new while no listener is moved enough to cut in (a two-hander never lulls, so this is its stop); then the ceiling.
+- **A cast of one can keep the floor.** A solo speaker who says `keep` goes on, so a soliloquy runs until they yield.
+- **The seats read per window, not per move.** A window is one speaker's uninterrupted stretch plus the holds and interjections inside it. The event seat reads it once, and the emotion seat reads each participant once, at its end. A long speech costs one read, not one per paragraph.
+- **The director can hold the floor open** (`hold_open`: speaker, `when: opening`, `reaction`). While that speaker keeps, nobody is asked. When they yield, the placed reaction is shown to the next actors as *The room: …*, kept as an Event, and handed to the narrator and the critic.
+
 ## Reading the stop — the termination mode is diagnostic
 The three stops are **not** interchangeable. *Which* one fires tells you what kind of scene you just ran and what you have to write next.
 
