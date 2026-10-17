@@ -64,11 +64,11 @@ __layer__ = "engine"
 import json
 from dataclasses import dataclass, field
 
-from .records import RecordError
+from .records import FLOORS, RecordError
 
-ACTOR_KEYS = ("action", "thought", "exit", "addressee", "act", "tags")
+ACTOR_KEYS = ("action", "thought", "exit", "addressee", "act", "tags", "floor")
 SUPPLIED_REQUIRED = ("action", "thought", "tags")
-SUPPLIED_CONTRACT = "{action, thought, tags, exit?, addressee?, act?}"
+SUPPLIED_CONTRACT = "{action, thought, tags, exit?, addressee?, act?, floor?}"
 
 
 @dataclass(frozen=True)
@@ -82,11 +82,14 @@ class ActorReply:
     act: str = ""
     tags: dict = field(default_factory=lambda: {"dimensions": {}})
     extra: tuple = ()
+    floor: str = ""                    # records.FLOORS, or "" (none, or a word that is not one: see actor_reply)
+    floor_said: str = ""               # the floor word as the reply wrote it, when it was not one of FLOORS
 
     def as_turn(self):
         """-> the turn dict the drivers carry: the shape the actor's reply has always been read into, plus `extra`."""
         return {"action": self.action, "thought": self.thought, "exit": self.exit, "addressee": self.addressee,
-                "act": self.act, "tags": self.tags, "extra": self.extra}
+                "act": self.act, "tags": self.tags, "extra": self.extra, "floor": self.floor,
+                "floor_said": self.floor_said}
 
 
 def _text(v):
@@ -115,15 +118,29 @@ def actor_reply(obj, supplied=False):
         wrong += [k for k in ("addressee", "act") if obj.get(k) is not None and not isinstance(obj[k], str)]
         wrong += ["exit"] if obj.get("exit") is not None and not isinstance(obj["exit"], bool) else []
         wrong += ["tags"] if not isinstance(obj["tags"], dict) else []
+        # THE FLOOR WORD (gate floor-in-record): a supplied turn is held to the vocabulary, as its other fields are
+        # held to their types; a model's draw is read, never refused field by field - an unknown word is kept in
+        # `floor_said` for the validation record and read as no floor word
+        wrong += ["floor"] if obj.get("floor") is not None and obj["floor"] not in FLOORS else []
         if wrong:
             raise RecordError("REPLY_FIELD_TYPE", "a supplied turn's %s: the wrong type (text for action, thought, "
-                              "addressee and act; true or false for exit; an object for tags)" % ", ".join(wrong))
+                              "addressee and act; true or false for exit; an object for tags; one of %s for floor)"
+                              % (", ".join(wrong), ", ".join(FLOORS)))
     tags = obj.get("tags") if isinstance(obj.get("tags"), dict) else {"dimensions": {}}
     # `act` as it always was, falsy -> "": a model's "act": false is no act, never the word "False", which the law
     # check would weigh against every law that names no act of its own
     return ActorReply(action=_text(obj.get("action")), thought=_text(obj.get("thought")), exit=obj.get("exit") is True,
                       addressee=_text(obj.get("addressee")), act=_text(obj.get("act") or ""), tags=tags,
-                      extra=tuple(sorted(str(k) for k in obj if k not in ACTOR_KEYS)))
+                      extra=tuple(sorted(str(k) for k in obj if k not in ACTOR_KEYS)),
+                      floor=_floor(obj.get("floor")),
+                      floor_said="" if obj.get("floor") in (None, "") or _floor(obj.get("floor")) else _text(obj.get("floor")))
+
+
+def _floor(v):
+    """A reply's floor word -> the vocabulary's own spelling, or "" when it is none of FLOORS (case and edge spaces
+    forgiven: a model's "Hold" is the word hold)."""
+    w = v.strip().lower() if isinstance(v, str) else ""
+    return w if w in FLOORS else ""
 
 
 # THE SEATS' CONTRACTS (gate seat-replies): the top-level keys each prompt asks for, then each entry's fields. An

@@ -214,7 +214,7 @@ def _capture(book, sid, cfg_path, target, db):
     used, real = [], scene.faithful_turn
 
     def fake(packet, event_text, temperament, model, stub, think=True, brief="", seed=None, acts=(),
-             relationships=None, information=None, char_id=None, max_retries=2):
+             relationships=None, information=None, char_id=None, max_retries=2, vault=None, world=None):
         beat = len(used)
         if beat == target:                           # the exact call the --prompt-only seam makes
             raise _Captured(scene.build_turn_messages(packet, event_text, temperament, relationships, acts=acts,

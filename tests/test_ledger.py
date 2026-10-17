@@ -837,6 +837,47 @@ def test_the_IDEMPOTENT_REPLAY_writers_still_replay(tmp):
         assert e.code == "LEDGER_TIME_DECL_REWRITE", e.code
 
 
+def test_a_turn_RECORDS_its_floor_word_and_addressee(tmp):
+    """Gate floor-in-record (conversation design v2): whom a move was said to and what it did to the floor are kept
+    with the turn, and read back by the scene's reader (critic.scene_turns, which the narrator uses)."""
+    sys.path.insert(0, os.path.join(REPO, "scripts"))
+    from critic import scene_turns
+    led = fresh(tmp, "floor")
+    led.append_turn(commit("r1", 1, floor="take", addressee="edda"))
+    led.append_turn(commit("r1", 2))
+    rows = [(r["turn"], r["floor"], r["addressee"]) for r in scene_turns(led, "r1")]
+    assert rows == [(1, "take", "edda"), (2, "", "")], rows
+    try:
+        led.append_turn(commit("r1", 3, floor="shout"))
+        raise AssertionError("a floor word outside the vocabulary was committed")
+    except RecordError as e:
+        assert e.code == "RECORD_FLOOR_UNKNOWN", e
+
+
+def test_a_v35_db_gains_floor_and_addressee_EMPTY_for_its_old_turns(tmp):
+    """A v35 chronicle migrates to v36 keeping every turn; the old turns read '' in both new columns - they carried no
+    floor word and their addressee was never kept, which is the truth about them."""
+    import sqlite3 as _sq
+    from src.engine.db import connect as _connect, SCHEMA_VERSION
+    path = os.path.join(tmp, "v35.db")
+    raw = _sq.connect(path)
+    raw.executescript("CREATE TABLE runs(run_id TEXT PRIMARY KEY, created_at TEXT, status TEXT, config TEXT);"
+                      "CREATE TABLE turns(run_id TEXT NOT NULL, turn INTEGER NOT NULL, actor TEXT NOT NULL,"
+                      " thought TEXT NOT NULL DEFAULT '', action TEXT NOT NULL DEFAULT '', tags TEXT NOT NULL DEFAULT"
+                      " '{}', validation TEXT NOT NULL DEFAULT '{}', committed_at TEXT NOT NULL,"
+                      " PRIMARY KEY (run_id, turn, actor));")
+    raw.execute("INSERT INTO runs VALUES('old','t','parked','{}')")
+    raw.execute("INSERT INTO turns(run_id,turn,actor,committed_at) VALUES('old',0,'a','t')")
+    raw.execute("PRAGMA user_version = 35")
+    raw.commit()
+    raw.close()
+    con = _connect(path)
+    assert SCHEMA_VERSION == 36 and con.execute("PRAGMA user_version").fetchone()[0] == 36
+    got = con.execute("SELECT floor, addressee FROM turns WHERE run_id='old'").fetchall()
+    assert [tuple(r) for r in got] == [("", "")], got
+    con.close()
+
+
 def main():
     tmp = tempfile.mkdtemp(prefix="swe_ledger_test_")
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]

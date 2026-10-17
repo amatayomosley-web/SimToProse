@@ -51,10 +51,10 @@ DEFAULT_CRITIC_MODEL = "anthropic/claude-sonnet-4.6"
 
 
 def scene_turns(led, run_id):
-    """The committed turns of a run, in turn order — the canonized scene the critic reads."""
-    rows = led.con.execute(
-        "SELECT turn, actor, action, thought FROM turns WHERE run_id=? ORDER BY turn", (run_id,)).fetchall()
-    return [{"turn": r["turn"], "actor": r["actor"], "action": r["action"], "thought": r["thought"]} for r in rows]
+    """The committed turns of a run, in turn order, each with its floor word and addressee (v36; '' before them)."""
+    rows = led.con.execute("SELECT turn, actor, action, thought, floor, addressee FROM turns WHERE run_id=? "
+                           "ORDER BY turn", (run_id,)).fetchall()
+    return [dict(r) for r in rows]
 
 
 def _name_of(p):

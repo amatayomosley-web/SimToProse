@@ -217,6 +217,12 @@ RELATIONSHIP_AXES = ("trust", "affinity", "respect", "debt")
 # first = what the perceiver makes of the target; second = what they believe the target makes of them (bonds.reflect).
 # Named (gate record-guards) because the database's insert guard is built from it (guards.py), not from a second copy.
 RELATIONSHIP_ORDERS = ("first", "second")
+# THE FLOOR WORDS (conversation design v2, gate floor-in-record): what a move did to the floor. A listener asked after a
+# move answers take (the floor is mine), interject (a short line; the speaker goes on) or hold (silent, or an act with
+# no words); a speaker re-called answers keep (more to come) or yield (that was the last of it). '' is a turn with no
+# floor word - every turn recorded before v36, and any whose reply carried none.
+FLOORS = ("take", "interject", "hold", "keep", "yield")
+FLOOR_STORED = ("",) + FLOORS
 # THE RANGES, named once for the same reason (gate record-guards review: the guards first held their own copies of
 # these bounds, and widening a validator alone passed every suite while the database refused its beats): every delta
 # on every tier, and a scar's intensity.
@@ -547,6 +553,8 @@ class TurnCommit:
     lands_on: list = field(default_factory=list)          # [char_id] — who the beat bears on (floor, Phase 5)
     bystanders: dict = field(default_factory=dict)        # {char_id: {"affect", "condition"}} — every OTHER present
                                                           # character's mood after the beat's minutes (step 4)
+    floor: str = ""                                       # FLOORS, or '' (none): what the move did to the floor
+    addressee: str = ""                                   # whom the move was said TO ('' : the room, or no one)
 
     def validate(self):
         _require(isinstance(self.run_id, str) and self.run_id.strip(), "RECORD_RUN_ID_EMPTY", "TurnCommit.run_id must be non-empty")
@@ -613,6 +621,9 @@ class TurnCommit:
         from . import wound as _wound
         self.wound_mints = [_wound.check_mint(_w) for _w in self.wound_mints]   # each with the vocabulary's strings
         _check_validation(self.validation)
+        _require(self.floor in FLOOR_STORED, "RECORD_FLOOR_UNKNOWN",
+                 "TurnCommit.floor %r is not a floor word: %s, or '' for none" % (self.floor, ", ".join(FLOORS)))
+        _require(isinstance(self.addressee, str), "RECORD_FIELD_TYPE", "TurnCommit.addressee must be str")
         binds, spelt = [], {}
         for _tb in self.target_binds:
             _require(isinstance(_tb, (list, tuple)) and len(_tb) == 2, "RECORD_LIST_ITEM_TYPE",

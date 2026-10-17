@@ -103,6 +103,7 @@ GUARDS = (
      "readings.CONFIDENCE_WORDS"),
     ("utterances", "tier", "one-of", lambda: claims.TIERS, "CLAIM_TIER_UNKNOWN", "claims.TIERS"),
     ("bible_laws", "statement", "not-blank", lambda: None, "BIBLE_LAW_STATEMENT_MISSING", "law._normalise_law"),
+    ("turns", "floor", "one-of", lambda: records.FLOOR_STORED, "RECORD_FLOOR_UNKNOWN", "records.FLOOR_STORED"),
 )
 
 

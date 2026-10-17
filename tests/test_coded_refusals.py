@@ -190,6 +190,7 @@ RECORD_CASES = {
     "RECORD_AXIS_UNKNOWN":           lambda: _rel(axis="vibes").validate(),
     "RECORD_DELTA_RANGE":            lambda: _rel(delta=9.0).validate(),
     "RECORD_ORDER_UNKNOWN":          lambda: _rel(order="third").validate(),
+    "RECORD_FLOOR_UNKNOWN":          lambda: _commit(floor="shout").validate(),
     "RECORD_CHAR_ID_EMPTY":          lambda: _wound(char_id="").validate(),
     "RECORD_WOUND_ID_EMPTY":         lambda: _wound(wound_id="").validate(),
     "RECORD_WOUND_KIND_UNKNOWN":     lambda: _wound(kind="vibes").validate(),

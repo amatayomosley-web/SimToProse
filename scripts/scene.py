@@ -810,6 +810,8 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
         if turn.get("extra"):
             validation["reply_extra"] = list(turn["extra"])
             print("   [the reply carries key(s) nothing reads: %s]" % _replies.shown(turn["extra"]))
+        if turn.get("floor_said"):                    # a floor word that is not one (gate floor-in-record): kept, read as none
+            validation["reply_floor_said"] = str(turn["floor_said"])
         # ...AND THE SEATS' (gate seat-replies): what an accepted seat reply carried beyond its questions, and a seat
         # that did not answer - the beat whose tags are the actor's own fallback is told apart from a seated one
         if _seat_extra:
@@ -1001,6 +1003,7 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
         led.append_turn(TurnCommit(
             run_id=run_id, turn=turn_no, actor=speaker,
             thought=str(turn["thought"]), action=str(turn["action"]),
+            floor=str(turn.get("floor") or ""), addressee=str(turn.get("addressee") or ""),
             tags=tags if isinstance(tags, dict) else {}, affect=dict(a["affect"]),
             condition=dict(_cond_next.get(speaker) or a["char"]["current"].get("condition", {})), validation=validation,
             events=_law_events(led, run_id, world, chars, turn, speaker,

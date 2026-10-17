@@ -138,10 +138,10 @@ class Ledger:
                         (commit.run_id, commit.turn, caused, effective, ev.type, ev.actor, ev.target,
                          ev.location, ev.visibility, json.dumps(ev.payload)))
                 self.con.execute(
-                    "INSERT INTO turns (run_id, turn, actor, thought, action, tags, validation, committed_at) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    "INSERT INTO turns (run_id, turn, actor, thought, action, tags, validation, committed_at, floor, "
+                    "addressee) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     (commit.run_id, commit.turn, commit.actor, commit.thought, commit.action,
-                     json.dumps(commit.tags), json.dumps(commit.validation), _now()))
+                     json.dumps(commit.tags), json.dumps(commit.validation), _now(), commit.floor, commit.addressee))
                 self.con.execute(
                     "INSERT INTO current_state (run_id, char_id, turn, affect, condition) VALUES (?, ?, ?, ?, ?)",
                     (commit.run_id, commit.actor, commit.turn, json.dumps(commit.affect), json.dumps(commit.condition)))

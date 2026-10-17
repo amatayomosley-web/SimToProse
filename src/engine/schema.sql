@@ -68,6 +68,8 @@ CREATE TABLE IF NOT EXISTS turns (
     tags         TEXT    NOT NULL DEFAULT '{}', -- the actor's same-pass consolidation self-report (JSON)
     validation   TEXT    NOT NULL DEFAULT '{}', -- mechanical validation result (gate 4 fills this)
     committed_at TEXT    NOT NULL,
+    floor        TEXT    NOT NULL DEFAULT '',   -- v36: records.FLOORS or '' (none) - what the move did to the floor
+    addressee    TEXT    NOT NULL DEFAULT '',   -- v36: whom the move was said TO ('' : the room, or no one)
     PRIMARY KEY (run_id, turn, actor)
 );
 

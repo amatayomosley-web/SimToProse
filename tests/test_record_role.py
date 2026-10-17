@@ -151,7 +151,8 @@ def roles():
     check("integrity-reports-the-missing-lock-ONCE,-amber", len(lock_findings) == 1
           and lock_findings[0]["tier"] == "amber", [f["kind"] for f in found][:12])
     con = db.connect(old)
-    check("...and-the-v34-file-migrates-to-v35,-open,-locked", con.execute("PRAGMA user_version").fetchone()[0] == 35
+    check("...and-the-v34-file-migrates-to-the-current-version,-open,-locked",
+          con.execute("PRAGMA user_version").fetchone()[0] == db.SCHEMA_VERSION
           and db.role_of(old)["role"] == "open"
           and any(guards.LOCK in n for n in guards.installed(con)))
     con.close()

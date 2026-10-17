@@ -29,7 +29,7 @@ sys.path.insert(0, REPO)
 sys.path.insert(0, os.path.join(REPO, "scripts"))
 sys.path.insert(0, os.path.join(REPO, "tests"))
 
-from src.engine import replies                                  # noqa: E402
+from src.engine import records, replies                                  # noqa: E402
 from src.engine.records import RecordError                      # noqa: E402
 
 FAILS = []
@@ -57,7 +57,8 @@ def model_reply():
     import direct
     r = replies.actor_reply(dict(TURN, exit=False, addressee="ada", act="trim"))
     check("a-well-formed-reply-reads-as-the-turn-always-did",
-          r.as_turn() == dict(TURN, exit=False, addressee="ada", act="trim", extra=()), r.as_turn())
+          r.as_turn() == dict(TURN, exit=False, addressee="ada", act="trim", extra=(), floor="", floor_said=""),
+          r.as_turn())
     r = replies.actor_reply(dict(TURN, mood="uneasy", _scratch=1))
     check("a-key-nothing-reads-is-kept-in-extra,-sorted,-not-dropped-unseen", r.extra == ("_scratch", "mood"), r.extra)
     check("...and-the-turn-it-carried-is-still-read", r.action == TURN["action"] and r.tags == TURN["tags"])
@@ -68,7 +69,7 @@ def model_reply():
     empty = replies.actor_reply(["not", "an", "object"]).as_turn()
     check("a-non-object-is-an-empty-draw-(the-retry-loop-redraws-it)",
           empty == {"action": "", "thought": "", "exit": False, "addressee": "", "act": "", "tags": {"dimensions": {}},
-                    "extra": ()}, empty)
+                    "extra": (), "floor": "", "floor_said": ""}, empty)
     check("a-non-object-tags-is-replaced-by-an-empty-block",
           replies.actor_reply(dict(TURN, tags="calm")).tags == {"dimensions": {}})
     for label, value in (("null", None), ("false", False), ("zero", 0), ("an-empty-list", [])):
@@ -80,6 +81,16 @@ def model_reply():
     check("_parse_reply:-the-text-is-read-through-the-record", turn["action"] == "She sits." and turn["exit"] is False
           and turn["extra"] == ("mood",), turn)
     check("_parse_reply:-garbage-is-an-empty-draw", direct._parse_reply("no json here")["action"] == "")
+    # THE FLOOR WORD (gate floor-in-record): read into the turn, never reported as a key nothing reads
+    r = replies.actor_reply(dict(TURN, floor="hold"))
+    check("a-floor-word-is-read,-not-extra", r.floor == "hold" and r.extra == () and r.as_turn()["floor"] == "hold",
+          (r.floor, r.extra))
+    check("...each-of-the-five", all(replies.actor_reply(dict(TURN, floor=w)).floor == w for w in records.FLOORS))
+    r = replies.actor_reply(dict(TURN, floor=" Hold "))
+    check("...case-and-edge-spaces-forgiven-in-a-model's-draw", r.floor == "hold" and r.floor_said == "", r)
+    r = replies.actor_reply(dict(TURN, floor="mumble"))
+    check("a-model's-unknown-floor-word-is-read-as-none-and-kept-for-the-record", r.floor == ""
+          and r.floor_said == "mumble" and r.extra == (), r)
 
 
 def supplied_turn():
@@ -109,6 +120,11 @@ def supplied_turn():
           and r.act == "" and r.extra == (), (got, msg, r))
     r = replies.actor_reply(dict(TURN, mood="uneasy"), supplied=True)
     check("an-extra-key-is-kept,-not-refused,-in-a-supplied-turn-too", r.extra == ("mood",), r.extra)
+    got, msg = code(lambda: replies.actor_reply(dict(TURN, floor="shout"), supplied=True))
+    check("a-supplied-turn's-floor-outside-the-five-words-is-refused-by-code", got == "REPLY_FIELD_TYPE"
+          and "a supplied turn's floor:" in msg and "take, interject, hold, keep, yield" in msg, (got, msg))
+    r = replies.actor_reply(dict(TURN, floor="keep"), supplied=True)
+    check("...and-one-of-them-is-taken", r.floor == "keep" and "floor?" in replies.SUPPLIED_CONTRACT, r.floor)
 
 
 def _book(tmp):

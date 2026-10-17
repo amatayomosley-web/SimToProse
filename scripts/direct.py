@@ -753,6 +753,8 @@ def run_turn(led, run_id, char, world, groups_index, profile, temperament, affec
     if turn.get("extra"):
         validation["reply_extra"] = list(turn["extra"])
         print("  [the reply carries key(s) nothing reads: %s]" % _replies.shown(turn["extra"]))
+    if turn.get("floor_said"):                        # a floor word that is not one (gate floor-in-record), as scene.py
+        validation["reply_floor_said"] = str(turn["floor_said"])
     if _seat_extra:                                   # ...and the seats' (gate seat-replies), as scene.py
         validation["seat_extra"] = _seat_extra
         print("  [a seat's reply carries key(s) nothing reads - %s]"
@@ -955,6 +957,7 @@ def run_turn(led, run_id, char, world, groups_index, profile, temperament, affec
     led.append_turn(TurnCommit(
         run_id=run_id, turn=turn_no, actor=_actor,
         thought=str(turn["thought"]), action=str(turn["action"]),
+        floor=str(turn.get("floor") or ""), addressee=str(turn.get("addressee") or ""),
         tags=tags if isinstance(tags, dict) else {}, affect=dict(new_affect),
         condition=dict(_cond_next or char["current"]["condition"]), validation=validation,
         wound_deltas=wound_deltas, toward_deltas=toward_deltas, wound_mints=wound_mints,

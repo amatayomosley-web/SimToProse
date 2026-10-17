@@ -86,6 +86,7 @@ _RECORD = {
     "RECORD_FIELD_TYPE":                    "a commit field is not the type the record contract declares",
     "RECORD_LIST_ITEM_TYPE":                "a commit's list carries an item of the wrong record type",
     "RECORD_ORDER_UNKNOWN":                 "a relationship delta's order is neither first nor second",
+    "RECORD_FLOOR_UNKNOWN":                 "a turn's floor word is none of take, interject, hold, keep, yield (or '')",
     "RECORD_PERCEIVER_EMPTY":               "a delta names no perceiver, so there is nobody whose regard moved",
     "RECORD_PRIMARY_UNKNOWN":               "a toward delta names something that is not an affective primitive",
     "RECORD_RUN_ID_EMPTY":                  "a turn commit names no run",

@@ -74,6 +74,7 @@ GUARD_HASHES = {34: "43066b2019d9d202",
                                               # record, names quoted - before any book carried a v35 stamp (census: none
                                               # above v30), and the suite's own runs/ashford.db released each time, as
                                               # the v34 note above says)
+GUARD_HASHES[36] = "cdf4e007f17ca06a"         # v36: + the turns floor guard (gate floor-in-record, conversation design v2)
 
 
 def check(name, ok, detail=""):
@@ -116,10 +117,12 @@ GOOD = {
                    "tier": "superposed"},
     "bible_laws": {"fingerprint": "fp", "law_id": "l1", "domain": sorted(law._DOMAINS)[0], "modality": "FORBIDS",
                    "statement": "no one crosses the weir at night"},
+    "turns": {"run_id": "r1", "turn": 1, "actor": "maren", "committed_at": "now", "floor": "take", "addressee": "edda"},
 }
 
 #: (table, {column: a bad value}, the code the database must name, the record layer's own refusal of the same value)
 BAD = [
+    ("turns", {"floor": "shout"}, "RECORD_FLOOR_UNKNOWN", lambda: _commit(floor="shout").validate()),
     ("relationship_deltas", {"axis": "love"}, "RECORD_AXIS_UNKNOWN",
      lambda: records.RelationshipDelta("maren", "edda", "love", 0.1).validate()),
     ("relationship_deltas", {"axis": None}, "RECORD_AXIS_UNKNOWN",
@@ -662,8 +665,8 @@ def a_migrated_database():
           and all(f["tier"] == "amber" for f in lacking), [f["subject"] for f in lacking])
     raw.close()
     con = db.connect(_path("old.db"))
-    check("it-opens-at-v35-with-every-guard-and-the-record-lock",
-          con.execute("PRAGMA user_version").fetchone()[0] == db.SCHEMA_VERSION == 35
+    check("it-opens-at-v36-with-every-guard-and-the-record-lock",
+          con.execute("PRAGMA user_version").fetchone()[0] == db.SCHEMA_VERSION == 36
           and set(guards.installed(con)) == set(guards.survey(con)["want"])
           and set(guards.expected()) <= set(guards.installed(con)), con.execute("PRAGMA user_version").fetchone()[0])
     after = con.execute("SELECT * FROM toward_deltas").fetchall() + con.execute(
