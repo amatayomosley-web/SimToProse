@@ -439,17 +439,20 @@ def the_drivers():
                 out, exited = _drive("scene", book, ["--scene", _scene_cfg(tmp), "--budget", "4"])
         finally:
             scene.faithful_turn = saved
-        floor_runs[label] = (exited, _validation(book))
-    exited, vals = floor_runs["the-seat's-own-reached-no-one"]
-    check("the-floor-scene-can-prune:-the-seat's-own-reached-no-one-lulls-it-after-one-beat",
-          exited is None and len(vals) == 1, (exited, len(vals)))
-    exited, vals = floor_runs["a-null-entry"]
+        floor_runs[label] = (exited, _validation(book), out)
+    # A TWO-HANDER ASKS THE OTHER WHATEVER THE URGE (gate round-loop; conversation design v2 s3), so the prune can no
+    # longer end this scene; what proves the driver reads the seat's list is the trace naming the listener unreached
+    exited, vals, out = floor_runs["the-seat's-own-reached-no-one"]
+    check("the-floor-scene-reads-the-seat's-own-reached-no-one:-the-listener-is-traced-unreached-and-still-asked",
+          exited is None and len(vals) == 4 and "~unreached" in out, (exited, len(vals), out[-400:]))
+    exited, vals, out = floor_runs["a-null-entry"]
     check("...a-refused-lands_on-leaves-the-floor-its-own-count:-all-four-beats",
           exited is None and len(vals) == 4 and all(
               (v.get("seat_refused") or {}).get("emotion", "").startswith("[READING_LANDS_ON_ABSENT]") for v in vals),
           (exited, [v.get("seat_refused") for v in vals]))
-    exited, vals = floor_runs["everyone"]
-    check("...and-a-reply-naming-everyone-runs-all-four-too", exited is None and len(vals) == 4, (exited, len(vals)))
+    exited, vals, out = floor_runs["everyone"]
+    check("...and-a-reply-naming-everyone-runs-all-four-too,-nobody-unreached",
+          exited is None and len(vals) == 4 and "~unreached" not in out, (exited, len(vals)))
     # THE FALLBACK FAILS TOO, in the scene - at validation (a bad type) and before it (an off-ladder severity word,
     # which fails where the fallback is read): either way the error names the seat whose silence made the tags
     for label, kind, dims, seat, want in (

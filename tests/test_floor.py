@@ -342,6 +342,41 @@ def test_next_speaker_prunes_via_lands_on():
     check("lands_on-None-reproduces-todays-choice", with_none == without_kwarg,
           "%r vs %r" % (with_none, without_kwarg))
 
+
+def test_the_round_asks_keeps_and_settles():
+    """gate round-loop (conversation design v2 s3): who is asked, in what order, and when the scene stops."""
+    lo, hi = floor.FLOOR_THRESHOLD - 0.01, floor.INTERRUPT_THRESHOLD + 0.01
+    check("ask_order-a-two-hander-asks-the-other-below-the-floor", floor.ask_order({"b": (lo, 0, 0)}) == ["b"])
+    check("ask_order-a-crowd-asks-only-at-or-above-the-floor,-highest-first",
+          floor.ask_order({"b": (0.1, 0, 0), "c": (lo, 0, 0), "d": (0.3, 0, 0)}) == ["d", "b"])
+    check("floor_word-takes-a-word-of-its-own-stance", floor.floor_word("listener", "interject", True) == ("interject", ""))
+    check("floor_word-a-speaker's-wrong-word-reads-yield", floor.floor_word("speaker", "take", True) == ("yield", "take"))
+    check("floor_word-a-listener-with-no-word-who-acted-takes", floor.floor_word("listener", "", True) == ("take", ""))
+    check("floor_word-...-and-one-who-did-nothing-holds", floor.floor_word("listener", "keep", False) == ("hold", "keep"))
+    r = floor.Round("a")
+    check("Round-opens-on-the-speaker", r.call == ("speaker", "a", {}))
+    check("Round-a-keep-asks-the-listener,-licensed-to-cut-in-when-moved-enough",
+          r.after_move("a", "keep", {"b": (hi, 0, 0)}, ["a", "b"]) == ("listener", "b", {"interrupt": True}))
+    check("Round-...-a-hold-re-calls-the-speaker-to-go-on", r.after_listener("hold", ["a", "b"]) == ("speaker", "a", {"resumed": True}))
+    check("Round-a-yield-licenses-no-cut-in", r.after_move("a", "yield", {"b": (hi, 0, 0)}, ["a", "b"]) == ("listener", "b", {}))
+    check("Round-...-held-after-a-yield,-the-floor-is-forced-once", r.after_listener("hold", ["a", "b"]) == ("listener", "b", {"forced": True}))
+    check("Round-...-and-held-again,-settled", r.after_listener("hold", ["a", "b"]) == "settled")
+    c = floor.Round("a")
+    check("Round-a-crowd-asks-in-order-and-goes-on-to-the-next-after-an-interjection",
+          c.after_move("a", "yield", {"b": (0.2, 0, 0), "c": (0.3, 0, 0)}, ["a", "b", "c"]) == ("listener", "c", {})
+          and c.after_listener("interject", ["a", "b", "c"]) == ("listener", "b", {}))
+    check("Round-a-crowd-nobody-clears-after-a-yield:-lull",
+          floor.Round("a").after_move("a", "yield", {"b": (lo, 0, 0), "c": (lo, 0, 0)}, ["a", "b", "c"]) == "lull")
+    s = floor.Round("a")
+    check("Round-alone-a-keep-goes-on-and-a-yield-is-empty", s.after_move("a", "keep", {}, ["a"]) == ("speaker", "a", {"resumed": True})
+          and s.after_move("a", "yield", {}, ["a"]) == "empty")
+    k = floor.Round("a")
+    k.after_move("a", "yield", {"b": (0.2, 0, 0)}, ["a", "b"])
+    check("Round-a-skipped-listener-holds;-a-skipped-speaker-passes-the-floor",
+          k.skipped(["a", "b"]) == ("listener", "b", {"forced": True})
+          and floor.Round("a").skipped(["a", "b"]) == ("speaker", "b", {}))
+
+
 def main():
     print("test_floor.py — the turn-taking economy\n")
     for fn in sorted((v for k, v in globals().items()

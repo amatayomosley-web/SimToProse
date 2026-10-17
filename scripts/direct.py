@@ -381,7 +381,11 @@ def _compose_selection(rows, brief, model, stub):
         return _composer.select_deterministic(rows), "floor", why
 
 
-def llm_turn(packet, event_text, temperament, model, stub, think=True, seed=None, relationships=None, corrections=None, acts=(), brief=""):
+def llm_turn(packet, event_text, temperament, model, stub, think=True, seed=None, relationships=None, corrections=None, acts=(), brief="",
+             floor=None):
+    """`floor` (gate round-loop): the reply contract's keywords for `prompt.build_turn_messages` - stance, hold_open,
+    resumed, interrupt, forced, last_thought - or None for the stance-free prompt the chair sends."""
+    floor = dict(floor or {})
     if stub:
         # THE STUB ADDRESSES SOMEONE. Measured 2026-09-01: without an addressee a two-hander lulls
         # after ONE beat — urge 0.018 against a 0.060 floor — because `_ADDRESSED_BONUS` (0.15,
@@ -397,12 +401,19 @@ def llm_turn(packet, event_text, temperament, model, stub, think=True, seed=None
                 "durability": dur}
         if subj:
             tags["subject"] = subj
-        return {"action": "(stub) the character meets the moment — %s" % event_text.lower(),
-                "thought": "(stub) steady; do what it needs",
-                "addressee": present[0] if present else "",
-                "tags": tags}
+        # THE SITUATION ONLY, never the exchange (gate round-loop): the stub's own action used to interpolate the
+        # whole event text, so every stub line carried the window's earlier stub lines inside it - with a 24-beat
+        # window that nesting doubles each beat. The director's situation still reaches it verbatim.
+        situation = event_text.split("\n\nThe exchange so far")[0]
+        reply = {"action": "(stub) the character meets the moment — %s" % situation.lower(),
+                 "thought": "(stub) steady; do what it needs",
+                 "addressee": present[0] if present else "",
+                 "tags": tags}
+        if floor.get("stance"):               # a speaker says its one point and yields; a listener answers it
+            reply["floor"] = "yield" if floor["stance"] == "speaker" else "take"
+        return reply
     messages = build_turn_messages(packet, event_text, temperament, relationships, acts=acts,
-                                   rung_direction=rung_direction(packet, brief=brief, model=model, stub=stub))
+                                   rung_direction=rung_direction(packet, brief=brief, model=model, stub=stub), **floor)
     if corrections:                                                  # faithful_turn appends corrective turns on a name-leak retry
         messages = list(messages) + list(corrections)
     if model.startswith("ollama/"):                                  # local on-disk dispatch (free, pinned)
@@ -410,7 +421,8 @@ def llm_turn(packet, event_text, temperament, model, stub, think=True, seed=None
     return _parse_reply(_openrouter(messages, model))
 
 
-def faithful_turn(packet, event_text, temperament, model, stub, think=True, seed=None, relationships=None, max_retries=2, acts=(), information=None, char_id=None, brief="", vault=None, world=None):
+def faithful_turn(packet, event_text, temperament, model, stub, think=True, seed=None, relationships=None, max_retries=2, acts=(), information=None, char_id=None, brief="", vault=None, world=None,
+                  floor=None, steer=None):
     """llm_turn + the ACTIVE faithfulness guard. If the actor emits a name it does not hold (a latent
     weights-leak the masking wall can't prevent — faithfulness.check_name_leaks), re-call with an
     explicit correction, up to max_retries. An empty/unparseable draw (no action — a stochastic
@@ -421,13 +433,18 @@ def faithful_turn(packet, event_text, temperament, model, stub, think=True, seed
     leaks persist (design.md 'recorded as-is, never edited'). The Sonnet/Claude semantic critic is the
     layer ABOVE this mechanical floor (driving-the-engine.md 'the layer above')."""
     rels = relationships or {}
-    corrections = []
+    # `steer` (gate round-loop): one line the caller adds after the prompt - the tripwire's "one point, then stop
+    # where they would answer" - riding where a correction does. `floor`: llm_turn's reply-contract keywords.
+    corrections = [{"role": "user", "content": steer}] if steer else []
     turn = None
     for attempt in range(max_retries + 1):
         s = seed if (seed is None or attempt == 0) else seed + 100 * attempt   # resample on retry
         turn = llm_turn(packet, event_text, temperament, model, stub, think=think, seed=s, acts=acts, brief=brief,
-                        relationships=relationships, corrections=(corrections or None))
-        if not str(turn.get("action", "")).strip() and attempt < max_retries:
+                        relationships=relationships, corrections=(corrections or None), floor=floor)
+        # A LISTENER'S HOLD MAY BE EMPTY (gate round-loop): "hold with nothing to say and nothing to do is allowed and
+        # means it" - only a reply that is neither an action nor a hold is a failed draw.
+        _held = (floor or {}).get("stance") == "listener" and turn.get("floor") == "hold"
+        if not str(turn.get("action", "")).strip() and not _held and attempt < max_retries:
             continue                          # empty/unparseable draw (no action) — resample. At temp 1.0
                                               # generation is non-reproducible, so a fresh draw of the SAME
                                               # prompt usually parses (measured 2026-06-14: in-scene empty,

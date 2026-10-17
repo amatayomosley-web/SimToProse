@@ -32,7 +32,7 @@ sys.path.insert(0, REPO)
 sys.path.insert(0, os.path.join(REPO, "scripts"))
 sys.path.insert(0, os.path.join(REPO, "tests"))
 
-from src.engine import systems, tells                         # noqa: E402
+from src.engine import prompt, systems, tells                 # noqa: E402
 from src.engine.gate import PERCEPTION_DC_SUBTLE               # noqa: E402
 from src.engine.records import RecordError                     # noqa: E402
 from test_systems import _book, _cfg                           # noqa: E402  (one fixture)
@@ -80,7 +80,7 @@ def test_for_listener():
     sharp, hidden, noticed = tells.for_listener(log, "mira", True)
     check("a-sharp-listener-reads-it-whole-and-is-told", sharp[0]["action"] == ACTS["ada"] and noticed == [{"who": "ada", "quote": ADA_TELL}]
           and hidden == [], (hidden, noticed))
-    old = [{"who": "ada", "action": ACTS["ada"], "tags": {"tells": [ADA_TELL]}}] + [{"who": "mira", "action": "Mira waits.", "tags": {}}] * 6
+    old = [{"who": "ada", "action": ACTS["ada"], "tags": {"tells": [ADA_TELL]}}] + [{"who": "mira", "action": "Mira waits.", "tags": {}}] * (prompt.MOMENT_BEATS + 2)   # older than the window
     out, hidden, _n = tells.for_listener(old, "mira", False)
     check("a-sign-older-than-the-moment-shows-is-cut-but-not-recorded", ADA_TELL not in out[0]["action"] and hidden == [], hidden)
     check("the-check-is-the-subtle-cue-line", tells.catches({"baseline": {"skills": {"perception": PERCEPTION_DC_SUBTLE}}})

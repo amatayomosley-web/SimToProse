@@ -211,3 +211,95 @@ def next_speaker(actors, present, speaker, applied, target, tgroup, addressee, b
     if urges[nxt][0] < FLOOR_THRESHOLD:
         return None, urges, "lull"
     return nxt, urges, None
+
+
+# ---- THE ROUND (conversation design v2 section 3, gate round-loop) ---------------------------------------------
+# One move, then the floor is offered: the engine decides who is asked and in what order (urge, deterministic);
+# each asked listener decides what to do with it (take, interject, hold); a speaker nobody interrupted decides
+# whether to go on (keep, yield). The model is asked to be the person; who is asked is never the model's call.
+INTERRUPT_THRESHOLD = 0.45   # a listener moved this far is told it may cut in (design v2 s3; a recorded scene's 0.22-0.41 must not)
+MOVE_WORDS = 80              # a move longer than this is regenerated once with the tripwire line (design v2 s2)
+SPEAKER_WORDS = ("keep", "yield")
+LISTENER_WORDS = ("take", "interject", "hold")
+
+
+def ask_order(urges):
+    """-> the listeners to ask after a move, highest urge first (`leader`'s tie-break). A two-hander asks the one
+    other always: there the urge decides nothing, since the only alternative to asking is a silence nobody chose.
+    A crowd asks those at or above FLOOR_THRESHOLD; nobody there is the lull."""
+    order = sorted(urges, key=lambda k: (-urges[k][0], str(k)))
+    return order if len(order) == 1 else [k for k in order if urges[k][0] >= FLOOR_THRESHOLD]
+
+
+def floor_word(stance, said, acted):
+    """A reply's floor word, read in the stance it was asked in -> (word, overridden). A word from the other
+    stance's list, or none, is read the safe way: a speaker's as yield (the floor goes out to be offered), a
+    listener's as take when it said or did something and hold when it did neither. `overridden` is the word as
+    the reply wrote it when it was not taken at its word, else ''."""
+    own = SPEAKER_WORDS if stance == "speaker" else LISTENER_WORDS
+    if said in own:
+        return said, ""
+    return ("yield" if stance == "speaker" else ("take" if acted else "hold")), str(said or "")
+
+
+class Round:
+    """Who is called next, and in what stance. A call is (stance, who, flags) for `prompt.build_turn_messages`;
+    an ending is a reason string: "empty" (nobody else here and the speaker yielded), "lull" (a crowd in which
+    nobody cleared the floor and the speaker yielded), "settled" (the forced floor held twice).
+
+    `after_move` takes the urges of every other present listener for the move just made (`next_speaker`'s map);
+    `after_listener` takes an asked listener's interject or hold. A take is a move: the caller reports it through
+    `after_move`, as a yield (the line was the move; whether the taker has more is asked when nobody takes it back).
+    Deterministic, holds no model."""
+
+    def __init__(self, opener):
+        self.holder, self.kept, self.queue, self.urges, self.forced = opener, False, [], {}, None
+        self.call = ("speaker", opener, {})
+
+    def _go(self, call):
+        self.call = call
+        return call
+
+    def _resume(self):
+        return self._go(("speaker", self.holder, {"resumed": True}))
+
+    def _ask(self):
+        who = self.queue.pop(0)
+        cut = self.kept and self.urges[who][0] >= INTERRUPT_THRESHOLD   # licensed only while they mean to go on
+        return self._go(("listener", who, {"interrupt": True} if cut else {}))
+
+    def after_move(self, who, word, urges, present):
+        self.holder, self.kept, self.forced = who, word == "keep", None
+        self.urges = {k: v for k, v in urges.items() if k in present and k != who}
+        self.queue = ask_order(self.urges)
+        if self.queue:
+            return self._ask()
+        if self.kept and who in present:        # nobody to ask, or nobody moved enough: alone on stage goes on
+            return self._resume()
+        return "lull" if self.urges else "empty"
+
+    def skipped(self, present):
+        """The call committed nothing (a leak or an empty draw survived the retries). A listener's counts as a hold;
+        a speaker's passes the floor to the next person present, as the beat loop did before the round."""
+        stance, who, _ = self.call
+        if stance == "listener":
+            return self.after_listener("hold", present)
+        others = [i for i in present if i != who]
+        if not others:
+            return "empty"
+        self.holder, self.kept, self.queue, self.forced = others[0], False, [], None
+        return self._go(("speaker", others[0], {}))
+
+    def after_listener(self, word, present):
+        if self.forced is not None:               # the forced floor held a second time: the scene has settled
+            return "settled"
+        self.queue = [q for q in self.queue if q in present]
+        if self.queue:
+            return self._ask()
+        if self.kept and self.holder in present:  # interjections in view, the speaker goes on
+            return self._resume()
+        here = {k: v for k, v in self.urges.items() if k in present}
+        if not here:
+            return "empty"
+        self.forced = leader(here)                # every asked listener held after a yield: one more ask
+        return self._go(("listener", self.forced, {"forced": True}))

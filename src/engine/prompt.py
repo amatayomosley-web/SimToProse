@@ -310,11 +310,13 @@ def build_turn_messages(packet, event_text, temperament, relationships=None, act
 # prompt text is not a layering violation: rule 5 bans NUMBERS reaching the prompt, and this carries
 # none.
 
-# How many recent beats a moment shows (gate tells reads the same window for what it hides and names).
-MOMENT_BEATS = 4
+# How many recent beats a moment shows (gate tells reads the same window for what it hides and names). 24 since
+# gate round-loop (conversation design v1 s4): the whole scene at its ceiling, so a long scene does not drift back
+# into restating what slid out of a four-beat window.
+MOMENT_BEATS = 24
 
 
-def compose_event(situation, log, names=None, n=MOMENT_BEATS):
+def compose_event(situation, log, names=None, n=MOMENT_BEATS, me=None):
     """What the next actor perceives: the standing situation + the recent transcript (rolling context,
     so they can see what they have already said and not repeat it).
 
@@ -326,10 +328,30 @@ def compose_event(situation, log, names=None, n=MOMENT_BEATS):
        mid-sentence and they answered a fragment.
     3. Its transcript header named the old fixture's furniture in every scene.
     The situation is the director's, and it is returned untouched.
+
+    A beat that carries a floor word (gate round-loop) is labelled with it: `me`'s own lines read "You", a line
+    said to someone reads "to <them>" ("to you" for `me`), a hold reads "(holds)" and an interjection "(puts in)", so the actor sees
+    the thread and what is under its own name. Others' thoughts never appear (the wall). A beat with no floor
+    key renders as it always did.
     """
     names = names or {}
     if not log:
         return situation
-    lines = "\n".join("%s: \"%s\"" % (names.get(b["who"], b["who"]), str(b["action"]).replace("\n", " "))
-                      for b in log[-n:])
+    lines = "\n".join(_exchange_line(b, names, me) for b in log[-n:])
     return "%s\n\nThe exchange so far (most recent last):\n%s" % (situation, lines)
+
+
+def _exchange_line(b, names, me):
+    said = str(b["action"]).replace("\n", " ")
+    if "floor" not in b:
+        return "%s: \"%s\"" % (names.get(b["who"], b["who"]), said)
+    # THE READER IS "you", NEVER THEIR NAME: a name in the moment is perceived as someone present, so "to <me>" in
+    # my own exchange gave me an edge to myself (measured, gate round-loop: a listener's edges gained its own id)
+    head = "You" if me is not None and b["who"] == me else names.get(b["who"], b["who"])
+    if b["floor"] == "hold":
+        head += " (holds)"
+    elif b.get("addressee"):
+        head += ", to %s" % ("you" if me is not None and b["addressee"] == me else names.get(b["addressee"], b["addressee"]))
+    if b["floor"] == "interject":
+        head += " (puts in)"
+    return "%s: \"%s\"" % (head, said) if said.strip() else "%s, saying nothing" % head

@@ -54,6 +54,29 @@ def test_compose_event_shows_only_the_LAST_n_beats():
     check("drops-the-earlier-ones", "beat-6" not in out, "an older beat leaked in")
 
 
+def test_compose_event_labels_the_floor_and_the_listeners_own_lines():
+    """gate round-loop: a beat with a floor word shows who it was said to and what it did; the reader's own lines
+    read "You" and lines to them "to you" (never their own name, which they would perceive as someone present); a
+    silent hold says so; a thought never appears; a legacy beat renders as before."""
+    names = {"t": "Tomas", "a": "Ada"}
+    log = [{"who": "t", "action": "Salt goes in the pot.", "thought": "SECRET-T", "floor": "keep", "addressee": "a"},
+           {"who": "a", "action": "", "thought": "SECRET-A", "floor": "hold", "addressee": ""},
+           {"who": "a", "action": "Is the tide in?", "floor": "take", "addressee": "t"},
+           {"who": "t", "action": "Not yet.", "floor": "interject", "addressee": "a"},
+           {"who": "t", "action": "old line"}]
+    out = compose_event("A room.", log, names, me="a")
+    check("said-to-the-reader", 'Tomas, to you: "Salt goes in the pot."' in out, out)
+    check("a-silent-hold-says-so", "You (holds), saying nothing" in out, out)
+    check("own-lines-read-you", 'You, to Tomas: "Is the tide in?"' in out, out)
+    check("an-interjection-is-marked", 'Tomas, to you (puts in): "Not yet."' in out, out)
+    check("the-reader's-own-name-never-appears", "Ada" not in out, out)
+    other = compose_event("A room.", log, names, me="t")
+    check("another-reader-sees-the-names", 'You, to Ada: "Salt' in other and 'Ada, to you: "Is' in other, other)
+    check("a-legacy-beat-is-unchanged", 'Tomas: "old line"' in out, out)
+    check("no-thought-crosses-the-wall", "SECRET" not in out, out)
+    check("the-window-is-the-whole-scene", "Salt" in compose_event("A room.", log + [log[-1]] * 19, names), "")
+
+
 
 def main():
     print("test_compose_event.py - what the next actor perceives\n")

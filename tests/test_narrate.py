@@ -116,7 +116,9 @@ def _book_narration():
     led.append_scene("bk", 0, "fireside", "maren", 0, nt0 - 1)           # scene 0 POV = maren (the actor)
     cfg2 = dict(cfg, name="the-ward", situation="Later, in the sickroom.")
     w2, c2 = _book_chars()
-    nt1 = scene.run_scene(w2, c2, cfg2, led, "bk", nt0, "stub", True, 2, think=False)
+    # budget 1: a two-hander asks the other after every move since gate round-loop, so it no longer lulls before
+    # edda acts - one row keeps her out of her own POV scene, which is what this fixture is for
+    nt1 = scene.run_scene(w2, c2, cfg2, led, "bk", nt0, "stub", True, 1, think=False)
     # scene 1 POV = edda (who did NOT act -> proves POV is per-scene), and it is recorded in a
     # DIFFERENT voice from scene 0 so the mixed-voice book has something to prove.
     led.append_scene("bk", 1, "the-ward", "edda", nt0, nt1 - 1, voice="first", knowledge="omniscient")

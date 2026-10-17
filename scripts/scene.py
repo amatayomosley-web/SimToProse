@@ -112,6 +112,9 @@ _ADDRESSED_BONUS = _floor.ADDRESSED_BONUS
 _RECENCY_PENALTY = _floor.RECENCY_PENALTY
 _INHIBITION      = _floor.INHIBITION
 _FLOOR_THRESHOLD = _floor.FLOOR_THRESHOLD
+# the tripwire's one line (conversation design v2 s2), added after the prompt when a move runs past floor.MOVE_WORDS
+TRIPWIRE_LINE = ("That ran long. Make it one point, then stop where they would answer. Rewrite your ENTIRE reply "
+                 "(same JSON shape).")
 
 # ---- the default scene config: situation + present acting cast + each actor's DRIVE (genuine, blind to outcome) ----
 DEFAULT_SCENE = {
@@ -570,15 +573,27 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
     scene_target = cfg["subject"][0]
     log, ended = [], "budget"
     turn_no = start_turn
-    for beat in range(budget):
+    # THE ROUND (conversation design v2 s3, gate round-loop): every call is one actor in one stance - the speaker,
+    # who makes a move and says whether they keep the floor or yield it, or a listener asked after a move, who takes
+    # it, puts in a word, or holds. `budget` counts committed rows; a call that commits nothing (a listener's empty
+    # hold) is free, so the calls are bounded separately, at one per present person per row.
+    rnd = _floor.Round(speaker)
+    committed = 0
+    for beat in range(budget * (len(ids) + 1)):
+        if committed >= budget:
+            break
+        stance, speaker, _flags = rnd.call
         a = actors[speaker]
+        # what this actor was thinking last, its own mind only (design v1 s4: the deliberation is carried, not restarted)
+        _floor_kw = dict(_flags, stance=stance,
+                         last_thought=next((b["thought"] for b in reversed(log) if b["who"] == speaker), None))
         # THE MOMENT AS THIS SPEAKER READS IT (gate tells; only when the book runs `tells`): the signs other actors
         # let slip, marked by the event reader, are cut for a speaker who does not catch them and named for one who
         # does. Without the system every speaker reads the log whole, as before.
         _seen, _tells_hidden, _tells_noticed = ((_tells.for_listener(log, speaker,
                                                     _tells.catches(a["char"], tired="condition_flow" in _sys)))
                                                 if "tells" in _sys else (log, [], []))
-        event_text = _compose_event(cfg["situation"], _seen, names)
+        event_text = _compose_event(cfg["situation"], _seen, names, me=speaker)
         # A NAME MEANS ONE PERSON (gate one-person-per-name): whoever of it is in the room, else whoever the story is
         # at, from the room as it stands and the log so far - a young Mira who walks out has walked on by then
         _elsewhere = _presence.one_per_name(world.get("people"), present, chars, cfg["at_minutes"],
@@ -676,10 +691,11 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
                                                  acts=_law_acts,
                                                  rung_direction=direct.rung_direction(
                                                      packet, brief=a.get("drive", ""),
-                                                     model=model, stub=stub)),
+                                                     model=model, stub=stub), **_floor_kw),
                              indent=2))
             direct.log_compose_usage(led, run_id, turn_no, scene=cfg.get("name"))
             return turn_no
+        _tripwire = None
         if supplied is not None:
             # A SUPPLIED TURN PASSES THE SAME WALLS. Shape first, then the name-leak check, then the
             # identical validate/appraise/commit path below. A re-entry that skips the wall is a
@@ -693,32 +709,40 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
             # `information` is the snapshot's fact -> knowers map. Passing it turns the
             # faithfulness guard from name-shaped to fact-shaped: an actor stating something
             # nobody told them is regenerated, the same as a name it does not hold.
-            turn, leaks = faithful_turn(packet, event_text, a["temperament"], model, stub, think=think,
-                                        brief=a.get("drive", ""),
-                                        seed=seed_base * 1000 + beat, acts=_law_acts,
-                                        relationships=rels,
-                                        information=(led.fold(run_id, max(turn_no - 1, 0)) or {}).get("information"),
-                                        char_id=speaker, vault=a["char"]["current"].get("vault"), world=world)
+            _act_kw = dict(think=think, brief=a.get("drive", ""), seed=seed_base * 1000 + beat, acts=_law_acts,
+                           relationships=rels,
+                           information=(led.fold(run_id, max(turn_no - 1, 0)) or {}).get("information"),
+                           char_id=speaker, vault=a["char"]["current"].get("vault"), world=world, floor=_floor_kw)
+            turn, leaks = faithful_turn(packet, event_text, a["temperament"], model, stub, **_act_kw)
+            # THE TRIPWIRE (design v2 s2): a move over MOVE_WORDS is drawn once more with the line; the second draw is
+            # kept whatever its length, and the validation record says so. A word count flags, it never defines a move.
+            _words = len(str(turn.get("action", "")).split())
+            if not leaks and _words > _floor.MOVE_WORDS:
+                turn, leaks = faithful_turn(packet, event_text, a["temperament"], model, stub, steer=TRIPWIRE_LINE,
+                                            **_act_kw)
+                _tripwire = {"words": _words, "redrawn_words": len(str(turn.get("action", "")).split())}
         direct.log_compose_usage(led, run_id, turn_no, scene=cfg.get("name"))   # paid for, committed or not
-        if leaks:                                       # a leak survived retries -> skip this beat; never commit one
-            led.record_turn_skipped(run_id, turn_no, speaker, "faithfulness: %s" % ", ".join(n for n, k in leaks))
-            print("-- beat %d (turn %d) -- %s [faithfulness reject: %s — skipped]" % (
-                beat + 1, turn_no, names.get(speaker, speaker), ", ".join(n for n, k in leaks)))
-            others = [i for i in present if i != speaker]
-            if not others:
-                ended = "empty"
+        _acted = bool(str(turn.get("action", "")).strip())
+        word, _overridden = _floor.floor_word(stance, turn.get("floor"), _acted)
+        # A LISTENER WHO HOLDS WITH NOTHING IN IT is the cheap no: no row, no read, the round goes on (design v2 s2).
+        # One who holds with a thought and no act is a silence worth recording, and is committed below unread.
+        _silent = not leaks and not _acted and stance == "listener" and word == "hold"
+        if _silent and not str(turn.get("thought", "")).strip():
+            print("-- beat %d (turn %d) -- %s [holds — nothing to commit]" % (beat + 1, turn_no, names.get(speaker, speaker)))
+            _next = rnd.after_listener("hold", present)
+            if isinstance(_next, str):
+                ended = _next
                 break
-            speaker = others[0]
             continue
-        if not str(turn.get("action", "")).strip():     # empty draw survived faithful_turn's resamples ->
-            led.record_turn_skipped(run_id, turn_no, speaker, "empty turn (no action after retries)")
-            print("-- beat %d (turn %d) -- %s [empty draw — skipped, not committed]" % (
-                beat + 1, turn_no, names.get(speaker, speaker)))
-            others = [i for i in present if i != speaker]
-            if not others:
-                ended = "empty"
+        if leaks or not (_acted or _silent):            # a leak or an empty draw survived retries -> never committed
+            _why = ("faithfulness: %s" % ", ".join(n for n, k in leaks)) if leaks else "empty turn (no action after retries)"
+            led.record_turn_skipped(run_id, turn_no, speaker, _why)
+            print("-- beat %d (turn %d) -- %s [%s — skipped, not committed]" % (
+                beat + 1, turn_no, names.get(speaker, speaker), _why))
+            _next = rnd.skipped(present)
+            if isinstance(_next, str):
+                ended = _next
                 break
-            speaker = others[0]
             continue
         # THE SEATS (Phase 3, wired 2026-09-11 — docs/emotion-arithmetic.md section 5 steps 1-2).
         # Live: the EVENT seat rates the act (type, dimensions, durability, its object and what it
@@ -735,7 +759,11 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
         _readings, _lands, _seat_notes = [], None, []
         _seat_answered = False
         _seat_extra, _seat_failed, _ev_extra, _em_extra = {}, {}, [], []
-        if not stub:
+        if _silent:
+            # A SILENCE HAS NO EVENT (design v2 s5): a hold with a thought and no act is committed for the record and
+            # the POV's telling, priced at nothing - the room's minutes pass over it, and nothing is read from it.
+            tags = normalise_dimensions({"type": "mundane", "summary": "", "dimensions": {}, "durability": "transient"})
+        elif not stub:
             try:
                 # ATTRIBUTION PRECEDENCE (2026-09-19, gate seat-attribution): the seat's word, when it
                 # answers, wins; the actor's own tags.attribution self-tag is the stub double / the
@@ -812,6 +840,10 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
             print("   [the reply carries key(s) nothing reads: %s]" % _replies.shown(turn["extra"]))
         if turn.get("floor_said"):                    # a floor word that is not one (gate floor-in-record): kept, read as none
             validation["reply_floor_said"] = str(turn["floor_said"])
+        if _overridden:                               # a floor word of the other stance (gate round-loop): read safe
+            validation["reply_floor_read_as"] = {"said": _overridden, "read": word}
+        if _tripwire:                                 # the move ran long and was drawn again (gate round-loop)
+            validation["tripwire"] = _tripwire
         # ...AND THE SEATS' (gate seat-replies): what an accepted seat reply carried beyond its questions, and a seat
         # that did not answer - the beat whose tags are the actor's own fallback is told apart from a seated one
         if _seat_extra:
@@ -895,8 +927,10 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
             for _b, _aff in _bystanders.items():
                 _cond_next[_b] = _condition.spend(actors[_b]["char"]["current"]["condition"], per_beat, 0.0, _aff,
                                                   1.0 / _cap[_b])
-        a["last_spoke"] = beat
-        log.append({"who": speaker, "action": turn["action"], "thought": turn["thought"], "tags": tags})
+        if _acted and word != "hold":                 # an act held in silence is not a turn at speaking (recency)
+            a["last_spoke"] = committed
+        log.append({"who": speaker, "action": turn["action"], "thought": turn["thought"], "tags": tags,
+                    "floor": word, "addressee": str(turn.get("addressee") or "")})
 
         # bonds: EVERY OTHER PERSON IN THE ROOM re-reads the speaker. This is the loop the engine
         # did not have — arc runs on the speaker, and relationships.md:5 says an edge is the
@@ -1003,7 +1037,7 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
         led.append_turn(TurnCommit(
             run_id=run_id, turn=turn_no, actor=speaker,
             thought=str(turn["thought"]), action=str(turn["action"]),
-            floor=str(turn.get("floor") or ""), addressee=str(turn.get("addressee") or ""),
+            floor=word, addressee=str(turn.get("addressee") or ""),
             tags=tags if isinstance(tags, dict) else {}, affect=dict(a["affect"]),
             condition=dict(_cond_next.get(speaker) or a["char"]["current"].get("condition", {})), validation=validation,
             events=_law_events(led, run_id, world, chars, turn, speaker,
@@ -1130,7 +1164,8 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
             acquisition.fold_vault(a["char"]["current"]["vault"])
             led.append_acquisition(run_id, speaker, turn_no, acquired)
 
-        print("-- beat %d (turn %d) -- %s" % (beat + 1, turn_no, names.get(speaker, speaker)))
+        print("-- beat %d (turn %d) -- %s [%s%s]" % (beat + 1, turn_no, names.get(speaker, speaker), word,
+                                                     ", silent" if _silent else ""))
         # NEVER TRUNCATE. `_compose_event` already learned this: a 300-char cut sent the next
         # actor a fragment to answer. The operator log carried the same silent slice, so a line
         # ending mid-word gave no sign it had been cut.
@@ -1221,11 +1256,13 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
                 print("   >> %s is told: %s" % (names.get(wid, wid), tb["claim"]))
 
         turn_no += 1                                    # this beat is committed; the next beat is a new turn
+        committed += 1
 
         if turn.get("exit"):
             present = [i for i in present if i != speaker]
             print("\n   >> %s leaves the scene. <<" % names.get(speaker, speaker))
-            if len(present) < 2:
+            # under two, the scene is over - unless the one left holds the floor and said keep (alone on stage)
+            if len(present) < 2 and not (stance == "listener" and present == [rnd.holder] and rnd.kept):
                 ended = "exit"
                 break
 
@@ -1233,8 +1270,20 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
         # floor economy moved to src/engine/floor.py on 2026-09-03 and the choice combining
         # them was the one piece left behind, so the module named for the economy did not
         # hold the decision and the decision could not be tested without running a scene.
-        nxt, urges, ended_because = _floor.next_speaker(
-            actors, present, speaker, applied, target, tgroup, addressee, beat, lands_on=_lands)
+        # THE ROUND DECIDES NOW (gate round-loop): a move - the speaker's, a listener's take, or a word on the forced
+        # floor - offers the floor to the listeners by urge; an interjection or a hold lets the round go on. In a
+        # two-hander every move is to the other person (design v1 s3), so the urge reads them as addressed.
+        _is_move = stance == "speaker" or word == "take" or (_flags.get("forced") and word == "interject")
+        _others = [i for i in present if i != speaker]
+        _addr_floor = _others[0] if len(_others) == 1 else addressee
+        nxt, urges, ended_because = None, {}, None
+        if _is_move:
+            nxt, urges, ended_because = _floor.next_speaker(
+                actors, present, speaker, applied, target, tgroup, _addr_floor, committed, lands_on=_lands)
+            _next = rnd.after_move(speaker, word if stance == "speaker" else "yield", urges, present)
+        else:
+            _next = rnd.after_listener(word, present)
+        ended_because = _next if isinstance(_next, str) else None
         # THE SAME MEMBERSHIP TEST next_speaker JUST RAN (gate lands-on-to-floor, 2026-09-19),
         # mirrored here for the trace only: next_speaker does not hand back a per-listener
         # `landed` flag, so the print recomputes it from the same `_lands`/`norm_id` it was
@@ -1255,12 +1304,20 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
                 addressee or "no one — the addressed bonus (+%.2f) applied to nobody" % _ADDRESSED_BONUS))
             ended = "lull"
             break
-        print("   urges  : %s  -> floor: %s\n" % (
-            "  ".join("%s=%.2f[sal%.2f dis%.2f]%s" % (
-                k, v[0], v[1], v[2], " ~unreached" if _lands_norm is not None and norm_id(k) not in _lands_norm else "")
-                      for k, v in urges.items()),
-            names.get(nxt, nxt)))
-        speaker = nxt
+        if ended_because == "settled":
+            print("\n== settled — asked again with the floor theirs, %s held. ==" % names.get(speaker, speaker))
+            ended = "settled"
+            break
+        _st, _who, _fl = _next
+        _asks = "%s %s%s" % (names.get(_who, _who), "goes on" if _st == "speaker" else "is asked",
+                             "".join(" (%s)" % f for f in sorted(_fl)))
+        if urges:
+            print("   urges  : %s  -> %s\n" % (
+                "  ".join("%s=%.2f[sal%.2f dis%.2f]%s" % (
+                    k, v[0], v[1], v[2], " ~unreached" if _lands_norm is not None and norm_id(k) not in _lands_norm else "")
+                          for k, v in urges.items()), _asks))
+        else:
+            print("   -> %s\n" % _asks)
 
     print("\n== scene ended: %s — %d beats ==" % (ended, len(log)))
     return turn_no
