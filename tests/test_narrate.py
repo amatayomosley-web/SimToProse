@@ -80,6 +80,7 @@ def main():
 
     # 7. the source contract: wording free, substance fixed, the thought record is evidence (gate narrator-source-contract)
     _source_contract()
+    _floor_labels()
 
     if FAILS:
         print("\ntest_narrate: FAIL")
@@ -429,9 +430,9 @@ def _source_contract():
     legend_thought = next((ln for ln in lines if ln.startswith("  THOUGHT (")), "")
     check("the-thought-record-is-named-as-machinery", "THE THOUGHT RECORD" in sys_
           and "never text for the page" in sys_ and "evidence" in legend_thought.lower(), legend_thought)
-    edda_long = [ln for ln in lines if " · DID/SAID (Edda" in ln and "long speech" in ln]
+    edda_long = [ln for ln in lines if " · DID/SAID (Edda" in ln and LEGACY_FLAG in ln]
     check("long-speeches-get-the-rule-and-the-long-turn-is-flagged", "LONG SPEECHES" in sys_ and len(edda_long) == 1
-          and not any("long speech" in ln for ln in lines if " · DID/SAID (Maren)" in ln), str(edda_long))
+          and not any(LEGACY_FLAG in ln for ln in lines if " · DID/SAID (Maren)" in ln), str(edda_long))
     check("the-wall-holds-under-the-new-labels", "SECRET-EDDA-DOUBT" not in blob)
     omni = narrate.build_narration_prompt(TURNS_SRC, "maren", WORLD, pov_name="Maren", names=names,
                                           knowledge="omniscient")
@@ -469,6 +470,60 @@ def _source_contract():
     check("...and-names-the-thought-when-the-run-is-copied-from-one",
           [h[:2] for h in nc.copied_runs(from_thought, TURNS)] == [("maren", "thought")],
           str(nc.copied_runs(from_thought, TURNS)))
+
+
+LEGACY_FLAG = "long move, recorded before floor words; break it"
+SPEECH = " ".join(["Maren told of the ford and the miller and the spring floods and the mill."] * 20)   # ~300 words
+TURNS_FLOOR = [
+    {"turn": 0, "actor": "maren", "action": SPEECH, "thought": "She must hear all of it.", "floor": "keep",
+     "addressee": "edda"},
+    {"turn": 1, "actor": "edda", "action": "Edda turns the cup in her hands.", "thought": "SECRET-EDDA-DOUBT",
+     "floor": "hold", "addressee": ""},
+    {"turn": 2, "actor": "maren", "action": SPEECH, "thought": "Go on.", "floor": "keep", "addressee": "edda"},
+    {"turn": 3, "actor": "edda", "action": "\"That is not so!\"", "thought": "SECRET-EDDA-DOUBT", "floor": "interject",
+     "addressee": "maren"},
+    {"turn": 4, "actor": "maren", "action": SPEECH, "thought": "Finish it.", "floor": "yield", "addressee": "edda"},
+    {"turn": 5, "actor": "edda", "action": "", "thought": "SECRET-EDDA-DOUBT", "floor": "hold", "addressee": ""},
+    {"turn": 6, "actor": "edda", "action": "\"When does the ferry run?\"", "thought": "SECRET-EDDA-DOUBT", "floor": "take",
+     "addressee": "maren"},
+    {"turn": 7, "actor": "maren", "action": "", "thought": "Let her ask again.", "floor": "hold", "addressee": ""},
+]
+
+
+def _floor_labels():
+    """Gate narrator-labels (conversation design v2 s6, s7 F): a row with a floor word is labelled by it - SAID
+    (who -> whom; keeps|yields|takes|interjects), HELD (who; acts), a silence HELD (POV; silent) or HELD (other) -
+    and the SPEECHES and EXCHANGE rules replace LONG SPEECHES, so a 300-word move inside a speech is never flagged
+    to be broken. A row recorded before floor words keeps the legacy flag and the old rule."""
+    print("\n[floor] the narrator's labels by floor word (gate narrator-labels)")
+    names = {"maren": "Maren", "edda": "Edda"}
+    sys_, user = (m["content"] for m in narrate.build_narration_prompt(TURNS_FLOOR, "maren", WORLD, pov_name="Maren",
+                                                                      names=names))
+    lines = user.splitlines()
+    want = ["beat 1 · SAID (Maren → Edda; keeps)", "beat 2 · HELD (Edda; acts)", "beat 3 · SAID (Maren → Edda; keeps)",
+            "beat 4 · SAID (Edda → Maren; interjects)", "beat 5 · SAID (Maren → Edda; yields)", "beat 6 · HELD (Edda)",
+            "beat 7 · SAID (Edda → Maren; takes)", "beat 8 · HELD (Maren; silent)"]
+    check("each-row-is-labelled-by-its-floor-word-and-addressee",
+          all(any(ln.startswith(w) for ln in lines) for w in want),
+          str([w for w in want if not any(ln.startswith(w) for ln in lines)]))
+    check("three-keep-rows-of-300-words-are-never-flagged-to-break", not any(
+        "break it" in ln or "long" in ln.split(":")[0] for ln in lines if ln.startswith("beat")), user[-800:])
+    check("the-speeches-and-exchange-rules-replace-long-speeches", "SPEECHES." in sys_ and "EXCHANGE." in sys_
+          and "LONG SPEECHES" not in sys_ and "one speech" in sys_ and "a cut-in" in sys_, sys_[-1500:])
+    check("the-wall-holds-under-the-floor-labels", "SECRET-EDDA-DOUBT" not in sys_ + user
+          and not any(" · THOUGHT (Edda" in ln for ln in lines) and "Let her ask again." in user)
+    check("the-legend-defines-SAID-and-HELD", any(ln.startswith("  SAID (") for ln in lines)
+          and any(ln.startswith("  HELD (") for ln in lines), user[:900])
+    mixed = TURNS_SRC + TURNS_FLOOR[:1]
+    msys, muser = (m["content"] for m in narrate.build_narration_prompt(mixed, "maren", WORLD, pov_name="Maren",
+                                                                       names=names))
+    check("a-row-recorded-before-floor-words-keeps-the-legacy-flag-and-the-old-rule",
+          sum(LEGACY_FLAG in ln for ln in muser.splitlines()) == 1 and "LONG SPEECHES" in msys
+          and "SPEECHES." in msys, muser[-900:])
+    role = io.open(os.path.join(REPO, ".claude", "agents", "narrator.md"), encoding="utf-8").read()
+    check("the-load-bearing-speech-phrases-are-in-both-the-prompt-and-the-role-file",
+          all(ph in sys_ and ph in role for ph in ("one speech", "a cut-in")),
+          str([ph for ph in ("one speech", "a cut-in") if ph not in sys_ or ph not in role]))
 
 
 if __name__ == "__main__":

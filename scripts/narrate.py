@@ -79,6 +79,8 @@ def pov_split(turns, pov, knowledge=DEFAULT_KNOWLEDGE):
             out.append({"actor": t["actor"], "action": t["action"], "thought": t["thought"]})
         else:
             out.append({"actor": t["actor"], "action": t["action"]})       # observable only — no thought
+        # the floor word and whom it was said to (gate narrator-labels): observable, so every actor keeps them
+        out[-1].update({k: t.get(k) or "" for k in ("floor", "addressee")})
     return out
 
 
@@ -233,7 +235,11 @@ def build_narration_prompt(turns, pov, world, pov_name=None, retrospective=False
             "only how %s reads them. This POV wall is the source of the scene's dramatic irony; do NOT "
             "head-hop into anyone else's mind." % (povn, povn, povn))
         parts.append(_contract.THOUGHT_RECORD % {"who": povn, "whom": povn, "idiom": "%s's own idiom" % povn})
-    parts.append(_contract.LONG_SPEECHES % {"p": povn})
+    new, old = _contract.shaped(turns)               # gate narrator-labels: the rules for the rows this scene has
+    if new:
+        parts += [_contract.SPEECHES, _contract.EXCHANGE]
+    if old:
+        parts.append(_contract.LONG_SPEECHES % {"p": povn})
     if lens.get("spine"):
         parts.append("VOICE — the section's authorial spine (every passage in this section shares it): %s"
                      % lens["spine"])

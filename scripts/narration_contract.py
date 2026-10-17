@@ -57,7 +57,39 @@ LONG_SPEECHES = (
     "a reply stays after what it answers. You may not give %(p)s a word the record does not hold. A silence "
     "is not a reaction: when %(p)s said nothing, show what %(p)s did, handled, or saw, never 'he said "
     "nothing'.")
-LONG_SPEECH_WORDS = 60     # a turn longer than this is flagged on its label for the LONG SPEECHES rule
+LONG_SPEECH_WORDS = 60     # a LEGACY turn longer than this is flagged on its label for the LONG SPEECHES rule
+LEGACY_FLAG = " · long move, recorded before floor words; break it"
+# THE ROUND'S ROWS (gate narrator-labels; conversation design v2 s6). A row recorded with a floor word is a move
+# (SAID) or a listener's hold (HELD), and the labels say who it was to and what it did with the floor; these two rules
+# replace LONG SPEECHES for such rows, so no speech is ever chopped by a count. LONG SPEECHES stays for rows recorded
+# before floor words (floor ''), whose flag still reads "break it": an old scene renders as it did.
+SPEECHES = (
+    "SPEECHES. Consecutive SAID rows by one speaker, with only HELD and interjects rows between them, are one speech. "
+    "Keep it whole, in its order and its rhythm; trim only, and drop no point that carries a fact told. The HELD rows "
+    "inside it are where the listener's acts, looks and silences fall: put them there and nowhere else. An interjects "
+    "row is spoken where it stands and the speech goes on. A row that takes while the previous row keeps is a cut-in: "
+    "the previous move ends unfinished on the page. A HELD row with no act is a silence: render what the listener "
+    "did, handled or saw, or the POV's recorded thought; never 'he said nothing'.")
+EXCHANGE = (
+    "EXCHANGE. Single SAID rows that take in turn are a conversation. Render them as one: wording free, substance "
+    "fixed (THE SOURCE). Two consecutive SAID rows by one speaker with nothing between them may be one line.")
+_VERB = {"keep": "keeps", "yield": "yields", "take": "takes", "interject": "interjects"}
+
+
+def shaped(entries):
+    """Do any of these rows carry a floor word? -> (any shaped, any legacy): which speech rules the prompt sends."""
+    return any(e.get("floor") for e in entries), any(not e.get("floor") for e in entries)
+
+
+def _floor_label(e, name, names, pov):
+    """A row with a floor word -> its label: SAID (who → whom; keeps), HELD (who; acts), a silence HELD (POV; silent)
+    or HELD (other) - the POV's silence carries its thought, another's is only what was seen."""
+    if e["floor"] == "hold":
+        if str(e["action"]).strip():
+            return "HELD (%s; acts)" % name
+        return "HELD (%s; silent)" % name if e["actor"] == pov else "HELD (%s)" % name
+    to = names.get(e.get("addressee"), e.get("addressee")) if e.get("addressee") else ""
+    return "SAID (%s%s; %s)" % (name, " → %s" % to if to else "", _VERB.get(e["floor"], e["floor"]))
 
 
 def transcript(entries, pov, povn, names, knowledge):
@@ -67,10 +99,17 @@ def transcript(entries, pov, povn, names, knowledge):
     lines, others = [], []
     for i, e in enumerate(entries, 1):
         name = names.get(e["actor"], e["actor"])
-        long_ = " · long speech, break it" if len(str(e["action"]).split()) > LONG_SPEECH_WORDS else ""
+        long_ = LEGACY_FLAG if len(str(e["action"]).split()) > LONG_SPEECH_WORDS else ""
         if "thought" in e:
             lines.append("beat %d · THOUGHT (%s, private; engine deliberation record - evidence, never text for "
                          "the page): %s" % (i, name, e["thought"]))
+        if e.get("floor"):
+            if e["actor"] != pov and name not in others:
+                others.append(name)
+            lab = _floor_label(e, name, names, pov)
+            lines.append("beat %d · %s: %s" % (i, lab, e["action"]) if str(e["action"]).strip()
+                         else "beat %d · %s" % (i, lab))
+            continue
         if e["actor"] == pov:
             lines.append("beat %d · DID/SAID (%s)%s: %s" % (i, name, long_, e["action"]))
             continue
@@ -84,12 +123,21 @@ def transcript(entries, pov, povn, names, knowledge):
               "  THOUGHT (%s, private)  %s before acting, in the engine's deliberation format. Evidence of "
               "motive and direction. Never text for the page."
               % ("each character" if omni else povn, "each character's private weighing" if omni
-                 else "what %s weighed" % povn),
-              "  DID/SAID (%s)  %s's recorded act and words. The act is fixed. The words are fixed in substance "
-              "and free in wording." % (povn, povn)]
+                 else "what %s weighed" % povn)]
+    new, old = shaped(entries)
+    if old:
+        legend.append("  DID/SAID (%s)  %s's recorded act and words. The act is fixed. The words are fixed in "
+                      "substance and free in wording." % (povn, povn))
+    if new:
+        legend += ["  SAID (who → whom; keeps|yields|takes|interjects)  a move and what its speaker did with the floor. "
+                   "The act is fixed; the words are fixed in substance and free in wording. Another character's SAID "
+                   "is what %s saw and heard." % povn,
+                   "  HELD (who; acts | silent)  a listener holding their tongue: what they did while the other spoke, "
+                   "or a silence."]
     for o in others:
-        legend.append("  DID/SAID (%s, as %s saw and heard it)  another character's observable act and words, "
-                      "same rule.%s" % (o, povn, "" if omni else " %s's mind is closed to you." % o))
+        legend.append(("  DID/SAID (%s, as %s saw and heard it)  another character's observable act and words, "
+                       "same rule.%s" if old else "  %s, as %s saw and heard them: observable acts and words only.%s")
+                      % (o, povn, "" if omni else " %s's mind is closed to you." % o))
     return "\n".join(legend), "\n".join(lines)
 
 
