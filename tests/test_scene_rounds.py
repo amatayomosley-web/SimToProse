@@ -404,6 +404,19 @@ def test_the_director_holds_the_floor_open(tmp):
     turns = [r["turn"] for r in con.execute("SELECT turn FROM turns ORDER BY turn")]
     check("...and-the-reaction-is-an-Event-with-no-actor-on-the-yielding-row",
           len(turns) == 5 and placed == [(turns[2], None, {"text": room})], placed)
+    # THE NARRATOR SEES THE ROOM (gate narrator-room): under the row it rides, for a POV who did not speak
+    import types
+    import critic
+    import narrate
+    from narration_contract import transcript
+    got = critic.scene_turns(types.SimpleNamespace(con=con), con.execute("SELECT run_id FROM turns").fetchone()[0])
+    entries = narrate.pov_split(got, _other(held))
+    legend, lines = transcript(entries, _other(held), "POV", {}, "pov")
+    check("...the-narrator's-transcript-shows-the-room-under-the-speech-that-ended",
+          [r["room"] for r in got] == ["", "", room, "", ""] and "beat 3 · THE ROOM: %s" % room in lines.splitlines()
+          and lines.splitlines().index("beat 3 · THE ROOM: %s" % room) == 3 and "THE ROOM  " in legend, (got, lines))
+    plain = transcript(narrate.pov_split([dict(r, room="") for r in got], _other(held)), _other(held), "POV", {}, "pov")
+    check("...and-without-one-no-room-text-at-all", "ROOM" not in "".join(plain), plain)
     out, exited, calls, rows = _run(os.path.join(tmp, "open"), ("mira", "ada"), script, None)
     check("with-no---budget-and-no-moves-the-ceiling-is-24", exited is None and len(rows) == 24, (exited, len(rows)))
     out, exited, calls, rows = _run(os.path.join(tmp, "bad"), ("mira", "ada"), script, 2,

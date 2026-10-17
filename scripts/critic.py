@@ -53,8 +53,8 @@ DEFAULT_CRITIC_MODEL = "anthropic/claude-sonnet-4.6"
 def scene_turns(led, run_id):
     """The committed turns of a run, in turn order, with floor word, addressee (v36) and tell (v37); '' before. `caught`
     (gate tells-narrated): who caught the row's tell - each actor a later manifest of whose `tells.noticed` names it."""
-    rows = [dict(r) for r in led.con.execute("SELECT turn, actor, action, thought, floor, addressee, tell FROM turns "
-                                             "WHERE run_id=? ORDER BY turn", (run_id,)).fetchall()]
+    rows = [dict(r) for r in led.con.execute("SELECT turn, actor, action, thought, floor, addressee, tell, COALESCE((SELECT json_extract(e.payload, '$.text') FROM events e WHERE e.run_id = t.run_id AND e.turn = t.turn AND e.type = 'placed-reaction'), '') AS room "   # the director's (gate narrator-room)
+                                             "FROM turns t WHERE run_id=? ORDER BY turn", (run_id,)).fetchall()]
     mans = [(t, a, json.loads(m)) for t, a, m in (led.con.execute(
         "SELECT turn, actor, manifest FROM decision_manifests WHERE run_id=?", (run_id,)).fetchall()
         if any(r["tell"] for r in rows) else [])]

@@ -115,15 +115,16 @@ def transcript(entries, pov, povn, names, knowledge):
             lab = _floor_label(e, name, names, pov)
             lines.append("beat %d · %s: %s" % (i, lab, shown.strip()) if shown.strip()
                          else "beat %d · %s" % (i, lab))
-            continue
-        if e["actor"] == pov:
+        elif e["actor"] == pov:
             lines.append("beat %d · DID/SAID (%s)%s: %s" % (i, name, long_, shown))
-            continue
-        if name not in others:
-            others.append(name)
-        closed = "" if "thought" in e else "; %s's mind is closed" % name
-        lines.append("beat %d · DID/SAID (%s, as %s saw and heard it%s)%s: %s"
-                     % (i, name, povn, closed, long_, shown))
+        else:
+            if name not in others:
+                others.append(name)
+            closed = "" if "thought" in e else "; %s's mind is closed" % name
+            lines.append("beat %d · DID/SAID (%s, as %s saw and heard it%s)%s: %s"
+                         % (i, name, povn, closed, long_, shown))
+        if e.get("room"):                     # under the row it rides (gate narrator-room)
+            lines.append("beat %d · THE ROOM: %s" % (i, e["room"]))
     omni = knowledge == "omniscient"
     legend = ["RECORDED SCENE (POV = %s). One actor turn per beat, in order. The labels say what each line is:" % povn,
               "  THOUGHT (%s, private)  %s before acting, in the engine's deliberation format. Evidence of "
@@ -143,6 +144,9 @@ def transcript(entries, pov, povn, names, knowledge):
     if any(e.get("tell") for e in entries):
         legend.append("  (without meaning to: ...)  a sign the character gave away and %s caught. Fixed, like an act; "
                       "show it, never name it as a tell." % ("the reader sees" if omni else povn))
+    if any(e.get("room") for e in entries):
+        legend.append("  THE ROOM  what the room did as the speech above it ended, placed by the director. Fixed, like an "
+                      "act, and nobody's line: render it where it stands, as %s saw and heard it." % povn)
     for o in others:
         legend.append(("  DID/SAID (%s, as %s saw and heard it)  another character's observable act and words, "
                        "same rule.%s" if old else "  %s, as %s saw and heard them: observable acts and words only.%s")

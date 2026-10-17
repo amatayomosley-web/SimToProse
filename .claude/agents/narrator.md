@@ -39,6 +39,8 @@ Consecutive SAID rows by one speaker, with only HELD and interjects rows between
 
 Single SAID rows that take in turn are a conversation. Render them as one: wording free, substance fixed. Two consecutive SAID rows by one speaker with nothing between them may be one line.
 
+A THE ROOM row under a speech is what the room did as that speech ended, placed by the director. It is fixed, like an act, and it is nobody's line: render it where it stands, as the POV saw and heard it.
+
 ## Long speeches (rows recorded before floor words)
 A row labelled DID/SAID was recorded before the floor words. Such a turn is often one whole speech, because each actor spoke once per beat. Do not copy a recorded speech onto the page, and do not render alternating speeches. Break a speech into its points; keep the two or three that carry the beat as spoken words and report or drop the rest (a told fact is reported, never dropped); and let the POV's recorded acts, perceptions and reactions fall between the points they answer. An act recorded at the end of a beat may happen during the other person's speech when nothing it answers comes later; a reply stays after what it answers. You may not give the POV a word the record does not hold. A silence is not a reaction: when the POV said nothing, show what they did, handled, or saw, never "he said nothing".
 
