@@ -173,6 +173,57 @@ def test_the_descent_flag_reaches_block_for():
         rungs.DESCENT_BLOCKS = saved
 
 
+def test_identical_rows_reuse_the_selection():
+    """Gate composer-reuse (conversation design v2 s7 E, v1 s7F): when this actor's rows are identical to the rows of
+    their previous call, the kept selection is reused - `by: "kept"`, no dispatch. Rows that moved ask again; a floor
+    the composer fell back to is never kept, so the next call asks again."""
+    print("\n[10] IDENTICAL ROWS REUSE THE SELECTION (composer-reuse)")
+    import json
+    import direct
+    affect = {p: 0.7 for p in rungs.paths()}
+    top = C.selectable(affect)[0]
+    good = json.dumps({"selected": [{"path": top["path"], "rung": top["rung"], "primary": True}],
+                       "about": "the debt she owes him", "unavailable": ""})
+    sent, answers = [], []
+    real, err = direct._openrouter, sys.stderr
+
+    def fake(msgs, model, **kw):
+        sent.append(msgs)
+        return answers.pop(0) if answers else good
+
+    def call(aff, kept):
+        packet = {"volatile": {"state": {"affect": aff}}, "manifest": {}}
+        out = direct.rung_direction(packet, brief="the wheel has split", model="fake/model", kept=kept)
+        return out, packet["manifest"]["direction"]
+
+    import io
+    direct._openrouter, sys.stderr = fake, io.StringIO()
+    try:
+        kept = {}
+        first, r1 = call(affect, kept)
+        second, r2 = call(dict(affect), kept)
+        check("two-calls-on-identical-rows-make-one-dispatch", len(sent) == 1, "%d dispatches" % len(sent))
+        check("...the-second-is-recorded-kept-with-the-same-selection", r1["by"] == "composer" and r2["by"] == "kept"
+              and r2["selected"] == r1["selected"] and r2["about"] == r1["about"] and second == first, (r1["by"], r2["by"]))
+        moved = dict(affect, **{C.selectable(affect)[1]["path"]: 0.05})   # another path's rung; the reply stays valid
+        _out, r3 = call(moved, kept)
+        check("rows-that-moved-ask-again", len(sent) == 2 and r3["by"] == "composer", (len(sent), r3["by"]))
+        other = {}
+        _out, r4 = call(moved, other)
+        check("another-actor's-keep-is-their-own", len(sent) == 3 and r4["by"] == "composer", (len(sent), r4["by"]))
+        answers.append("not json at all")
+        fell = {}
+        _out, r5 = call(affect, fell)
+        _out, r6 = call(affect, fell)
+        check("a-floor-the-composer-fell-back-to-is-not-kept", r5["by"] == "floor" and r6["by"] == "composer"
+              and len(sent) == 5, (r5["by"], r6["by"], len(sent)))
+        nokeep = [call(affect, None)[1]["by"] for _ in range(2)]
+        check("without-a-keep-every-call-asks-as-before", nokeep == ["composer", "composer"] and len(sent) == 7,
+              (nokeep, len(sent)))
+    finally:
+        direct._openrouter, sys.stderr = real, err
+
+
 
 def main():
     print("test_composer.py - the gate between composer and actor\n")

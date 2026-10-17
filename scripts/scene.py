@@ -584,6 +584,7 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
     # the cast by its contract before the run began. Absent, the actor chooses, as before.
     _directed = {str(c["id"]): str(c["to"]) for c in cfg["cast"] if c.get("to")}
     _tells_of = {str(c["id"]): list(c["tells"]) for c in cfg["cast"] if c.get("tells")}   # the brief's (tells-direction)
+    _kept = {}                                        # each actor's composer keep, for the run (gate composer-reuse)
     # THE WINDOW IN HAND (gate window-reads): its rows, buffered until it closes, and what closing it needs
     window, _wspk, _wstate = [], None, {"target": scene_target}
     _wctx = {"led": led, "run_id": run_id, "cfg": cfg, "world": world, "names": names, "actors": actors, "gi": gi,
@@ -733,7 +734,8 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
             _act_kw = dict(think=think, brief=a.get("drive", ""), seed=seed_base * 1000 + beat, acts=_law_acts,
                            relationships=rels,
                            information=(led.fold(run_id, max(turn_no - 1, 0)) or {}).get("information"),
-                           char_id=speaker, vault=a["char"]["current"].get("vault"), world=world, floor=_floor_kw)
+                           char_id=speaker, vault=a["char"]["current"].get("vault"), world=world, floor=_floor_kw,
+                           kept=_kept.setdefault(speaker, {}))   # this actor's composer keep (gate composer-reuse)
             turn, leaks = faithful_turn(packet, event_text, a["temperament"], model, stub, **_act_kw)
             # THE TRIPWIRE (design v2 s2): a move over MOVE_WORDS is drawn once more with the line; the second draw is
             # kept whatever its length, and the validation record says so. A word count flags, it never defines a move.

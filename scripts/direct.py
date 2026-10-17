@@ -256,7 +256,7 @@ def rung_summary(affect):
     return "; ".join("%s %s" % (r["path"].lower(), r["name"]) for r in rows)
 
 
-def rung_direction(packet, brief="", model=None, stub=False):
+def rung_direction(packet, brief="", model=None, stub=False, kept=None):
     """packet -> the rung-block direction the actor receives, or None.
 
     THE RUNG SEAM. Until 2026-09-08 the emotion ladders reached no actor at all: `composer.selectable`
@@ -299,7 +299,17 @@ def rung_direction(packet, brief="", model=None, stub=False):
         if not rows:
             rec["why"] = "no built path covers this affect"
             return None
-        sel, by, fell_back = _compose_selection(rows, brief, model, stub)
+        # COMPOSER REUSE (gate composer-reuse; design v2 s7 E): `kept` is this actor's keep for the run, from the scene
+        # driver. Rows and brief identical to the last call's reuse the composer's selection, `by: "kept"`, and make no
+        # dispatch - the selection carries forward when nothing moved; the measurement never skips. Only a composer's
+        # selection is kept: a floor is a fallback to retry, or a stub's, which costs no dispatch.
+        if isinstance(kept, dict) and kept.get("key") == (rows, brief):
+            sel, by, fell_back = kept["sel"], "kept", ""
+        else:
+            sel, by, fell_back = _compose_selection(rows, brief, model, stub)
+            if isinstance(kept, dict):
+                kept.clear()
+                kept.update({"key": (rows, brief), "sel": sel} if by == "composer" else {})
         text = _composer.direction_for(rows, sel)
         rec = _composer.record(rows, sel, text, by, fell_back=fell_back, descending=vs.get("descending"))
     except Exception as exc:
@@ -312,7 +322,7 @@ def rung_direction(packet, brief="", model=None, stub=False):
             _manifest["direction"] = rec
     # NAMED, NEVER REFUSED (gate composer-replies; board #258), and printed once the direction is built and kept.
     # `listed`, not `shown`: an empty name, one holding ", ", or "selected " must not read as other keys (review).
-    if rec.get("extra"):
+    if rec.get("extra") and by != "kept":
         _say("  [the composer's reply carries what the record does not keep: %s]" % _replies.listed(rec["extra"]))
     return text
 
@@ -382,7 +392,7 @@ def _compose_selection(rows, brief, model, stub):
 
 
 def llm_turn(packet, event_text, temperament, model, stub, think=True, seed=None, relationships=None, corrections=None, acts=(), brief="",
-             floor=None):
+             floor=None, kept=None):
     """`floor` (gate round-loop): the reply contract's keywords for `prompt.build_turn_messages` - stance, hold_open,
     resumed, interrupt, forced, last_thought - or None for the stance-free prompt the chair sends."""
     floor = dict(floor or {})
@@ -413,7 +423,8 @@ def llm_turn(packet, event_text, temperament, model, stub, think=True, seed=None
             reply["floor"] = "yield" if floor["stance"] == "speaker" else "take"
         return reply
     messages = build_turn_messages(packet, event_text, temperament, relationships, acts=acts,
-                                   rung_direction=rung_direction(packet, brief=brief, model=model, stub=stub), **floor)
+                                   rung_direction=rung_direction(packet, brief=brief, model=model, stub=stub, kept=kept),
+                                   **floor)
     if corrections:                                                  # faithful_turn appends corrective turns on a name-leak retry
         messages = list(messages) + list(corrections)
     if model.startswith("ollama/"):                                  # local on-disk dispatch (free, pinned)
@@ -422,7 +433,7 @@ def llm_turn(packet, event_text, temperament, model, stub, think=True, seed=None
 
 
 def faithful_turn(packet, event_text, temperament, model, stub, think=True, seed=None, relationships=None, max_retries=2, acts=(), information=None, char_id=None, brief="", vault=None, world=None,
-                  floor=None, steer=None):
+                  floor=None, steer=None, kept=None):
     """llm_turn + the ACTIVE faithfulness guard. If the actor emits a name it does not hold (a latent
     weights-leak the masking wall can't prevent — faithfulness.check_name_leaks), re-call with an
     explicit correction, up to max_retries. An empty/unparseable draw (no action — a stochastic
@@ -440,7 +451,8 @@ def faithful_turn(packet, event_text, temperament, model, stub, think=True, seed
     for attempt in range(max_retries + 1):
         s = seed if (seed is None or attempt == 0) else seed + 100 * attempt   # resample on retry
         turn = llm_turn(packet, event_text, temperament, model, stub, think=think, seed=s, acts=acts, brief=brief,
-                        relationships=relationships, corrections=(corrections or None), floor=floor)
+                        relationships=relationships, corrections=(corrections or None), floor=floor,
+                        kept=kept)
         # A LISTENER'S HOLD MAY BE EMPTY (gate round-loop): "hold with nothing to say and nothing to do is allowed and
         # means it" - only a reply that is neither an action nor a hold is a failed draw.
         _held = (floor or {}).get("stance") == "listener" and turn.get("floor") == "hold"

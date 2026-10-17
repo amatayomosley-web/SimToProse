@@ -70,6 +70,9 @@ def _rows(book):
         con.close()
 
 
+KEPT = []          # (who, the id of the composer keep the driver handed this call) - gate composer-reuse
+
+
 def _actor(script, calls):
     """The actor, scripted: `script(who, stance, flags, n)` -> (action, thought, floor, addressee) for this person's
     n-th call; every call is recorded as (who, stance, flags, event_text, steer)."""
@@ -81,6 +84,7 @@ def _actor(script, calls):
         stance = floor.pop("stance", None)
         floor.pop("last_thought", None)
         n = seen[who] = seen.get(who, -1) + 1
+        KEPT.append((who, id(kw.get("kept")) if isinstance(kw.get("kept"), dict) else None))
         calls.append((who, stance, floor, event_text, kw.get("steer")))
         action, thought, word, to = script(who, stance, floor, n, kw.get("steer"))
         return ({"action": action, "thought": thought, "exit": False, "addressee": to, "act": "", "floor": word,
@@ -359,6 +363,18 @@ def test_a_run_says_whether_a_direction_was_checked(tmp):
         "SELECT manifest FROM decision_manifests ORDER BY turn")]
     check("...--no-direction-runs,-and-every-turn's-manifest-says-none", exited is None and marks == ["none", "none"],
           (exited, marks))
+
+
+def test_each_actor_keeps_their_own_composer_selection(tmp):
+    """Gate composer-reuse: the driver hands each actor's every call that actor's own keep, one per actor for the run,
+    so identical rows on their next call reuse the selection and another's never does."""
+    def script(who, stance, flags, n, steer):
+        return ("%s says a thing %d." % (who, n), "-", "yield" if stance == "speaker" else "take", _other(who))
+    del KEPT[:]
+    out, exited, calls, rows = _run(tmp, ("mira", "ada"), script, 4)
+    ids = {w: {k for x, k in KEPT if x == w} for w in ("mira", "ada")}
+    check("each-actor's-calls-carry-one-keep-of-their-own", exited is None and all(
+        len(v) == 1 and None not in v for v in ids.values()) and ids["mira"] != ids["ada"], (exited, KEPT))
 
 
 def main():
