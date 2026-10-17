@@ -70,6 +70,7 @@ REGISTRY = {
     "infidelity":     "a lover or spouse who lied about love",
     "broken_oath":    "a sworn promise broken; a pact abandoned",
     "abandonment":    "left behind — by allies, by those who should have come",
+    "obligation":     "a gift or favour that binds; being beholden; a kindness that leaves a debt to be called in",
     "helplessness":   "watching harm come to someone and being unable to stop it",
     "loss_of_a_child": "a child dead or dying; the one loss that does not un-happen",
     "death":          "a death witnessed or learned of; a body; the fact of it",

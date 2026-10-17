@@ -352,13 +352,13 @@ def test_an_interjection_is_its_own_read_and_the_listeners_feeling_lands_at_the_
     check("four-rows:-keep,-interject,-yield,-take", [(r["actor"], r["floor"]) for r in rows]
           == [("mira", "keep"), ("ada", "interject"), ("mira", "yield"), ("ada", "take")], ([(r["actor"], r["floor"])
                                                                                              for r in rows], out[-500:]))
-    check("...two-windows:-three-event-reads-and-three-emotion-reads",
-          seats.count("appraise-event") == 3 and seats.count("appraise-emotion") == 3, seats)
+    check("...two-windows:-three-event-reads-and-four-emotion-reads-(mira-takes-in-ada's-take:-listener-read)",
+          seats.count("appraise-event") == 3 and seats.count("appraise-emotion") == 4, seats)
     con = _db(os.path.join(tmp, "The Rock"))
     t = [r[0] for r in con.execute("SELECT turn FROM turns ORDER BY turn")]
     read_at = {(r[0], r[1]) for r in con.execute("SELECT turn, actor FROM readings")}
     check("...the-listener's-feeling-is-written-at-the-window's-last-row-under-her-own-name",
-          read_at == {(t[2], "mira"), (t[2], "ada"), (t[3], "ada")}, sorted(read_at))
+          read_at == {(t[2], "mira"), (t[2], "ada"), (t[3], "ada"), (t[3], "mira")}, sorted(read_at))
     got = mood_fold.replay(con, con.execute("SELECT run_id FROM runs").fetchone()[0],
                            bible.for_run(con, con.execute("SELECT run_id FROM runs").fetchone()[0])[2])
     cache = {(r[0], r[1]): json.loads(r[2]) for r in con.execute("SELECT turn, char_id, affect FROM current_state")}
@@ -537,6 +537,52 @@ def test_a_hold_that_speaks_is_a_take(tmp):
     out, exited, calls, rows = _run(os.path.join(tmp, "quiet"), ("mira", "ada"), quiet, 6)
     check("a-silent-hold-twice-still-settles,-and-the-line-prints-after-the-last-rows",
           "== settled" in out and out.index("== settled") > out.rindex("-- beat"), out[-500:])
+
+
+def test_the_one_refused_feels_it(tmp):
+    """Gate listener-read (showrunner ruling 2026-10-17 09:00; a replayed two-hander's refused character got no
+    reading on any turn he was refused): Mira asks, Ada refuses, by turns - every window is one row. At each window's
+    end the other present participant is read too, from a prompt that says she did not act and shows what she took in
+    and what she was thinking last; the reading is written at that row under her own name, and the fold re-derives
+    every cached mood."""
+    import appraiser
+    from src.engine import bible, mood_fold
+    prompts, real = [], appraiser.build_emotion_messages
+
+    def spy(*a, **kw):
+        out = real(*a, **kw)
+        prompts.append((kw.get("me"), out[1]["content"]))
+        return out
+
+    def script(who, stance, flags, n, steer):
+        if who == "mira":
+            return ('"Look at the sky, %d."' % n, "Mira wants her to look.", "yield", "ada")
+        return ('"No."', "Ada will not look up.", "take", "mira")
+    appraiser.build_emotion_messages = spy
+    try:
+        out, exited, calls, rows = _run(tmp, ("mira", "ada"), script, 4, stub=False)
+    finally:
+        appraiser.build_emotion_messages = real
+    con = _db(os.path.join(tmp, "The Rock"))
+    t = {r[0]: r[1] for r in con.execute("SELECT turn, actor FROM turns ORDER BY turn")}
+    read_at = {(r[0], r[1]) for r in con.execute("SELECT turn, actor FROM readings")}
+    refused = [k for k, v in t.items() if v == "ada"]
+    check("the-one-refused-is-read-at-every-turn-she-is-refused",
+          exited is None and refused and all((k, "mira") in read_at for k in refused), (sorted(read_at), t, out[-400:]))
+    check("...and-the-one-who-acted-is-read-as-before", all((k, v) in read_at for k, v in t.items()), sorted(read_at))
+    heard = [p for me, p in prompts if me == "mira" and "THEY DID NOT ACT" in p]
+    check("...from-a-prompt-that-says-she-did-not-act-and-shows-what-she-took-in-and-was-thinking",
+          heard and '"No."' in heard[0] and "Mira wants her to look." in heard[0] and "WHAT THEY DID:" not in heard[0],
+          heard[:1] or [p[:300] for _m, p in prompts[:2]])
+    spoke = [p for me, p in prompts if "THEY DID NOT ACT" not in p]
+    check("...each-actor's-own-prompt-is-the-one-it-always-was", len(spoke) == len(t) and all(
+        "WHAT THEY DID:" in p for p in spoke), (len(spoke), len(t), spoke[:1]))
+    run = con.execute("SELECT run_id FROM runs").fetchone()[0]
+    got = mood_fold.replay(con, run, bible.for_run(con, run)[2])
+    cache = {(r[0], r[1]): json.loads(r[2]) for r in con.execute("SELECT turn, char_id, affect FROM current_state")}
+    worst = max((abs(got[k][p] - v) for k in cache if k in got for p, v in cache[k].items()), default=float("inf"))
+    check("...and-the-fold-re-derives-every-cached-mood-to-1e-12", set(cache) <= set(got) and worst <= 1e-12,
+          (worst, sorted(set(cache) - set(got))))
 
 
 def main():

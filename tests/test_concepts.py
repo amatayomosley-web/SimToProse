@@ -94,9 +94,18 @@ def test_the_menu():
     check("gloss-reads-either-form", C.gloss("concept:sickness") == C.gloss("sickness") == C.REGISTRY["sickness"])
 
 
+def test_a_gift_that_binds():
+    """Gate listener-read (showrunner ruling 2026-10-17): a replayed scene's emotion seat read a misgiving about a gift
+    that leaves a debt to be called in, found no concept for it, and the reading landed about nothing."""
+    print("\n[4] A GIFT THAT BINDS HAS A CONCEPT")
+    check("obligation-is-a-concept", C.is_concept("concept:obligation") and "gift" in C.gloss("obligation"),
+          sorted(C.REGISTRY)[-5:])
+    check("...and-the-seat-is-shown-it", "concept:obligation " in C.menu())
+
+
 def main():
     print("test_concepts.py — the closed concept registry")
-    for t in (test_the_list_is_closed, test_the_library_resolves, test_the_menu):
+    for t in (test_the_list_is_closed, test_the_library_resolves, test_the_menu, test_a_gift_that_binds):
         t()
     print("\nVERDICT: %s" % ("PASS" if not _FAILS else "FAIL -> %s" % _FAILS))
     return 1 if _FAILS else 0

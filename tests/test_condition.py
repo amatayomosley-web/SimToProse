@@ -155,6 +155,8 @@ def _run(tmp, decl, scenes, sheet_edit=None):
         raise RecordError("APPRAISER_REPLY_NOT_JSON", "the event seat is faked out of this test")
 
     def emotion(action, thought, model, led=None, run_id=None, turn=None, me=None, present=(), **_k):
+        if _k.get("took_in") is not None:      # the one who sat and took it in: nothing arose (gate listener-read)
+            return [], [], "sure", []
         other = next(p for p in present if p != me)
         return ([Reading(path="WARINESS", rung=rungs.rung_at("WARINESS", 0.6 + 0.04 * ((turn or 0) % 8))[1], about=other,
                          confidence="sure"),

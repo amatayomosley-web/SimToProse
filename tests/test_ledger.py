@@ -872,7 +872,7 @@ def test_a_v35_db_gains_floor_addressee_and_tell_EMPTY_for_its_old_turns(tmp):
     raw.commit()
     raw.close()
     con = _connect(path)
-    assert SCHEMA_VERSION == 37 and con.execute("PRAGMA user_version").fetchone()[0] == 37
+    assert SCHEMA_VERSION == 38 and con.execute("PRAGMA user_version").fetchone()[0] == 38
     got = con.execute("SELECT floor, addressee, tell FROM turns WHERE run_id='old'").fetchall()
     assert [tuple(r) for r in got] == [("", "", "")], got
     con.close()

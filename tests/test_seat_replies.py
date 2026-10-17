@@ -403,8 +403,10 @@ def the_drivers():
     lands_refusal = _refusal(appraiser.parse_emotion_reply, dict(EMOTION, lands_on=[None]), present=["ada"])
     try:
         with _seats({"appraise-event": [ev_x, REFUSED_EVENT, NO_KEY, EVENT, dict(EVENT, **{"→note": 1}), EVENT, EVENT],
-                     "appraise-emotion": [REFUSED_EMOTION, dict(EMOTION, readings=[dict(EMOTION["readings"][0], intensity=2)]),
-                                          UNANSWERED, EMOTION, EMOTION, dict(EMOTION, lands_on=[None]), EMOTION]}, calls):
+                     # each beat's actor, then the one who took it in (gate listener-read) - who answers plainly
+                     "appraise-emotion": [REFUSED_EMOTION, EMOTION, dict(EMOTION, readings=[dict(EMOTION["readings"][0], intensity=2)]),
+                                          EMOTION, UNANSWERED, EMOTION, EMOTION, EMOTION, EMOTION, EMOTION,
+                                          dict(EMOTION, lands_on=[None]), EMOTION, EMOTION]}, calls):
             out, exited = _drive("scene", book, ["--scene", _scene_cfg(tmp), "--budget", "7"], out=console)
     finally:
         scene.faithful_turn = saved

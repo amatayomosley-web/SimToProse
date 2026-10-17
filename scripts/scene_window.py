@@ -5,8 +5,8 @@ listeners' hold and interject rows inside it. scripts/scene.py run_scene buffers
 hands them to `close` when someone else makes a move or the scene ends. Here:
   the reads  the event seat once over the speaker's moves as one act, and once per listener row that is an act or an
              interjection (a silent hold has no event); the emotion seat once per participant - the speaker on their
-             moves and thoughts, each listener on their own rows'. Under --stub the actor's own tags stand in and no
-             feeling is read, as before.
+             moves and thoughts, each listener on their own rows', each one present who only took it in on what they saw
+             (scripts/scene_heard.py, gate listener-read). Under --stub the actor's own tags stand in; no feeling is read.
   the rows   committed in order. Every row before the last commits decay-only - the room's minutes pass over everyone
              present, its own actor included - with a manifest note naming the window. The last row carries every
              act's Event and bond moves, and every participant's receipt, binds, attitude, wounds, scars and arc: its
@@ -14,8 +14,7 @@ hands them to `close` when someone else makes a move or the scene ends. Here:
              manifest's `window.reads`, which is what `mood_fold.replay` re-derives them from.
 TELLS are the actor's, from the scene brief (gate tells-direction): a row carries the `tell` its actor wrote and the
 commit keeps it; no seat marks one, so every window is read once, at its end.
-Inside a window the mood does not move: Macbeth holds his tongue on the mood he had before her first paragraph. That
-is the design's stated cost (s5), the same approximation the clock already makes within a beat.
+Inside a window the mood does not move - the design's stated cost (s5), the clock's own approximation within a beat.
 """
 from src.engine.scene import resolve_subject, referenced_ids
 from src.engine import acquisition, arc, attachments, bond_rest, bonds, claims, rungs, toward, wound
@@ -38,6 +37,7 @@ from src.engine.state import appraise, decay, receive
 
 _bond_moves = _floor.bond_moves
 import appraiser
+import scene_heard as _heard
 import provider as _provider
 
 SILENCE = {"type": "mundane", "summary": "", "dimensions": {}, "durability": "transient"}
@@ -136,18 +136,17 @@ def _seen(ctx, who, window=()):
 
 
 def _feel(ctx, who, rows, at, present, window=()):
-    """One participant's emotion read over their rows, in the window as they saw it -> {readings, lands, failed,
-    notes, extra, caught}."""
+    """One participant's feeling, in the window as they saw it; with no rows, one who only took it in (scene_heard)."""
     out = {"readings": [], "lands": None, "failed": {}, "notes": [], "extra": [], "caught": []}
     if ctx["stub"]:
         return out
-    last = rows[-1]
-    moment, out["caught"] = _seen(ctx, who, window)
+    out["moment"], out["caught"] = _seen(ctx, who, window)
+    action, thought, took, percepts = _heard.inputs(ctx, who, rows, window, out["caught"], _text)
     try:
         rd, lands, _conf, missing = appraiser.read_emotion(
-            _text(rows, "action"), _text(rows, "thought"), _provider.seat_model(), led=ctx["led"], run_id=ctx["run_id"],
-            turn=at, scene=ctx["cfg"].get("name"), moment=moment, present=list(present), me=who,
-            percepts=last["packet"]["volatile"]["percepts"], extra=out["extra"])
+            action, thought, _provider.seat_model(), led=ctx["led"], run_id=ctx["run_id"],
+            turn=at, scene=ctx["cfg"].get("name"), moment=out["moment"], present=list(present), me=who,
+            percepts=percepts, extra=out["extra"], took_in=took)
         out["readings"], out["lands"] = list(rd), lands
         if missing:
             out["notes"].append("concepts the registry lacks: %s" % ", ".join(missing))
@@ -349,7 +348,9 @@ def close(ctx, rows):
     moves = [r for r in rows if r["who"] == spk and not r["silent"]]
     acts = ([_act(ctx, spk, moves, at)] if moves else []) + [_act(ctx, r["who"], [r], at) for r in rows
                                                              if r["who"] != spk and not r["silent"]]
+    parts += _heard.listeners(ctx, rows, present, parts)   # + each one who only took it in (gate listener-read)
     feel = {x: _feel(ctx, x, [r for r in rows if r["who"] == x], at, present, rows) for x in parts}
+    mine = {x: [r for r in rows if r["who"] == x] or [_heard.stand_in(last, x, feel[x])] for x in parts}
     for act in acts:
         _apply(ctx, act)
         _mark(act)
@@ -359,7 +360,7 @@ def close(ctx, rows):
     own = {a["who"]: a for a in sorted(acts, key=lambda a: a["rows"][-1]["turn"])}   # each one's last act
     for x in parts:
         if x not in own:                                 # a listener who only held: read against the silence
-            own[x] = _apply(ctx, _silence([r for r in rows if r["who"] == x][-1]))
+            own[x] = _apply(ctx, _silence(mine[x][-1]))
     row_act = next((a for a in acts if any(r is last for r in a["rows"])), None)
     if row_act is None:
         row_act = own[R] if own[R]["silent"] and own[R]["rows"][-1] is last else _apply(ctx, _silence(last))
@@ -401,7 +402,7 @@ def close(ctx, rows):
                    for p, d in toward.observe(act["applied"].get("dimensions") or {}).items()]
     wds, mints, binds = [], {}, {}
     for x in parts:
-        a, ap, rs, xrow = actors[x], own[x]["applied"], feel[x]["readings"], [r for r in rows if r["who"] == x][-1]
+        a, ap, rs, xrow = actors[x], own[x]["applied"], feel[x]["readings"], mine[x][-1]
         _durable = str(ap.get("durability") or "").lower() == "durable"
         toward_deltas += [TowardDelta(perceiver=x, target=str(w), primary=p, delta=d, source=_text([xrow], "action")[:200])
                           for w, p, d in (toward.observe_readings(rs, me=x, profile=a["profile"], durable=_durable)

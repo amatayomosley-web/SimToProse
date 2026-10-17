@@ -80,7 +80,7 @@ def test_the_emotion_seat_is_blind_to_what_it_must_not_see():
                           "rung", "direction", "tags", "packet"}
     check("no-stored-state-parameter", not forbidden, sorted(forbidden))
     check("its-parameters-are-the-beat-and-the-room",
-          params == {"action", "thought", "moment", "present", "me"}, sorted(params))
+          params == {"action", "thought", "moment", "present", "me", "took_in"}, sorted(params))   # took_in: gate listener-read
 
 
 def test_the_event_seat_is_blind_to_the_interior():

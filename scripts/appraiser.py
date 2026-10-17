@@ -252,7 +252,7 @@ THE RULES:
    is mundane. A type outside the list is refused and the beat is rated by someone else."""
 
 
-def build_emotion_messages(action, thought, moment="", present=None, me=""):
+def build_emotion_messages(action, thought, moment="", present=None, me="", took_in=None):
     """The EMOTION seat's prompt. Sees {action, thought}, the moment, who is present, the ladders.
 
     WHAT IT IS DELIBERATELY NOT GIVEN, and each omission is a defect it would otherwise cause:
@@ -275,8 +275,14 @@ def build_emotion_messages(action, thought, moment="", present=None, me=""):
     lines.append("PRESENT: %s" % who)
     if me:
         lines.append("THE PERSON WHOSE BEAT THIS IS: %s" % me)
-    lines.append("WHAT THEY DID:\n%s" % (action or "").strip())
-    lines.append("WHAT THEY THOUGHT:\n%s" % (thought or "").strip())
+    if took_in is not None:
+        # THE ONE WHO DID NOT ACT (gate listener-read, showrunner ruling 2026-10-17): a person refused feels it whether
+        # or not they spoke. What arose in them is read from what they took in, against what they were thinking.
+        lines.append("THEY DID NOT ACT IN THIS BEAT. WHAT THEY TOOK IN, as they saw it:\n%s" % (took_in or "").strip())
+        lines.append("WHAT THEY WERE THINKING BEFORE IT:\n%s" % (thought or "").strip())
+    else:
+        lines.append("WHAT THEY DID:\n%s" % (action or "").strip())
+        lines.append("WHAT THEY THOUGHT:\n%s" % (thought or "").strip())
     return [{"role": "system", "content": _EMOTION_SYSTEM % (ladders(), _concepts.menu())},
             {"role": "user", "content": "\n\n".join(lines)}]
 
@@ -454,11 +460,12 @@ def missing_concepts(raw):
 
 
 def read_emotion(action, thought, model, led=None, run_id=None, turn=None, scene=None,
-                 moment="", present=None, me="", percepts=None, extra=None):
+                 moment="", present=None, me="", percepts=None, extra=None, took_in=None):
     """The EMOTION seat, live: prompt -> the frontier model (scripts/provider.py) -> parsed.
-    -> (readings, lands_on, confidence, missing) ; raises RecordError on a refused reply."""
+    -> (readings, lands_on, confidence, missing) ; raises RecordError on a refused reply. `took_in`: a listener who did
+    not act, read on what they took in (gate listener-read)."""
     import provider as _provider
-    raw = _provider.call(build_emotion_messages(action, thought, moment=moment, present=present, me=me),
+    raw = _provider.call(build_emotion_messages(action, thought, moment=moment, present=present, me=me, took_in=took_in),
                          model, "appraise-emotion", led=led, run_id=run_id, turn=turn, scene=scene)
     readings, lands, conf = parse_emotion_reply(raw, percepts=percepts, present=present, me=me, extra=extra)
     return readings, lands, conf, missing_concepts(raw)
