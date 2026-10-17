@@ -377,6 +377,29 @@ def test_the_round_asks_keeps_and_settles():
           and floor.Round("a").skipped(["a", "b"]) == ("speaker", "b", {}))
 
 
+def test_a_held_speech_asks_nobody_until_it_ends():
+    """gate placements (design v2 s3 round step 1): the director holds the floor open for one speaker - while they
+    keep, they are called again and nobody is asked; their yield ends the hold, sets `placed`, and the round runs."""
+    hi, ab = floor.INTERRUPT_THRESHOLD + 0.01, ["a", "b"]
+    h = floor.Round("a", held="a")
+    check("held-the-opening-call-carries-hold_open", h.call == ("speaker", "a", {"hold_open": True}))
+    check("held-a-keep-re-calls-the-speaker-and-asks-nobody,-however-moved",
+          h.after_move("a", "keep", {"b": (hi, 0, 0)}, ab) == ("speaker", "a", {"resumed": True, "hold_open": True})
+          and not h.placed)
+    check("held-the-yield-ends-the-hold,-places,-and-asks-the-listener",
+          h.after_move("a", "yield", {"b": (hi, 0, 0)}, ab) == ("listener", "b", {}) and h.placed and h.held is None)
+    h.placed = False
+    check("held-once:-a-later-keep-is-an-ordinary-keep", h.after_move("a", "keep", {"b": (hi, 0, 0)}, ab)
+          == ("listener", "b", {"interrupt": True}))
+    t = floor.Round("a", held="b")
+    check("held-not-the-opener:-the-opener's-call-is-plain", t.call == ("speaker", "a", {}))
+    t.after_move("a", "yield", {"b": (0.2, 0, 0)}, ab)
+    check("held-their-take-begins-the-speech", t.after_move("b", "yield", {"a": (hi, 0, 0)}, ab)
+          == ("speaker", "b", {"hold_open": True}))
+    check("no-hold:-a-plain-round-is-unchanged", floor.Round("a").call == ("speaker", "a", {})
+          and floor.Round("a").after_move("a", "keep", {"b": (0.2, 0, 0)}, ab) == ("listener", "b", {}))
+
+
 def test_settled_is_four_nothing_new_moves_and_no_heat():
     """gate settled-stop (design v1 s3 rule 3, v2 s3): a move is nothing new when every content word it SAID was
     already said by that speaker this scene, and it is neither a question nor a cut-in; four in a row, with no

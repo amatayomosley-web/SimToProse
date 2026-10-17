@@ -253,13 +253,22 @@ class Round:
     `after_move` takes the urges of every other present listener for the move just made (`next_speaker`'s map);
     `after_listener` takes an asked listener's interject or hold. A take is a move: the caller reports it through
     `after_move`, as a yield (the line was the move; whether the taker has more is asked when nobody takes it back).
+
+    `held` (design v2 s3 round step 1, gate placements): the speaker the director holds the floor open for. Their
+    speaker calls carry `hold_open`; while they keep, they are called again and nobody is asked; a take of theirs
+    begins the speech the same way. Their first yield ends the hold for the scene and sets `placed` - the caller's
+    cue to place the director's reaction on that row, and to clear it.
     Deterministic, holds no model."""
 
-    def __init__(self, opener):
+    def __init__(self, opener, held=None):
         self.holder, self.kept, self.queue, self.urges, self.forced = opener, False, [], {}, None
-        self.call = ("speaker", opener, {})
+        self.held, self.placed = held, False
+        self._go(("speaker", opener, {}))
 
     def _go(self, call):
+        stance, who, flags = call
+        if self.held is not None and stance == "speaker" and who == self.held:
+            call = (stance, who, dict(flags, hold_open=True))
         self.call = call
         return call
 
@@ -272,6 +281,12 @@ class Round:
         return self._go(("listener", who, {"interrupt": True} if cut else {}))
 
     def after_move(self, who, word, urges, present):
+        if self.held is not None and who == self.held:
+            took = self.call[0] == "listener"
+            if who in present and (word == "keep" or took):     # held open: nobody is asked, the speech goes on
+                self.holder, self.kept, self.forced, self.queue = who, True, None, []
+                return self._go(("speaker", who, {} if took else {"resumed": True}))
+            self.held, self.placed = None, True                 # the speech is over: the room reacts, the floor runs
         self.holder, self.kept, self.forced = who, word == "keep", None
         self.urges = {k: v for k, v in urges.items() if k in present and k != who}
         self.queue = ask_order(self.urges)

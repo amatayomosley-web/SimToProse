@@ -212,7 +212,7 @@ def _deferred(ctx, row, win):
         action=str(row["reply"]["action"]), floor=row["word"], addressee=str(row["reply"].get("addressee") or ""),
         tell=str(row["reply"].get("tell") or ""),
         tags=tags, affect=dict(dec[who]), condition=cond(who), validation=validation,
-        events=ctx["law_events"](row["reply"], who, row["turn"]),
+        events=ctx["law_events"](row["reply"], who, row["turn"]) + row.get("placed", []),   # the director's (placements)
         manifest=dict(row["packet"]["manifest"], window=dict(win),
                       decay={"minutes": ctx["per_beat"], "here": sorted(here), "bystanders": sorted(c for c in dec if c != who)}),
         recall=row["packet"]["recall_refs"], utterances=claims.spoken(str(row["reply"]["action"])),
@@ -442,7 +442,8 @@ def close(ctx, rows):
         floor=last["word"], addressee=str(last["reply"].get("addressee") or ""), tell=str(last["reply"].get("tell") or ""),
         tags=row_act["tags"],
         affect=dict(actors[R]["affect"]), condition=cond(R), validation=validation,
-        events=ctx["law_events"](last["reply"], R, at) + [_event(a) for a in acts if a is not row_act] + [_event(row_act)],
+        events=ctx["law_events"](last["reply"], R, at) + [_event(a) for a in acts if a is not row_act] + [_event(row_act)]
+               + last.get("placed", []),
         manifest=dict(last["packet"]["manifest"], window=dict(win, reads={x: own[x]["applied"] for x in parts},
                                                                      **_caught(feel)),
                       decay={"minutes": ctx["per_beat"], "here": sorted(here), "bystanders": sorted(by)}),

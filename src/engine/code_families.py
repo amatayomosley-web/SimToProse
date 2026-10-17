@@ -441,6 +441,7 @@ _SCENE_F = {
     "SCENE_CONDITION_NOT_AN_OBJECT":  "the condition state (energy, allostatic load, ...) handed to assembly is not a dict",
     "SCENE_DIRECTED_TO_UNKNOWN":      "a scene file's cast entry aims its character's moves (`to`) at an id that is blank, the character's own, or not in the cast, so there is no one in the room to direct the move to",
     "SCENE_TELLS_INVALID":            "a scene file's cast entry gives a character tells that are not a list of non-blank lines, or states tells in a book whose tells system is off, so nothing would show them",
+    "SCENE_HOLD_OPEN_UNKNOWN":        "a scene file holds the floor open (`hold_open`) for a speaker who is blank or not in the cast, so nobody in the room could make the speech the room is told to hear out",
     "SCENE_FACTS_NO_ACTOR":           "the POV fact filter was asked whether a beat was witnessed without being told by WHOM; an empty actor would match nothing or everything and either answer is a leak",
     "SCENE_FACTS_ROWS_NOT_A_LIST":     "the POV fact filter was handed something other than a list of fact rows, so no beat could be attributed to anyone",
     "SCENE_SLICE_EVENT_MISSING":      "a scene slice carries no event dict, so the pipeline has nothing for the character to perceive this turn",

@@ -565,6 +565,14 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
     speaker = max(open_sal, key=open_sal.get)
     print("\n  opener by salience: %s  (%s)\n" % (
         names.get(speaker, speaker), "  ".join("%s=%.3f" % (k, v) for k, v in open_sal.items())))
+    # THE DIRECTOR'S PLACEMENT (design v2 s2 rule 4, s3; gate placements): one speech the room hears out, checked
+    # against the cast by the scene file's contract. Placed at the opening, its speaker opens the scene.
+    _hold = cfg.get("hold_open") or {}
+    _held = str(_hold.get("speaker") or "")
+    _held = _held if _held in ids else None
+    if _held and _hold.get("when") == "opening":
+        speaker = _held
+        print("  opener by the director's hold: %s\n" % names.get(speaker, speaker))
 
     # WHO THE MOMENT IS ABOUT, carried across beats. `levers._edge_matches` reads `ctx["target"]`
     # for a `target_edge` clause — one of the two edge-clause kinds decision-engine.md documents as
@@ -578,7 +586,7 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
     # who makes a move and says whether they keep the floor or yield it, or a listener asked after a move, who takes
     # it, puts in a word, or holds. `budget` counts committed rows; a call that commits nothing (a listener's empty
     # hold) is free, so the calls are bounded separately, at one per present person per row.
-    rnd = _floor.Round(speaker)
+    rnd = _floor.Round(speaker, held=_held)
     committed = 0
     # WHOM THE DIRECTION AIMS EACH CHARACTER AT (gate directed-addressee): the scene file's `cast[].to`, checked against
     # the cast by its contract before the run began. Absent, the actor chooses, as before.
@@ -852,6 +860,14 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
             nxt, urges, ended_because = _floor.next_speaker(
                 actors, present, speaker, applied, target, tgroup, _addr_floor, committed, lands_on=_lands)
             _next = rnd.after_move(speaker, word if stance == "speaker" else "yield", urges, present)
+            if rnd.placed:                            # the held speech ended: the director's reaction rides its row
+                rnd.placed = False
+                _room = " ".join(str(_hold.get("reaction") or "").split())
+                if _room:                             # circumstance, not a turn: an Event with no actor, on that row
+                    log[-1]["room"] = _room
+                    window[-1]["placed"] = [Event(type="placed-reaction", payload={"text": _room},
+                                                  location=cfg.get("location") or None)]
+                    print("   [the room: %s]" % _room)
         else:
             _next = rnd.after_listener(word, present)
         ended_because = _next if isinstance(_next, str) else None
@@ -1022,7 +1038,7 @@ def main():
     ap.add_argument("--model", default=DEFAULT_MODEL)
     ap.add_argument("--profile", default=None,
                     help="the session profile (scripts/profile.py): the actor's model and the seats' backend")
-    ap.add_argument("--budget", type=int, default=14, help="max beats")
+    ap.add_argument("--budget", type=int, default=None, help="max beats; absent, the scene file's `moves`, else 14")
     ap.add_argument("--seed-base", type=int, default=0, dest="seed_base",
                     help="sampling seed base; per-beat seed = base*1000 + beat. Vary it (0..K-1) to draw a "
                          "REAL K-sample: at a fixed base two runs of one cfg reproduce byte-identically. "
@@ -1373,7 +1389,8 @@ def main():
     # never said so.
     print(integrity.startup_line(led.con))
 
-    next_turn = run_scene(world, chars, scene_cfg, led, run_id, start_turn, args.model, args.stub, args.budget,
+    budget = args.budget if args.budget is not None else int(scene_cfg.get("moves") or 14)   # gate placements
+    next_turn = run_scene(world, chars, scene_cfg, led, run_id, start_turn, args.model, args.stub, budget,
                           think=args.think, seed_base=args.seed_base,
                           prompt_only=args.prompt_only, supplied=supplied, direction=_direction_mark)
     if args.prompt_only:                                # outbound half emitted; nothing was acted

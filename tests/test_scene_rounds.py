@@ -32,7 +32,7 @@ def check(name, ok, detail=""):
         FAILS.append(name)
 
 
-def _book(tmp, who, to=None):
+def _book(tmp, who, to=None, scene=None):
     book = os.path.join(tmp, "The Rock")
     for sub in ("world", "characters", "people"):
         os.makedirs(os.path.join(book, sub), exist_ok=True)
@@ -49,10 +49,10 @@ def _book(tmp, who, to=None):
             fh.write("---\ntype: character\nid: %s\n---\n# %s\n\n```json\n%s\n```\n" % (name, name, json.dumps(eng, indent=1)))
     cfg = os.path.join(tmp, "gale.json")
     with open(cfg, "w", encoding="utf-8") as fh:
-        json.dump({"name": "gale", "at": {"day": 1, "time": "21:00"}, "lasts": "1h",
+        json.dump(dict({"name": "gale", "at": {"day": 1, "time": "21:00"}, "lasts": "1h",
                    "situation": "The keepers wait out the gale in the lamp room.",
                    "cast": [dict({"id": i, "drive": d}, **({"to": (to or {})[i]} if i in (to or {}) else {}))
-                            for _n, i, d in cast]}, fh)
+                            for _n, i, d in cast]}, **(scene or {})), fh)
     return book, cfg
 
 
@@ -93,14 +93,15 @@ def _actor(script, calls):
     return fake
 
 
-def _run(tmp, who, script, budget, stub=True, to=None, extra=()):
+def _run(tmp, who, script, budget, stub=True, to=None, extra=(), keys=None):
     import scene
-    book, cfg = _book(tmp, who, to)
+    book, cfg = _book(tmp, who, to, keys)
     calls, saved = [], scene.faithful_turn
     scene.faithful_turn = _actor(script, calls)
     try:
         if stub:
-            out, exited = _drive("scene", book, ["--scene", cfg, "--budget", str(budget), "--stub"] + list(extra))
+            out, exited = _drive("scene", book, ["--scene", cfg, "--stub"] + ([] if budget is None else ["--budget", str(budget)])
+                                 + list(extra))
         else:
             seat_calls = []
             with _seats({"appraise-event": [EVENT], "appraise-emotion": [EMOTION]}, seat_calls):
@@ -375,6 +376,38 @@ def test_each_actor_keeps_their_own_composer_selection(tmp):
     ids = {w: {k for x, k in KEPT if x == w} for w in ("mira", "ada")}
     check("each-actor's-calls-carry-one-keep-of-their-own", exited is None and all(
         len(v) == 1 and None not in v for v in ids.values()) and ids["mira"] != ids["ada"], (exited, KEPT))
+
+
+def test_the_director_holds_the_floor_open(tmp):
+    """Gate placements (design v2 s2 rule 4, s3): a scene file's hold_open opens on its speaker, who is called again
+    while they keep and nobody is asked; on their yield the room's reaction is shown to the next actor and kept as an
+    Event on that row; `moves` is the ceiling when no --budget is given."""
+    def script(who, stance, flags, n, steer):
+        if stance == "speaker" and flags.get("hold_open"):
+            return ("%s goes on, part %d." % (who.title(), n), "-", "keep" if n < 2 else "yield", _other(who))
+        return ("%s answers, %d." % (who.title(), n), "-", "take" if stance == "listener" else "yield", _other(who))
+    plain = _run(os.path.join(tmp, "plain"), ("mira", "ada"), script, 2)[2]
+    held = _other(plain[0][0])                        # whoever salience would NOT open with
+    room = "The lamp gutters and the gale drops."
+    out, exited, calls, rows = _run(os.path.join(tmp, "held"), ("mira", "ada"), script, None,
+                                    keys={"moves": 5, "hold_open": {"speaker": held, "when": "opening", "reaction": room}})
+    check("the-held-speaker-opens-and-is-called-three-times-with-nobody-asked",
+          exited is None and [c[:2] for c in calls[:3]] == [(held, "speaker")] * 3
+          and all(c[2].get("hold_open") for c in calls[:3]), (exited, [c[:3] for c in calls], out[-400:]))
+    check("...then-the-listener-is-asked,-and-reads-the-room", len(calls) > 3 and calls[3][:2] == (_other(held), "listener")
+          and "The room: %s" % room in calls[3][3], calls[3][3] if len(calls) > 3 else calls)
+    check("...the-hold-ends-with-the-speech", not any(c[2].get("hold_open") for c in calls[3:]), [c[:3] for c in calls])
+    check("...moves-is-the-ceiling-without---budget", len(rows) == 5, len(rows))
+    con = _db(os.path.join(tmp, "held", "The Rock"))
+    placed = [(r["turn"], r["actor"], json.loads(r["payload"])) for r in con.execute(
+        "SELECT turn, actor, payload FROM events WHERE type = 'placed-reaction'")]
+    turns = [r["turn"] for r in con.execute("SELECT turn FROM turns ORDER BY turn")]
+    check("...and-the-reaction-is-an-Event-with-no-actor-on-the-yielding-row",
+          len(turns) == 5 and placed == [(turns[2], None, {"text": room})], placed)
+    out, exited, calls, rows = _run(os.path.join(tmp, "bad"), ("mira", "ada"), script, 2,
+                                    keys={"hold_open": {"speaker": "tomas"}})
+    check("a-hold_open-on-someone-not-in-the-cast-refuses-the-run-by-name",
+          "SCENE_HOLD_OPEN_UNKNOWN" in "%s%s" % (exited, out) and not rows and not calls, (exited, out[-300:]))
 
 
 def main():

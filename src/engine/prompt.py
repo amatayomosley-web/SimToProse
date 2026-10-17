@@ -379,4 +379,8 @@ def _exchange_line(b, names, me):
         head += ", to %s" % ("you" if me is not None and b["addressee"] == me else names.get(b["addressee"], b["addressee"]))
     if b["floor"] == "interject":
         head += " (puts in)"
-    return "%s: \"%s\"" % (head, said) if said.strip() else "%s, saying nothing" % head
+    line = "%s: \"%s\"" % (head, said) if said.strip() else "%s, saying nothing" % head
+    # THE DIRECTOR'S PLACED REACTION (design v2 s2, gate placements): what the room did when this speech ended -
+    # circumstance, not a turn, so it rides the row it followed
+    room = " ".join(str(b.get("room") or "").split())
+    return "%s\nThe room: %s" % (line, room) if room else line

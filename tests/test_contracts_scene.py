@@ -103,6 +103,25 @@ def refused():
         cfg = copy.deepcopy(SCENE)
         del cfg[key]
         check("%s-is-required" % key, errors_at(cfg, key))
+    placements()
+
+
+def placements():
+    """gate placements (design v2 s3, s7 D): the director's hold_open and the scene's moves ceiling."""
+    cfg = dict(copy.deepcopy(SCENE), moves=12,
+               hold_open={"speaker": "ned", "when": "opening", "reaction": "The tent goes quiet."})
+    check("placements:-a-held-speech-and-a-ceiling-are-clean", not run(cfg), run(cfg))
+    for value in (0, 31, 2.5, True, "twelve"):
+        f = errors_at(dict(copy.deepcopy(SCENE), moves=value), "moves")
+        check("placements:-moves=%r-is-refused" % (value,), f, run(dict(copy.deepcopy(SCENE), moves=value)))
+    for who in ("wren", "", None):
+        f = errors_at(dict(copy.deepcopy(SCENE), hold_open={"speaker": who}), "hold_open")
+        check("placements:-hold_open-speaker=%r-refused-by-name" % (who,),
+              f and "SCENE_HOLD_OPEN_UNKNOWN" in f[0]["message"], f)
+    f = errors_at(dict(copy.deepcopy(SCENE), hold_open={"speaker": "pru", "when": "midway"}), "hold_open")
+    check("placements:-a-when-other-than-opening-is-refused", f and "opening" in f[0]["message"], f)
+    f = errors_at(dict(copy.deepcopy(SCENE), hold_open={"speaker": "pru", "reaction": 3}), "hold_open.reaction")
+    check("placements:-a-reaction-that-is-not-text-is-refused", f, f)
 
 
 def retired_and_unread():

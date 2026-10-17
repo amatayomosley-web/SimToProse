@@ -55,6 +55,28 @@ def _member(c, cfg, ctx):
                               "- nothing would show them" % me)
 
 
+MOVES_MAX = 30                                     # the ceiling a scene file may set (design v2 s3: "at most 30")
+HOLD_WHEN = ("opening",)                          # when a held-open speech begins; absent, at the speaker's first move
+
+
+def _moves(n, cfg, ctx):
+    """How many rows the scene commits at most (design v2 s3, gate placements): a whole number, 1 to MOVES_MAX."""
+    if isinstance(n, bool) or not isinstance(n, (int, float)) or n != int(n) or not 1 <= n <= MOVES_MAX:
+        _refuse("must be a whole number of moves from 1 to %d, got %r" % (MOVES_MAX, n))
+
+
+def _hold_open(h, cfg, ctx):
+    """The director's placement (design v2 s2 rule 4, gate placements): whose speech the room hears out, and the
+    room's reaction when it ends. The speaker is a cast id; `when` is opening or absent; `reaction` is text."""
+    who = str(h.get("speaker") or "").strip()
+    if not who or who not in _cast_ids(cfg):
+        raise RecordError("SCENE_HOLD_OPEN_UNKNOWN", "hold_open: speaker %r must be the id of a member of the cast (%s)"
+                          % (h.get("speaker"), ", ".join(_cast_ids(cfg)) or "nobody"))
+    if "when" in h and h.get("when") not in HOLD_WHEN:
+        _refuse("hold_open.when %r is not one of %s - absent, the hold begins at the speaker's first move"
+                % (h.get("when"), ", ".join(HOLD_WHEN)))
+
+
 def _at(at, cfg, ctx):
     from .clock import parse_at
     parse_at(at)
@@ -181,6 +203,15 @@ SCENE = (
     F("attachments[].entity", "text", reader="scene.run_scene", doc="loc.<id> or grp.<tag>"),
     F("attachments[].relation", "text", reader="attachments.RELATION_HOLDS"),
     F("attachments[].note", "text", reader="scene.run_scene"),
+    F("moves", "number", check=_moves, reader="scene.main (the ceiling; --budget overrides it)",
+      doc="at most how many rows the scene commits, 1 to 30; absent, 14 (--budget overrides either)"),
+    F("hold_open", "map", check=_hold_open, reader="scene.run_scene; floor.Round",
+      doc="the director holds the floor open for one speech: nobody is asked while its speaker keeps the floor"),
+    F("hold_open.speaker", "text", reader="scene.run_scene", doc="the cast id whose speech the room hears out"),
+    F("hold_open.when", "text", reader="scene.run_scene",
+      doc="opening: the speech opens the scene; absent, the hold begins at their first move"),
+    F("hold_open.reaction", "text", reader="scene.run_scene; prompt.compose_event; scene_window.close",
+      doc="what the room does when the speech ends - shown to the next actors as 'The room:', kept as an Event"),
     F("condition", "any", check=_condition, reader="condition.apply_declared; mood_fold",
       doc="how worn someone arrives: {char, energy?, stress?, gap?} in words"),
 )
