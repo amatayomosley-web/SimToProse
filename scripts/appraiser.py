@@ -54,7 +54,6 @@ from src.engine.severity import WORDS as SEVERITY_WORDS      # noqa: E402
 from src.engine import severity as _severity                    # noqa: E402  (the act ladders: bond-arithmetic.md s2)
 from src.engine import bonds as _bonds                          # noqa: E402  (observations_from_showed: the seam)
 from src.engine import body as _body                            # noqa: E402  (the exertion ladder, gate body-exertion)
-from src.engine import tells as _tells                          # noqa: E402  (the tells question, gate tells)
 from src.engine import injuries as _injuries                    # noqa: E402  (the injuries question, gate injuries)
 from src.engine import replies as _replies                      # noqa: E402  (what a reply carried beyond its contract)
 from src.engine.consolidation import ACTOR_TAG_TYPES           # noqa: E402  (the closed `type` vocabulary, derived beside CATALOG)
@@ -305,7 +304,7 @@ exertion - from none to the most:
 
 
 def build_event_messages(action, moment="", present=None, actor="", target="", referenced=None, attachments=None,
-                         exertion=False, tells=False, injuries=False):
+                         exertion=False, injuries=False):
     """The EVENT seat's prompt. Sees the observable act ONLY — never the thought.
 
     THE OMISSION IS THE CONTRACT. `bonds.act_from_tags` turns these dimensions into what a WITNESS
@@ -332,7 +331,7 @@ def build_event_messages(action, moment="", present=None, actor="", target="", r
     lines.append("WHAT HAPPENED:\n%s" % (action or "").strip())
     # EXERTION IS ASKED ONLY WHEN THE BOOK RUNS `body` (gate body-exertion): appended, so the prompt of every
     # other book - and the sha256 key of every recorded seat reply - is byte-identical.
-    _ask = (((_EXERTION_BLOCK % _body.rubric()) if exertion else "") + (_tells.RUBRIC if tells else "")
+    _ask = (((_EXERTION_BLOCK % _body.rubric()) if exertion else "")
             + ((_injuries.RUBRIC % _injuries.rubric()) if injuries else ""))
     return [{"role": "system",
              "content": _EVENT_SYSTEM % ("\n".join("  %s" % d for d in DIMENSIONS),
@@ -467,17 +466,17 @@ def read_emotion(action, thought, model, led=None, run_id=None, turn=None, scene
 
 def read_event(action, model, led=None, run_id=None, turn=None, scene=None,
                moment="", present=None, actor="", target="", referenced=None, attachments=None, exertion=False,
-               tells=False, injuries=False, extra=None):
+               injuries=False, extra=None):
     """The EVENT seat, live: prompt -> the frontier model -> the tags dict the twelve dimension
     consumers already read, plus the bond tier's `object` + `showed`. Raises RecordError on a
     refused reply. The object lists are what the prompt showed; the parser refuses anything else."""
     import provider as _provider
     raw = _provider.call(build_event_messages(action, moment=moment, present=present, actor=actor, target=target,
                                               referenced=referenced, attachments=attachments, exertion=exertion,
-                                              tells=tells, injuries=injuries),
+                                              injuries=injuries),
                          model, "appraise-event", led=led, run_id=run_id, turn=turn, scene=scene)
     objects = list(present or []) + [r for r in (referenced or []) if r not in (present or [])] + list(attachments or [])
-    return parse_event_reply(raw, objects=objects, action=action, exertion=exertion, tells=tells,
+    return parse_event_reply(raw, objects=objects, action=action, exertion=exertion,
                              injuries=injuries, present=present, actor=actor, extra=extra)
 
 
@@ -504,7 +503,7 @@ def _norm_span(s):
     return " ".join(str(s or "").split()).lower()
 
 
-def parse_event_reply(raw, objects=None, action=None, exertion=False, tells=False, injuries=False, present=None,
+def parse_event_reply(raw, objects=None, action=None, exertion=False, injuries=False, present=None,
                       actor="", extra=None):
     """A raw event-seat reply -> the tags dict the twelve dimension consumers already read.
 
@@ -726,23 +725,8 @@ def parse_event_reply(raw, objects=None, action=None, exertion=False, tells=Fals
                 raise RecordError("APPRAISER_FACT_NOT_IN_ACTION",
                                   "the event seat quoted %r for exertion, and the action does not contain it" % span)
             out["exertion"] = word
-    # TELLS (gate tells) - read only when asked: at most three quotes of signs only a sharp eye catches, each
-    # found in the action as `showed` is. Omitted is none. Not asked, a stray key is never read (it goes to `extra`).
-    if tells:
-        raw_t = obj.get("tells") or []
-        if not isinstance(raw_t, list) or len(raw_t) > _tells.MAX_PER_BEAT or not all(isinstance(t, dict) for t in raw_t):
-            raise RecordError("APPRAISER_TELLS_SHAPE", "the event seat's tells %r is not a list of at most %d {quote}"
-                              % (raw_t, _tells.MAX_PER_BEAT))
-        quotes = []
-        for t in raw_t:
-            span = str(t.get("quote") or "").strip()
-            if not span:
-                raise RecordError("APPRAISER_QUOTE_MISSING", "the event seat named a tell with no quote")
-            if action is not None and _norm_span(span) not in _norm_span(action):
-                raise RecordError("APPRAISER_FACT_NOT_IN_ACTION",
-                                  "the event seat quoted %r as a tell, and the action does not contain it" % span)
-            quotes.append(span)
-        out["tells"] = quotes
+    # TELLS are not the reader's (gate tells-direction): the actor writes its own from the scene brief, so a `tells`
+    # block in a reply is extra, never read
     # INJURIES (gate injuries) - read only when asked: at most three {who, quote, severity}, the one hurt present
     # or the one who acted, each quote found in the action as `showed` is. Omitted is none. Not asked, never read.
     if injuries:
@@ -750,7 +734,7 @@ def parse_event_reply(raw, objects=None, action=None, exertion=False, tells=Fals
     # WHAT THE REPLY CARRIED BEYOND ITS QUESTIONS (gate seat-replies) - named for the record, never read, never
     # refused; reached only by a reply every check above accepted
     if isinstance(extra, list):
-        extra.extend(_replies.event_extra(obj, exertion=exertion, tells=tells, injuries=injuries))
+        extra.extend(_replies.event_extra(obj, exertion=exertion, injuries=injuries))
     return out
 
 

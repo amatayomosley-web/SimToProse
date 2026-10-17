@@ -70,6 +70,7 @@ CREATE TABLE IF NOT EXISTS turns (
     committed_at TEXT    NOT NULL,
     floor        TEXT    NOT NULL DEFAULT '',   -- v36: records.FLOORS or '' (none) - what the move did to the floor
     addressee    TEXT    NOT NULL DEFAULT '',   -- v36: whom the move was said TO ('' : the room, or no one)
+    tell         TEXT    NOT NULL DEFAULT '',   -- v37: the sign the actor let show, in its own words ('' : none)
     PRIMARY KEY (run_id, turn, actor)
 );
 

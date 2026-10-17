@@ -12,7 +12,8 @@ is spawned at its tier, and subagent seats are answered by its loop while the sc
    placement, write the scene cfg to `<book>/scenes/<name>.json` in this shape (the full field guide is
    `docs/authoring/BLUEPRINT-scene.md`; open it only if a field below does not cover what the director placed).
    **What the author directed is copied VERBATIM:** every member of the direction's `cast` with each field it gives
-   (`to` - whom that character's moves are aimed at - and `drive`), and its `at`. The director may add (a drive the
+   (`to` - whom that character's moves are aimed at; `tells` - what they give away without meaning to, a list of
+   the author's lines, shown only to a sharp eye when the book runs `tells`; and `drive`), and its `at`. The director may add (a drive the
    direction left open, props, a situation), never drop or change a directed value; the run refuses a cfg that does:
    ```json
    {"name": "scene_01_keeping_the_light", "at": {"day": 1, "time": "21:00"}, "lasts": "40m", "pov": "mira",
@@ -20,7 +21,8 @@ is spawned at its tier, and subagent seats are answered by its loop while the sc
     "situation": "Full dark on day one of storm season; Mira is alone in the lamp room while the gale builds...",
     "props": ["the wick guttering each time the draft catches it", "the oil fount at hand, wanting a trim"],
     "cast": [{"id": "mira", "drive": "get the flame back to full before the next gust finds it", "to": "tomas"},
-             {"id": "tomas", "drive": "keep Mira from climbing the gallery in this wind"}],
+             {"id": "tomas", "drive": "keep Mira from climbing the gallery in this wind",
+              "tells": ["he rubs the old break in his wrist when he is lying"]}],
     "opening_tags": {"dimensions": {"threat": "moderate"}}}
    ```
    `python scripts/lint_scene.py` is not needed; the run below refuses a malformed cfg by name.

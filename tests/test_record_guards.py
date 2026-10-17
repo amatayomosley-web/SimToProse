@@ -75,6 +75,7 @@ GUARD_HASHES = {34: "43066b2019d9d202",
                                               # above v30), and the suite's own runs/ashford.db released each time, as
                                               # the v34 note above says)
 GUARD_HASHES[36] = "cdf4e007f17ca06a"         # v36: + the turns floor guard (gate floor-in-record, conversation design v2)
+GUARD_HASHES[37] = GUARD_HASHES[36]           # v37: + turns.tell, a free-text column - no guarded word changed
 
 
 def check(name, ok, detail=""):
@@ -665,8 +666,8 @@ def a_migrated_database():
           and all(f["tier"] == "amber" for f in lacking), [f["subject"] for f in lacking])
     raw.close()
     con = db.connect(_path("old.db"))
-    check("it-opens-at-v36-with-every-guard-and-the-record-lock",
-          con.execute("PRAGMA user_version").fetchone()[0] == db.SCHEMA_VERSION == 36
+    check("it-opens-at-v37-with-every-guard-and-the-record-lock",
+          con.execute("PRAGMA user_version").fetchone()[0] == db.SCHEMA_VERSION == 37
           and set(guards.installed(con)) == set(guards.survey(con)["want"])
           and set(guards.expected()) <= set(guards.installed(con)), con.execute("PRAGMA user_version").fetchone()[0])
     after = con.execute("SELECT * FROM toward_deltas").fetchall() + con.execute(

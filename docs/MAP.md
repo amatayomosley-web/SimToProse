@@ -476,7 +476,7 @@ that lets narrated prose write state (`design.md` three boundaries).
 | `test_sync_clone` |  |
 | `test_systems` | which engine systems a book runs (src/engine/systems.py, gate systems-registry). |
 | `test_tellings` |  |
-| `test_tells` | the signs a sharp eye catches, and a listener who misses them never reads (gate tells). |
+| `test_tells` | the signs a sharp eye catches, and a listener who misses them never reads (gates tells, tells-direction). |
 | `test_theory_of_mind` |  |
 | `test_toward` |  |
 | `test_vault` |  |

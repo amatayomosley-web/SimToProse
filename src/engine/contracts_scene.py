@@ -45,6 +45,14 @@ def _member(c, cfg, ctx):
         if not to or to == me or to not in _cast_ids(cfg):
             raise RecordError("SCENE_DIRECTED_TO_UNKNOWN", "cast %r: to %r must be the id of another member of the cast "
                               "(%s)" % (me, c.get("to"), ", ".join(i for i in _cast_ids(cfg) if i != me) or "nobody else"))
+    if "tells" in c:                               # what this character gives away (gate tells-direction)
+        t, me = c.get("tells"), str(c.get("id") or "").strip()
+        if not (isinstance(t, list) and t and all(isinstance(x, str) and x.strip() for x in t)):
+            raise RecordError("SCENE_TELLS_INVALID", "cast %r: tells must be a list of the author's lines, each "
+                              "non-blank text - got %r" % (me, t))
+        if "tells" not in ctx.get("systems", ()):
+            raise RecordError("SCENE_TELLS_INVALID", "cast %r states tells, but the book switches the tells system off "
+                              "- nothing would show them" % me)
 
 
 def _at(at, cfg, ctx):
@@ -138,6 +146,10 @@ SCENE = (
     F("cast[].drive", "text", reader="scene.run_scene", doc="what they want from the others here - replaces their goals"),
     F("cast[].to", "text", blank=False, reader="scene.run_scene",
       doc="the cast id this character's moves are aimed at - their prompt is told, the record keeps it; absent, they choose"),
+    F("cast[].tells", "list", blank=False, reader="scene.run_scene; tells.for_listener",
+      doc="what this character gives away without meaning to, in the author's words - their actor is told, writes it "
+          "as a `tell`, and only a listener sharp enough reads it (the `tells` system)"),
+    F("cast[].tells[]", "text", reader="prompt.build_turn_messages"),
     F("at", "map", required="always", check=_at, reader="clock.parse_at", doc="when the scene opens: {day, time}"),
     F("at.day", "number", reader="clock.parse_at", doc="a whole day; 0 and below are before page one"),
     F("at.time", "text", reader="clock.parse_at", doc="HH:MM"),

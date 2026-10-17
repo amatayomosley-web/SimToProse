@@ -57,7 +57,7 @@ def model_reply():
     import direct
     r = replies.actor_reply(dict(TURN, exit=False, addressee="ada", act="trim"))
     check("a-well-formed-reply-reads-as-the-turn-always-did",
-          r.as_turn() == dict(TURN, exit=False, addressee="ada", act="trim", extra=(), floor="", floor_said=""),
+          r.as_turn() == dict(TURN, exit=False, addressee="ada", act="trim", extra=(), floor="", floor_said="", tell=""),
           r.as_turn())
     r = replies.actor_reply(dict(TURN, mood="uneasy", _scratch=1))
     check("a-key-nothing-reads-is-kept-in-extra,-sorted,-not-dropped-unseen", r.extra == ("_scratch", "mood"), r.extra)
@@ -69,7 +69,7 @@ def model_reply():
     empty = replies.actor_reply(["not", "an", "object"]).as_turn()
     check("a-non-object-is-an-empty-draw-(the-retry-loop-redraws-it)",
           empty == {"action": "", "thought": "", "exit": False, "addressee": "", "act": "", "tags": {"dimensions": {}},
-                    "extra": (), "floor": "", "floor_said": ""}, empty)
+                    "extra": (), "floor": "", "floor_said": "", "tell": ""}, empty)
     check("a-non-object-tags-is-replaced-by-an-empty-block",
           replies.actor_reply(dict(TURN, tags="calm")).tags == {"dimensions": {}})
     for label, value in (("null", None), ("false", False), ("zero", 0), ("an-empty-list", [])):

@@ -583,6 +583,7 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
     # WHOM THE DIRECTION AIMS EACH CHARACTER AT (gate directed-addressee): the scene file's `cast[].to`, checked against
     # the cast by its contract before the run began. Absent, the actor chooses, as before.
     _directed = {str(c["id"]): str(c["to"]) for c in cfg["cast"] if c.get("to")}
+    _tells_of = {str(c["id"]): list(c["tells"]) for c in cfg["cast"] if c.get("tells")}   # the brief's (tells-direction)
     # THE WINDOW IN HAND (gate window-reads): its rows, buffered until it closes, and what closing it needs
     window, _wspk, _wstate = [], None, {"target": scene_target}
     _wctx = {"led": led, "run_id": run_id, "cfg": cfg, "world": world, "names": names, "actors": actors, "gi": gi,
@@ -600,9 +601,11 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
                          last_thought=next((b["thought"] for b in reversed(log) if b["who"] == speaker), None))
         if _directed.get(speaker) in present:         # a directed target who has left directs nothing
             _floor_kw["to"] = (_directed[speaker], names.get(_directed[speaker], _directed[speaker]))
-        # THE MOMENT AS THIS SPEAKER READS IT (gate tells; only when the book runs `tells`): the signs other actors
-        # let slip, marked by the event reader, are cut for a speaker who does not catch them and named for one who
-        # does. Without the system every speaker reads the log whole, as before.
+        if speaker in _tells_of and "tells" in _sys:    # what this one gives away, told to them alone
+            _floor_kw["tell"] = _tells_of[speaker]
+        # THE MOMENT AS THIS SPEAKER READS IT (gates tells, tells-direction; only when the book runs `tells`): the tell
+        # another actor let show is read after their act by a speaker who catches it, and named; one who does not
+        # reads the act alone. Without the system no actor is given tells, so every row reads as it was written.
         _seen, _tells_hidden, _tells_noticed = ((_tells.for_listener(log, speaker,
                                                     _tells.catches(a["char"], tired="condition_flow" in _sys)))
                                                 if "tells" in _sys else (log, [], []))
@@ -644,7 +647,7 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
                        # Falls back to the sheet, so a cfg with no location is unchanged.
                        "location": cfg.get("location") or a["char"]["current"].get("location")}
         if "tells" in _sys:                       # the signs this speaker caught become percepts (gate tells)
-            scene_slice["tells_noticed"] = [t["quote"] for t in _tells_noticed]
+            scene_slice["tells_noticed"] = [t["tell"] for t in _tells_noticed]
         if _elsewhere:                            # only a book two people share a name in carries the key
             scene_slice["elsewhere"] = _elsewhere
         # THE FENCE (2026-09-11): what is established about who and what is here, read from the
@@ -819,11 +822,9 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
         # A MOVE - the speaker's, a listener's take, or a word on the forced floor - offers the floor; `move` and `cut`
         # (a cut-in the round licensed) are what the settled stop counts (gate settled-stop).
         log.append({"who": speaker, "action": turn["action"], "thought": turn["thought"], "tags": applied,
-                    "floor": word, "addressee": str(turn.get("addressee") or ""),
+                    "floor": word, "addressee": str(turn.get("addressee") or ""), "tell": str(turn.get("tell") or ""),
                     "move": _is_move, "cut": bool(_flags.get("interrupt"))})
-        window[-1]["log"] = log[-1]                   # the window's reads mark it when it closes (tells)
-        if "tells" in _sys and not stub and not _silent:   # a sign is cut before the next listener sees the move
-            _scene_window.read_move(_wctx, window[-1])
+        window[-1]["log"] = log[-1]                   # the window's reads mark it when it closes
         turn_no += 1                                    # this row is numbered; it commits when its window closes
         committed += 1
 

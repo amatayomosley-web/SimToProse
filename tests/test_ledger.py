@@ -854,9 +854,9 @@ def test_a_turn_RECORDS_its_floor_word_and_addressee(tmp):
         assert e.code == "RECORD_FLOOR_UNKNOWN", e
 
 
-def test_a_v35_db_gains_floor_and_addressee_EMPTY_for_its_old_turns(tmp):
-    """A v35 chronicle migrates to v36 keeping every turn; the old turns read '' in both new columns - they carried no
-    floor word and their addressee was never kept, which is the truth about them."""
+def test_a_v35_db_gains_floor_addressee_and_tell_EMPTY_for_its_old_turns(tmp):
+    """A v35 chronicle migrates to v37 keeping every turn; the old turns read '' in the three new columns - they
+    carried no floor word, their addressee was never kept and no tell was stored apart, which is the truth about them."""
     import sqlite3 as _sq
     from src.engine.db import connect as _connect, SCHEMA_VERSION
     path = os.path.join(tmp, "v35.db")
@@ -872,9 +872,9 @@ def test_a_v35_db_gains_floor_and_addressee_EMPTY_for_its_old_turns(tmp):
     raw.commit()
     raw.close()
     con = _connect(path)
-    assert SCHEMA_VERSION == 36 and con.execute("PRAGMA user_version").fetchone()[0] == 36
-    got = con.execute("SELECT floor, addressee FROM turns WHERE run_id='old'").fetchall()
-    assert [tuple(r) for r in got] == [("", "")], got
+    assert SCHEMA_VERSION == 37 and con.execute("PRAGMA user_version").fetchone()[0] == 37
+    got = con.execute("SELECT floor, addressee, tell FROM turns WHERE run_id='old'").fetchall()
+    assert [tuple(r) for r in got] == [("", "", "")], got
     con.close()
 
 

@@ -39,7 +39,7 @@ sys.path.insert(0, os.path.join(REPO, "tests"))
 
 import appraiser                                                 # noqa: E402
 import provider                                                  # noqa: E402
-from src.engine import injuries, replies, rungs, tells           # noqa: E402
+from src.engine import injuries, replies, rungs                  # noqa: E402
 from src.engine.records import RecordError                       # noqa: E402
 
 FAILS = []
@@ -105,15 +105,17 @@ def declarations_and_prompts():
     for blk, fields in replies.EVENT_MAPS.items():
         check("...its-%s-map's-entries" % blk, isinstance(top[blk], dict) and top[blk]
               and all(isinstance(e, dict) and set(e) == set(fields) for e in top[blk].values()), top.get(blk))
-    for key, text in (("exertion", appraiser._EXERTION_BLOCK), ("tells", tells.RUBRIC), ("injuries", injuries.RUBRIC)):
+    for key, text in (("exertion", appraiser._EXERTION_BLOCK), ("injuries", injuries.RUBRIC)):
         blk = _block(text, key)
         check("the-%s-question-asks-for-exactly-its-declared-block" % key,
               list(blk) == [key] and _kind_and_fields(key, blk[key], replies.EVENT_ENTRIES[key]), blk)
-        flags = dict(exertion=False, tells=False, injuries=False)
+        flags = dict(exertion=False, injuries=False)
         off = appraiser.build_event_messages(ACTION, **flags)[0]["content"]
         on = appraiser.build_event_messages(ACTION, **dict(flags, **{key: True}))[0]["content"]
         check("...asked-only-when-its-flag-is-set", '"%s":' % key not in off and '"%s":' % key in on)
-    check("the-event-seat's-asked-blocks-are-exactly-the-three", set(replies.EVENT_ASKED) == {"exertion", "tells", "injuries"})
+    check("the-event-seat's-asked-blocks-are-exactly-the-two", set(replies.EVENT_ASKED) == {"exertion", "injuries"})
+    check("...and-tells-is-not-one-the-actor-writes-its-own-(gate-tells-direction)", "tells" not in replies.EVENT_ENTRIES
+          and replies.event_extra(dict(EVENT, tells=[{"quote": "q"}])) == ("tells",))
     top = _shape(appraiser._EMOTION_SYSTEM)
     check("the-emotion-seat's-top-level-keys", set(top) == set(replies.EMOTION_KEYS), sorted(top))
     check("...its-readings-block:-container-and-every-entry",
@@ -138,7 +140,6 @@ def what_a_reply_carried():
     check("a-top-level-key-and-each-entry's-by-path", got == ("attribution.note", "mood", "showed.affinity.note",
                                                              "told[].aside", "transfers[].why"), got)
     for key, block, extra in (("exertion", {"word": "none", "note": "n"}, "exertion.note"),
-                              ("tells", [{"quote": "q", "note": "n"}], "tells[].note"),
                               ("injuries", [{"who": "self", "quote": "q", "severity": "minor", "where": "w"}],
                                "injuries[].where")):
         got = replies.event_extra(dict(EVENT, **{key: block}))

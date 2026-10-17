@@ -12,9 +12,8 @@ hands them to `close` when someone else makes a move or the scene ends. Here:
              act's Event and bond moves, and every participant's receipt, binds, attitude, wounds, scars and arc: its
              actor's on the commit itself, the others' as `TurnCommit.readers`, each one's applied tags in the
              manifest's `window.reads`, which is what `mood_fold.replay` re-derives them from.
-TWO REGIMES (showrunner ruling, 2026-10-16): a book that runs `tells` reads each move's event as it is made
-(`read_move`), because a sign the reader marks must be cut before a listener who does not catch it is shown the
-move; its window commits those acts with no second read. Feelings are read once per window either way.
+TELLS are the actor's, from the scene brief (gate tells-direction): a row carries the `tell` its actor wrote and the
+commit keeps it; no seat marks one, so every window is read once, at its end.
 Inside a window the mood does not move: Macbeth holds his tongue on the mood he had before her first paragraph. That
 is the design's stated cost (s5), the same approximation the clock already makes within a beat.
 """
@@ -65,7 +64,7 @@ def _act(ctx, who, rows, at):
                 scene=ctx["cfg"].get("name"), moment=last["event_text"], present=list(last["present"]),
                 actor=ctx["names"].get(who, who), target=str(last["reply"].get("addressee", "") or ""),
                 attachments=attachments.names_for(ctx["world"]), exertion="body" in ctx["sys"],
-                tells="tells" in ctx["sys"], injuries="injuries" in ctx["sys"], extra=act["extra"])),
+                injuries="injuries" in ctx["sys"], extra=act["extra"])),
                 last["reply"].get("tags"))
             act["answered"] = True
         except RecordError as e:
@@ -112,21 +111,10 @@ def _apply(ctx, act):
 
 
 def _mark(act):
-    """THE READER'S MARKS REACH THE LOG the later calls read (gate tells): each row its own of the act's signs."""
+    """THE READS REACH THE LOG the later calls read: each row of the act carries the act's applied tags."""
     for r in act["rows"]:
         if "log" in r:
-            r["log"]["tags"] = dict(act["applied"], tells=[q for q in (act["tags"].get("tells") or ())
-                                                           if str(q) in str(r["reply"].get("action", ""))])
-
-
-def read_move(ctx, row):
-    """A BOOK THAT RUNS TELLS reads each move's event as it is made, before the next listener is asked: a sign the
-    reader marks must be cut from what a listener who does not catch it is shown, and nothing is marked until it is
-    read. The window then commits these acts as they are and reads its feelings once, at its end, as any window."""
-    act = _act(ctx, row["who"], [row], row["turn"])
-    _apply(ctx, act)
-    _mark(act)
-    row["act"] = act
+            r["log"]["tags"] = dict(act["applied"])
 
 
 def _feel(ctx, who, rows, at, present):
@@ -196,6 +184,7 @@ def _deferred(ctx, row, win):
     led.append_turn(TurnCommit(
         run_id=ctx["run_id"], turn=row["turn"], actor=who, thought=str(row["reply"]["thought"]),
         action=str(row["reply"]["action"]), floor=row["word"], addressee=str(row["reply"].get("addressee") or ""),
+        tell=str(row["reply"].get("tell") or ""),
         tags=tags, affect=dict(dec[who]), condition=cond(who), validation=validation,
         events=ctx["law_events"](row["reply"], who, row["turn"]),
         manifest=dict(row["packet"]["manifest"], window=dict(win),
@@ -332,16 +321,12 @@ def close(ctx, rows):
     parts = list(dict.fromkeys(r["who"] for r in rows))
     # THE READS: one act for the speaker's moves, one per listener row that did something, one feeling per participant
     moves = [r for r in rows if r["who"] == spk and not r["silent"]]
-    if any("act" in r for r in rows):                    # a book that runs tells: each move was read as it was made
-        acts = [r["act"] for r in rows if "act" in r]
-    else:
-        acts = ([_act(ctx, spk, moves, at)] if moves else []) + [_act(ctx, r["who"], [r], at) for r in rows
-                                                                 if r["who"] != spk and not r["silent"]]
+    acts = ([_act(ctx, spk, moves, at)] if moves else []) + [_act(ctx, r["who"], [r], at) for r in rows
+                                                             if r["who"] != spk and not r["silent"]]
     feel = {x: _feel(ctx, x, [r for r in rows if r["who"] == x], at, present) for x in parts}
     for act in acts:
-        if "validation" not in act:                      # a move read as it was made is applied already
-            _apply(ctx, act)
-            _mark(act)
+        _apply(ctx, act)
+        _mark(act)
     for act in sorted(acts, key=lambda a: a["rows"][-1]["turn"]):
         if act["target"]:
             ctx["state"]["target"] = act["target"]      # carries into the next call's ctx (target_edge)
@@ -428,7 +413,8 @@ def close(ctx, rows):
     cond = lambda c: dict(nxt.get(c) or actors[c]["char"]["current"].get("condition", {}))
     led.append_turn(TurnCommit(
         run_id=ctx["run_id"], turn=at, actor=R, thought=str(last["reply"]["thought"]), action=str(last["reply"]["action"]),
-        floor=last["word"], addressee=str(last["reply"].get("addressee") or ""), tags=row_act["tags"],
+        floor=last["word"], addressee=str(last["reply"].get("addressee") or ""), tell=str(last["reply"].get("tell") or ""),
+        tags=row_act["tags"],
         affect=dict(actors[R]["affect"]), condition=cond(R), validation=validation,
         events=ctx["law_events"](last["reply"], R, at) + [_event(a) for a in acts if a is not row_act] + [_event(row_act)],
         manifest=dict(last["packet"]["manifest"], window=dict(win, reads={x: own[x]["applied"] for x in parts}),

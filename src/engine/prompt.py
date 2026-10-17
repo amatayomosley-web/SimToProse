@@ -105,9 +105,21 @@ def _directed_line(to):
             "is yours.\n" % (to[1], to[0]))
 
 
+def _tell_line(tell):
+    """The scene brief's tells for this character -> the line that tells the actor what they give away, and where to
+    write it when it shows; '' for None (gate tells-direction: the sign is the actor's to write, in its own words)."""
+    if tell is None:
+        return ""
+    if not (isinstance(tell, (list, tuple)) and tell and all(isinstance(x, str) and x.strip() for x in tell)):
+        raise RecordError("PROMPT_TELL_MALFORMED", "build_turn_messages: tell must be a list of non-blank lines, got %r"
+                          % (tell,))
+    return ("You give this away without meaning to: %s. When it shows, write it in the 'tell' field, in your own "
+            "words, not in 'action'.\n" % "; ".join(" ".join(x.split()).rstrip(".") for x in tell))
+
+
 def build_turn_messages(packet, event_text, temperament, relationships=None, acts=(), rung_direction=None,
                         stance=None, hold_open=False, resumed=False, interrupt=False, forced=False,
-                        last_thought=None, to=None):
+                        last_thought=None, to=None, tell=None):
     """packet + the moment -> the one-pass turn messages (system = cacheable identity prefix;
     user = volatile body as directions + structured content + the same-pass tag instruction).
 
@@ -131,7 +143,8 @@ def build_turn_messages(packet, event_text, temperament, relationships=None, act
     _act_slot = (", \"act\": \"\"" if _acts else "")
     _floor_slot, _floor_rule, _last = _floor_parts(
         stance, {"hold_open": hold_open, "resumed": resumed, "interrupt": interrupt, "forced": forced}, last_thought)
-    _floor_rule = _directed_line(to) + _floor_rule      # the scene direction names whom (gate directed-addressee)
+    _floor_rule = _directed_line(to) + _tell_line(tell) + _floor_rule    # whom (directed-addressee); tells (brief)
+    _floor_slot += ", \"tell\": \"\"" if tell is not None else ""
     _act_rule = (("act = the ONE token from this list that names what you just did, or empty if "
                   "none fits - most beats are none. Copy it exactly, do not invent one: "
                   + ", ".join(_acts) + "\n") if _acts else "")

@@ -576,6 +576,7 @@ class TurnCommit:
                                                           # its last row (design v2 s5, gate window-reads)
     floor: str = ""                                       # FLOORS, or '' (none): what the move did to the floor
     addressee: str = ""                                   # whom the move was said TO ('' : the room, or no one)
+    tell: str = ""                                        # the sign the actor let show (gate tells-direction); '' none
 
     def validate(self):
         _require(isinstance(self.run_id, str) and self.run_id.strip(), "RECORD_RUN_ID_EMPTY", "TurnCommit.run_id must be non-empty")
@@ -646,7 +647,8 @@ class TurnCommit:
         _check_validation(self.validation)
         _require(self.floor in FLOOR_STORED, "RECORD_FLOOR_UNKNOWN",
                  "TurnCommit.floor %r is not a floor word: %s, or '' for none" % (self.floor, ", ".join(FLOORS)))
-        _require(isinstance(self.addressee, str), "RECORD_FIELD_TYPE", "TurnCommit.addressee must be str")
+        _require(isinstance(self.addressee, str) and isinstance(self.tell, str), "RECORD_FIELD_TYPE",
+                 "TurnCommit.addressee and TurnCommit.tell must be str")
         self.target_binds = _checked_binds(self.target_binds, "TurnCommit")   # each primary the vocabulary's own
         for td in self.toward_deltas:
             _require(isinstance(td, TowardDelta), "RECORD_LIST_ITEM_TYPE", "TurnCommit.toward_deltas items must be TowardDelta")

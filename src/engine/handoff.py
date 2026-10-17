@@ -63,11 +63,12 @@ def _cast(cast):
     with `drive` the one field it may leave to the director. Refused (HANDOFF_CAST_INVALID), every finding named."""
     from . import contracts, contracts_scene
     if not isinstance(cast, list):
-        raise RecordError("HANDOFF_CAST_INVALID", "`cast` is a list of ids or {id, drive?, to?}, not %s"
+        raise RecordError("HANDOFF_CAST_INVALID", "`cast` is a list of ids or {id, drive?, to?, tells?}, not %s"
                           % type(cast).__name__)
     probe = {"cast": [dict({"drive": "-"}, **m) if isinstance(m, dict) else m for m in _members(cast)]}
     fields = tuple(f for f in contracts_scene.SCENE if f.path.split(".")[0] in ("cast", "cast[]"))
-    bad = [f for f in contracts.check(probe, fields) if contracts.refuses(f)]
+    bad = [f for f in contracts.check(probe, fields, systems=("tells",)) if contracts.refuses(f)]   # the book's own
+    # switches are the run's to check (contracts.require_at_start); a direction is checked for its shape
     if bad:
         raise RecordError("HANDOFF_CAST_INVALID", "; ".join("%s: %s" % (f["path"], f["message"])
                                                             for f in bad))

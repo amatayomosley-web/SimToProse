@@ -66,9 +66,9 @@ from dataclasses import dataclass, field
 
 from .records import FLOORS, RecordError
 
-ACTOR_KEYS = ("action", "thought", "exit", "addressee", "act", "tags", "floor")
+ACTOR_KEYS = ("action", "thought", "exit", "addressee", "act", "tags", "floor", "tell")
 SUPPLIED_REQUIRED = ("action", "thought", "tags")
-SUPPLIED_CONTRACT = "{action, thought, tags, exit?, addressee?, act?, floor?}"
+SUPPLIED_CONTRACT = "{action, thought, tags, exit?, addressee?, act?, floor?, tell?}"
 
 
 @dataclass(frozen=True)
@@ -84,12 +84,13 @@ class ActorReply:
     extra: tuple = ()
     floor: str = ""                    # records.FLOORS, or "" (none, or a word that is not one: see actor_reply)
     floor_said: str = ""               # the floor word as the reply wrote it, when it was not one of FLOORS
+    tell: str = ""                     # the sign the actor let show, in its own words (gate tells-direction); "" none
 
     def as_turn(self):
         """-> the turn dict the drivers carry: the shape the actor's reply has always been read into, plus `extra`."""
         return {"action": self.action, "thought": self.thought, "exit": self.exit, "addressee": self.addressee,
                 "act": self.act, "tags": self.tags, "extra": self.extra, "floor": self.floor,
-                "floor_said": self.floor_said}
+                "floor_said": self.floor_said, "tell": self.tell}
 
 
 def _text(v):
@@ -115,7 +116,7 @@ def actor_reply(obj, supplied=False):
             raise RecordError("REPLY_FIELD_MISSING", "a supplied turn is missing %s - the contract is %s"
                               % (", ".join(missing), SUPPLIED_CONTRACT))
         wrong = [k for k in SUPPLIED_REQUIRED[:2] if not isinstance(obj[k], str)]
-        wrong += [k for k in ("addressee", "act") if obj.get(k) is not None and not isinstance(obj[k], str)]
+        wrong += [k for k in ("addressee", "act", "tell") if obj.get(k) is not None and not isinstance(obj[k], str)]
         wrong += ["exit"] if obj.get("exit") is not None and not isinstance(obj["exit"], bool) else []
         wrong += ["tags"] if not isinstance(obj["tags"], dict) else []
         # THE FLOOR WORD (gate floor-in-record): a supplied turn is held to the vocabulary, as its other fields are
@@ -124,7 +125,7 @@ def actor_reply(obj, supplied=False):
         wrong += ["floor"] if obj.get("floor") is not None and obj["floor"] not in FLOORS else []
         if wrong:
             raise RecordError("REPLY_FIELD_TYPE", "a supplied turn's %s: the wrong type (text for action, thought, "
-                              "addressee and act; true or false for exit; an object for tags; one of %s for floor)"
+                              "addressee, act and tell; true or false for exit; an object for tags; one of %s for floor)"
                               % (", ".join(wrong), ", ".join(FLOORS)))
     tags = obj.get("tags") if isinstance(obj.get("tags"), dict) else {"dimensions": {}}
     # `act` as it always was, falsy -> "": a model's "act": false is no act, never the word "False", which the law
@@ -132,7 +133,7 @@ def actor_reply(obj, supplied=False):
     return ActorReply(action=_text(obj.get("action")), thought=_text(obj.get("thought")), exit=obj.get("exit") is True,
                       addressee=_text(obj.get("addressee")), act=_text(obj.get("act") or ""), tags=tags,
                       extra=tuple(sorted(str(k) for k in obj if k not in ACTOR_KEYS)),
-                      floor=_floor(obj.get("floor")),
+                      floor=_floor(obj.get("floor")), tell=" ".join(_text(obj.get("tell") or "").split()),
                       floor_said="" if obj.get("floor") in (None, "") or _floor(obj.get("floor")) else _text(obj.get("floor")))
 
 
@@ -147,14 +148,15 @@ def _floor(v):
 # entry block is one object (attribution) or a list of them (told); a MAP block holds one entry per name the seat
 # chooses (showed: one per act ladder), so its names are the seat's answer and only its entries' keys are checked.
 EVENT_KEYS = ("type", "dimensions", "durability", "object", "showed", "transfers", "told", "attribution", "confidence")
-# Each asked only when its caller asks: the scene driver asks exertion when the book runs `body`, tells and injuries
-# when it runs those; the chair asks exertion alone. An unasked block in a reply is extra, whole.
-EVENT_ASKED = ("exertion", "tells", "injuries")
+# Each asked only when its caller asks: the scene driver asks exertion when the book runs `body`, injuries when it
+# runs that; the chair asks exertion alone. An unasked block in a reply is extra, whole. (Tells are the actor's own
+# since gate tells-direction: a reader's `tells` block is extra.)
+EVENT_ASKED = ("exertion", "injuries")
 EVENT_ENTRIES = {"transfers": ("what", "from", "to", "terms"), "told": ("what", "to", "cost"),
-                 "attribution": ("word", "quote"), "exertion": ("word", "quote"), "tells": ("quote",),
+                 "attribution": ("word", "quote"), "exertion": ("word", "quote"),
                  "injuries": ("who", "quote", "severity")}
 EVENT_MAPS = {"showed": ("word", "quote")}
-LISTS = ("transfers", "told", "tells", "injuries", "readings")     # the entry blocks asked as a LIST; the rest, one object
+LISTS = ("transfers", "told", "injuries", "readings")     # the entry blocks asked as a LIST; the rest, one object
 EMOTION_KEYS = ("readings", "lands_on", "confidence")
 EMOTION_ENTRIES = {"readings": ("path", "rung", "about", "about_missing")}
 THERMOMETER_KEYS = ("levels", "confidence")
@@ -257,10 +259,10 @@ def _not_text(v):
     return bool(v) and not isinstance(v, str)
 
 
-def event_extra(obj, exertion=False, tells=False, injuries=False):
+def event_extra(obj, exertion=False, injuries=False):
     """The event seat's reply -> what it carried beyond the questions it was asked (an unasked block included), and
     a declared key whose value the parser cannot read and leaves out: a `showed` that is not a map."""
-    asked = tuple(k for k, on in zip(EVENT_ASKED, (exertion, tells, injuries)) if on)
+    asked = tuple(k for k, on in zip(EVENT_ASKED, (exertion, injuries)) if on)
     unread = {"showed"} if isinstance(obj, dict) and obj.get("showed") and not isinstance(obj["showed"], dict) else set()
     return tuple(sorted(set(extra_keys(obj, EVENT_KEYS + asked, EVENT_ENTRIES, EVENT_MAPS)) | unread))
 

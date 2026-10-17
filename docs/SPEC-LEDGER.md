@@ -651,7 +651,11 @@ and a speaker who catches them reads them whole and is told them as a percept (`
 for the beats the moment shows (`prompt.MOMENT_BEATS`, now named). Off, the reader's prompt and every moment are
 byte-identical. Suite: `tests/test_tells.py`. NOT COVERED: energy does not yet change who catches a tell (the
 owner's open question - answered the same evening, gate `tired-eyes`, below); the chair's seat is not asked; signs
-in the director's situation text are not marked.
+in the director's situation text are not marked. SUPERSEDED 2026-10-16 (gate `tells-direction`, William's ruling
+via the showrunner): a tell comes from the scene brief (`cast[].tells`, `SCENE_TELLS_INVALID`); the actor writes it in
+its reply's own `tell` field (`prompt._tell_line`, `replies.ActorReply.tell`), kept apart in `turns.tell` (schema
+v37); `tells.for_listener` shows it after the act to a listener who catches it and never to one who does not. The
+event seat's TELLS question, `APPRAISER_TELLS_SHAPE` and the regex `cut` are gone; `catches` is unchanged.
 
 **2026-09-22 — a worn mind catches less (gate `tired-eyes`):** `tells.catches` read `baseline.skills.perception`
 alone, so a sharp character arriving spent caught every sign a rested one would, while the same character's memory

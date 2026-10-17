@@ -51,8 +51,8 @@ DEFAULT_CRITIC_MODEL = "anthropic/claude-sonnet-4.6"
 
 
 def scene_turns(led, run_id):
-    """The committed turns of a run, in turn order, each with its floor word and addressee (v36; '' before them)."""
-    rows = led.con.execute("SELECT turn, actor, action, thought, floor, addressee FROM turns WHERE run_id=? "
+    """The committed turns of a run, in turn order, with floor word, addressee (v36) and tell (v37); '' before."""
+    rows = led.con.execute("SELECT turn, actor, action, thought, floor, addressee, tell FROM turns WHERE run_id=? "
                            "ORDER BY turn", (run_id,)).fetchall()
     return [dict(r) for r in rows]
 
