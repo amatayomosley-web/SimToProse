@@ -811,7 +811,8 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
         # someone else makes a move, or the scene ends - and its rows commit then, in order (scripts/scene_window.py:
         # the reads, the decay-only rows before the last, every participant's receipt on the last). A move by the
         # window's speaker, and a listener's hold or interjection, add to it.
-        _is_move = stance == "speaker" or word == "take" or bool(_flags.get("forced") and word == "interject")
+        _is_move = stance == "speaker" or word == "take" or bool((_flags.get("forced") or _flags.get("unanswered"))
+                                                                  and word == "interject")
         if window and _is_move and speaker != _wspk:
             _scene_window.close(_wctx, window)
             window = []

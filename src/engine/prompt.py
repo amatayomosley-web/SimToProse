@@ -73,7 +73,10 @@ _FLAG_LINES = (   # (flag, the stance it belongs to, its line) - placed by the d
     ("hold_open", "speaker", "The room is yours; no one will answer until you finish.\n"),
     ("resumed", "speaker", "Go on from where you stopped; do not restate.\n"),
     ("interrupt", "listener", "You are moved enough to cut in before they finish.\n"),
-    ("forced", "listener", "They have stopped and no one has answered: the floor is yours; answer, act, or leave.\n"),
+    ("forced", "listener", "They have stopped and no one has answered: the floor is yours; answer, act, or let the "
+                           "silence stand.\n"),
+    ("unanswered", "listener", "You stopped and no one has answered you: the floor is yours again; go on, act, or let "
+                               "the silence stand.\n"),
 )
 
 
@@ -119,7 +122,7 @@ def _tell_line(tell):
 
 def build_turn_messages(packet, event_text, temperament, relationships=None, acts=(), rung_direction=None,
                         stance=None, hold_open=False, resumed=False, interrupt=False, forced=False,
-                        last_thought=None, to=None, tell=None):
+                        unanswered=False, last_thought=None, to=None, tell=None):
     """packet + the moment -> the one-pass turn messages (system = cacheable identity prefix;
     user = volatile body as directions + structured content + the same-pass tag instruction).
 
@@ -142,7 +145,8 @@ def build_turn_messages(packet, event_text, temperament, relationships=None, act
     _acts = [a for a in (acts or []) if a]
     _act_slot = (", \"act\": \"\"" if _acts else "")
     _floor_slot, _floor_rule, _last = _floor_parts(
-        stance, {"hold_open": hold_open, "resumed": resumed, "interrupt": interrupt, "forced": forced}, last_thought)
+        stance, {"hold_open": hold_open, "resumed": resumed, "interrupt": interrupt, "forced": forced,
+                 "unanswered": unanswered}, last_thought)
     _floor_rule = _directed_line(to) + _tell_line(tell) + _floor_rule    # whom (directed-addressee); tells (brief)
     _floor_slot += ", \"tell\": \"\"" if tell is not None else ""
     _act_rule = (("act = the ONE token from this list that names what you just did, or empty if "

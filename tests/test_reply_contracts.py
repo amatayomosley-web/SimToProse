@@ -62,12 +62,15 @@ def test_placed_and_licensed_lines_render_only_when_asked():
     plain_s, plain_l = _usr(stance="speaker"), _usr(stance="listener")
     room = "The room is yours; no one will answer until you finish."
     cut = "You are moved enough to cut in before they finish."
-    forced = "the floor is yours; answer, act, or leave."
+    forced = "the floor is yours; answer, act, or let the silence stand."
+    unanswered = "You stopped and no one has answered you: the floor is yours again; go on, act, or let the silence stand."
     resumed = "Go on from where you stopped; do not restate."
     assert room in _usr(stance="speaker", hold_open=True) and room not in plain_s
     assert resumed in _usr(stance="speaker", resumed=True) and resumed not in plain_s
     assert cut in _usr(stance="listener", interrupt=True) and cut not in plain_l
     assert forced in _usr(stance="listener", forced=True) and forced not in plain_l
+    assert "or leave" not in _usr(stance="listener", forced=True), "the forced line does not invite the exit (critique E5)"
+    assert unanswered in _usr(stance="listener", unanswered=True) and unanswered not in plain_l
 
 
 def test_no_stance_is_the_prompt_as_it_was():

@@ -131,9 +131,12 @@ def test_a_two_hander_asks_the_other_after_every_move(tmp):
 
 def test_a_speaker_who_keeps_goes_on_and_an_empty_hold_commits_nothing(tmp):
     """keep, keep, yield from the speaker; the listener holds with nothing every time: three rows, all the
-    speaker's; the speaker is re-called with `resumed`; after the yield the listener is asked once more with the
-    forced line, holds again, and the scene has settled."""
+    speaker's; the speaker is re-called with `resumed`; after the yield and the listener's hold, the speaker is offered
+    the silence with the unanswered line (gate forced-ask-order, critique E5: not the listener who just held), holds,
+    and the scene has settled."""
     def script(who, stance, flags, n, steer):
+        if who == "mira" and stance == "listener":
+            return ("", "", "hold", "")
         if who == "mira":
             return ("Mira's paragraph %d." % n, "-", ("keep", "keep", "yield")[min(n, 2)], "ada")
         return ("", "", "hold", "")
@@ -141,11 +144,12 @@ def test_a_speaker_who_keeps_goes_on_and_an_empty_hold_commits_nothing(tmp):
     check("keep-keep-yield:-three-rows-by-the-speaker", [(r["actor"], r["floor"]) for r in rows]
           == [("mira", "keep"), ("mira", "keep"), ("mira", "yield")], ([(r["actor"], r["floor"]) for r in rows], out[-600:]))
     mira = [c for c in calls if c[0] == "mira"]
-    check("...re-called-to-go-on-from-where-they-stopped", [c[2] for c in mira] == [{}, {"resumed": True}, {"resumed": True}],
+    check("...re-called-to-go-on-from-where-they-stopped", [c[2] for c in mira][:3] == [{}, {"resumed": True}, {"resumed": True}],
           [c[2] for c in mira])
     ada = [c[2] for c in calls if c[0] == "ada"]
-    check("...the-listener-asked-after-every-move,-then-once-with-the-floor-forced",
-          ada == [{}, {}, {}, {"forced": True}], ada)
+    check("...the-listener-asked-after-every-move,-and-not-asked-again", ada == [{}, {}, {}], ada)
+    check("...then-the-speaker-is-offered-the-silence", [c[1:3] for c in mira][-1:] == [("listener", {"unanswered": True})],
+          [c[1:3] for c in calls])
     check("...and-a-second-hold-settles-the-scene", "scene ended: settled" in out, out[-300:])
 
 

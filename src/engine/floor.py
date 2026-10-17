@@ -254,7 +254,8 @@ def floor_word(stance, said, acted):
 class Round:
     """Who is called next, and in what stance. A call is (stance, who, flags) for `prompt.build_turn_messages`;
     an ending is a reason string: "empty" (nobody else here and the speaker yielded), "lull" (a crowd in which
-    nobody cleared the floor and the speaker yielded), "settled" (the forced floor held twice).
+    nobody cleared the floor and the speaker yielded), "settled" (the forced floor held twice: the listener, then the
+    last speaker offered the silence).
 
     `after_move` takes the urges of every other present listener for the move just made (`next_speaker`'s map);
     `after_listener` takes an asked listener's interject or hold. A take is a move: the caller reports it through
@@ -325,7 +326,13 @@ class Round:
         here = {k: v for k, v in self.urges.items() if k in present}
         if not here:
             return "empty"
-        self.forced = leader(here)                # every asked listener held after a yield: one more ask
+        # every asked listener held after a yield: one more ask, and the silence is the last speaker's first (gate
+        # forced-ask-order, critique E5) - re-asking the one who just held handed him the exit. Gone, it falls to the
+        # highest urge.
+        if self.holder in present:
+            self.forced = self.holder
+            return self._go(("listener", self.holder, {"unanswered": True}))
+        self.forced = leader(here)
         return self._go(("listener", self.forced, {"forced": True}))
 
 

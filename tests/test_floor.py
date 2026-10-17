@@ -359,8 +359,13 @@ def test_the_round_asks_keeps_and_settles():
           r.after_move("a", "keep", {"b": (hi, 0, 0)}, ["a", "b"]) == ("listener", "b", {"interrupt": True}))
     check("Round-...-a-hold-re-calls-the-speaker-to-go-on", r.after_listener("hold", ["a", "b"]) == ("speaker", "a", {"resumed": True}))
     check("Round-a-yield-licenses-no-cut-in", r.after_move("a", "yield", {"b": (hi, 0, 0)}, ["a", "b"]) == ("listener", "b", {}))
-    check("Round-...-held-after-a-yield,-the-floor-is-forced-once", r.after_listener("hold", ["a", "b"]) == ("listener", "b", {"forced": True}))
+    check("Round-...-held-after-a-yield,-the-silence-is-offered-to-the-last-speaker-first",
+          r.after_listener("hold", ["a", "b"]) == ("listener", "a", {"unanswered": True}), str(r.call))
     check("Round-...-and-held-again,-settled", r.after_listener("hold", ["a", "b"]) == "settled")
+    g = floor.Round("a")
+    g.after_move("a", "yield", {"b": (0.2, 0, 0), "c": (0.3, 0, 0)}, ["a", "b", "c"])
+    g.after_listener("hold", ["a", "b", "c"]), g.after_listener("hold", ["b", "c"])
+    check("Round-a-speaker-who-has-left-hands-the-forced-ask-to-the-highest-urge-listener", g.call == ("listener", "c", {"forced": True}), str(g.call))
     c = floor.Round("a")
     check("Round-a-crowd-asks-in-order-and-goes-on-to-the-next-after-an-interjection",
           c.after_move("a", "yield", {"b": (0.2, 0, 0), "c": (0.3, 0, 0)}, ["a", "b", "c"]) == ("listener", "c", {})
@@ -373,7 +378,7 @@ def test_the_round_asks_keeps_and_settles():
     k = floor.Round("a")
     k.after_move("a", "yield", {"b": (0.2, 0, 0)}, ["a", "b"])
     check("Round-a-skipped-listener-holds;-a-skipped-speaker-passes-the-floor",
-          k.skipped(["a", "b"]) == ("listener", "b", {"forced": True})
+          k.skipped(["a", "b"]) == ("listener", "a", {"unanswered": True})
           and floor.Round("a").skipped(["a", "b"]) == ("speaker", "b", {}))
 
 

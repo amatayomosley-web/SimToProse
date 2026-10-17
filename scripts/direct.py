@@ -397,7 +397,7 @@ def _compose_selection(rows, brief, model, stub):
 def llm_turn(packet, event_text, temperament, model, stub, think=True, seed=None, relationships=None, corrections=None, acts=(), brief="",
              floor=None, kept=None):
     """`floor` (gate round-loop): the reply contract's keywords for `prompt.build_turn_messages` - stance, hold_open,
-    resumed, interrupt, forced, last_thought - or None for the stance-free prompt the chair sends."""
+    resumed, interrupt, forced, unanswered, last_thought - or None for the stance-free prompt the chair sends."""
     floor = dict(floor or {})
     if stub:
         # THE STUB ADDRESSES SOMEONE. Measured 2026-09-01: without an addressee a two-hander lulls
