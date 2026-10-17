@@ -361,6 +361,29 @@ def test_reader_is_never_named_to_themself():
           str([p["ref"] for p in anon]))
 
 
+def test_writing_is_marks_to_a_reader_without_letters():
+    """gate letters (showrunner ruling 2026-10-17, critique A7): a prop the scene marks as writing reaches a sheet
+    with `baseline.lettered: false` as marks they cannot read; a lettered reader's percept of it is unchanged."""
+    print("[L] WRITING IS MARKS TO A READER WITHOUT LETTERS")
+    ch, w = _char(), _world()
+    af, cond = _flat_affect(), ch["current"]["condition"]
+    book = "the painted sign over the bakery door"
+    ss = dict(_ss("Morning in the store.", "mundane"), props=[book, "a lamp"], written=[book])
+
+    def prop(c):
+        got = [p for p in assemble(c, w, ss, af, cond)["volatile"]["percepts"] if p["ref"].startswith("prop.")]
+        return {p["attributes"][0]: p["attributes"] for p in got}
+    plain = copy.deepcopy(ch)
+    lettered = dict(copy.deepcopy(ch), baseline=dict(ch["baseline"], lettered=True))
+    unlettered = dict(copy.deepcopy(ch), baseline=dict(ch["baseline"], lettered=False))
+    seen = prop(unlettered)
+    check("unlettered-reads-the-writing-as-marks-they-cannot-read",
+          any("cannot read" in a for a in seen.get(book, [])[1:]), str(seen))
+    check("...and-a-prop-that-is-not-writing-is-as-it-was", seen.get("a lamp") == ["a lamp"], str(seen))
+    check("a-lettered-reader-and-a-sheet-that-says-nothing-see-it-unchanged",
+          prop(lettered).get(book) == [book] and prop(plain).get(book) == [book], str((prop(lettered), prop(plain))))
+
+
 def main():
     print("test_gate.py — Gate 3 relevancy-gate machinery (split from test_scene.py)\n")
     test_absence_on_failed_check()
@@ -371,6 +394,7 @@ def main():
     test_acquaintance_recognition()
     test_referenced_is_not_present()
     test_reader_is_never_named_to_themself()
+    test_writing_is_marks_to_a_reader_without_letters()
 
     total = len(PASS) + len(FAIL)
     print("\n--- summary ---")

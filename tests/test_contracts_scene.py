@@ -104,7 +104,17 @@ def refused():
         del cfg[key]
         check("%s-is-required" % key, errors_at(cfg, key))
     placements()
+    writing()
 
+
+def writing():
+    """gate letters (showrunner ruling 2026-10-17): `writing` names which of the scene's props are writing, each
+    exactly as the props list spells it, so a reader without letters is shown marks."""
+    cfg = dict(copy.deepcopy(SCENE), writing=["a folding ladder"])
+    check("writing:-a-prop-named-as-it-is-spelled-is-clean", not run(cfg), run(cfg))
+    for value in (["a ledger"], [""], ["a bucket", 3]):
+        f = errors_at(dict(copy.deepcopy(SCENE), writing=value), "writing")
+        check("writing:-%r-refused-by-name" % (value,), f and "SCENE_WRITING_UNKNOWN" in f[0]["message"], f)
 
 def placements():
     """gate placements (design v2 s3, s7 D): the director's hold_open and the scene's moves ceiling."""

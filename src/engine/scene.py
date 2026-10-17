@@ -143,7 +143,10 @@ def assemble(char, world, scene_slice, affect, condition, prev_affect=None,
     world = _world_meant(world, elsewhere)
     percepts = perception_scope(s, world, skills, condition, _rels_meant(current.get("relationships"), elsewhere),
                                 me=str(fixed.get("id") or fixed.get("name") or "").lower(),
-                                tired=tired)          # a worn mind's eye dims the room's subtle cues (gate tired-lexicon)
+                                tired=tired,          # a worn mind's eye dims the room's subtle cues (gate tired-lexicon)
+                                # a reader without letters sees writing as marks (gate letters); read only when the
+                                # scene marks writing, so a packet with none records no read of the field
+                                lettered=baseline.get("lettered", True) is not False if s.written else True)
 
     # ---- Step 3: Trigger extraction (from PerceptSet ONLY — never from ground truth) ----
     # scene-assembly.md: "You cannot be triggered by what you didn't perceive."

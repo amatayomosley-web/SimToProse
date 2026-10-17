@@ -1283,6 +1283,8 @@ anything is written.
 | `location` | text | no | active | scene.law_preflight; gate._lookup_location | a world.locations id |
 | `props` | list | no | active | gate.perception_scope | the room's objects, plainly present - three to five; left blank, none (the loader reads a blank as absent) |
 | `props[]` | text | no | active | gate.perception_scope |  |
+| `writing` | list | no | active | scene.run_scene; gate.perception_scope | which props are writing, each spelled as in props: a reader whose sheet says lettered false sees marks |
+| `writing[]` | text | no | active | gate.perception_scope |  |
 | `pov` | text | no | active | scene.record_boundary; narrate | whose eyes the narrator uses; the first cast id when absent |
 | `voice` | text | no | active | narrate | close-third \| first \| distant-third \| second |
 | `knowledge` | text | no | active | narrate | pov \| omniscient |

@@ -53,6 +53,7 @@ PERCEPTION_DC_IDENTITY = 0.55  # recognising an entity not clearly identified
 PERCEPTION_DC_SUBTLE   = 0.60  # noticing a subtle cue (faint signs, emotional tells)
 
 ALLOSTATIC_PENALTY = 0.5  # half-penalty at maximum load (relevancy-gate.md §Connection energy)
+UNREAD_WRITING = "there is writing on it, and you cannot read: to you it is marks, and what they say is closed to you"
 
 def _energy_budget(condition):
     """Compute cognitive connection budget from condition dict.
@@ -111,7 +112,7 @@ def _normalize(s):
 
 # ---- Step 2: Perception scope (perception-mode wall) ----
 
-def perception_scope(scene_slice, world, skills, condition, relationships=None, me=None, tired=False):
+def perception_scope(scene_slice, world, skills, condition, relationships=None, me=None, tired=False, lettered=True):
     """Filter scene_slice to what THIS character apprehends this turn.
 
     scene-assembly.md step 2; relevancy-gate.md §"Two input domains, one machinery —
@@ -131,6 +132,8 @@ def perception_scope(scene_slice, world, skills, condition, relationships=None, 
     condition   : dict  {energy, allostatic_load, ...}
     tired       : bool  the book runs `condition_flow`: the subtle-cue check weighs the eye by what the mind has
                         left (`worn_eye`), as `tells.catches` does (gate tired-lexicon)
+    lettered    : bool  the sheet's `baseline.lettered` (absent, True): False shows a prop the scene marks as
+                        writing (`written`) as marks this reader cannot read (gate letters)
 
     Returns list of Percept dicts (the PerceptSet).
 
@@ -202,7 +205,9 @@ def perception_scope(scene_slice, world, skills, condition, relationships=None, 
             ref         = "prop.%s" % _safe_ref(text[:30]),
             channel     = "visual",
             fidelity    = 1.0,
-            attributes  = [text],
+            # WRITING TO A READER WITHOUT LETTERS (gate letters, critique A7): the thing is plainly here; what is
+            # written on it is not, for them. Told at the act, where a fact buried in the sheet was never seen.
+            attributes  = [text] + ([UNREAD_WRITING] if not lettered and text in s.written else []),
             must_surface= True,     # an affordance withheld is an affordance that does not exist
         ))
 

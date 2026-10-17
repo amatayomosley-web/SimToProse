@@ -191,6 +191,8 @@ SHEET = (
       doc="both drivers index it directly: absent, a run crashes",
       absent="EMPTY - every skill is treated as exactly average"),
     F("baseline.skills.<name>", "unit", reader="gate.perception_scope (perception, insight); consolidation (combat)"),
+    F("baseline.lettered", "bool", reader="gate.perception_scope (a scene's `writing` props)",
+      doc="false: cannot read - a prop the scene marks as writing reaches them as marks; absent, lettered"),
     F("baseline.provenance", "any", status="unread", doc="where the numbers came from - kept out of the prompt"),
     # ---- baseline: engine state and its gates ---------------------------------------------------------------------
     F("baseline.catalog", "delegated", check=_catalog, reader="levers.active_rows", doc="tier-3 rows: a standing fact multiplies a path"),

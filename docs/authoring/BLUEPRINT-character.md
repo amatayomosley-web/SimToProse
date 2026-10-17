@@ -156,6 +156,7 @@ the prose is a defect.
 | `baseline.voice` | prose | no | active | identity_view.direct_identity; narrate | how they sound - told to the actor verbatim |
 | `baseline.skills` | map | yes | active | gate.perception_scope; bonds; tells; consolidation | both drivers index it directly: absent, a run crashes |
 | `baseline.skills.<name>` | unit | no | active | gate.perception_scope (perception, insight); consolidation (combat) |  |
+| `baseline.lettered` | bool | no | active | gate.perception_scope (a scene's `writing` props) | false: cannot read - a prop the scene marks as writing reaches them as marks; absent, lettered |
 | `baseline.provenance` | any | no | unread | - | where the numbers came from - kept out of the prompt |
 | `baseline.catalog` | delegated | no | active | levers.active_rows | tier-3 rows: a standing fact multiplies a path |
 | `baseline.wounds` | list | no | active | wound; connection; levers; passage | engine state, minted - never hand-written |

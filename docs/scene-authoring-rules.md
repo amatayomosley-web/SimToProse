@@ -46,6 +46,12 @@ Derived from engine architecture (`docs/world-model.md`, `docs/scene-assembly.md
 > count. Deliberately NOT perception-gated: the rule's own argument is that these are
 > the plainly-present objects of the room, and gating them would withdraw the
 > affordances exactly when a character most needs something to do with their hands.
+>
+> **Writing (gate letters, 2026-10-17).** List the props that are writing in the scene file's `writing`, each spelled
+> exactly as in `props` (anything else refuses the scene, `SCENE_WRITING_UNKNOWN`). A character whose sheet says
+> `baseline.lettered: false` sees such a prop as itself plus *"there is writing on it, and you cannot read: to you it
+> is marks…"*; a lettered sheet, or one without the field, sees it as written. The prop's own text is shown to
+> everyone, so do not put the writing's words in it.
 
 ---
 

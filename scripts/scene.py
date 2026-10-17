@@ -649,6 +649,7 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
                        "last_turn": led.last_turn(run_id, speaker, a["view"]),
                        "recent": [l["action"] for l in _seen[-2:]],
                        "props": cfg.get("props") or [],
+                       "written": [str(x).strip() for x in cfg.get("writing") or []],   # marks to the unlettered
                        # WHO IS BODILY HERE. Shrinks on exit, so it is always "right now". Supplying
                        # it is what turns on the referenced/present distinction: anyone the event
                        # text names who is NOT on this list was spoken of, not seen. Omit the key

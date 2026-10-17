@@ -589,6 +589,31 @@ def test_the_one_refused_feels_it(tmp):
           (worst, sorted(set(cache) - set(got))))
 
 
+def test_a_scene_marks_writing_and_a_reader_without_letters_sees_marks(tmp):
+    """gate letters (showrunner ruling 2026-10-17, critique A7): the scene file's `writing` reaches the perception wall
+    through the driver, and a cast whose sheets say lettered false perceive that prop as marks they cannot read."""
+    import src.engine.scene as eng
+    from src.engine.gate import UNREAD_WRITING
+    book, seen, real, saved = "the painted sign over the bakery door", [], eng.perception_scope, CHAR_ENGINE["baseline"]
+
+    def spy(*a, **k):
+        got = real(*a, **k)
+        seen.append({p["attributes"][0]: p["attributes"] for p in got if p["ref"].startswith("prop.")})
+        return got
+
+    def script(who, stance, flags, n, steer):
+        return ("%s looks at the sign." % who.title(), "-", "yield" if stance == "speaker" else "hold", _other(who))
+    eng.perception_scope, CHAR_ENGINE["baseline"] = spy, dict(saved, lettered=False)
+    try:
+        out, exited, calls, rows = _run(tmp, ("mira", "ada"), script, 2,
+                                        keys={"props": [book, "a lamp"], "writing": [book]})
+    finally:
+        eng.perception_scope, CHAR_ENGINE["baseline"] = real, saved
+    check("every-act's-percept-of-the-written-prop-says-they-cannot-read-it;-the-lamp-is-as-it-was",
+          exited is None and seen and all(s.get(book) == [book, UNREAD_WRITING] and s.get("a lamp") == ["a lamp"]
+                                          for s in seen), (exited, seen[:2], out[-300:]))
+
+
 def main():
     print("test_scene_rounds.py - the round, through scripts/scene.py main\n")
     for name, fn in sorted(((k, v) for k, v in globals().items() if k.startswith("test_") and callable(v)),

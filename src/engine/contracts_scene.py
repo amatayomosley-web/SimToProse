@@ -55,6 +55,16 @@ def _member(c, cfg, ctx):
                               "- nothing would show them" % me)
 
 
+def _writing(w, cfg, ctx):
+    """Which props are writing (gate letters): each one exactly as the props list spells it, so a reader whose sheet
+    says they have no letters is shown marks (gate.perception_scope)."""
+    props = [str(p).strip() for p in (cfg.get("props") if isinstance(cfg.get("props"), list) else [])]
+    bad = [x for x in (w if isinstance(w, list) else [w]) if not isinstance(x, str) or x.strip() not in props or not x.strip()]
+    if bad:
+        raise RecordError("SCENE_WRITING_UNKNOWN", "writing: %s must each be one of the props, spelled as the props list "
+                          "spells it (%s)" % (", ".join(repr(x) for x in bad), "; ".join(props) or "no props"))
+
+
 MOVES_MAX = 30                                     # the ceiling a scene file may set (design v2 s3: "at most 30")
 MOVES_DEFAULT = 24                                 # the ceiling when nothing sets one (design v2 s3; showrunner ruling)
 HOLD_WHEN = ("opening",)                          # when a held-open speech begins; absent, at the speaker's first move
@@ -195,6 +205,9 @@ SCENE = (
     F("props", "list", blank=True, reader="gate.perception_scope",
       doc="the room's objects, plainly present - three to five; left blank, none (the loader reads a blank as absent)"),
     F("props[]", "text", reader="gate.perception_scope"),
+    F("writing", "list", check=_writing, reader="scene.run_scene; gate.perception_scope",
+      doc="which props are writing, each spelled as in props: a reader whose sheet says lettered false sees marks"),
+    F("writing[]", "text", reader="gate.perception_scope"),
     F("pov", "text", check=_pov, reader="scene.record_boundary; narrate", doc="whose eyes the narrator uses; the first cast id when absent"),
     F("voice", "text", check=_voice, reader="narrate", doc="close-third | first | distant-third | second"),
     F("knowledge", "text", check=_knowledge, reader="narrate", doc="pov | omniscient"),

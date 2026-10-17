@@ -36,7 +36,7 @@ FAILS = []
 FULL = {"event": {"text": "Mira trims the wick.", "kind": "mundane", "target": "mira"},
         "recent": ["Ada: the wind is backing."], "location": "loc.lamp_room", "present": ["ada", "mira"],
         "props": ["the wick trimmer"], "target": "mira", "engaged": "ada", "raised_by": {"WARINESS": "ada"},
-        "last_read_turn": {"WARINESS": 3}, "last_turn": 3, "tells_noticed": ["her hands shake"],
+        "last_read_turn": {"WARINESS": 3}, "last_turn": 3, "tells_noticed": ["her hands shake"], "written": ["a letter"],
         "elsewhere": ["mira_young"]}
 
 
@@ -84,7 +84,7 @@ def shapes():
     print("[3] a declared key of the wrong shape is refused naming the field")
     bad = {"recent": "one line", "location": 7, "present": "ada", "props": [3], "target": ["mira"], "engaged": None,
            "raised_by": {"WARINESS": 2}, "last_read_turn": {"WARINESS": "3"}, "last_turn": True,
-           "tells_noticed": "a sign", "elsewhere": [None]}
+           "tells_noticed": "a sign", "written": "a letter", "elsewhere": [None]}
     check("(every-declared-field-but-the-event-has-a-bad-value-here)",
           set(bad) == set(scene_slice.DECLARED) - {"event"}, sorted(set(scene_slice.DECLARED) - {"event"} - set(bad)))
     for key, value in sorted(bad.items()):

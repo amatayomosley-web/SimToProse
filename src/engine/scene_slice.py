@@ -42,6 +42,7 @@ class SceneSlice:
     last_read_turn: dict = field(default_factory=dict)  # {path: turn} - when each path was last read (ledger)
     last_turn: Optional[int] = None           # the speaker's last committed beat, or None before their first
     tells_noticed: tuple = ()                 # signs another actor let slip that this listener caught (gate tells)
+    written: tuple = ()                       # which props are writing (gate letters): marks to a reader without letters
     elsewhere: tuple = ()                     # the people this beat's names do not mean (presence.one_per_name)
 
 
@@ -118,4 +119,5 @@ def of(raw):
         last_read_turn=_map(raw.get("last_read_turn", {}), "last_read_turn", _int),
         last_turn=_int(raw.get("last_turn"), "last_turn", none_ok=True),
         tells_noticed=_texts(raw.get("tells_noticed", ()), "tells_noticed"),
+        written=_texts(raw.get("written", ()), "written"),
         elsewhere=_texts(raw.get("elsewhere", ()), "elsewhere", sort=True))
