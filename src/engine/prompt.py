@@ -148,6 +148,12 @@ def build_turn_messages(packet, event_text, temperament, relationships=None, act
         stance, {"hold_open": hold_open, "resumed": resumed, "interrupt": interrupt, "forced": forced,
                  "unanswered": unanswered}, last_thought)
     _floor_rule = _directed_line(to) + _tell_line(tell) + _floor_rule    # whom (directed-addressee); tells (brief)
+    # A SHEET'S TICS ARE HABITS (gate tic-rate): listed in the identity on every call, they were played in most moves
+    # (a replay: one habit shown in most moves). Under the round loop the actor is told how often a habit shows.
+    if stance is not None and ((packet["stable"].get("voice") or {}) if isinstance(packet["stable"].get("voice"),
+                                                                                dict) else {}).get("tics"):
+        _floor_rule += ("Your tics are habits: they show now and then, not in every move - at most one in a move, and "
+                        "never the one you showed last.\n")
     _floor_slot += ", \"tell\": \"\"" if tell is not None else ""
     _act_rule = (("act = the ONE token from this list that names what you just did, or empty if "
                   "none fits - most beats are none. Copy it exactly, do not invent one: "

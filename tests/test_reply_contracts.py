@@ -114,6 +114,22 @@ def test_a_directed_move_is_told_whom_it_is_to():
             raise AssertionError("to=%r built a prompt; it must refuse" % (bad,))
 
 
+def test_a_sheets_tics_are_habits_not_every_move():
+    """gate tic-rate (a replay: a sheet's two tics shown in most moves): the voice's tics reach the actor on
+    every call as identity; under the round loop the actor is told they show now and then - at most one a move, never
+    the one shown last. A sheet without tics, and the stance-free prompt, are as they were."""
+    line = "Your tics are habits: they show now and then, not in every move"
+    p = _packet()
+    p["stable"]["voice"] = {"tics": ["hums under his breath", "folds his arms"]}
+    temperament = {k: {"mean": 0.3, "variability": 0.1} for k in PATHS}
+    for stance in ("speaker", "listener"):
+        assert line in build_turn_messages(p, _EVENT, temperament, stance=stance)[1]["content"], stance
+        assert line not in _usr(stance=stance), stance
+    assert line not in build_turn_messages(p, _EVENT, temperament)[1]["content"], "stance-free prompt unchanged"
+    p["stable"]["voice"] = {"tics": []}
+    assert line not in build_turn_messages(p, _EVENT, temperament, stance="speaker")[1]["content"], "no tics, no line"
+
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_") and callable(fn):
