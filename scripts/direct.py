@@ -429,7 +429,7 @@ def llm_turn(packet, event_text, temperament, model, stub, think=True, seed=None
         messages = list(messages) + list(corrections)
     if model.startswith("ollama/"):                                  # local on-disk dispatch (free, pinned)
         return _parse_reply(_ollama(messages, model[len("ollama/"):], think=think, seed=seed))
-    return _parse_reply(_openrouter(messages, model))
+    return _parse_reply(_openrouter(messages, model, max_tokens=1500 if floor.get("hold_open") else 750))   # gate act-ceiling
 
 
 def faithful_turn(packet, event_text, temperament, model, stub, think=True, seed=None, relationships=None, max_retries=2, acts=(), information=None, char_id=None, brief="", vault=None, world=None,

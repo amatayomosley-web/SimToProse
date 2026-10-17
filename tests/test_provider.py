@@ -232,6 +232,23 @@ def test_the_wait(tmp):
     check("the-wait-is-off-with-the-root", P.wait_seconds() == 0.0 and P.replies_dir() is None)
 
 
+def test_the_act_ceiling():
+    """gate act-ceiling (conversation design v2 s7 G): the actor's OpenRouter call is capped at 1500 tokens for a
+    speaker the director holds the floor open for - a paragraph, its thought and its tags - and 750 otherwise."""
+    print("\n[6] THE ACT CEILING")
+    import direct
+    seen, saved = [], (P.call, direct.build_turn_messages, direct.rung_direction)
+    P.call = lambda messages, model, purpose, max_tokens=700, **k: seen.append((purpose, max_tokens)) or '{"action": "x"}'
+    direct.build_turn_messages = lambda *a, **k: [{"role": "user", "content": "the beat"}]
+    direct.rung_direction = lambda *a, **k: None
+    try:
+        for floor in ({"stance": "speaker", "hold_open": True}, {"stance": "speaker"}, None):
+            direct.llm_turn({}, "the beat", {}, "anthropic/claude-opus-5", False, floor=floor)
+    finally:
+        P.call, direct.build_turn_messages, direct.rung_direction = saved
+    check("a-held-open-speaker-gets-1500,-any-other-call-750", seen == [("act", 1500), ("act", 750), ("act", 750)], seen)
+
+
 def main():
     print("test_provider.py — the one frontier-model seam")
     tmp = tempfile.mkdtemp(prefix="stp-provider-")
@@ -241,6 +258,7 @@ def main():
         test_the_default_model_and_the_boundary()
         test_the_replay(tmp)
         test_the_wait(tmp)
+        test_the_act_ceiling()
     finally:
         import shutil
         shutil.rmtree(tmp, ignore_errors=True)
