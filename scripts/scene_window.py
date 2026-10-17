@@ -26,10 +26,12 @@ from src.engine import floor as _floor
 from src.engine import injuries as _injuries
 from src.engine import passage as _passage
 from src.engine import replies as _replies
+from src.engine import tells as _tells
 from src.engine import targets as _targets
 from src.engine import tellings as _tellings
 from src.engine.consolidation import CATALOG, TagError, tag_refusal, validate_tags
 from src.engine.errors import EngineError
+from src.engine.prompt import compose_event
 from src.engine.records import PATHS, Event, RecordError, RelationshipDelta, TowardDelta, TurnCommit, WoundDelta
 from src.engine.severity import normalise_dimensions
 from src.engine.state import appraise, decay, receive
@@ -117,8 +119,21 @@ def _mark(act):
             r["log"]["tags"] = dict(act["applied"])
 
 
+def _seen(ctx, who):
+    """THE WINDOW AS THIS PARTICIPANT LIVED IT (gate tells-feel): the exchange through to the window's close - the
+    scene log ends on its last row when `close` runs - composed for them, their own lines "You", and under the
+    `tells` system through their own eye (tells.for_listener: a sign they catch reads after the act, one they miss
+    never does). Their own last row's moment stopped before it, so a word put in after it never reached the feeling."""
+    log = ctx["log"]
+    if "tells" in ctx["sys"]:
+        log = _tells.for_listener(log, who, _tells.catches(ctx["actors"][who]["char"],
+                                                           tired="condition_flow" in ctx["sys"]))[0]
+    return compose_event(ctx["cfg"]["situation"], log, ctx["names"], me=who)
+
+
 def _feel(ctx, who, rows, at, present):
-    """One participant's emotion read over their rows -> {readings, lands, failed, notes, extra}."""
+    """One participant's emotion read over their rows, in the window as they saw it -> {readings, lands, failed,
+    notes, extra}."""
     out = {"readings": [], "lands": None, "failed": {}, "notes": [], "extra": []}
     if ctx["stub"]:
         return out
@@ -126,7 +141,7 @@ def _feel(ctx, who, rows, at, present):
     try:
         rd, lands, _conf, missing = appraiser.read_emotion(
             _text(rows, "action"), _text(rows, "thought"), _provider.seat_model(), led=ctx["led"], run_id=ctx["run_id"],
-            turn=at, scene=ctx["cfg"].get("name"), moment=last["event_text"], present=list(present), me=who,
+            turn=at, scene=ctx["cfg"].get("name"), moment=_seen(ctx, who), present=list(present), me=who,
             percepts=last["packet"]["volatile"]["percepts"], extra=out["extra"])
         out["readings"], out["lands"] = list(rd), lands
         if missing:

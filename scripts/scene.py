@@ -587,7 +587,7 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
     # THE WINDOW IN HAND (gate window-reads): its rows, buffered until it closes, and what closing it needs
     window, _wspk, _wstate = [], None, {"target": scene_target}
     _wctx = {"led": led, "run_id": run_id, "cfg": cfg, "world": world, "names": names, "actors": actors, "gi": gi,
-             "stub": stub, "sys": _sys, "per_beat": per_beat, "state": _wstate,
+             "stub": stub, "sys": _sys, "per_beat": per_beat, "state": _wstate, "log": log,
              "law_events": lambda reply, who, t: _law_events(led, run_id, world, chars, reply, who,
                                                              location=cfg.get("location"), tick=t)}
     for beat in range(budget * (len(ids) + 1)):

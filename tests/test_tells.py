@@ -16,7 +16,8 @@ reads the act alone, and one's own rows read whole. No reader rubric, no regex c
       and is told, one's own row whole, and only the beats the moment shows are recorded;
   [5] through scripts/scene.py main: the sharp keeper reads the other's tell and is told it as a percept, the dull
       one never reads it, the record keeps each tell (turns.tell) and what each beat hid and caught, and the event
-      reader is never asked for tells;
+      reader is never asked for tells; each keeper's FEELING reads the whole window through their own eye (gate
+      tells-feel);
   [6] [7] a worn mind catches less, and the room's subtle cues dim alike (gates tired-eyes, tired-lexicon).
 
 The book is invented here (two keepers on a rock), per hard rule 1. Script-style; exit 0 = all pass.
@@ -157,14 +158,16 @@ def _skills(book, perception):
         open(p, "w", encoding="utf-8").write(txt[:m.start(1)] + json.dumps(eng, indent=1) + txt[m.end(1):])
 
 
-def _run(tmp, decl, cfg_extra=None, brief=BRIEF):
+def _run(tmp, decl, cfg_extra=None, brief=BRIEF, shared=False):
     """One scene of four beats through scripts/scene.py main IN PROCESS: each keeper writes a tell when the scene
     brief gave them one. -> (db or None, [(speaker, moment, percept attributes, the tells they were told)],
-    [the reader's tells= per call], the run's exit text or None)."""
+    [the reader's tells= per call], the run's exit text or None). `shared`: the speaker keeps the floor and the
+    listener puts in a word, so both keepers' rows fall in one window; the emotion seat's (participant, moment)
+    per read is left on `_run.feels`."""
     import scene
     book = _book(tmp, decl)
     _skills(book, {"Mira": 0.85, "Ada": 0.40})
-    seen, asked = [], []
+    seen, asked, feels = [], [], []
 
     def fake_turn(packet, event_text, temperament, model, stub, **k):
         me = k["char_id"]
@@ -177,13 +180,16 @@ def _run(tmp, decl, cfg_extra=None, brief=BRIEF):
                           "subject": other}}
         if told:
             reply["tell"] = TELLS[me]
+        if shared:
+            reply["floor"] = "keep" if (k.get("floor") or {}).get("stance") == "speaker" else "interject"
         return reply, []
 
     def event(action, model, **kw):
         asked.append(kw.get("tells"))
         return {"type": "mundane", "dimensions": {}, "durability": "transient"}
 
-    def emotion(action, thought, model, me=None, present=(), **_k):
+    def emotion(action, thought, model, me=None, present=(), moment="", **_k):
+        feels.append((me, moment))
         return [], [p for p in present if p != me], "sure", []
 
     saved = (scene.faithful_turn, scene.appraiser.read_event, scene.appraiser.read_emotion, sys.argv)
@@ -206,6 +212,7 @@ def _run(tmp, decl, cfg_extra=None, brief=BRIEF):
     finally:
         scene.faithful_turn, scene.appraiser.read_event, scene.appraiser.read_emotion, sys.argv = saved
     dbs = glob.glob(os.path.join(book, "runs", "*.db"))
+    _run.feels = feels
     return (dbs[0] if dbs else None), seen, asked, exited
 
 
@@ -235,6 +242,25 @@ def test_through_the_driver(tmp):
     hidden = [t for t, m in mans if actors[t] == "ada" and (m.get("tells") or {}).get("hidden")]
     noticed = [t for t, m in mans if actors[t] == "mira" and (m.get("tells") or {}).get("noticed")]
     check("each-beat-records-what-was-hidden-and-what-was-caught", hidden and noticed, (hidden, noticed))
+    # THE FEELING READS THE WHOLE WINDOW AS ITS OWNER DID (gate tells-feel): both keepers in one window (Mira keeps
+    # the floor, Ada puts in a word after each move), and each one's emotion read is given the window through to its
+    # close, through their own eye - Ada's last word, after Mira's last row, reaches Mira's feeling with the sign
+    # Mira catches; the dull keeper's never carries the sharp one's sign; each reads their own lines as "You"
+    db, seen, asked, exited = _run(os.path.join(tmp, "shared"), {"tells": True}, shared=True)
+    felt = {w: [m for x, m in _run.feels if x == w] for w in ("mira", "ada")}
+    closes = [t for (t,) in sqlite3.connect(db).execute(
+        "SELECT json_extract(manifest, '$.window.close') FROM decision_manifests")] if db else []
+    ada_rows = [t for (t,) in sqlite3.connect(db).execute("SELECT turn FROM turns WHERE actor='ada'")] if db else []
+    check("one-window-holds-both-keepers-and-ada-closes-it", exited is None and len(set(closes)) == 1
+          and closes[0] == max(ada_rows or [-1]) and all(len(v) == 1 for v in felt.values()), (exited, closes, ada_rows))
+    check("the-sharp-keeper-s-feeling-reads-every-word-the-other-put-in-with-its-sign",
+          [m.count(ADA_TELL) for m in felt["mira"]] == [len(ada_rows)], felt["mira"])
+    check("the-dull-keeper-s-feeling-never-reads-the-sharp-one-s-sign",
+          any("trims the lamp" in m for m in felt["ada"]) and not any(MIRA_TELL in m for m in felt["ada"]),
+          felt["ada"])
+    check("each-keeper-s-feeling-reads-their-own-lines-as-you",
+          not any(line.startswith(nm) for w, nm in (("mira", "Mira"), ("ada", "Ada")) for m in felt[w]
+                  for line in m.splitlines()), _run.feels)
     db, seen, asked, exited = _run(os.path.join(tmp, "none"), {"tells": True}, brief=None)
     check("no-tells-in-the-brief-no-tells", exited is None and seen and all(t is None for _w, _m, _a, t in seen)
           and not any(t for (t,) in sqlite3.connect(db).execute("SELECT tell FROM turns")),
