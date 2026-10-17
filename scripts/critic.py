@@ -119,7 +119,7 @@ def build_critic_prompt(turns, world, label=None):
     who = "; ".join("%s = %s" % (p.get("id", "?"), _name_of(p)) for p in world.get("people", []) if isinstance(p, dict))
     where = "; ".join("%s = %s" % (l.get("id", "?"), l.get("what", "")) for l in world.get("locations", []) if isinstance(l, dict))
     transcript = "\n".join(
-        "[%d] %s: %s" % (t["turn"], t["actor"], str(t["action"]).replace("\n", " ")) for t in turns)
+        "[%d] %s: %s%s" % (t["turn"], t["actor"], str(t["action"]).replace("\n", " "), "\n[%d] THE ROOM: %s" % (t["turn"], t["room"]) if t.get("room") else "") for t in turns)   # the director's placed reaction (gate critic-room)
     sys_msg = (
         "You are a CONTINUITY + VOICE critic for a novel-in-progress. You are NOT the author and you do "
         "not rewrite. You read one scene's transcript against the world's established canon and report "

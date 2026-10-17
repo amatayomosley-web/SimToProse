@@ -417,6 +417,13 @@ def test_the_director_holds_the_floor_open(tmp):
           and lines.splitlines().index("beat 3 · THE ROOM: %s" % room) == 3 and "THE ROOM  " in legend, (got, lines))
     plain = transcript(narrate.pov_split([dict(r, room="") for r in got], _other(held)), _other(held), "POV", {}, "pov")
     check("...and-without-one-no-room-text-at-all", "ROOM" not in "".join(plain), plain)
+    # THE CRITIC SEES IT TOO (gate critic-room): continuity is judged against the whole record
+    crit = critic.build_critic_prompt(got, {})[1]["content"].splitlines()
+    at = "[%d] THE ROOM: %s" % (got[2]["turn"], room)
+    check("...the-critic's-transcript-shows-the-room-after-that-turn", at in crit
+          and crit[crit.index(at) - 1].startswith("[%d] %s:" % (got[2]["turn"], held)), crit)
+    check("...and-a-row-without-one-renders-as-before", "ROOM" not in critic.build_critic_prompt(
+        [dict(r, room="") for r in got], {})[1]["content"])
     out, exited, calls, rows = _run(os.path.join(tmp, "open"), ("mira", "ada"), script, None)
     check("with-no---budget-and-no-moves-the-ceiling-is-24", exited is None and len(rows) == 24, (exited, len(rows)))
     out, exited, calls, rows = _run(os.path.join(tmp, "bad"), ("mira", "ada"), script, 2,
