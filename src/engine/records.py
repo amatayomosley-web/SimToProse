@@ -527,6 +527,24 @@ class Reading:
         return self
 
 
+def _checked_binds(target_binds, where):
+    """(primary, target) pairs -> the same, each primary the vocabulary's own (gate canonical-members)."""
+    binds, spelt = [], {}
+    for _tb in target_binds:
+        _require(isinstance(_tb, (list, tuple)) and len(_tb) == 2, "RECORD_LIST_ITEM_TYPE",
+                 "%s.target_binds items must be (primary, target) pairs, got %r" % (where, _tb))
+        primary = member(_tb[0], PATHS, "RECORD_LIST_ITEM_TYPE",
+                         "%s.target_binds names %r, which is not one of the primaries" % (where, _tb[0]))
+        _require(isinstance(_tb[1], str), "RECORD_LIST_ITEM_TYPE",
+                 "%s.target_binds target must be a str ('' is the release), got %r" % (where, type(_tb[1]).__name__))
+        # two spellings of one primary would become one key - `target_binds` is UNIQUE on it - and which target wins
+        # is not the record layer's to guess: refused by name, as a raw repeat is left to the database (review 1)
+        _require(spelt.setdefault(primary, _tb[0]) == _tb[0], "RECORD_LIST_ITEM_TYPE",
+                 "%s.target_binds spells %r two ways (%r, %r)" % (where, primary, spelt[primary], _tb[0]))
+        binds.append([primary, _tb[1]] if isinstance(_tb, list) else (primary, _tb[1]))
+    return binds
+
+
 @dataclass
 class TurnCommit:
     """run-lifecycle.md's atomic unit: {thought, action, tags} · validation · events · state — together or not at all."""
@@ -553,6 +571,9 @@ class TurnCommit:
     lands_on: list = field(default_factory=list)          # [char_id] — who the beat bears on (floor, Phase 5)
     bystanders: dict = field(default_factory=dict)        # {char_id: {"affect", "condition"}} — every OTHER present
                                                           # character's mood after the beat's minutes (step 4)
+    readers: dict = field(default_factory=dict)           # {char_id: {"affect", "condition", "readings", "target_binds",
+                                                          # "wound_mints"}} - the window's OTHER participants, read at
+                                                          # its last row (design v2 s5, gate window-reads)
     floor: str = ""                                       # FLOORS, or '' (none): what the move did to the floor
     addressee: str = ""                                   # whom the move was said TO ('' : the room, or no one)
 
@@ -572,6 +593,8 @@ class TurnCommit:
             _require(isinstance(_row, dict) and isinstance(_row.get("condition", {}), dict), "RECORD_FIELD_TYPE",
                      "TurnCommit.bystanders[%s] must be {affect, condition}" % _b)
             _check_affect(_row.get("affect"), "TurnCommit.bystanders[%s].affect" % _b)
+        from . import readings as _rd            # the window's other participants (gate window-reads)
+        _rd.check_readers(self.readers, self.actor, self.bystanders)
         _require(isinstance(self.events, list), "RECORD_FIELD_TYPE", "TurnCommit.events must be a list")
         for ev in self.events:
             _require(isinstance(ev, Event), "RECORD_LIST_ITEM_TYPE", "TurnCommit.events items must be Event, got %r" % type(ev).__name__)
@@ -624,20 +647,7 @@ class TurnCommit:
         _require(self.floor in FLOOR_STORED, "RECORD_FLOOR_UNKNOWN",
                  "TurnCommit.floor %r is not a floor word: %s, or '' for none" % (self.floor, ", ".join(FLOORS)))
         _require(isinstance(self.addressee, str), "RECORD_FIELD_TYPE", "TurnCommit.addressee must be str")
-        binds, spelt = [], {}
-        for _tb in self.target_binds:
-            _require(isinstance(_tb, (list, tuple)) and len(_tb) == 2, "RECORD_LIST_ITEM_TYPE",
-                     "TurnCommit.target_binds items must be (primary, target) pairs, got %r" % (_tb,))
-            primary = member(_tb[0], PATHS, "RECORD_LIST_ITEM_TYPE",
-                             "TurnCommit.target_binds names %r, which is not one of the primaries" % (_tb[0],))
-            _require(isinstance(_tb[1], str), "RECORD_LIST_ITEM_TYPE",
-                     "TurnCommit.target_binds target must be a str ('' is the release), got %r" % type(_tb[1]).__name__)
-            # two spellings of one primary would become one key - `target_binds` is UNIQUE on it - and which target wins
-            # is not the record layer's to guess: refused by name, as a raw repeat is left to the database (review 1)
-            _require(spelt.setdefault(primary, _tb[0]) == _tb[0], "RECORD_LIST_ITEM_TYPE",
-                     "TurnCommit.target_binds spells %r two ways (%r, %r)" % (primary, spelt[primary], _tb[0]))
-            binds.append([primary, _tb[1]] if isinstance(_tb, list) else (primary, _tb[1]))
-        self.target_binds = binds                      # each primary the vocabulary's own (gate canonical-members)
+        self.target_binds = _checked_binds(self.target_binds, "TurnCommit")   # each primary the vocabulary's own
         for td in self.toward_deltas:
             _require(isinstance(td, TowardDelta), "RECORD_LIST_ITEM_TYPE", "TurnCommit.toward_deltas items must be TowardDelta")
             td.validate()

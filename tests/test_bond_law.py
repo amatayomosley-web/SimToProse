@@ -396,6 +396,8 @@ def test_bond_wording_names_no_act_generically():
     scene_py = os.path.join(REPO, "scripts", "scene.py")
     with open(scene_py, encoding="utf-8") as f:
         src = f.read()
+    with open(os.path.join(REPO, "scripts", "scene_window.py"), encoding="utf-8") as f:   # the window's commit (gate window-reads)
+        src += f.read()
     check("the new wording is in scripts/scene.py", "the seat named no showed" in src)
     check("the old stub-only wording is gone", "the stub double names no act" not in src)
 

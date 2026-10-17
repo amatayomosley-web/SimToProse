@@ -209,6 +209,8 @@ RECORD_CASES = {
     "RECORD_LIST_ITEM_TYPE":         lambda: _commit(events=["not an Event"]).validate(),
     "RECORD_BYSTANDER_IS_ACTOR":     lambda: _commit(
         bystanders={"maren": {"affect": {p: 0.5 for p in PATHS}}}).validate(),
+    "RECORD_READER_IS_ACTOR":        lambda: _commit(
+        readers={"maren": {"affect": {p: 0.5 for p in PATHS}}}).validate(),
 }
 
 

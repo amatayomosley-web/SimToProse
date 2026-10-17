@@ -73,6 +73,7 @@ _RECORD = {
     "RECORD_AFFECT_UNKNOWN_KEYS":           "a commit's affect carries a key that is not a primary",
     "RECORD_AFFECT_VALUE_RANGE":            "a primary's value in a commit is outside [0,1]",
     "RECORD_BYSTANDER_IS_ACTOR":            "a commit's bystanders name the actor (or a blank id); a bystander is another present character whose mood the beat's minutes decayed, and the actor's row is its own",
+    "RECORD_READER_IS_ACTOR":               "a commit's readers name the actor, a bystander or a blank id; a reader is another participant of the window whose feeling was read at its last row (design v2 s5)",
     "RECORD_AXIS_UNKNOWN":                  "a relationship delta names an axis outside trust/affinity/respect/debt",
     "RECORD_CHAR_ID_EMPTY":                 "a wound delta names no character",
     "RECORD_DELTA_RANGE":                   "a delta on any tier is not a number in [-1,1]",

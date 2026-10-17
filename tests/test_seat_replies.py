@@ -440,11 +440,12 @@ def the_drivers():
         finally:
             scene.faithful_turn = saved
         floor_runs[label] = (exited, _validation(book), out)
-    # A TWO-HANDER ASKS THE OTHER WHATEVER THE URGE (gate round-loop; conversation design v2 s3), so the prune can no
-    # longer end this scene; what proves the driver reads the seat's list is the trace naming the listener unreached
+    # A TWO-HANDER ASKS THE OTHER WHATEVER THE URGE (gate round-loop; conversation design v2 s3), and SINCE GATE
+    # WINDOW-READS the seats read at a window's end, after the round has asked its listeners: the urge inside a round
+    # reads the speaker's own tags, unpruned (design v2 s5), so no listener is traced unreached
     exited, vals, out = floor_runs["the-seat's-own-reached-no-one"]
-    check("the-floor-scene-reads-the-seat's-own-reached-no-one:-the-listener-is-traced-unreached-and-still-asked",
-          exited is None and len(vals) == 4 and "~unreached" in out, (exited, len(vals), out[-400:]))
+    check("the-floor-scene:-the-round-asks-before-the-seat-reads,-so-no-listener-is-pruned",
+          exited is None and len(vals) == 4 and "~unreached" not in out, (exited, len(vals), out[-400:]))
     exited, vals, out = floor_runs["a-null-entry"]
     check("...a-refused-lands_on-leaves-the-floor-its-own-count:-all-four-beats",
           exited is None and len(vals) == 4 and all(

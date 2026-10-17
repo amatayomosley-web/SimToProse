@@ -95,6 +95,7 @@ from direct import faithful_turn, DEFAULT_MODEL, _ollama            # noqa: E402
 from src.engine import floor as _floor
 from src.engine.prompt import compose_event as _compose_event   # perception assembly, not floor
 from src.engine import passage as _passage                      # one clock, two drivers (2026-09-19)
+import scene_window as _scene_window                            # a window's reads and rows (gate window-reads)
 _salience        = _floor.salience
 _bond_moves      = _floor.bond_moves
 
@@ -582,10 +583,17 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
     # WHOM THE DIRECTION AIMS EACH CHARACTER AT (gate directed-addressee): the scene file's `cast[].to`, checked against
     # the cast by its contract before the run began. Absent, the actor chooses, as before.
     _directed = {str(c["id"]): str(c["to"]) for c in cfg["cast"] if c.get("to")}
+    # THE WINDOW IN HAND (gate window-reads): its rows, buffered until it closes, and what closing it needs
+    window, _wspk, _wstate = [], None, {"target": scene_target}
+    _wctx = {"led": led, "run_id": run_id, "cfg": cfg, "world": world, "names": names, "actors": actors, "gi": gi,
+             "stub": stub, "sys": _sys, "per_beat": per_beat, "state": _wstate,
+             "law_events": lambda reply, who, t: _law_events(led, run_id, world, chars, reply, who,
+                                                             location=cfg.get("location"), tick=t)}
     for beat in range(budget * (len(ids) + 1)):
         if committed >= budget:
             break
         stance, speaker, _flags = rnd.call
+        scene_target = _wstate["target"]              # the subject the last window's reads resolved
         a = actors[speaker]
         # what this actor was thinking last, its own mind only (design v1 s4: the deliberation is carried, not restarted)
         _floor_kw = dict(_flags, stance=stance,
@@ -601,8 +609,11 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
         event_text = _compose_event(cfg["situation"], _seen, names, me=speaker)
         # A NAME MEANS ONE PERSON (gate one-person-per-name): whoever of it is in the room, else whoever the story is
         # at, from the room as it stands and the log so far - a young Mira who walks out has walked on by then
+        # (a row still in the open window is a walk-on too, before it commits: gate window-reads)
         _elsewhere = _presence.one_per_name(world.get("people"), present, chars, cfg["at_minutes"],
-                                            lambda c: _clockmod.first_presence(led.con, run_id, c))
+                                            lambda c: next((x for x in (_clockmod.first_presence(led.con, run_id, c),)
+                                                            if x is not None), cfg["at_minutes"]
+                                                           if any(r["who"] == c for r in window) else None))
         _world_b = _presence.world_meant(world, _elsewhere)   # what this beat's names, and the memories it writes, read
         scene_slice = {"event": {"text": event_text, "kind": "mundane"},
                        "target": scene_target,
@@ -755,524 +766,63 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
                 ended = _next
                 break
             continue
-        # THE SEATS (Phase 3, wired 2026-09-11 — docs/emotion-arithmetic.md section 5 steps 1-2).
-        # Live: the EVENT seat rates the act (type, dimensions, durability, its object and what it
-        # showed, transfers, told, attribution) and the EMOTION seat reads the interior (readings,
-        # lands_on); the actor's own self-tags are the --stub double and the fallback when the EVENT
-        # seat does not answer (an emotion seat that does not answer leaves no readings). Why a seat
-        # did not (refused, or never came), and what an accepted reply carried that nothing read, go
-        # on the turn's validation record (gate seat-replies: until then this comment said so, and the
-        # refusal was only printed after the commit).
-        # Both run on the frontier model through scripts/provider.py — owner: no local models here.
-        # `_lands` is None until the emotion seat ANSWERS: None means no seat (--stub, or a refusal)
-        # and keeps the floor's counterfactual salience whole; a real list -- even [] -- is the seat's
-        # judgment and prunes whoever it left out (gate lands-on-to-floor, 2026-09-19).
-        _readings, _lands, _seat_notes = [], None, []
-        _seat_answered = False
-        _seat_extra, _seat_failed, _ev_extra, _em_extra = {}, {}, [], []
-        if _silent:
-            # A SILENCE HAS NO EVENT (design v2 s5): a hold with a thought and no act is committed for the record and
-            # the POV's telling, priced at nothing - the room's minutes pass over it, and nothing is read from it.
-            tags = normalise_dimensions({"type": "mundane", "summary": "", "dimensions": {}, "durability": "transient"})
-        elif not stub:
-            try:
-                # ATTRIBUTION PRECEDENCE (2026-09-19, gate seat-attribution): the seat's word, when it
-                # answers, wins; the actor's own tags.attribution self-tag is the stub double / the
-                # refusal fallback below, never a second vote.
-                tags = normalise_dimensions(appraiser.read_event(
-                    str(turn.get("action", "")), _provider.seat_model(), led=led, run_id=run_id, turn=turn_no,
-                    scene=cfg.get("name"), moment=event_text, present=list(present),
-                    actor=names.get(speaker, speaker), target=str(turn.get("addressee", "") or ""),
-                    attachments=attachments.names_for(world), exertion="body" in _sys,
-                    tells="tells" in _sys, injuries="injuries" in _sys, extra=_ev_extra))
-                _seat_answered = True
-                # THE SUMMARY IS THE ACTOR'S (gate wounds-and-memory-inputs, 2026-09-22): the seat rates
-                # and never writes one, and lived memory is built from it.
-                tags = acquisition.with_actor_summary(tags, turn.get("tags"))
-            except _SeatRefusal as _e:
-                _k, _v = _replies.seat_failure(_e)
-                _seat_failed.setdefault(_k, {})["event"] = _v
-                _seat_notes.append("event seat %s: %s" % (_replies.SEAT_VERB[_k], _v[:120]))
-                try:
-                    tags = normalise_dimensions(turn["tags"] if isinstance(turn.get("tags"), dict) else {"dimensions": {}})
-                except _EngineError as _ne:       # the fallback fails too: name the seat whose silence made it the tags
-                    # `from None`: the chain would print the seat's own error, whose detail can name a machine path
-                    raise type(_ne)(_ne.code, _ne.detail + _replies.failure_note(_seat_failed)) from None
-            try:
-                _readings, _lands, _conf, _missing = appraiser.read_emotion(
-                    str(turn.get("action", "")), str(turn.get("thought", "")), _provider.seat_model(),
-                    led=led, run_id=run_id, turn=turn_no, scene=cfg.get("name"), moment=event_text,
-                    present=list(present), me=speaker, percepts=packet["volatile"]["percepts"], extra=_em_extra)
-                if _missing:
-                    _seat_notes.append("concepts the registry lacks: %s" % ", ".join(_missing))
-            except _SeatRefusal as _e:
-                _k, _v = _replies.seat_failure(_e)
-                _seat_failed.setdefault(_k, {})["emotion"] = _v
-                _seat_notes.append("emotion seat %s: %s" % (_replies.SEAT_VERB[_k], _v[:120]))
-                _readings = []
-            _seat_extra = {k: v for k, v in (("event", _ev_extra), ("emotion", _em_extra)) if v}
-        else:
-            tags = normalise_dimensions(
-                turn["tags"] if isinstance(turn.get("tags"), dict) else {"dimensions": {}})
-        # THE READER'S WORD ONLY (owner ruling C3b2, gate body-exertion): the event seat rates exertion; an
-        # actor's own tags - the stub double, the refusal fallback - never carry it into the log.
-        if "body" in _sys and not _seat_answered:
-            tags = {k: v for k, v in tags.items() if k != "exertion"}
-        # THE SEAT'S OBJECT IS THE EVENT'S SUBJECT when it names a person (bond-arithmetic.md s5). On a
-        # seat-rated beat the tags carry no `subject` (that key is the actor's own self-report), so
-        # until 2026-09-17 resolve_subject fell to rule 3 — "the one other party present" — on every
-        # two-hander and to None on every three-hander, and received / the second order / debt went
-        # dark. The actor's `subject` stays as the fallback for the stub and for self-tagged beats.
-        target, tgroup = resolve_subject(packet["volatile"]["edges"], gi,
-                                         tags.get("object") or tags.get("subject"),
-                                         referenced_ids(packet["volatile"]["percepts"]))
-        if target:
-            scene_target = target          # carries into the NEXT beat's ctx (target_edge)
-        addressee = turn.get("addressee", "")          # WHO was spoken to (distinct from the subject)
-
-        # validate the actor's same-pass self-report, mirror the chair: schema-invalid never moves state
-        validation = validate_tags(tags, packet["volatile"]["percepts"], a["char"]["baseline"]["skills"])
-        if not validation["ok"]:
-            # FAIL-FAST (2026-08-30). This branch used to read `applied = {"dimensions": {}}`,
-            # discarding the WHOLE self-report over one invalid field. See consolidation.tag_refusal.
-            # An EVENT seat that did not answer is WHY these were the actor's own tags: the refusal names
-            # it, or the operator hunts the actor's tag and never learns the seat failed (gate seat-replies).
-            _code, _detail = tag_refusal(validation, names.get(speaker, speaker), turn_no)
-            raise TagError(_code, _detail + _replies.failure_note(_seat_failed))
-        elif validation["flags"]:
-            legit = CATALOG.get(tags.get("type", ""), {}).get("appraisal_map", [])
-            applied = dict(tags, dimensions={d: v for d, v in tags.get("dimensions", {}).items() if d in legit})
-        else:
-            applied = tags
-        # A KEY THE REPLY CARRIED THAT NOTHING READS (gate actor-reply): written to the turn's own validation record
-        # and reported, never refused - a model adds keys, and dropped unseen they hid it drifting from its contract
-        if turn.get("extra"):
-            validation["reply_extra"] = list(turn["extra"])
-            print("   [the reply carries key(s) nothing reads: %s]" % _replies.shown(turn["extra"]))
-        if turn.get("floor_said"):                    # a floor word that is not one (gate floor-in-record): kept, read as none
-            validation["reply_floor_said"] = str(turn["floor_said"])
-        if _overridden:                               # a floor word of the other stance (gate round-loop): read safe
-            validation["reply_floor_read_as"] = {"said": _overridden, "read": word}
-        if _tripwire:                                 # the move ran long and was drawn again (gate round-loop)
-            validation["tripwire"] = _tripwire
-        if _aimed and _aimed["said"] != _aimed["directed"]:   # the actor aimed elsewhere (gate directed-addressee)
-            validation["addressee_directed"] = _aimed
-        # ...AND THE SEATS' (gate seat-replies): what an accepted seat reply carried beyond its questions, and a seat
-        # that did not answer - the beat whose tags are the actor's own fallback is told apart from a seated one
-        if _seat_extra:
-            validation["seat_extra"] = _seat_extra
-            print("   [a seat's reply carries key(s) nothing reads - %s]"
-                  % "; ".join("%s: %s" % (k, _replies.shown(v)) for k, v in _seat_extra.items()))
-        validation.update(_seat_failed)
-        if target:
-            applied = dict(applied, target=target)
-            if tgroup:
-                applied["target_group"] = tgroup
-        # what each primitive is ABOUT, computed BEFORE the appraisal so the fear this event raises
-        # is fear OF the thing the event was about (emotion-basis.md: the target moves onto state)
-        _before_targets = dict(a.get("targets") or {})
-        # RULES 1/3/4 HERE; RULE 5 (a path back at rest clears its bind) AFTER THE RECEIPT, on the
-        # float that ENDED the beat — clearing on the pre-receipt float dropped every fresh bind on
-        # a resting path (found 2026-09-11 by the read-along stub).
-        if _readings:                                        # Phase 3: aboutness from the readings
-            a["targets"] = _targets.bind_readings(_before_targets, _readings, me=speaker)
-        else:
-            a["targets"] = retarget(_before_targets, applied, me=speaker)
-        a["char"]["current"]["targets"] = dict(a["targets"])
-        # THE CHANGE, NOT THE MAP — see the twin comment in scripts/direct.py. A dropped bind rides
-        # as a release row or un-binding is not replayable.
-        target_binds = _targets.binds_from(_before_targets, a["targets"])
-        # THE BEAT'S MINUTES PASS FOR EVERY SLOW TIER OF EVERYONE IN THE ROOM (gate slow-tiers-run; docs/design.md,
-        # "State runs whether or not the page is looking"): edges drift, scars and resting means ease, attitudes fade -
-        # before the beat's own movements, where the folds put the beat's time, so the bond law, the wound trial and
-        # the attitude read the aged state. The actor already read the state the beat began in. The ROOM, not the
-        # cast (gate own-timelines): someone who walked out lives the rest of the scene elsewhere, and that time
-        # reaches them at their next opening, as the folds give it (`clock.time_items`).
-        _passage.age({i: actors[i]["char"] for i in present}, per_beat,
-                     lambda i: bond_rest.rows_for(led.con, run_id, i, actors[i]["view"]))
-        # DECAY FIRST, THEN THE RECEIPT — the spec's beat order (docs/emotion-arithmetic.md
-        # section 8; the twin comment in scripts/direct.py has the measurement). The beat's
-        # minutes pass, then the reading lands on what is left.
-        # GATE THREE (2026-09-11). Presence for the receipt: the people on the roster, plus the
-        # concept this beat names (a concept is "here" when the beat is about it). Decay ran on
-        # what the paths were about DURING the minutes that passed (the binds before this beat);
-        # the receipt uses the binds this beat made. Repetition counts consecutive prior beats
-        # about the same thing from the log — nothing is stored for it.
-        _here = set(present) | ({str(applied.get("target"))} if _concepts.looks_like_concept(applied.get("target")) else set())
-        rested = decay(a["affect"], a["temperament"], a["profile"], elapsed=per_beat,
-                       targets=_before_targets, present=_here)
-        # STEP 4, THE ROOM'S MINUTES (gate non-speaker-decay, 2026-09-22; emotion-arithmetic.md s5):
-        # every OTHER present character decays over the same minutes, on their own binds, decay only.
-        # Computed here, committed with the turn, and applied to the room once the commit holds -
-        # before the floor reads the room. The manifest records the cause so the mood is re-derivable.
-        _bystanders = _passage.bystanders({i: actors[i] for i in present}, speaker, per_beat, _here)
-        packet["manifest"]["decay"] = {"minutes": per_beat, "here": sorted(_here), "bystanders": sorted(_bystanders)}
-        _abouts = {str(t) for t in a["targets"].values() if t}
-        _repeats = {ab: _targets.repeat_count(led.con, run_id, speaker, ab, before_turn=turn_no, view=a["view"])
-                    for ab in _abouts}
-        if _readings:                                        # Phase 3: the receipt from readings
-            a["affect"], impact = receive(rested, _readings, a["profile"], targets=a["targets"],
-                                          repeats=_repeats, present=_here)
-        else:
-            a["affect"] = appraise(rested, applied, a["profile"], targets=a["targets"],
-                                   repeats=_repeats, present=_here)
-            impact = sum(abs(a["affect"][p] - rested[p]) for p in PATHS)
-        _heights = {}
-        for _r in _readings:                                 # what the seat saw, per path, for arc + wounds
-            _heights[_r.path] = max(_heights.get(_r.path, 0.0), rungs.height_of(_r.path, rungs.index_of(_r.path, _r.rung)))
-        # THE CONDITION MOVES (gate condition-flow; only when the book runs `condition_flow`): the beat's
-        # minutes cost every present character and its impact costs the speaker; the load reads the mood each
-        # one ends the beat on. Computed here, committed with the turn, applied once the arc has read the
-        # condition the beat MET.
-        _cond_next = {}
-        if "condition_flow" in _sys:
-            # THE BODY (gate body-exertion): each spender's waking minutes weighed against their own strength,
-            # and the speaker's act priced from the reader's exertion word
-            # AN INJURY WEAKENS THE BODY WHILE IT HEALS (gate injury-weakens): the worst of each one's own, before now
-            _cap = {c: (_body.capacity(actors[c]["char"], _injuries.weakening(led.con, run_id, c, actors[c]["char"], turn_no,
-                                                                              actors[c]["view"])
-                                       if "injuries" in _sys else 0) if "body" in _sys else 1.0)
-                    for c in [speaker] + list(_bystanders)}
-            _cond_next[speaker] = _condition.spend(a["char"]["current"]["condition"], per_beat, impact, a["affect"],
-                                                   1.0 / _cap[speaker])
-            if "body" in _sys:
-                _cond_next[speaker] = _body.exert(_cond_next[speaker], tags.get("exertion"), per_beat, _cap[speaker])
-            for _b, _aff in _bystanders.items():
-                _cond_next[_b] = _condition.spend(actors[_b]["char"]["current"]["condition"], per_beat, 0.0, _aff,
-                                                  1.0 / _cap[_b])
-        if _acted and word != "hold":                 # an act held in silence is not a turn at speaking (recency)
-            a["last_spoke"] = committed
-        # A MOVE - the speaker's, a listener's take, or a word on the forced floor - offers the floor; `move` and `cut`
-        # (a cut-in the round licensed) are what the settled stop counts (gate settled-stop).
+        # THE ROW JOINS ITS WINDOW (design v2 s5, gate window-reads). The seats read a window once, at its end - when
+        # someone else makes a move, or the scene ends - and its rows commit then, in order (scripts/scene_window.py:
+        # the reads, the decay-only rows before the last, every participant's receipt on the last). A move by the
+        # window's speaker, and a listener's hold or interjection, add to it.
         _is_move = stance == "speaker" or word == "take" or bool(_flags.get("forced") and word == "interject")
-        log.append({"who": speaker, "action": turn["action"], "thought": turn["thought"], "tags": tags,
-                    "floor": word, "addressee": str(turn.get("addressee") or ""),
-                    "move": _is_move, "cut": bool(_flags.get("interrupt"))})
-
-        # bonds: EVERY OTHER PERSON IN THE ROOM re-reads the speaker. This is the loop the engine
-        # did not have — arc runs on the speaker, and relationships.md:5 says an edge is the
-        # PERCEIVER's belief, so an actor-scoped engine moved the wrong person's edge (a betrayal
-        # dropped the BETRAYER's trust in their victim). Each witness computes their own delta from
-        # their own worth menu, their own expectation, and their own read of why it happened.
-        # COMPUTED HERE, APPLIED AFTER THE COMMIT: the deltas ride the turn that caused them
-        # (record-contract.md, quoted in ledger.py's docstring), so a rolled-back turn leaves no
-        # orphan edge rows and the in-memory sheet never runs ahead of the log.
-        bond_moves = _bond_moves(actors, present, speaker, applied)
-        # BOTH orders persist. The second-order component used to be dropped here (the loop bound
-        # it to `_v` and threw it away), so `their_view` rendered and then evaporated at scene end —
-        # a mechanism that reaches the actor and not the record is half-built.
-        rel_deltas = (
-            [RelationshipDelta(perceiver=wid, target=speaker, axis=ax, delta=d, order="first",
-                               object=str(applied.get("object") or ""))
-             for wid, deltas, _v, _c in bond_moves for ax, d in sorted(deltas.items())]
-            + [RelationshipDelta(perceiver=wid, target=speaker, axis=ax, delta=d, order="second",
-                                 object=str(applied.get("object") or ""))
-               for wid, _d, view, _c in bond_moves for ax, d in sorted((view or {}).items())])
-        # A CLIFF MOVES THE REST (bond-arithmetic.md s6, gate 4): an append-only row riding this
-        # turn, so drift never heals what was unforgivable. Computed here, applied at the commit.
-        rest_rows = []
-        for wid, deltas, _v, cliffs in bond_moves:
-            if cliffs:
-                _after = bonds.apply_deltas(actors[wid]["char"]["current"].get("relationships", {}).get(speaker, {}), deltas)
-                _cur = bond_rest.resolve(bond_rest.rows_for(led.con, run_id, wid, actors[wid]["view"]),   # their view
-                                         actors[wid]["char"]["baseline"].get("relationship_priors", {}), speaker)
-                rest_rows += bond_rest.cliff_rows(wid, speaker, _after, cliffs, _cur)
-        # THE ACCOUNT MOVES ON A TRANSFER (s6, 2026-09-18): the seat reports what changed hands and on
-        # what terms; `bonds.debt_postings` prices it once per pair from the words and the accounts —
-        # never from a verdict. One row per posting, `cause` = the thing, applied after the commit.
-        _accounts = {i: {t: float((e or {}).get("debt", 0.0) or 0.0)
-                         for t, e in (actors[i]["char"]["current"].get("relationships") or {}).items() if isinstance(e, dict)}
-                     for i in present}
-        _posts = bonds.debt_postings(applied, speaker, _accounts, present=list(present))
-        for _p, _t, _entry, _d, _cause in _posts:
-            rel_deltas.append(RelationshipDelta(perceiver=_p, target=_t, axis="debt", delta=_d, order="first",
-                                                object=str(applied.get("object") or ""), cause=_cause))
-
-        # ---- persist the beat: the scene now writes to the same chronicle the chair does ----
-        # TOKEN ACCOUNTING — `log_llm_call` had one caller repo-wide and it was a test, so
-        # `llm_calls` stayed empty on every real run and there was no cost visibility at all.
+        if window and _is_move and speaker != _wspk:
+            _scene_window.close(_wctx, window)
+            window = []
+        if not window:
+            _wspk = speaker
+        # TOKEN ACCOUNTING, per call: `log_llm_call` had one caller repo-wide and it was a test, so `llm_calls`
+        # stayed empty on every real run and there was no cost visibility at all.
         if not stub and direct.LAST_USAGE.get("model"):
             led.log_llm_call(run_id, turn_no, "act", direct.LAST_USAGE["model"],
                              direct.LAST_USAGE.get("tokens_in"), direct.LAST_USAGE.get("tokens_out"),
                              scene=cfg.get("name"))
-        # THE WOUND TIER MOVES HERE, BEFORE THE COMMIT, so the deltas ride the turn's own
-        # transaction. `arc.assess` runs AFTER append_turn and calls `append_arc_diff` separately —
-        # a crash between the two leaves the turn permanently committed with the diff lost, and
-        # `turns`' PRIMARY KEY refuses a re-append. That gap is documented, not copied.
-        #
-        # Matched against the PERCEIVED trigger set from the manifest, never `event_text`. A wound
-        # must not move on something its owner did not see.
-        # THE MICRO TIER accrues here, on the same pre-commit line as the wound trial and for the
-        # same reason: the deltas ride `append_turn`'s own transaction rather than a separate
-        # post-commit call that a crash can lose. What happened between this actor and the event's
-        # SUBJECT becomes what that person makes them feel.
-        toward_deltas = []
-        _subj = applied.get("subject") or applied.get("target")
-        if _subj and "attitude" in _sys:
-            for _prim, _d in toward.observe(applied.get("dimensions") or {}).items():
-                toward_deltas.append(TowardDelta(perceiver=speaker, target=str(_subj),
-                                                 primary=_prim, delta=_d, source=event_text[:200]))
-        # THE SECOND FEED (gate toward-from-readings, 2026-09-11): the emotion seat's PERSON-bound
-        # readings go to the person they are about, at the reading's own vector. Before this line
-        # "anger, about cobb" made the character short with everyone and moved nothing toward Cobb.
-        # ATTITUDE (the redesign's gate 1, 2026-09-12): the reading's vector x the connection
-        # multiplier x the durability gate — a durable beat in full, a passing one at a fraction.
-        _durable = str(applied.get("durability") or "").lower() == "durable"
-        for _who, _path, _d in (toward.observe_readings(_readings, me=speaker, profile=a["profile"],
-                                                        durable=_durable) if "attitude" in _sys else ()):
-            toward_deltas.append(TowardDelta(perceiver=speaker, target=str(_who), primary=_path,
-                                             delta=_d, source=str(turn.get("action", ""))[:200]))
-        # ONE ROW PER (perceiver, target, path) PER TURN — the table's UNIQUE contract. The two feeds
-        # can price the same person on the same path in one beat; summed here, never side by side
-        # (the first beat with both feeds live rolled back on exactly that, 2026-09-11).
-        toward_deltas = toward.coalesce(toward_deltas)
-        _res = arc.derive_resilience(a["char"], a["char"]["current"].get("condition", {}))
-        _wounds = a["char"]["baseline"].get("wounds") or []           # engine wounds (gate three)
-        wound_deltas = []
-        _cue = {"about": applied.get("target"), "surfaces": packet["manifest"].get("surfaces") or [],
-                "heights": _heights}
-        for _w in _wounds:
-            if not isinstance(_w, dict) or not str(_w.get("id", "")).strip():
-                continue
-            # the identity route sees the wound's OWN concept when a reading on its path named it
-            _cue_w = dict(_cue, about=wound.about_for(_w, _readings) or _cue["about"])
-            _d = wound.trial(_w, applied.get("dimensions") or {}, _res, _cue_w)
-            if _d:
-                wound_deltas.append(WoundDelta(char_id=speaker, wound_id=str(_w["id"]),
-                                               delta=_d, kind="event", source=event_text[:200]))
-        # THE MINT (gate three): a durable beat the seat read at one of a path's top rungs, that
-        # path bound to a concept, scars at the reading's height. Computed here so the rows ride the turn's own transaction; folded after.
-        _durable = (applied.get("durability") == "durable"
-                    or any(float(v) >= arc._DURABLE_DIM for v in (applied.get("dimensions") or {}).values()))
-        wound_mints = wound.mint(a["char"], _heights, a["targets"], _durable,
-                                 surfaces=packet["manifest"].get("surfaces") or [],
-                                 text=event_text, turn=turn_no) if "wounds" in _sys else []
-        # RULE 5 LAST — see scripts/readalong.py: it decides what carries forward, after the mint.
-        a["targets"] = _targets.bind_readings(a["targets"], [], temperament=a["temperament"], affect=a["affect"])
-        a["char"]["current"]["targets"] = dict(a["targets"])
-        target_binds = _targets.binds_from(_before_targets, a["targets"])
-        led.append_turn(TurnCommit(
-            run_id=run_id, turn=turn_no, actor=speaker,
-            thought=str(turn["thought"]), action=str(turn["action"]),
-            floor=word, addressee=str(turn.get("addressee") or ""),
-            tags=tags if isinstance(tags, dict) else {}, affect=dict(a["affect"]),
-            condition=dict(_cond_next.get(speaker) or a["char"]["current"].get("condition", {})), validation=validation,
-            events=_law_events(led, run_id, world, chars, turn, speaker,
-                               location=cfg.get("location"), tick=turn_no) + [
-                    Event(type=str(tags.get("type", "mundane")),
-                          payload={"text": event_text, "dimensions": tags.get("dimensions", {}),
-                                   "durability": tags.get("durability", "transient"),
-                                   "subject": target, "subject_group": tgroup,
-                                   # v27: what the seat said the act was ABOUT and SHOWED, so the
-                                   # log carries the bond tier's cause beside the emotion tier's
-                                   "object": str(applied.get("object") or ""),
-                                   "showed": dict(applied.get("showed") or {}),
-                                   "quotes": dict(applied.get("quotes") or {}),
-                                   "transfers": list(applied.get("transfers") or []),
-                                   "told": list(applied.get("told") or []),
-                                   # WHO WAS HURT (gate injuries): the reader's marks only - never an actor's own
-                                   # tags - and the key only for a book that runs the system.
-                                   **({"injuries": list(applied.get("injuries") or []) if _seat_answered else []}
-                                      if "injuries" in _sys else {})},
-                          target=target,          # THE SUBJECT. Omitted at every Event site until 2026-08-30, so
-                                                  # ledger._project's `victim = ev['target'] or ev['actor']` always
-                                                  # fell through and a terminal harm marked the ACTOR dead, never the
-                                                  # person harmed; the betray/bond branch was unreachable entirely.
-                          actor=speaker)],
-            manifest=packet["manifest"], recall=packet["recall_refs"], rel_deltas=rel_deltas,
-            wound_deltas=wound_deltas, toward_deltas=toward_deltas, wound_mints=wound_mints,
-            utterances=claims.spoken(str(turn["action"])), target_binds=target_binds,
-            readings=list(_readings), lands_on=list(_lands or []), rest_rows=rest_rows,
-            bystanders={_b: {"affect": dict(_aff), "condition": dict(_cond_next.get(_b) or actors[_b]["char"]["current"].get("condition", {}))}
-                        for _b, _aff in _bystanders.items()}))
-        if _seat_notes:
-            print("   SEATS  : " + " | ".join(_seat_notes))
-        # the commit held, so the in-memory sheets may now follow the log
-        for _b, _aff in _bystanders.items():          # step 4 lands: the room aged with the speaker
-            actors[_b]["affect"] = dict(_aff)
-        if toward_deltas:
-            # THE FOLD, NOT THE AUTHORED-PLUS-DELTAS REPLAY: that one erased this scene's opening fade at
-            # its first beat (gate erosion-derived-at-replay).
-            _passage.fold_toward(led.con, run_id, speaker, a["char"], view=a["view"])
-            _seen = sorted({t.target for t in toward_deltas})
-            print("   TOWARD : %s  %s" % (names.get(speaker, speaker), ", ".join(
-                "%s %s" % (names.get(w, w), " ".join("%s%+0.3f" % (k, v) for k, v in
-                                                     sorted((a["char"]["current"]["toward"].get(w) or {}).items())))
-                for w in _seen)))
-        if wound_mints:
-            for _m in wound_mints:
-                print("   SCAR   : %s  %s on %s at %.2f — %s" % (names.get(speaker, speaker), _m["concept"],
-                                                              _m["path"], _m["intensity"], _m["text"][:60]))
-        if wound_deltas or wound_mints:
-            # RE-FOLD FROM THE LOG, never hand-apply. A first version of this incremented the
-            # in-memory intensity per beat -- `clamp(intensity + delta)` -- while the resume path
-            # computes `clamp(authored + SUM(deltas))`. With two trials on one wound in a scene
-            # those DIVERGE the moment an intermediate value clamps, so the same scene played
-            # straight and resumed would end at different intensities. Clamp-per-step is
-            # order-dependent; `replay_wound_deltas` sums first for exactly that reason and says so
-            # in its own docstring, which the hand-copy then ignored.
-            # Calling the SAME function on the SAME rows the resume path reads makes divergence
-            # impossible rather than unlikely. `bonds.py` records this lesson for edges: a replay
-            # hand-copied into each driver drifts, and the copies are the defect.
-            _passage.fold_wounds(led.con, run_id, speaker, a["char"], view=a["view"])   # mints, deltas AND the fade
-            _wounds = a["char"]["baseline"].get("wounds") or []
-            a["profile"] = build_profile(a["char"])          # the held registry moved
-            for _wd in wound_deltas:
-                _now = next((float(_w["intensity"]) for _w in _wounds
-                             if str(_w.get("id", "")) == _wd.wound_id), None)
-                print("   WOUND  : %s  %s %+0.4f -> %.3f"
-                      % (names.get(speaker, speaker), _wd.wound_id, _wd.delta, _now))
-
-        # THE BOND TIER IS LIVE ON SEAT OUTPUT since 2026-09-17 (bond-arithmetic.md s4: the seat's
-        # `showed` is priced at the parse seam) and THE LAW IS bond-arithmetic.md s6 since gate 4 (the
-        # signed, level-anchored form; the ledger rule on live scenes lifted when that gate archived).
-        # A read that moved nothing is still printed, so the silence of a witness who did not notice,
-        # or a two-hander with no third party, is visible in the log; a beat with no read says so too.
-        if not bond_moves and isinstance(applied.get("showed"), dict) and applied.get("showed"):
-            print("   BOND   : no move — object %s, showed %s (below the overtness gate, or nobody else present)"
-                  % (applied.get("object") or "-",
-                     ", ".join("%s %s" % (k, v if isinstance(v, str) else _act_word_near(k, v))
-                               for k, v in sorted(applied["showed"].items()))))
-        elif not bond_moves and not applied.get("showed"):
-            print("   BOND   : no act — the seat named no showed%s" % (" (stub)" if stub else ""))
-        for wid, deltas, view, cliffs in bond_moves:
-            rels = actors[wid]["char"]["current"].setdefault("relationships", {})
-            # born whole at the stranger's rest (bond_rest.whole) — the same edge the law priced
-            # the deltas from in floor.bond_moves, so what is stored is what the fold rebuilds
-            edge = bond_rest.whole(rels.get(speaker), actors[wid]["char"]["baseline"].get("relationship_priors", {}))
-            if deltas:
-                edge = bonds.apply_deltas(edge, deltas)
-            if view:
-                edge = bonds.apply_reflection(edge, view)
-            rels[speaker] = edge
-            _obj_key = str(applied.get("object") or "")
-            print("   BOND   : %s -> %s  %s%s%s" % (
-                names.get(wid, wid), names.get(speaker, speaker),
-                "  ".join("%s %+0.3f" % (ax, d) for ax, d in sorted(deltas.items())),
-                ("   | reads them as: " + "  ".join("%s %+0.3f" % (ax, d)
-                                                    for ax, d in sorted(view.items()))) if view else "",
-                ("  (stake %.2f: %s)" % (bonds.stake_of(wid, _obj_key, rels, held=connection.held_map(actors[wid]["char"])), _obj_key))
-                if _obj_key.startswith(attachments.LOC) or _obj_key.startswith(attachments.GRP) else ""))
-            for ax in cliffs:
-                print("   CLIFF  : %s -> %s  %s rests at %.3f from here" % (names.get(wid, wid), names.get(speaker, speaker), ax, edge.get(ax, 0.0)))
-        for _p, _t, _entry, _d, _cause in _posts:
-            _prels = actors[_p]["char"]["current"].setdefault("relationships", {})
-            # a posting on an edge she does not yet hold births it whole at the stranger's rest
-            _prels[_t] = bonds.apply_deltas(bond_rest.whole(_prels.get(_t), actors[_p]["char"]["baseline"].get("relationship_priors", {})), {"debt": _d})
-            print("   BOND   : %s %s %s  debt %+0.3f  — %s" % (
-                names.get(_p, _p), "owes" if _entry == "gave" else "repaid", names.get(_t, _t), _d, _cause or "(unnamed)"))
-        # arc: a durable beat moves the speaker's baseline; persist + evolve them for the next beat
-        diff = (arc.assess(applied, impact, a["char"], a["char"]["current"]["condition"], heights=_heights)
-                if "arc" in _sys else None)
-        if diff:
-            a["char"] = arc.apply(a["char"], diff)
-            led.append_arc_diff(run_id, speaker, turn_no, diff)
-            a["profile"] = build_profile(a["char"])
-            a["temperament"] = a["char"]["baseline"]["temperament"]
-        for _c, _cd in _cond_next.items():                  # the beat's cost lands (condition flow)
-            actors[_c]["char"]["current"]["condition"] = _cd
-        # acquisition: a durable, subject-bearing beat becomes the speaker's lived belief
-        # GATED: `assess` reads the raw tags by design, so a turn the engine REFUSED must not
-        # reach it. Ungated, a schema-invalid tag still carried a merged `target` and wrote a
-        # permanent vault belief out of a self-report validate_tags had just rejected.
-        acquired = acquisition.assess(applied, tags, a["char"], _world_b) if validation["ok"] else None
-        if acquired:
-            a["char"]["current"].setdefault("vault", []).append(acquired)
-            acquisition.fold_vault(a["char"]["current"]["vault"])
-            led.append_acquisition(run_id, speaker, turn_no, acquired)
-
-        print("-- beat %d (turn %d) -- %s [%s%s]" % (beat + 1, turn_no, names.get(speaker, speaker), word,
-                                                     ", silent" if _silent else ""))
-        # NEVER TRUNCATE. `_compose_event` already learned this: a 300-char cut sent the next
-        # actor a fragment to answer. The operator log carried the same silent slice, so a line
-        # ending mid-word gave no sign it had been cut.
-        print("   ACTION : %s" % str(turn["action"]).replace("\n", " "))
-        print("   THOUGHT: %s" % str(turn["thought"]).replace("\n", " "))
-        # `addressee` is worth _ADDRESSED_BONUS against _FLOOR_THRESHOLD — several times the
-        # whole threshold (both are in src/engine/floor.py; this comment deliberately does NOT
-        # restate their values, because a number copied into prose is the duplicate-of-a-source-
-        # of-truth class and drifts silently) — so it single-handedly decides whether a two-hander continues. It was
-        # read by the urge loop and rendered nowhere: on 2026-08-29 a scene ended at max urge 0.022
-        # (the addressed branch computes to 0.179) and establishing that the actor had left the
-        # field empty took arithmetic rather than reading. A term that decides an outcome and is
-        # never printed can only be inferred.
-        # SHOW WHAT APPLIED, NOT WHAT WAS CLAIMED. This printed `tags` — the pre-validation input
-        # — so a beat whose dimensions were narrowed (or, before the raise above, discarded whole)
-        # printed identically to a healthy one. That is why the lull read as model flakiness for
-        # three runs before anyone looked at the validator.
-        _shown = applied.get("dimensions", {})
-        _dropped = {d: v for d, v in (tags.get("dimensions") or {}).items() if d not in _shown}
-        # DURABILITY IS PRINTED (2026-09-16). It gates attitude accrual, wound minting and the arc
-        # tier, and until this line it reached the log only through the database — a seat marking
-        # half a scene durable was invisible for four performances. direct.py has printed it since
-        # its TAGS line existed; this one did not.
-        print("   TAGS   : %s %s [%s]  subj=%s  addressed=%s  conf=%.2f%s%s" % (
-            tags.get("type", "?"), _shown, applied.get("durability", "?"), target or "-", addressee or "-",
-            validation["confidence"],
-            ("  DROPPED %s" % _dropped) if _dropped else "",
-            ("  flags: %s" % "; ".join(render_flag(f) for f in validation["flags"]))
-            if validation["flags"] else ""))
-        print("   now    : %s" % direct.rung_summary(a["affect"]))
-        # (faithfulness is enforced pre-commit by faithful_turn above — committed beats are leak-free)
-
-        # witness-propagation: present bystanders remember + PERSIST the durable act they watched
-        # (knowledge-model.md transmission: B's vault gains what B saw) — now folded to the ledger too,
-        # so a witnessed belief survives the scene and resumes with the bystander.
-        # ...and how far each one CREDITS it scales with their trust in whoever spoke
-        # (relationships.md: "relationships are the gain on information flow"). The belief is now
-        # computed per witness rather than once and shared, because two people in the same room do
-        # not take the same thing from the same account.
-        for wid in present:
-            if wid == speaker:
-                continue
-            wchar = actors[wid]["char"]
-            wedge = (wchar["current"].get("relationships") or {}).get(speaker) or {}
-            wb = acquisition.witness_belief(names.get(speaker, speaker), tags, speaker,
-                                            trust=wedge.get("trust"), world=_world_b, witness_id=wid)
-            if not wb:
-                continue                                # transient / no summary / deceived target — next witness
-            wvault = wchar["current"].setdefault("vault", [])
-            wb.setdefault("created_turn", turn_no)      # learned at this beat: both copies below fade from it
-            if not any(isinstance(x, dict) and x.get("claim") == wb["claim"] for x in wvault):
-                wvault.append(dict(wb))
-                acquisition.fold_vault(wvault)
-                led.append_acquisition(run_id, wid, turn_no, dict(wb))
-
-        # name-transmission (auto name-reveal): a bystander who hears a name spoken aloud — one they
-        # knew only by a descriptor — learns it now, forward (reveal_name is monotonic: old
-        # descriptor-memories stay; the name is added going forward). Rides on the same present-set.
-        for wid in present:
-            if wid == speaker:
-                continue
-            wchar = actors[wid]["char"]
-            for eid, nm in acquisition.overheard_names(str(turn.get("action", "")),
-                                                       wchar["current"].get("relationships", {}),
-                                                       _world_b.get("people", [])):   # names only the Mira it means
-                belief = acquisition.reveal_name(wchar, eid, nm, _world_b)
-                if belief:
-                    led.append_acquisition(run_id, wid, turn_no, belief)
-                    print("   >> %s overhears the name %r (learned)" % (wid, nm))
-
-        # TELLINGS (gate knowledge-tellings): what the event seat says was TOLD this beat becomes what each person in
-        # the room KNOWS - the addressee and anyone who overheard - credited by their own trust in the teller. Before,
-        # a `told` row reached only scene_facts' few beats and bonds' trust arithmetic. Gated like `assess`: a beat the
-        # engine refused teaches nothing.
-        _heard = _tellings.told_beliefs(
-            applied.get("told") if validation["ok"] else [], speaker, names.get(speaker, speaker),
-            [w for w in present if w != speaker],
-            lambda w: ((actors[w]["char"]["current"].get("relationships") or {}).get(speaker) or {}).get("trust"),
-            turn_no, world=_world_b)
-        for wid, _told in _heard.items():
-            wvault = actors[wid]["char"]["current"].setdefault("vault", [])
-            for tb in _told:
-                if any(isinstance(x, dict) and x.get("claim") == tb["claim"] for x in wvault):
-                    continue                            # already holds it, word for word
-                wvault.append(dict(tb))
-                acquisition.fold_vault(wvault)
-                led.append_acquisition(run_id, wid, turn_no, dict(tb))
-                print("   >> %s is told: %s" % (names.get(wid, wid), tb["claim"]))
-
-        turn_no += 1                                    # this beat is committed; the next beat is a new turn
+        # WHAT THE CALL ITSELF SHOWED, for the row's validation record: a key the reply carried that nothing reads
+        # (gate actor-reply), a floor word that is not one (floor-in-record) or of the other stance (round-loop), the
+        # tripwire's second draw (round-loop), an aim the direction overrode (directed-addressee)
+        _checks = {}
+        if turn.get("extra"):
+            _checks["reply_extra"] = list(turn["extra"])
+            print("   [the reply carries key(s) nothing reads: %s]" % _replies.shown(turn["extra"]))
+        if turn.get("floor_said"):
+            _checks["reply_floor_said"] = str(turn["floor_said"])
+        if _overridden:
+            _checks["reply_floor_read_as"] = {"said": _overridden, "read": word}
+        if _tripwire:
+            _checks["tripwire"] = _tripwire
+        if _aimed and _aimed["said"] != _aimed["directed"]:
+            _checks["addressee_directed"] = _aimed
+        window.append({"turn": turn_no, "who": speaker, "stance": stance, "word": word, "reply": turn, "silent": _silent,
+                       "move": _is_move, "packet": packet, "event_text": event_text, "present": list(present),
+                       "world": _world_b, "beat": beat, "checks": _checks})
+        # WHO IS ASKED NEXT reads the speaker's own tags for the move (design v2 s5: the stub double, bounded to that
+        # job, never reaching state): the seats have not read yet. Unpruned by lands_on, which only a seat names.
+        try:
+            applied = normalise_dimensions(turn["tags"] if isinstance(turn.get("tags"), dict) else {"dimensions": {}})
+        except _EngineError:
+            applied = {"dimensions": {}}
+        target, tgroup = resolve_subject(packet["volatile"]["edges"], gi, applied.get("object") or applied.get("subject"),
+                                         referenced_ids(packet["volatile"]["percepts"]))
+        if target:
+            applied = dict(applied, target=target)
+        _lands = None
+        addressee = turn.get("addressee", "")          # WHO was spoken to (distinct from the subject)
+        if _acted and word != "hold":                 # an act held in silence is not a turn at speaking (recency)
+            a["last_spoke"] = committed
+        # A MOVE - the speaker's, a listener's take, or a word on the forced floor - offers the floor; `move` and `cut`
+        # (a cut-in the round licensed) are what the settled stop counts (gate settled-stop).
+        log.append({"who": speaker, "action": turn["action"], "thought": turn["thought"], "tags": applied,
+                    "floor": word, "addressee": str(turn.get("addressee") or ""),
+                    "move": _is_move, "cut": bool(_flags.get("interrupt"))})
+        window[-1]["log"] = log[-1]                   # the window's reads mark it when it closes (tells)
+        if "tells" in _sys and not stub and not _silent:   # a sign is cut before the next listener sees the move
+            _scene_window.read_move(_wctx, window[-1])
+        turn_no += 1                                    # this row is numbered; it commits when its window closes
         committed += 1
 
         if turn.get("exit"):
@@ -1340,6 +890,7 @@ def run_scene(world, chars, cfg, led, run_id, start_turn, model, stub, budget, t
         else:
             print("   -> %s\n" % _asks)
 
+    _scene_window.close(_wctx, window)                # the last window, read and committed (gate window-reads)
     print("\n== scene ended: %s — %d beats ==" % (ended, len(log)))
     return turn_no
 

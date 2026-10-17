@@ -154,7 +154,7 @@ def test_a_silence_is_committed_and_not_read(tmp):
     silent = [r for r in rows if r["actor"] == "ada"]
     check("a-silent-hold-is-a-row-with-its-thought", exited is None and silent and silent[0]["floor"] == "hold"
           and silent[0]["action"] == "" and "will not give her that" in silent[0]["thought"], (exited, rows, out[-500:]))
-    check("...and-the-event-seat-read-only-the-acts", seats.count("appraise-event") == len(rows) - len(silent),
+    check("...and-the-event-seat-read-the-speaker's-moves-once,-the-silence-never", seats.count("appraise-event") == 1,
           (seats, len(rows), len(silent)))
 
 
@@ -241,6 +241,64 @@ def test_a_directed_move_is_aimed_where_the_direction_says(tmp):
         check("a-to-naming-%s-refuses-the-run-by-name-before-any-row" % label,
               "SCENE_DIRECTED_TO_UNKNOWN" in "%s%s" % (exited, out) and not rows and not calls,
               (exited, len(rows), out[-300:]))
+
+
+def _db(book):
+    import glob
+    con = sqlite3.connect(glob.glob(os.path.join(book, "runs", "*.db"))[0])
+    con.row_factory = sqlite3.Row
+    return con
+
+
+def test_a_window_is_read_once_at_its_last_row(tmp):
+    """gate window-reads (design v2 s5): keep, keep, yield is one window - one act Event, on its last row, and the two
+    rows before it commit with a manifest naming the window they belong to."""
+    def script(who, stance, flags, n, steer):
+        if who == "mira":
+            return ("Mira's paragraph %d." % n, "-", ("keep", "keep", "yield")[min(n, 2)], "ada")
+        return ("", "", "hold", "")
+    out, exited, calls, rows = _run(tmp, ("mira", "ada"), script, 3)
+    con = _db(os.path.join(tmp, "The Rock"))
+    turns = [r[0] for r in con.execute("SELECT turn FROM turns ORDER BY turn")]
+    acts = [r[0] for r in con.execute("SELECT turn FROM events WHERE actor = 'mira' AND type NOT IN ('turn-skipped') "
+                                      "AND type NOT LIKE 'law%' ORDER BY turn")]
+    check("three-rows,-one-act-event,-on-the-last-row", exited is None and len(turns) == 3 and acts == [turns[-1]],
+          (exited, turns, acts, out[-500:]))
+    wins = [json.loads(r[0]).get("window") for r in con.execute("SELECT manifest FROM decision_manifests ORDER BY turn")]
+    check("...every-row's-manifest-names-the-window", wins == [{"from": turns[0], "close": turns[-1]}] * 2
+          + [dict(wins[-1] or {}, **{"from": turns[0], "close": turns[-1]})] and "reads" in (wins[-1] or {}), wins)
+
+
+def test_an_interjection_is_its_own_read_and_the_listeners_feeling_lands_at_the_windows_end(tmp):
+    """Under the seats: Mira keeps, Ada interjects, Mira yields, Ada takes. The first window (three rows) is read once
+    for Mira's act, once for Ada's interjection, and once each for their feelings, Ada's written at Mira's last row;
+    Ada's take is the second window. The fold re-derives every cached mood, the listener's included."""
+    from src.engine import bible, mood_fold
+
+    def script(who, stance, flags, n, steer):
+        if who == "mira":
+            return ('"The boat stays tied, %d."' % n, "-", ("keep", "yield")[min(n, 1)], "ada")
+        if n == 0:
+            return ('"Nonsense!"', "She thinks it is nonsense.", "interject", "mira")
+        return ('"Then we wait."', "-", "take", "mira")
+    out, exited, calls, rows = _run(tmp, ("mira", "ada"), script, 4, stub=False)
+    seats = dict(c for c in calls if c[0] == "seats")["seats"]
+    check("four-rows:-keep,-interject,-yield,-take", [(r["actor"], r["floor"]) for r in rows]
+          == [("mira", "keep"), ("ada", "interject"), ("mira", "yield"), ("ada", "take")], ([(r["actor"], r["floor"])
+                                                                                             for r in rows], out[-500:]))
+    check("...two-windows:-three-event-reads-and-three-emotion-reads",
+          seats.count("appraise-event") == 3 and seats.count("appraise-emotion") == 3, seats)
+    con = _db(os.path.join(tmp, "The Rock"))
+    t = [r[0] for r in con.execute("SELECT turn FROM turns ORDER BY turn")]
+    read_at = {(r[0], r[1]) for r in con.execute("SELECT turn, actor FROM readings")}
+    check("...the-listener's-feeling-is-written-at-the-window's-last-row-under-her-own-name",
+          read_at == {(t[2], "mira"), (t[2], "ada"), (t[3], "ada")}, sorted(read_at))
+    got = mood_fold.replay(con, con.execute("SELECT run_id FROM runs").fetchone()[0],
+                           bible.for_run(con, con.execute("SELECT run_id FROM runs").fetchone()[0])[2])
+    cache = {(r[0], r[1]): json.loads(r[2]) for r in con.execute("SELECT turn, char_id, affect FROM current_state")}
+    worst = max((abs(got[k][p] - v) for k in cache if k in got for p, v in cache[k].items()), default=float("inf"))
+    check("...and-the-fold-re-derives-every-cached-mood-to-1e-12", set(cache) <= set(got) and worst <= 1e-12,
+          (worst, sorted(set(cache) - set(got))))
 
 
 def test_the_exchange_shows_the_thread_and_your_own_lines(tmp):

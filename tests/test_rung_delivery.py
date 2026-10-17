@@ -348,9 +348,10 @@ def test_the_record_is_committed_with_the_turn():
                                affect={p: 0.5 for p in _PATHS}, events=[], manifest=pk["manifest"]))
     row = led.con.execute("SELECT manifest FROM decision_manifests WHERE run_id='r1' AND turn=0").fetchone()
     assert row and _json.loads(row[0])["direction"] == pk["manifest"]["direction"], row
-    for name in ("direct.py", "scene.py"):
-        src = open(os.path.join(REPO, "scripts", name), encoding="utf-8").read()
-        assert 'manifest=packet["manifest"]' in src, "%s no longer commits the packet's manifest" % name
+    src = open(os.path.join(REPO, "scripts", "direct.py"), encoding="utf-8").read()
+    assert 'manifest=packet["manifest"]' in src, "direct.py no longer commits the packet's manifest"
+    src = open(os.path.join(REPO, "scripts", "scene_window.py"), encoding="utf-8").read()   # a window's rows commit there
+    assert src.count('manifest=dict(row["packet"]["manifest"]') == 1 and src.count('manifest=dict(last["packet"]["manifest"]') == 1,         "scene_window.py no longer commits each row's packet manifest"
     print("  PASS  the record rides the turn's commit into decision_manifests, in both drivers")
 
 

@@ -477,7 +477,7 @@ def test_both_drivers_accrue_it():
     print('\n[8] both drivers accrue the micro tier')
     import io as _io
     for name in ("scene.py", "direct.py"):
-        src = _io.open(os.path.join(REPO, "scripts", name), encoding="utf-8").read()
+        src = _io.open(os.path.join(REPO, "scripts", name), encoding="utf-8").read() + (_io.open(os.path.join(REPO, "scripts", "scene_window.py"), encoding="utf-8").read() if name == "scene.py" else "")
         check("%s-accrues-micro" % name, "toward.observe(" in src)
         check("%s-accrues-readings" % name, "toward.observe_readings(" in src)
         check("%s-coalesces-before-commit" % name, "toward.coalesce(toward_deltas)" in src)
@@ -488,10 +488,10 @@ def test_both_drivers_accrue_it():
         # authored base plus the deltas and lost every opening's fade; tests/test_passage.py pins the two
         # equal wherever no gap was declared.
         check("%s-refolds-on-resume" % name, "fold_toward(led.con, run_id" in src)
-    src = _io.open(os.path.join(REPO, "scripts", "scene.py"), encoding="utf-8").read()
+    src = "".join(_io.open(os.path.join(REPO, "scripts", n), encoding="utf-8").read() for n in ("scene.py", "scene_window.py"))
     check("scene.py-says-who-is-engaged", '"engaged": (log[-1]["who"]' in src)
     for name in ("scene.py", "direct.py"):
-        src = _io.open(os.path.join(REPO, "scripts", name), encoding="utf-8").read()
+        src = _io.open(os.path.join(REPO, "scripts", name), encoding="utf-8").read() + (_io.open(os.path.join(REPO, "scripts", "scene_window.py"), encoding="utf-8").read() if name == "scene.py" else "")
         check("%s-says-whom-the-mood-came-from" % name, "led.raised_by(run_id" in src)
 
 
@@ -597,7 +597,7 @@ def test_the_descent_signal_is_read_off_the_log():
     src = _io.open(os.path.join(REPO, "scripts", "direct.py"), encoding="utf-8").read()
     check("rung_direction-passes-descending", 'descending=vs.get("descending")' in src)
     for name in ("scene.py", "direct.py"):
-        src = _io.open(os.path.join(REPO, "scripts", name), encoding="utf-8").read()
+        src = _io.open(os.path.join(REPO, "scripts", name), encoding="utf-8").read() + (_io.open(os.path.join(REPO, "scripts", "scene_window.py"), encoding="utf-8").read() if name == "scene.py" else "")
         check("%s-hands-last_read_turn-and-last_turn" % name, "led.last_read_turn(run_id" in src and "led.last_turn(run_id" in src)
 
 

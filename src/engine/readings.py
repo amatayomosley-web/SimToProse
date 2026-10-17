@@ -208,6 +208,40 @@ def write(con, run_id, turn, actor, readings):
     return n
 
 
+def check_readers(readers, actor, bystanders):
+    """TurnCommit.readers (gate window-reads): {char_id: {affect, condition, readings, target_binds, wound_mints}} - the
+    window's participants OTHER than the row's actor, read at its last row. Each held to the actor's own rules, in place."""
+    from . import records as _r
+    from . import wound as _wound
+    _r._require(isinstance(readers, dict), "RECORD_FIELD_TYPE", "TurnCommit.readers must be a dict")
+    for x, row in readers.items():
+        _r._require(isinstance(x, str) and x.strip() and x != actor and x not in bystanders, "RECORD_READER_IS_ACTOR",
+                    "TurnCommit.readers names %r: a reader is a window participant OTHER than the actor, and not a "
+                    "bystander" % (x,))
+        _r._require(isinstance(row, dict) and isinstance(row.get("condition", {}), dict), "RECORD_FIELD_TYPE",
+                    "TurnCommit.readers[%s] must be {affect, condition, readings, target_binds, wound_mints}" % x)
+        _r._check_affect(row.get("affect"), "TurnCommit.readers[%s].affect" % x)
+        _r._require(all(isinstance(rd, Reading) for rd in row.setdefault("readings", [])), "RECORD_FIELD_TYPE",
+                    "TurnCommit.readers[%s].readings items must be Reading" % x)
+        for rd in row["readings"]:
+            rd.validate()
+        row["target_binds"] = _r._checked_binds(row.setdefault("target_binds", []), "TurnCommit.readers[%s]" % x)
+        row["wound_mints"] = [_wound.check_mint(w) for w in row.setdefault("wound_mints", [])]
+
+
+def write_readers(con, run_id, turn, readers):
+    """Each reader's mood row, readings, binds and scars under their own name. NO TRANSACTION OF ITS OWN: called inside
+    `Ledger.append_turn`'s, for the reason `write` gives."""
+    from . import targets as _targets
+    from . import wound as _wound
+    for x, row in sorted((readers or {}).items()):
+        con.execute("INSERT INTO current_state (run_id, char_id, turn, affect, condition) VALUES (?, ?, ?, ?, ?)",
+                    (run_id, x, int(turn), json.dumps(row["affect"]), json.dumps(row.get("condition") or {})))
+        write(con, run_id, turn, x, row["readings"])
+        _targets.write_binds(con, run_id, turn, x, row["target_binds"])
+        _wound.write_mints(con, run_id, turn, x, row["wound_mints"])
+
+
 def write_lands_on(con, run_id, turn, actor, lands):
     """Append this beat's lands_on. NO TRANSACTION OF ITS OWN — the caller's `with con:` owns it.
 

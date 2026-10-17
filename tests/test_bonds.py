@@ -1011,7 +1011,7 @@ def test_the_act_ladders_and_the_seam_are_live():
     # the drivers hand the seat's read to the fold through the existing bond_moves call
     import io as _io
     for name in ("scene.py", "direct.py"):
-        src = _io.open(os.path.join(REPO, "scripts", name), encoding="utf-8").read()
+        src = _io.open(os.path.join(REPO, "scripts", name), encoding="utf-8").read() + (_io.open(os.path.join(REPO, "scripts", "scene_window.py"), encoding="utf-8").read() if name == "scene.py" else "")
         check("%s-still-calls-read_event-and-act_from_tags-or-bond_moves" % name, "read_event(" in src and ("act_from_tags(" in src or "_bond_moves(" in src))
 
 def test_the_object_is_the_seats_and_received_follows_it():
@@ -1065,9 +1065,9 @@ def test_the_object_is_the_seats_and_received_follows_it():
     # the drivers write it
     import io as _io
     for name in ("scene.py", "direct.py"):
-        src = _io.open(os.path.join(REPO, "scripts", name), encoding="utf-8").read()
+        src = _io.open(os.path.join(REPO, "scripts", name), encoding="utf-8").read() + (_io.open(os.path.join(REPO, "scripts", "scene_window.py"), encoding="utf-8").read() if name == "scene.py" else "")
         check("%s-writes-the-object-on-its-delta-rows" % name, 'object=str(applied.get("object")' in src)
-    src = _io.open(os.path.join(REPO, "scripts", "scene.py"), encoding="utf-8").read()
+    src = "".join(_io.open(os.path.join(REPO, "scripts", n), encoding="utf-8").read() for n in ("scene.py", "scene_window.py"))
     check("scene.py-feeds-the-object-to-resolve_subject", 'tags.get("object") or tags.get("subject")' in src)
     check("scene.py-records-the-object-and-showed-on-the-event", '"object": str(applied.get("object")' in src and '"showed": dict(applied.get("showed")' in src)
 

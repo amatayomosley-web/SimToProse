@@ -174,16 +174,13 @@ def _beat(con, run_id, t, cast, per_beat, mood, chs, prof, temp, binds, out, not
         return
     spk, tags, val = row[0], _json.loads(row[1] or "{}"), _json.loads(row[2] or "{}")
     man = con.execute("SELECT manifest FROM decision_manifests WHERE run_id = ? AND turn = ?", (run_id, t)).fetchone()
-    step4 = (_json.loads(man[0]) if man else {}).get("decay") or {}
+    man = _json.loads(man[0]) if man else {}
+    step4, win = man.get("decay") or {}, man.get("window") or {}
     ev = con.execute("SELECT target, payload FROM events WHERE run_id = ? AND turn = ? ORDER BY event_id DESC LIMIT 1",
                      (run_id, t)).fetchone()                         # the beat's own event is appended last
     target = ev[0] if ev else None
     applied = _applied(tags, val, target, (_json.loads(ev[1]).get("subject_group") if ev else None))
-    rs = [Reading(path=r[2], rung=r[3], about=r[4] or "", confidence=r[5])
-          for r in _readings.readings_for(con, run_id, spk) if int(r[0]) == t]
     room = set(step4.get("here") or ()) or (set(cast) | ({str(target)} if _concepts.looks_like_concept(target) else set()))
-    before = dict(binds[spk])
-    mid = _targets.bind_readings(before, rs, me=spk) if rs else _targets.retarget(before, applied, me=spk)
     # THE BEAT'S MINUTES FOR EVERY SLOW TIER OF THOSE IN THE ROOM (gate slow-tiers-run; the room, not the cast, since
     # gate own-timelines - a walk-out's time reaches them at their next opening), where the drivers age them: before
     # the decay, against the rests the live beat read
@@ -191,43 +188,69 @@ def _beat(con, run_id, t, cast, per_beat, mood, chs, prof, temp, binds, out, not
                 lambda c: bond_rest.rows_before(con, run_id, c, t, views.get(c)))
     for c in cast:                                                   # the profile reads the edges live
         prof[c]["relationships"] = _bonds(con, run_id, c, chs[c], (t, 4), view=views.get(c))[0]
-    rested = decay(mood[spk], temp[spk], prof[spk], elapsed=per_beat, targets=before, present=room)
     for b in (step4.get("bystanders") or ()):                        # step 4, where the beat recorded it
-        mood[b] = decay(mood[b], temp[b], prof[b], elapsed=per_beat, targets=dict(binds[b]), present=room)
-        out[(t, b)] = dict(mood[b])
-        if flow:                                                     # a bystander's beat costs its minutes
-            cond[b] = _condition.spend(cond[b], per_beat, 0.0, mood[b], 1.0 / cap(b))
-        outc[(t, b)] = dict(cond.get(b) or {})
-        hist.setdefault(b, []).append((t, dict(mood[b]), dict(cond.get(b) or {})))
-    reps = {ab: _targets.repeat_count(con, run_id, spk, ab, before_turn=t, view=views.get(spk))
+        _decayed(b, t, per_beat, mood, chs, prof, temp, binds, out, cond, outc, hist, room, flow, cap)
+    # A ROW INSIDE A WINDOW, BEFORE ITS LAST (design v2 s5, gate window-reads): its actor's feeling is read at the
+    # window's end, so here they pass the minutes as the room does
+    if win and int(win.get("close", t)) != t:
+        _decayed(spk, t, per_beat, mood, chs, prof, temp, binds, out, cond, outc, hist, room, flow, cap)
+        return
+    k = dict(con=con, run_id=run_id, t=t, per_beat=per_beat, mood=mood, chs=chs, prof=prof, temp=temp, binds=binds,
+             out=out, notes=notes, cond=cond, outc=outc, hist=hist, views=views, room=room, flow=flow, body=body, cap=cap)
+    if "reads" not in win:                                           # a row recorded before windows: its actor alone
+        _read(spk, applied, tags.get("exertion"), **k)
+    for x, x_applied in sorted((win.get("reads") or {}).items()):   # every participant of the window, at its end
+        _read(x, x_applied, (x_applied or {}).get("exertion"), **k)
+
+
+def _decayed(c, t, per_beat, mood, chs, prof, temp, binds, out, cond, outc, hist, room, flow, cap):
+    """Decay only over the beat's minutes, on their own binds - a bystander's beat, and a window row's actor's."""
+    mood[c] = decay(mood[c], temp[c], prof[c], elapsed=per_beat, targets=dict(binds[c]), present=room)
+    out[(t, c)] = dict(mood[c])
+    if flow:                                                         # a bystander's beat costs its minutes
+        cond[c] = _condition.spend(cond[c], per_beat, 0.0, mood[c], 1.0 / cap(c))
+    outc[(t, c)] = dict(cond.get(c) or {})
+    hist.setdefault(c, []).append((t, dict(mood[c]), dict(cond.get(c) or {})))
+
+
+def _read(c, applied, exertion, con, run_id, t, per_beat, mood, chs, prof, temp, binds, out, notes, cond, outc, hist,
+          views, room, flow, body, cap):
+    """One character's read beat: decay, then the receipt from their logged readings at `t` (or, with none, `appraise`
+    on `applied`), the condition, the binds by rules 1-5, and their wound and arc rows at `t` folded on."""
+    rs = [Reading(path=r[2], rung=r[3], about=r[4] or "", confidence=r[5])
+          for r in _readings.readings_for(con, run_id, c) if int(r[0]) == t]
+    before = dict(binds[c])
+    mid = _targets.bind_readings(before, rs, me=c) if rs else _targets.retarget(before, applied, me=c)
+    rested = decay(mood[c], temp[c], prof[c], elapsed=per_beat, targets=before, present=room)
+    reps = {ab: _targets.repeat_count(con, run_id, c, ab, before_turn=t, view=views.get(c))
             for ab in {str(v) for v in mid.values() if v}}
     if rs:
-        mood[spk], impact = receive(rested, rs, prof[spk], targets=mid, repeats=reps, present=room)
+        mood[c], impact = receive(rested, rs, prof[c], targets=mid, repeats=reps, present=room)
     else:
-        mood[spk] = appraise(rested, applied, prof[spk], targets=mid, repeats=reps, present=room)
-        impact = sum(abs(mood[spk][p] - rested[p]) for p in PATHS)
-    if flow:                                                         # the speaker's beat costs minutes AND impact
-        cond[spk] = _condition.spend(cond[spk], per_beat, impact, mood[spk], 1.0 / cap(spk))
+        mood[c] = appraise(rested, applied, prof[c], targets=mid, repeats=reps, present=room)
+        impact = sum(abs(mood[c][p] - rested[p]) for p in PATHS)
+    if flow:                                                         # the reader's beat costs minutes AND impact
+        cond[c] = _condition.spend(cond[c], per_beat, impact, mood[c], 1.0 / cap(c))
         if body:                                                     # the act, from the reader's logged word
-            cond[spk] = _body.exert(cond[spk], tags.get("exertion"), per_beat, cap(spk))
-    outc[(t, spk)] = dict(cond.get(spk) or {})
-    binds[spk] = _targets.bind_readings(mid, [], temperament=temp[spk], affect=mood[spk])    # rule 5 last
-    logged = dict(_targets.replay({"current": {"targets": {}}}, _targets.binds_for(con, run_id, spk, before_turn=t + 1,
-                                                                                 view=views.get(spk))))
-    if {k: v for k, v in binds[spk].items() if v} != {k: v for k, v in logged.items() if v}:
-        notes.append("turn %d %s: the replayed binds %r differ from the log's %r" % (t, spk, binds[spk], logged))
-    out[(t, spk)] = dict(mood[spk])
-    hist.setdefault(spk, []).append((t, dict(mood[spk]), dict(cond.get(spk) or {})))
+            cond[c] = _body.exert(cond[c], exertion, per_beat, cap(c))
+    outc[(t, c)] = dict(cond.get(c) or {})
+    binds[c] = _targets.bind_readings(mid, [], temperament=temp[c], affect=mood[c])    # rule 5 last
+    logged = dict(_targets.replay({"current": {"targets": {}}}, _targets.binds_for(con, run_id, c, before_turn=t + 1,
+                                                                                 view=views.get(c))))
+    if {k: v for k, v in binds[c].items() if v} != {k: v for k, v in logged.items() if v}:
+        notes.append("turn %d %s: the replayed binds %r differ from the log's %r" % (t, c, binds[c], logged))
+    out[(t, c)] = dict(mood[c])
+    hist.setdefault(c, []).append((t, dict(mood[c]), dict(cond.get(c) or {})))
     moved = con.execute("SELECT 1 FROM wound_deltas WHERE run_id = ? AND char_id = ? AND turn = ? UNION ALL "
                         "SELECT 1 FROM wound_minted WHERE run_id = ? AND char_id = ? AND turn = ?",
-                        (run_id, spk, t, run_id, spk, t)).fetchone()
+                        (run_id, c, t, run_id, c, t)).fetchone()
     if moved:                                                        # after the commit, as the driver
-        passage.fold_wounds(con, run_id, spk, chs[spk], before_turn=t + 1, view=views.get(spk))
-        prof[spk] = build_profile(chs[spk])
-    diff = con.execute("SELECT diff FROM arc_diffs WHERE run_id = ? AND char_id = ? AND turn = ?", (run_id, spk, t)).fetchone()
+        passage.fold_wounds(con, run_id, c, chs[c], before_turn=t + 1, view=views.get(c))
+        prof[c] = build_profile(chs[c])
+    diff = con.execute("SELECT diff FROM arc_diffs WHERE run_id = ? AND char_id = ? AND turn = ?", (run_id, c, t)).fetchone()
     if diff:
-        chs[spk] = arc.apply(chs[spk], _json.loads(diff[0]))
-        prof[spk], temp[spk] = build_profile(chs[spk]), chs[spk]["baseline"]["temperament"]
+        chs[c] = arc.apply(chs[c], _json.loads(diff[0]))
+        prof[c], temp[c] = build_profile(chs[c]), chs[c]["baseline"]["temperament"]
 
 
 def divergence(con, run_id, sheets):

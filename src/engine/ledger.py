@@ -194,6 +194,7 @@ class Ledger:
                 # after the turn is a write a crash can lose with no replay to recover it.
                 _readings.write_lands_on(self.con, commit.run_id, commit.turn, commit.actor, commit.lands_on)
                 _wound.write_mints(self.con, commit.run_id, commit.turn, commit.actor, commit.wound_mints)
+                _readings.write_readers(self.con, commit.run_id, commit.turn, commit.readers)   # gate window-reads
                 for wd in commit.wound_deltas:
                     self.con.execute(
                         "INSERT INTO wound_deltas (run_id, char_id, turn, wound_id, delta, kind, source) "
