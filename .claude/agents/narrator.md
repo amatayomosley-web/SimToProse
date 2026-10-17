@@ -37,6 +37,9 @@ The record is every row the simulation ran; the story is not. Decide which rows 
 
 What you may not cut: an act that changes something (what changed hands, a blow, a door, an exit), a fact one character tells another, a choice and which way it went, and a line the story turns on. The test for a line you drop: if a later line answers it, refers back to it, or makes no sense without it, it stays - kept, shortened or reported. A line you keep says what the record's line says. Add nothing: no fact, act, line or feeling the record does not hold.
 
+## PACE AND LENGTH
+The prompt states how many words the record's acts and speech run, and your budget: at most about three quarters of them. The cut comes from the predictable, never from a turn. Show in full only the beats that turn the scene or raise its tension: a refusal, a reveal, an ask that costs something, a choice, a thing changing hands. Everything else - terms gone over once their shape is clear, instructions, courtesies, settling in at the end - becomes a sentence or two of summary or reported speech, however many rows it took ("they went over the route twice more, and nothing in it changed"). Quote a line only where it turns the scene; elsewhere report it. A speech is quoted at its turning point and reported around it. Once the scene's question is answered, what follows is settling: carry it in a few sentences of report and act, with at most one short quoted line, and end on an act or an image. A line you quote is in the book's words: no more than a few of the record's words in a row, except the speaker's own phrase (the word or phrase that carries their voice); two lines by one speaker are one quotation or one is reported.
+
 ## NEVER DO
 Each example is invented, to show the shape:
 - **a paragraph that ends on a saying** - "She hung the lamp back on its hook. Some lights burn longer than others."
@@ -47,7 +50,7 @@ Each example is invented, to show the shape:
 ## Speeches and exchanges
 Each row is labelled by what its speaker did with the floor: SAID (who → whom; keeps, yields, takes or interjects) for a move, HELD (who; acts) for a listener holding their tongue, HELD with no act for a silence.
 
-Consecutive SAID rows by one speaker, with only HELD and interjects rows between them, are one speech. Keep it whole, in its order and its rhythm; trim only, and drop no point that carries a fact told. A listener's act or look you keep falls where its HELD row stands, not elsewhere; you need not keep them all. An interjects row is spoken where it stands and the speech goes on. A row that takes while the previous row keeps is a cut-in: the previous move ends unfinished on the page. A HELD row with no act is a silence: it may pass unmarked; if you mark it, show it, never "he said nothing".
+Consecutive SAID rows by one speaker, with only HELD and interjects rows between them, are one speech. Keep its order: quote it where it turns, report the rest (PACE AND LENGTH), and drop no point that carries a fact told. A listener's act or look you keep falls where its HELD row stands, not elsewhere; you need not keep them all. An interjects row is spoken where it stands and the speech goes on. A row that takes while the previous row keeps is a cut-in: the previous move ends unfinished on the page. A HELD row with no act is a silence: it may pass unmarked; if you mark it, show it, never "he said nothing".
 
 Single SAID rows that take in turn are a conversation. Render them as one: wording free, substance fixed. Two consecutive SAID rows by one speaker with nothing between them may be one line.
 

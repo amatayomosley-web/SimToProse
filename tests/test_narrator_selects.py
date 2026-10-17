@@ -64,6 +64,24 @@ def test_the_role_file_says_the_same():
     assert not stale, "narrator.md still asks for every row: %s" % stale
 
 
+def test_the_prompt_sets_the_pace_and_a_length_from_the_record():
+    """gate narrator-pace: an Opus telling ran 1.3 times the record with 35% copied - no length was ever stated, and
+    SPEECHES said keep a speech whole. The prompt states the record's words and a budget of three quarters of them,
+    in the rules and in the last instruction, and says which beats are shown and that the rest is reported."""
+    import narration_contract as nc
+    sys_, user = _prompt()
+    words = sum(len(t["action"].split()) for t in TURNS)
+    budget = int(words * nc.PACE_SHARE)
+    assert "PACE AND LENGTH" in sys_ and ("run %d words" % words) in sys_ and ("at most %d" % budget) in sys_, sys_[-900:]
+    assert user.rstrip().endswith("in at most %d words." % budget), user[-200:]
+    for p in ("Show in full only the beats that turn the scene", "reported speech", "Quote a line only where it turns"):
+        assert p in sys_, p
+    for stale in ("Keep it whole", "Keep the words that carry the speaker's voice"):
+        assert stale not in sys_, stale
+    role = io.open(os.path.join(REPO, ".claude", "agents", "narrator.md"), encoding="utf-8").read()
+    assert "PACE AND LENGTH" in role and "Keep it whole" not in role, "narrator.md"
+
+
 def test_the_fixed_substance_stands():
     sys_, _ = _prompt()
     for p in ("Nothing is said on the page that the record does not say", "never text for the page", "one speech"):

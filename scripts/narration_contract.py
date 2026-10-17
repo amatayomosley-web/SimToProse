@@ -31,11 +31,12 @@ SOURCE = (
     "every claim, order, question, refusal, name and amount a character put into words, and the stance it "
     "was said with. Nothing is said on the page that the record does not say. Nothing one character told "
     "another vanishes: it may be shortened, reported ('she told him where the key was kept: under the "
-    "step') or summarized, but the reader receives it. FREE, and expected to change: the WORDING of speech. "
+    "step') or summarized, but the reader receives it - reported is the usual way. FREE, and expected to change: "
+    "the WORDING of speech. "
     "A recorded line is the actor's draft of what the character said. Write the line the character would "
-    "say in this book's voice - shorter, split, merged, paraphrased, or reported. Keep the words that carry "
-    "the speaker's voice (their idiom, oaths, forms of address, the one phrase that is theirs); free the "
-    "rest. Do not copy a recorded speech onto the page. Also free: the order of sentences inside one turn; "
+    "say in this book's voice - shorter, split, merged, paraphrased, or reported. When you quote a line, keep "
+    "in it the word or phrase that carries the speaker's voice (an idiom, an oath, a form of address) and free "
+    "the rest; most lines you will not quote at all (PACE AND LENGTH). Do not copy a recorded speech onto the page. Also free: the order of sentences inside one turn; "
     "which beats you dramatize and which you summarize; repetition - a gesture or an order the record "
     "repeats appears once unless the repetition means something; and the actor's own descriptions (its "
     "similes, its 'as if') - the gesture is the fact, the actor's phrasing of it is not.")
@@ -52,6 +53,31 @@ SELECTION = (
     "choice and which way it went, and a line the story turns on. The test for a line you drop: if a later line "
     "answers it, refers back to it, or makes no sense without it, it stays - kept, shortened or reported. A line "
     "you keep says what the record's line says. Add nothing: no fact, act, line or feeling the record does not hold.")
+# PACE AND LENGTH (gate narrator-pace, 2026-10-17): with the selection rule in place an Opus telling still ran 1.3 times
+# the record's words with 35% copied - nothing stated a length, and the speech rules kept lines whole. The author's pace
+# (B): show in full what turns the scene, report what the reader can predict. The budget is the record's words times
+# PACE_SHARE (his hand-written B sample of the same scene ran 0.77 of its record).
+PACE_SHARE = 0.75
+PACE = (
+    "PACE AND LENGTH. The record's acts and speech run %(words)d words; your telling runs at most %(budget)d, about "
+    "three quarters of the record, and the cut comes from the predictable, never from a turn. Show in full only the "
+    "beats that turn the scene or raise its tension: a refusal, a reveal, an ask that costs something, a choice, a "
+    "thing changing hands. Everything else - terms gone over once their shape is clear, instructions, courtesies, "
+    "settling in at the end - becomes a sentence or two of summary or reported speech, however many rows it took "
+    "('they went over the route twice more, and nothing in it changed'). Quote a line only where it turns the scene; "
+    "elsewhere report it. A speech is quoted at its turning point and reported around it. Once the scene's question "
+    "is answered, what follows is settling: carry it in a few sentences of report and act, with at most one short "
+    "quoted line, and end on an act or an image. A line you quote is in the book's words: no more than a few of the "
+    "record's words in a row, except the speaker's own phrase; two lines by one speaker are one quotation or one is "
+    "reported.")
+
+
+def pace(words):
+    """The record's act-and-speech word count -> (the PACE rule, the budget) for the narration prompt."""
+    budget = max(1, int(words * PACE_SHARE))
+    return PACE % {"words": words, "budget": budget}, budget
+
+
 NEVER_DO = (
     "NEVER DO (each example is invented, to show the shape): a paragraph that ends on a saying ('She hung the lamp "
     "back on its hook. Some lights burn longer than others.'); explaining the subtext you just showed ('She kept her eyes "
@@ -85,7 +111,8 @@ LEGACY_FLAG = " · long move, recorded before floor words; break it"
 # before floor words (floor ''), whose flag still reads "break it": an old scene renders as it did.
 SPEECHES = (
     "SPEECHES. Consecutive SAID rows by one speaker, with only HELD and interjects rows between them, are one speech. "
-    "Keep it whole, in its order and its rhythm; trim only, and drop no point that carries a fact told. A listener's "
+    "Keep its order: quote it where it turns, report the rest (PACE AND LENGTH), and drop no point that carries a "
+    "fact told. A listener's "
     "act or look you keep falls where its HELD row stands, not elsewhere; you need not keep them all. An interjects "
     "row is spoken where it stands and the speech goes on. A row that takes while the previous row keeps is a cut-in: "
     "the previous move ends unfinished on the page. A HELD row with no act is a silence: it may pass unmarked; if "

@@ -219,7 +219,10 @@ def build_narration_prompt(turns, pov, world, pov_name=None, retrospective=False
     povn = pov_name or pov
     names = dict(names or {})
     names.setdefault(pov, povn)
-    legend, transcript = _contract.transcript(pov_split(turns, pov, knowledge), pov, povn, names, knowledge)
+    split = pov_split(turns, pov, knowledge)
+    legend, transcript = _contract.transcript(split, pov, povn, names, knowledge)
+    # the telling's length, from the record the narrator is shown (gate narrator-pace)
+    pace_rule, budget = _contract.pace(sum(len(str(e.get("action") or "").split()) for e in split))
     lens = lens or {}
     if voice not in VOICES:
         raise ValueError("narrate: voice must be one of %s, got %r" % (sorted(VOICES), voice))
@@ -228,6 +231,7 @@ def build_narration_prompt(turns, pov, world, pov_name=None, retrospective=False
         "one recorded scene becomes %s. The POV character is %s." % (VOICES[voice], povn),
         _contract.SOURCE,
         _contract.SELECTION,                     # the novelist keeps what the story needs (gate narrator-compression)
+        pace_rule,                               # what is shown in full, what is reported, and how long (narrator-pace)
     ]
     if knowledge == "omniscient":
         parts.append(
@@ -274,9 +278,9 @@ def build_narration_prompt(turns, pov, world, pov_name=None, retrospective=False
             "Tell it in real time — the narrator knows only up to this moment, no foreshadowing.")
     user_msg = (
         "WORLD: %s\n\n%s%s\n%s\n\n%s\n\n"
-        "Render this scene as a passage of %s from %s's point of view."
+        "Render this scene as a passage of %s from %s's point of view, in at most %d words."
         % (str(world.get("world", "")), _context_block(povn, setting, background), legend, transcript, when,
-           VOICES[voice], povn))
+           VOICES[voice], povn, budget))
     return [{"role": "system", "content": sys_msg}, {"role": "user", "content": user_msg}]
 
 
